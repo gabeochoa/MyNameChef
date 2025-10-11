@@ -1,0 +1,40 @@
+**/x64/Debug/*
+**/x64/.vs/*
+*.dSYM
+.cache/
+.DS_Store
+**/.vs
+game.obj
+WinPharmaSea/**/
+pharmasea/WinPharmaSea/**/
+pharmasea.exe
+.obsidian/
+release/*
+*.o
+*.d
+cppcheck_err
+*.gcno
+*.gcov
+!/lib*.dylib
+a.out
+release*
+recording.trace/
+output/
+.vscode/
+# until they are used in the project, hiding the kennynl folder
+art_storage/*
+*.exe
+build/*
+.xmake/*
+settings.json
+.watchman*
+TODO.md 
+resources/sounds/possibles/*
+tools/dependency_graph
+
+# Profiling data files
+*.spall
+
+# ClangBuildAnalyzer output files
+build-analysis.html
+build-analysis.txt
