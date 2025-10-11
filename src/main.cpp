@@ -12,6 +12,7 @@ backward::SignalHandling sh;
 #include "game_state_manager.h"
 #include "preload.h"
 #include "settings.h"
+#include "shop.h"
 #include "sound_systems.h"
 #include "systems/begin_post_processing_shader.h"
 #include "systems/mark_entities_with_shaders.h"
@@ -69,6 +70,7 @@ void game() {
     systems.register_update_system([&](float) {
       if (create_startup) {
         create_startup = false;
+        make_shop_manager();
       }
     });
 
