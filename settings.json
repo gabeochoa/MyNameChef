@@ -1,0 +1,14 @@
+{
+    "audio": {
+        "master_volume": 0.02575782686471939,
+        "music_volume": 0.6917187571525574,
+        "sfx_volume": 0.3560938835144043
+    },
+    "fullscreen_enabled": false,
+    "language": "English",
+    "post_processing_enabled": true,
+    "resolution": {
+        "height": 720,
+        "width": 1280
+    }
+}
