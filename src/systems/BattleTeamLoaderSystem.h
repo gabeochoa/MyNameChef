@@ -3,6 +3,8 @@
 #include "../components/battle_load_request.h"
 #include "../components/battle_team_tags.h"
 #include "../components/is_dish.h"
+#include "../components/is_inventory_item.h"
+#include "../components/render_order.h"
 #include "../components/transform.h"
 #include "../dish_types.h"
 #include "../game_state_manager.h"
@@ -10,7 +12,9 @@
 #include <afterhours/ah.h>
 #include <filesystem>
 #include <fstream>
+#include <magic_enum/magic_enum.hpp> // For enum string conversion
 #include <nlohmann/json.hpp>
+#include <random>
 
 struct BattleTeamLoaderSystem : afterhours::System<> {
   bool loaded = false;
@@ -21,31 +25,36 @@ struct BattleTeamLoaderSystem : afterhours::System<> {
   }
 
   void once(float) override {
-    auto battleRequest = afterhours::EntityHelper::get_singleton<BattleLoadRequest>();
+    auto battleRequest =
+        afterhours::EntityHelper::get_singleton<BattleLoadRequest>();
     if (!battleRequest.get().has<BattleLoadRequest>()) {
       log_error("No BattleLoadRequest found");
       return;
     }
 
     auto &request = battleRequest.get().get<BattleLoadRequest>();
-    
+
     // Load player team
     if (!request.playerJsonPath.empty()) {
       load_team_from_json(request.playerJsonPath, true);
     }
-    
+
     // Load opponent team
     if (!request.opponentJsonPath.empty()) {
       load_team_from_json(request.opponentJsonPath, false);
     }
-    
+
     request.loaded = true;
     loaded = true;
+
+    // Merge entities so they can be found by rendering systems
+    afterhours::EntityHelper::merge_entity_arrays();
+
     log_info("Battle teams loaded successfully");
   }
 
 private:
-  void load_team_from_json(const std::string& jsonPath, bool isPlayer) {
+  void load_team_from_json(const std::string &jsonPath, bool isPlayer) {
     if (!std::filesystem::exists(jsonPath)) {
       log_warn("JSON file does not exist: {}", jsonPath);
       if (isPlayer) {
@@ -67,7 +76,7 @@ private:
     nlohmann::json json;
     try {
       file >> json;
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
       log_error("Failed to parse JSON file {}: {}", jsonPath, e.what());
       return;
     }
@@ -77,10 +86,10 @@ private:
       return;
     }
 
-    const auto& team = json["team"];
+    const auto &team = json["team"];
     for (size_t i = 0; i < team.size(); ++i) {
-      const auto& dishEntry = team[i];
-      
+      const auto &dishEntry = team[i];
+
       if (!dishEntry.contains("slot") || !dishEntry.contains("dishType")) {
         log_warn("Skipping invalid dish entry at index {}", i);
         continue;
@@ -88,7 +97,7 @@ private:
 
       int slot = dishEntry["slot"];
       std::string dishTypeStr = dishEntry["dishType"];
-      
+
       // Convert string to DishType
       auto dishTypeOpt = magic_enum::enum_cast<DishType>(dishTypeStr);
       if (!dishTypeOpt.has_value()) {
@@ -103,10 +112,7 @@ private:
   void create_fallback_opponent_team() {
     log_info("Creating fallback opponent team");
     std::vector<DishType> fallbackDishes = {
-      DishType::GarlicBread,
-      DishType::TomatoSoup,
-      DishType::GrilledCheese
-    };
+        DishType::GarlicBread, DishType::TomatoSoup, DishType::GrilledCheese};
 
     for (size_t i = 0; i < fallbackDishes.size(); ++i) {
       create_battle_dish_entity(fallbackDishes[i], (int)i, false);
@@ -115,29 +121,65 @@ private:
 
   void create_battle_dish_entity(DishType dishType, int slot, bool isPlayer) {
     auto &entity = afterhours::EntityHelper::createEntity();
-    
+
     // Calculate position based on team and slot
     float x, y;
     if (isPlayer) {
-      x = 120.0f + slot * 100.0f;  // Left side, spaced 100px apart
-      y = 420.0f;  // Bottom row
+      x = 120.0f + slot * 100.0f; // Left side, spaced 100px apart
+      y = 420.0f;                 // Bottom row
     } else {
-      x = 960.0f + slot * 100.0f;  // Right side, spaced 100px apart  
-      y = 220.0f;  // Top row
+      x = 960.0f + slot * 100.0f; // Right side, spaced 100px apart
+      y = 220.0f;                 // Top row
     }
 
     // Add components
-    entity.addComponent<Transform>(afterhours::vec2{x, y}, afterhours::vec2{80.0f, 80.0f});
+    entity.addComponent<Transform>(afterhours::vec2{x, y},
+                                   afterhours::vec2{80.0f, 80.0f});
     entity.addComponent<IsDish>(dishType);
-    
+    entity.addComponent<HasRenderOrder>(RenderOrder::BattleTeams);
+
     if (isPlayer) {
       entity.addComponent<IsPlayerTeamItem>();
     } else {
       entity.addComponent<IsOpponentTeamItem>();
     }
 
-    log_info("Created {} battle dish: {} at slot {}", 
-             isPlayer ? "player" : "opponent", 
-             magic_enum::enum_name(dishType), slot);
+    log_info("Created {} battle dish: {} at slot {}",
+             isPlayer ? "player" : "opponent", magic_enum::enum_name(dishType),
+             slot);
+  }
+
+  void add_random_dish_to_inventory() {
+    // Array of all available dish types
+    constexpr DishType dish_pool[] = {
+        DishType::GarlicBread,   DishType::TomatoSoup,
+        DishType::GrilledCheese, DishType::ChickenSkewer,
+        DishType::CucumberSalad, DishType::VanillaSoftServe,
+        DishType::CapreseSalad,  DishType::Minestrone,
+        DishType::SearedSalmon,  DishType::SteakFlorentine,
+    };
+
+    // Pick a random dish
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(
+        0, sizeof(dish_pool) / sizeof(dish_pool[0]) - 1);
+    DishType randomDish = dish_pool[dis(gen)];
+
+    // Create the inventory item entity
+    auto &entity = afterhours::EntityHelper::createEntity();
+
+    // Position it in the first inventory slot (slot 100)
+    float x = 100.0f; // First inventory slot X position
+    float y = 500.0f; // Inventory row Y position
+
+    entity.addComponent<Transform>(afterhours::vec2{x, y},
+                                   afterhours::vec2{80.0f, 80.0f});
+    entity.addComponent<IsDish>(randomDish);
+    entity.addComponent<IsInventoryItem>();
+    entity.get<IsInventoryItem>().slot = 100; // First inventory slot
+
+    log_info("Added random dish to inventory: {} at slot 100",
+             magic_enum::enum_name(randomDish));
   }
 };
