@@ -1,12 +1,15 @@
 #pragma once
 
 #include "../components/can_drop_onto.h"
+#include "../components/is_dish.h"
 #include "../components/is_drop_slot.h"
 #include "../components/is_held.h"
 #include "../components/is_inventory_item.h"
 #include "../components/is_shop_item.h"
 #include "../components/transform.h"
+#include "../query.h"
 #include "../rl.h"
+#include "../shop.h"
 #include <afterhours/ah.h>
 #include <limits>
 
@@ -95,13 +98,35 @@ struct DropWhenNoLongerHeld : System<IsHeld, Transform> {
         // Update the item's position to center it on the slot
         entity.get<Transform>().position = slot_center - item_size * 0.5f;
 
-        // Update slot information if needed
-        if (entity.has<IsInventoryItem>()) {
-          entity.get<IsInventoryItem>().slot =
-              best_drop_slot->get<IsDropSlot>().slot_id;
-        } else if (entity.has<IsShopItem>()) {
-          entity.get<IsShopItem>().slot =
-              best_drop_slot->get<IsDropSlot>().slot_id;
+        // Handle purchasing logic for shop items dropped into inventory
+        if (entity.has<IsShopItem>() && best_drop_slot->get<IsDropSlot>().accepts_inventory_items) {
+          // This is a shop item being dropped into an inventory slot - purchase it
+          auto &dish = entity.get<IsDish>();
+          auto wallet_entity = EntityHelper::get_singleton<Wallet>();
+          
+          if (wallet_entity.get().has<Wallet>() && wallet_entity.get().get<Wallet>().gold >= dish.price) {
+            // Deduct cost from wallet
+            wallet_entity.get().get<Wallet>().gold -= dish.price;
+            
+            // Remove IsShopItem component and add IsInventoryItem
+            entity.removeComponent<IsShopItem>();
+            entity.addComponent<IsInventoryItem>();
+            entity.get<IsInventoryItem>().slot = best_drop_slot->get<IsDropSlot>().slot_id;
+          } else {
+            // Not enough gold - snap back to original position
+            entity.get<Transform>().position = held.original_position;
+            entity.removeComponent<IsHeld>();
+            return;
+          }
+        } else {
+          // Regular slot assignment
+          if (entity.has<IsInventoryItem>()) {
+            entity.get<IsInventoryItem>().slot =
+                best_drop_slot->get<IsDropSlot>().slot_id;
+          } else if (entity.has<IsShopItem>()) {
+            entity.get<IsShopItem>().slot =
+                best_drop_slot->get<IsDropSlot>().slot_id;
+          }
         }
 
         // Mark the slot as occupied
@@ -174,13 +199,9 @@ struct DropWhenNoLongerHeld : System<IsHeld, Transform> {
 
           // Find and update the original slot's occupied state
           if (original_slot_id >= 0) {
-            for (auto &ref :
-                 EntityQuery().whereHasComponent<IsDropSlot>().gen()) {
-              auto &slot_entity = ref.get();
-              if (slot_entity.get<IsDropSlot>().slot_id == original_slot_id) {
-                slot_entity.get<IsDropSlot>().occupied = true;
-                break;
-              }
+            auto original_slot = EQ().whereHasComponent<IsDropSlot>().whereSlotID(original_slot_id).gen_first();
+            if (original_slot) {
+              original_slot->get<IsDropSlot>().occupied = true;
             }
           }
         }

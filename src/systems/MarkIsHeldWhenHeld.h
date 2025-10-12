@@ -25,8 +25,8 @@ private:
   }
 
   void mark_slot_unoccupied(int slot_id) {
-    auto slot_entity = 
-         EQ().whereHasComponent<IsDropSlot>().whereSlotID(slot_id).gen_first();
+    auto slot_entity =
+        EQ().whereHasComponent<IsDropSlot>().whereSlotID(slot_id).gen_first();
     if (slot_entity) {
       slot_entity->get<IsDropSlot>().occupied = false;
     }
