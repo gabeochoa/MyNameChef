@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../components/render_order.h"
 #include "../components/has_shader.h"
+#include "../components/render_order.h"
 #include "../components/transform.h"
 #include "../game_state_manager.h"
 #include "../shader_library.h"
@@ -33,16 +33,28 @@ struct RenderSpritesWithShaders
   mutable vec2 last_resolution = {0, 0};
 
   virtual void
-  for_each_with(const Entity & /* entity */, const Transform &transform,
+  for_each_with(const Entity &entity, const Transform &transform,
                 const afterhours::texture_manager::HasSprite &hasSprite,
                 const HasShader &hasShader, const HasColor &hasColor,
                 const HasRenderOrder &render_order, float) const override {
     // Check if this entity should render on the current screen
     auto &gsm = GameStateManager::get();
     RenderScreen current_screen = get_current_render_screen(gsm);
-    
+
     if (!render_order.should_render_on_screen(current_screen)) {
       return;
+    }
+
+    // If this is a battle dish entity, skip here so RenderBattleTeams
+    // is the single renderer to avoid double-draw.
+    if (entity.has<DishBattleState>()) {
+      if (gsm.active_screen == GameStateManager::Screen::Battle ||
+          gsm.active_screen == GameStateManager::Screen::Results) {
+        log_info("SHADER SPRITE RENDER: Skipping battle entity {} (handled by "
+                 "RenderBattleTeams)",
+                 entity.id);
+        return;
+      }
     }
 
     // Collect entity data for batching instead of rendering immediately
@@ -69,16 +81,16 @@ struct RenderSpritesWithShaders
 private:
   RenderScreen get_current_render_screen(const GameStateManager &gsm) const {
     switch (gsm.active_screen) {
-      case GameStateManager::Screen::Shop:
-        return RenderScreen::Shop;
-      case GameStateManager::Screen::Battle:
-        return RenderScreen::Battle;
-      case GameStateManager::Screen::Results:
-        return RenderScreen::Results;
-      case GameStateManager::Screen::Main:
-      case GameStateManager::Screen::Settings:
-      default:
-        return RenderScreen::All; // Default to all screens for other screens
+    case GameStateManager::Screen::Shop:
+      return RenderScreen::Shop;
+    case GameStateManager::Screen::Battle:
+      return RenderScreen::Battle;
+    case GameStateManager::Screen::Results:
+      return RenderScreen::Results;
+    case GameStateManager::Screen::Main:
+    case GameStateManager::Screen::Settings:
+    default:
+      return RenderScreen::All; // Default to all screens for other screens
     }
   }
 

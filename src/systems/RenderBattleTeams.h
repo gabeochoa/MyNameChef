@@ -27,18 +27,24 @@ struct RenderBattleTeams : afterhours::System<Transform, IsDish> {
     const auto &dbs = entity.get<DishBattleState>();
     bool isPlayer = dbs.team_side == DishBattleState::TeamSide::Player;
 
-    // Only render entities that are in appropriate phases for the current screen
+    // Only render entities that are in appropriate phases for the current
+    // screen
     auto &gsm = GameStateManager::get();
     if (gsm.active_screen == GameStateManager::Screen::Battle) {
       // On battle screen, only show InQueue and Presenting phases
       if (dbs.phase == DishBattleState::Phase::Judged) {
+        log_info("BATTLE RENDER: Skipping entity {} (Judged phase)", entity.id);
         return;
       }
+      // debug logging removed
     } else if (gsm.active_screen == GameStateManager::Screen::Results) {
       // On results screen, show all phases (including Judged)
-      // No filtering needed
+      // debug logging removed
     } else {
       // On other screens, don't render battle entities
+      log_info(
+          "OTHER SCREEN RENDER: Skipping entity {} (not battle/results screen)",
+          entity.id);
       return;
     }
 

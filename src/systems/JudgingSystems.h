@@ -62,6 +62,9 @@ struct AdvanceJudging : afterhours::System<JudgingState> {
         s.phase_progress =
             std::min(1.0f, s.phase_progress + dt / present_duration);
         if (s.phase_progress >= 1.0f) {
+          log_info(
+              "JUDGING: Entity {} finished presenting, moving to Judged phase",
+              e.id);
           s.phase = DishBattleState::Phase::Judged;
         }
       }
@@ -88,6 +91,12 @@ struct AdvanceJudging : afterhours::System<JudgingState> {
                            .gen_first();
           if (first) {
             auto &s = first->get<DishBattleState>();
+            log_info("JUDGING: Starting presentation for entity {} - Side: {}, "
+                     "Slot: {}",
+                     first->id,
+                     side == DishBattleState::TeamSide::Player ? "Player"
+                                                               : "Opponent",
+                     s.queue_index);
             s.phase = DishBattleState::Phase::Presenting;
             s.phase_progress = 0.0f;
             return true;

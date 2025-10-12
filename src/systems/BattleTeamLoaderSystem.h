@@ -143,6 +143,10 @@ private:
       y = 500.0f;
     }
 
+    log_info("BATTLE CREATE: Creating entity {} - Dish: {}, Player: {}, Slot: "
+             "{}, Pos: ({}, {})",
+             entity.id, magic_enum::enum_name(dishType), isPlayer, slot, x, y);
+
     // Add components
     entity.addComponent<Transform>(afterhours::vec2{x, y},
                                    afterhours::vec2{80.0f, 80.0f});
