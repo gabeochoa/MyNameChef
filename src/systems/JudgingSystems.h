@@ -24,6 +24,8 @@ struct InitJudgingState : afterhours::System<JudgingState> {
     js.opponent_total = 0;
     js.complete = false;
     js.timer = 0.0f;
+    js.post_complete_elapsed = 0.0f;
+    js.transitioned = false;
   }
 };
 
