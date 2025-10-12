@@ -26,6 +26,7 @@ backward::SignalHandling sh;
 #include "systems/RenderRenderTexture.h"
 #include "systems/RenderSpritesWithShaders.h"
 #include "systems/RenderSystemHelpers.h"
+#include "systems/RenderWalletHUD.h"
 #include "systems/TagShaderRender.h"
 #include "systems/UpdateRenderTexture.h"
 #include "systems/UpdateSpriteTransform.h"
@@ -103,6 +104,7 @@ void game() {
         texture_manager::register_render_systems(systems);
         systems.register_render_system(
             std::make_unique<RenderSpritesWithShaders>());
+        systems.register_render_system(std::make_unique<RenderWalletHUD>());
         systems.register_render_system(std::make_unique<EndCameraMode>());
         // (UI moved to pass 2 so it is after tag shader)
       }
