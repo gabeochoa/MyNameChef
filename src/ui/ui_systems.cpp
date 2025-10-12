@@ -338,10 +338,7 @@ Screen ScheduleMainMenuUI::battle_screen(Entity &entity,
   // Create Skip to Results button
   button_labeled<InputAction>(
       context, top_left.ent(), "Skip to Results",
-      []() {
-        GameStateManager::get().to_results();
-      },
-      0);
+      []() { GameStateManager::get().to_results(); }, 0);
 
   return GameStateManager::get().next_screen.value_or(
       GameStateManager::get().active_screen);

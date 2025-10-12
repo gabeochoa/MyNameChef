@@ -14,12 +14,12 @@
 
 /**
  * ExportMenuSnapshotSystem - Exports player inventory to battle format
- * 
+ *
  * This system:
  * - Queries all inventory dishes
  * - Exports them to JSON format for battle loading
  * - Creates or updates BattleLoadRequest singleton for battle system
- * 
+ *
  * Handles singleton reuse to prevent crashes on multiple battles.
  */
 class ExportMenuSnapshotSystem {
@@ -96,22 +96,28 @@ public:
       request.opponentJsonPath = "resources/battles/opponent_sample.json";
 
       // Check if singleton already exists and update it, or create new one
-      const auto componentId = afterhours::components::get_type_id<BattleLoadRequest>();
-      bool singletonExists = afterhours::EntityHelper::get().singletonMap.contains(componentId);
+      const auto componentId =
+          afterhours::components::get_type_id<BattleLoadRequest>();
+      bool singletonExists =
+          afterhours::EntityHelper::get().singletonMap.contains(componentId);
 
       if (singletonExists) {
         // Update existing singleton
-        auto existingRequest = afterhours::EntityHelper::get_singleton<BattleLoadRequest>();
+        auto existingRequest =
+            afterhours::EntityHelper::get_singleton<BattleLoadRequest>();
         if (existingRequest.get().has<BattleLoadRequest>()) {
-          auto &existingBattleRequest = existingRequest.get().get<BattleLoadRequest>();
+          auto &existingBattleRequest =
+              existingRequest.get().get<BattleLoadRequest>();
           existingBattleRequest.playerJsonPath = filename;
-          existingBattleRequest.opponentJsonPath = "resources/battles/opponent_sample.json";
+          existingBattleRequest.opponentJsonPath =
+              "resources/battles/opponent_sample.json";
         }
       } else {
         // Create new singleton
         auto &requestEntity = afterhours::EntityHelper::createEntity();
         requestEntity.addComponent<BattleLoadRequest>(std::move(request));
-        afterhours::EntityHelper::registerSingleton<BattleLoadRequest>(requestEntity);
+        afterhours::EntityHelper::registerSingleton<BattleLoadRequest>(
+            requestEntity);
       }
 
       return filename;

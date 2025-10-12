@@ -35,7 +35,8 @@ struct BattleTeamLoaderSystem : afterhours::System<> {
   }
 
   void once(float) override {
-    auto battleRequest = afterhours::EntityHelper::get_singleton<BattleLoadRequest>();
+    auto battleRequest =
+        afterhours::EntityHelper::get_singleton<BattleLoadRequest>();
 
     if (!battleRequest.get().has<BattleLoadRequest>()) {
       log_error("No BattleLoadRequest found");
