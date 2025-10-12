@@ -10,6 +10,7 @@
 #include "components/transform.h"
 #include "dish_types.h"
 #include "game_state_manager.h"
+#include "render_constants.h"
 #include "systems/GenerateInventorySlots.h"
 #include "systems/GenerateShopSlots.h"
 #include "tooltip.h"
@@ -18,7 +19,6 @@
 #include <magic_enum/magic_enum.hpp>
 #include <memory>
 #include <random>
-#include "render_constants.h"
 
 using namespace afterhours;
 

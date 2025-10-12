@@ -6,13 +6,13 @@
 #include "../components/render_order.h"
 #include "../components/transform.h"
 #include "../dish_types.h"
+#include "../render_constants.h"
 #include "../shop.h"
 #include "../tooltip.h"
 #include <afterhours/ah.h>
 #include <afterhours/src/plugins/color.h>
 #include <afterhours/src/plugins/texture_manager.h>
 #include <magic_enum/magic_enum.hpp>
-#include "../render_constants.h"
 
 using namespace afterhours;
 
