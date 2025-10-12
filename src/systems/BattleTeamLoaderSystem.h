@@ -2,13 +2,14 @@
 
 #include "../components/battle_load_request.h"
 #include "../components/battle_team_tags.h"
+#include "../components/has_tooltip.h"
 #include "../components/is_dish.h"
 #include "../components/is_inventory_item.h"
 #include "../components/render_order.h"
 #include "../components/transform.h"
 #include "../dish_types.h"
 #include "../game_state_manager.h"
-#include "../rl.h"
+#include "../tooltip.h"
 #include <afterhours/ah.h>
 #include <filesystem>
 #include <fstream>
@@ -143,6 +144,8 @@ private:
     } else {
       entity.addComponent<IsOpponentTeamItem>();
     }
+
+    entity.addComponent<HasTooltip>(generate_dish_tooltip(dishType));
 
     log_info("Created {} battle dish: {} at slot {}",
              isPlayer ? "player" : "opponent", magic_enum::enum_name(dishType),

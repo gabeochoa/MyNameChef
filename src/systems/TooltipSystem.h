@@ -1,57 +1,61 @@
 #pragma once
 
 #include "../components/has_tooltip.h"
+#include "../components/render_order.h"
 #include "../components/transform.h"
 #include "../game_state_manager.h"
-#include "../query.h"
 #include "../rl.h"
 #include <afterhours/ah.h>
 #include <map>
 #include <sstream>
 
-struct RenderTooltipSystem : System<> {
+struct RenderTooltipSystem : System<HasRenderOrder, HasTooltip> {
+  GameStateManager::Screen current_screen;
+
 public:
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
     const bool is_playing =
         gsm.current_state == GameStateManager::GameState::Playing;
     const bool on_allowed_screen =
-        gsm.active_screen == GameStateManager::Screen::Shop;
+        gsm.active_screen == GameStateManager::Screen::Shop ||
+        gsm.active_screen == GameStateManager::Screen::Battle;
+    current_screen = gsm.active_screen;
     return is_playing && on_allowed_screen;
   }
 
-  virtual void once(float) const override {
-    Entity *hovered_entity = nullptr;
+  virtual void for_each_with(const Entity &entity,
+                             const HasRenderOrder &render_order,
+                             const HasTooltip &tooltip, float) const override {
 
-    // Check all entities with tooltips to see if any are being hovered
-    for (auto &ref : EQ().whereHasComponent<Transform>()
-                         .whereHasComponent<HasTooltip>()
-                         .gen()) {
-      auto &entity = ref.get();
-      const auto &transform = entity.get<Transform>();
-
-      vec2 mouse_pos = afterhours::input::get_mouse_position();
-      Rectangle entity_rect = transform.rect();
-
-      bool mouse_over = CheckCollisionPointRec(
-          raylib::Vector2{mouse_pos.x, mouse_pos.y},
-          Rectangle{entity_rect.x, entity_rect.y, entity_rect.width,
-                    entity_rect.height});
-
-      if (mouse_over) {
-        hovered_entity = &entity;
-        break;
-      }
-    }
-
-    if (!hovered_entity) {
+    if (render_order.order == RenderOrder::BattleTeams &&
+        current_screen != GameStateManager::Screen::Battle) {
       return;
     }
 
-    const auto &tooltip = hovered_entity->get<HasTooltip>();
+    if (render_order.order == RenderOrder::ShopItems &&
+        current_screen != GameStateManager::Screen::Shop) {
+      return;
+    }
 
-    // Calculate tooltip position (above the entity)
+    if (render_order.order == RenderOrder::InventoryItems &&
+        current_screen != GameStateManager::Screen::Shop) {
+      return;
+    }
+
+    const auto &transform = entity.get<Transform>();
+
     vec2 mouse_pos = afterhours::input::get_mouse_position();
+    Rectangle entity_rect = transform.rect();
+
+    bool mouse_over = CheckCollisionPointRec(
+        raylib::Vector2{mouse_pos.x, mouse_pos.y},
+        Rectangle{entity_rect.x, entity_rect.y, entity_rect.width,
+                  entity_rect.height});
+
+    if (!mouse_over)
+      return;
+
     float tooltip_x = mouse_pos.x + 10; // Offset from mouse
     float tooltip_y = mouse_pos.y - 30; // Above mouse
 

@@ -10,48 +10,17 @@
 #include "components/transform.h"
 #include "dish_types.h"
 #include "game_state_manager.h"
+#include "tooltip.h"
 #include <afterhours/src/plugins/color.h>
 #include <magic_enum/magic_enum.hpp>
 #include <memory>
 #include <random>
-#include <sstream>
 
 using namespace afterhours;
 
 struct ShopItemColor : HasColor {
   ShopItemColor(raylib::Color color) : HasColor(color) {}
 };
-
-// Helper function to generate comprehensive dish tooltip text
-std::string generate_dish_tooltip(DishType dishType) {
-  auto dishInfo = get_dish_info(dishType);
-  std::ostringstream tooltip;
-
-  // Dish name
-  tooltip << "[GOLD]" << dishInfo.name << "\n";
-
-  // Price
-  tooltip << "[CYAN]Price: " << dishInfo.price << " coins\n";
-
-  // Flavor stats
-  tooltip << "Flavor Stats:\n";
-  if (dishInfo.flavor.satiety > 0)
-    tooltip << "[PURPLE]  Satiety: " << dishInfo.flavor.satiety << "\n";
-  if (dishInfo.flavor.sweetness > 0)
-    tooltip << "[YELLOW]  Sweetness: " << dishInfo.flavor.sweetness << "\n";
-  if (dishInfo.flavor.spice > 0)
-    tooltip << "[RED]  Spice: " << dishInfo.flavor.spice << "\n";
-  if (dishInfo.flavor.acidity > 0)
-    tooltip << "[GREEN]  Acidity: " << dishInfo.flavor.acidity << "\n";
-  if (dishInfo.flavor.umami > 0)
-    tooltip << "[BLUE]  Umami: " << dishInfo.flavor.umami << "\n";
-  if (dishInfo.flavor.richness > 0)
-    tooltip << "[ORANGE]  Richness: " << dishInfo.flavor.richness << "\n";
-  if (dishInfo.flavor.freshness > 0)
-    tooltip << "[CYAN]  Freshness: " << dishInfo.flavor.freshness << "\n";
-
-  return tooltip.str();
-}
 
 void make_shop_manager(Entity &sophie) {
   sophie.addComponent<Wallet>();
@@ -67,8 +36,10 @@ Entity &make_shop_item(int slot, DishType type) {
 
   // Position items in a grid layout
   int itemW = 80, itemH = 80, startX = 100, startY = 200, gap = 10;
-  float x = startX + (slot % 4) * (itemW + gap);
-  float y = startY + (slot / 4) * (itemH + gap);
+  int col = slot % 4;
+  int row = slot / 4;
+  float x = static_cast<float>(startX + col * (itemW + gap));
+  float y = static_cast<float>(startY + row * (itemH + gap));
 
   e.addComponent<Transform>(vec2{x, y}, vec2{(float)itemW, (float)itemH});
   e.addComponent<IsDish>(type);
@@ -120,8 +91,10 @@ struct ShopGenerationSystem : System<> {
     // Create drop slots FIRST so they render behind items
     int slotW = 80, slotH = 80, startX = 100, startY = 200, gap = 10;
     for (int i = 0; i < 7; ++i) {
-      float x = startX + (i % 4) * (slotW + gap);
-      float y = startY + (i / 4) * (slotH + gap);
+      int col = i % 4;
+      int row = i / 4;
+      float x = static_cast<float>(startX + col * (slotW + gap));
+      float y = static_cast<float>(startY + row * (slotH + gap));
       make_drop_slot(i, vec2{x, y}, vec2{(float)slotW, (float)slotH}, false,
                      true);
     }
@@ -186,14 +159,7 @@ struct ShopGenerationSystem : System<> {
   }
 
   void add_random_dish_to_inventory() {
-    // Array of all available dish types
-    constexpr DishType dish_pool[] = {
-        DishType::GarlicBread,   DishType::TomatoSoup,
-        DishType::GrilledCheese, DishType::ChickenSkewer,
-        DishType::CucumberSalad, DishType::VanillaSoftServe,
-        DishType::CapreseSalad,  DishType::Minestrone,
-        DishType::SearedSalmon,  DishType::SteakFlorentine,
-    };
+    // Use shared dish_pool from anonymous namespace above
 
     // Pick a random dish
     std::random_device rd;
