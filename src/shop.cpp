@@ -22,8 +22,10 @@ struct ShopItemColor : HasColor {
 
 void make_shop_manager(Entity &sophie) {
   sophie.addComponent<Wallet>();
+  sophie.addComponent<Health>();
   sophie.addComponent<ShopState>();
   EntityHelper::registerSingleton<Wallet>(sophie);
+  EntityHelper::registerSingleton<Health>(sophie);
   EntityHelper::registerSingleton<ShopState>(sophie);
 }
 

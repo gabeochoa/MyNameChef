@@ -11,6 +11,11 @@ struct Wallet : afterhours::BaseComponent {
   int gold = 10;
 };
 
+struct Health : afterhours::BaseComponent {
+  int current = 5;
+  int max = 5;
+};
+
 struct ShopState : afterhours::BaseComponent {
   bool initialized = false;
 };

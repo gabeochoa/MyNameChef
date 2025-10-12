@@ -15,5 +15,16 @@ struct RenderWalletHUD : System<> {
 
     raylib::DrawText(wallet_text.c_str(), 20, 20, static_cast<int>(text_size),
                      raylib::GOLD);
+
+    auto health_entity = EntityHelper::get_singleton<Health>();
+    if (!health_entity.get().has<Health>())
+      return;
+
+    const auto &health = health_entity.get().get<Health>();
+    std::string health_text = std::to_string(health.current) + "/" +
+                              std::to_string(health.max) + " health";
+
+    raylib::DrawText(health_text.c_str(), 20, 50, static_cast<int>(text_size),
+                     raylib::RED);
   }
 };
