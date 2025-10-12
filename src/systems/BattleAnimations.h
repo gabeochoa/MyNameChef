@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../components/battle_team_tags.h"
+#include "../components/dish_battle_state.h"
 #include "../components/is_dish.h"
 #include "../components/transform.h"
 #include "../game_state_manager.h"
@@ -28,6 +29,11 @@ struct TriggerBattleSlideIn : afterhours::System<> {
                          .whereHasComponent<IsDish>()
                          .whereHasComponent<IsPlayerTeamItem>()
                          .whereHasComponent<Transform>()
+                         .whereHasComponent<DishBattleState>()
+                         .whereLambda([&](const afterhours::Entity &e) {
+                           const auto &dbs = e.get<DishBattleState>();
+                           return dbs.phase == DishBattleState::Phase::InQueue;
+                         })
                          .gen()) {
       auto &e = ref.get();
       size_t id = static_cast<size_t>(e.id);
@@ -47,6 +53,11 @@ struct TriggerBattleSlideIn : afterhours::System<> {
                          .whereHasComponent<IsDish>()
                          .whereHasComponent<IsOpponentTeamItem>()
                          .whereHasComponent<Transform>()
+                         .whereHasComponent<DishBattleState>()
+                         .whereLambda([&](const afterhours::Entity &e) {
+                           const auto &dbs = e.get<DishBattleState>();
+                           return dbs.phase == DishBattleState::Phase::InQueue;
+                         })
                          .gen()) {
       auto &e = ref.get();
       size_t id = static_cast<size_t>(e.id);
