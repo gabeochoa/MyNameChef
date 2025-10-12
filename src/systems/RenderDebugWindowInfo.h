@@ -37,7 +37,8 @@ struct RenderDebugWindowInfo
     const auto rez = pCurrentResolution.current_resolution;
     const auto &gsm = GameStateManager::get();
 
-    const int x = pCurrentResolution.width() - 200; // Increased width for more text
+    const int x =
+        pCurrentResolution.width() - 200; // Increased width for more text
     const int y0 = 18;
     const int y1 = 36;
     const int y2 = 54;
@@ -49,11 +50,15 @@ struct RenderDebugWindowInfo
                      y0, font, col);
     raylib::DrawText(fmt::format("game {}x{}", rez.width, rez.height).c_str(),
                      x, y1, font, col);
-    
+
     // Add game state and screen information
-    std::string state_name = std::string(magic_enum::enum_name(gsm.current_state));
-    std::string screen_name = std::string(magic_enum::enum_name(gsm.active_screen));
-    raylib::DrawText(fmt::format("state: {}", state_name).c_str(), x, y2, font, col);
-    raylib::DrawText(fmt::format("screen: {}", screen_name).c_str(), x, y3, font, col);
+    std::string state_name =
+        std::string(magic_enum::enum_name(gsm.current_state));
+    std::string screen_name =
+        std::string(magic_enum::enum_name(gsm.active_screen));
+    raylib::DrawText(fmt::format("state: {}", state_name).c_str(), x, y2, font,
+                     col);
+    raylib::DrawText(fmt::format("screen: {}", screen_name).c_str(), x, y3,
+                     font, col);
   }
 };

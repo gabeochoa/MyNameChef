@@ -12,9 +12,14 @@
 
 struct RenderTooltipSystem : System<> {
 public:
-  virtual bool should_run(float) const override {
+  virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
-    return gsm.current_state == GameStateManager::GameState::Playing;
+    const bool is_playing =
+        gsm.current_state == GameStateManager::GameState::Playing;
+    const bool on_allowed_screen =
+        gsm.active_screen == GameStateManager::Screen::Shop ||
+        gsm.active_screen == GameStateManager::Screen::Battle;
+    return is_playing && on_allowed_screen;
   }
 
   virtual void once(float) const override {
