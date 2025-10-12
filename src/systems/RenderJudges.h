@@ -13,7 +13,6 @@ struct RenderJudges : afterhours::System<> {
   void once(float) override {
     // Draw 3 judge rectangles centered
     float screenWidth = raylib::GetScreenWidth();
-    float screenHeight = raylib::GetScreenHeight();
 
     // Judge dimensions
     float judgeWidth = 60.0f;
@@ -23,8 +22,7 @@ struct RenderJudges : afterhours::System<> {
     // Calculate total width and starting position
     float totalWidth = (judgeWidth * 3) + (judgeSpacing * 2);
     float startX = (screenWidth - totalWidth) / 2.0f;
-    float judgeY =
-        screenHeight / 2.0f - judgeHeight / 2.0f; // Center vertically
+    float judgeY = 320.0f; // Middle row between opponent (150) and player (500)
 
     // Draw the 3 judges
     for (int i = 0; i < 3; ++i) {

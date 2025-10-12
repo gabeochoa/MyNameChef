@@ -126,10 +126,10 @@ private:
     float x, y;
     if (isPlayer) {
       x = 120.0f + slot * 100.0f; // Left side, spaced 100px apart
-      y = 420.0f;                 // Bottom row
+      y = 150.0f;
     } else {
-      x = 960.0f + slot * 100.0f; // Right side, spaced 100px apart
-      y = 220.0f;                 // Top row
+      x = 120.0f + slot * 100.0f; // Left side, spaced 100px apart
+      y = 500.0f;
     }
 
     // Add components
