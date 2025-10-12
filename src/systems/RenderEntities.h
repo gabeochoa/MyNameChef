@@ -11,14 +11,14 @@
 
 struct RenderEntities : System<Transform> {
 
-  virtual bool should_run(float) const override {
+  virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
-    return gsm.active_screen == GameStateManager::Screen::Shop ||
-           gsm.active_screen == GameStateManager::Screen::Battle;
+    return gsm.active_screen == GameStateManager::Screen::Shop;
   }
 
   virtual void for_each_with(const Entity &entity, const Transform &transform,
                              float) const override {
+    // Only runs on Shop; no filtering needed for Battle here
     raylib::Color color = raylib::RAYWHITE;
     if (entity.has_child_of<HasColor>()) {
       color = entity.get_with_child<HasColor>().color();

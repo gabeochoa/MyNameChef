@@ -1,9 +1,15 @@
 #pragma once
 
+#include "../game_state_manager.h"
 #include "../shop.h"
 #include <afterhours/ah.h>
+using namespace afterhours;
 
 struct RenderWalletHUD : System<> {
+  virtual bool should_run(float) override {
+    auto &gsm = GameStateManager::get();
+    return gsm.active_screen == GameStateManager::Screen::Shop;
+  }
   virtual void once(float) const override {
     auto wallet_entity = EntityHelper::get_singleton<Wallet>();
     if (!wallet_entity.get().has<Wallet>())

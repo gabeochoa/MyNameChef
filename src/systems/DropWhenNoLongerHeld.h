@@ -7,6 +7,7 @@
 #include "../components/is_inventory_item.h"
 #include "../components/is_shop_item.h"
 #include "../components/transform.h"
+#include "../game_state_manager.h"
 #include "../query.h"
 #include "../rl.h"
 #include "../shop.h"
@@ -16,6 +17,11 @@
 using namespace afterhours;
 
 struct DropWhenNoLongerHeld : System<IsHeld, Transform> {
+  virtual bool should_run(float) override {
+    auto &gsm = GameStateManager::get();
+    return gsm.active_screen == GameStateManager::Screen::Shop;
+  }
+
 private:
   bool can_drop_item(const Entity &entity, const IsDropSlot &drop_slot) {
     return (entity.has<IsInventoryItem>() &&

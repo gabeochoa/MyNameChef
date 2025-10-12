@@ -11,8 +11,6 @@ struct RenderJudges : afterhours::System<> {
   }
 
   void once(float) override {
-    log_info("RenderJudges system running on battle screen");
-
     // Draw 3 judge rectangles centered
     float screenWidth = raylib::GetScreenWidth();
     float screenHeight = raylib::GetScreenHeight();

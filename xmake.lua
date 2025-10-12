@@ -62,7 +62,6 @@ target("my_name_chef")
     --
     add_files("src/*.cpp")
     add_files("src/components/*.cpp")
-    add_files("src/systems/*.cpp")
     add_files("src/ui/*.cpp")
     --
     add_includedirs("vendor")
@@ -77,7 +76,7 @@ target("my_name_chef")
     -- Enable time tracing for ClangBuildAnalyzer
     add_cxxflags("-ftime-trace")
 
-    after_build(function(target)
-        os.exec("timeout 3 ./output/my_name_chef.exe")
-        -- os.exec("./output/my_name_chef.exe")
-    end)
+    -- after_build(function(target)
+    --     os.exec("timeout 3 ./output/my_name_chef.exe")
+    --     -- os.exec("./output/my_name_chef.exe")
+    -- end)

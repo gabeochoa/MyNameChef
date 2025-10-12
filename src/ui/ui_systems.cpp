@@ -213,7 +213,7 @@ ElementResult create_column_container(UIContext<InputAction> &context,
 Screen ScheduleMainMenuUI::main_screen(Entity &entity,
                                        UIContext<InputAction> &context) {
   auto elem =
-      ui_helpers::create_screen_container(context, entity, "main_screen");
+      ui_helpers::create_screen_container(context, entity, "screen");
 
   // Add a background
   auto bg =
@@ -248,7 +248,7 @@ Screen ScheduleMainMenuUI::main_screen(Entity &entity,
 Screen ScheduleMainMenuUI::settings_screen(Entity &entity,
                                            UIContext<InputAction> &context) {
   auto elem =
-      ui_helpers::create_screen_container(context, entity, "settings_screen");
+      ui_helpers::create_screen_container(context, entity, "screen");
   auto top_left =
       column_left<InputAction>(context, elem.ent(), "settings_top_left", 0);
   {
@@ -308,9 +308,10 @@ Screen ScheduleMainMenuUI::settings_screen(Entity &entity,
 
 Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
                                        UIContext<InputAction> &context) {
-  // Don't create a full screen container - just add the button overlay
+  auto elem =
+      ui_helpers::create_screen_container(context, entity, "screen");
   auto top_right =
-      column_right<InputAction>(context, entity, "shop_top_right", 0);
+      column_right<InputAction>(context, elem.ent(), "shop_top_right", 0);
 
   // Create Next Round button
   button_labeled<InputAction>(
@@ -346,19 +347,9 @@ Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
 Screen ScheduleMainMenuUI::battle_screen(Entity &entity,
                                          UIContext<InputAction> &context) {
   auto elem =
-      ui_helpers::create_screen_container(context, entity, "battle_screen");
-
-  // Add a background
-  auto bg =
-      imm::div(context, mk(elem.ent()),
-               ComponentConfig{}
-                   .with_size(ComponentSize{screen_pct(1.f), screen_pct(1.f)})
-                   .with_color_usage(Theme::Usage::Background)
-                   .with_debug_name("battle_background")
-                   .with_rounded_corners(RoundedCorners().all_sharp()));
-
+      ui_helpers::create_screen_container(context, entity, "screen");
   auto top_left =
-      column_left<InputAction>(context, bg.ent(), "battle_top_left", 0);
+      column_left<InputAction>(context, elem.ent(), "battle_top_left", 0);
 
   // Create Skip to Results button
   button_labeled<InputAction>(
@@ -376,7 +367,7 @@ Screen ScheduleMainMenuUI::battle_screen(Entity &entity,
 Screen ScheduleMainMenuUI::results_screen(Entity &entity,
                                           UIContext<InputAction> &context) {
   auto elem =
-      ui_helpers::create_screen_container(context, entity, "results_screen");
+      ui_helpers::create_screen_container(context, entity, "screen");
 
   // Add a background
   auto bg =

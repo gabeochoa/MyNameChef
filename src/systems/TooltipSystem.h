@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../components/has_tooltip.h"
-#include "../components/is_dish.h"
 #include "../components/transform.h"
 #include "../game_state_manager.h"
 #include "../query.h"
@@ -17,8 +16,7 @@ public:
     const bool is_playing =
         gsm.current_state == GameStateManager::GameState::Playing;
     const bool on_allowed_screen =
-        gsm.active_screen == GameStateManager::Screen::Shop ||
-        gsm.active_screen == GameStateManager::Screen::Battle;
+        gsm.active_screen == GameStateManager::Screen::Shop;
     return is_playing && on_allowed_screen;
   }
 

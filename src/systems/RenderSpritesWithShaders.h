@@ -2,14 +2,20 @@
 
 #include "../components/has_shader.h"
 #include "../components/transform.h"
-#include "../query.h"
+#include "../game_state_manager.h"
 #include "../shader_library.h"
 #include "../shader_types.h"
 #include <afterhours/ah.h>
+#include <afterhours/src/plugins/color.h>
+using namespace afterhours;
 
 struct RenderSpritesWithShaders
     : System<Transform, afterhours::texture_manager::HasSprite, HasShader,
              HasColor> {
+  virtual bool should_run(float) override {
+    auto &gsm = GameStateManager::get();
+    return gsm.active_screen == GameStateManager::Screen::Shop;
+  }
 
   struct EntityRenderData {
     const Transform *transform;

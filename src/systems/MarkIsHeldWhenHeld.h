@@ -6,6 +6,7 @@
 #include "../components/is_inventory_item.h"
 #include "../components/is_shop_item.h"
 #include "../components/transform.h"
+#include "../game_state_manager.h"
 #include "../query.h"
 #include "../rl.h"
 #include <afterhours/ah.h>
@@ -13,6 +14,11 @@
 using namespace afterhours;
 
 struct MarkIsHeldWhenHeld : System<IsDraggable, Transform> {
+  virtual bool should_run(float) override {
+    auto &gsm = GameStateManager::get();
+    return gsm.active_screen == GameStateManager::Screen::Shop;
+  }
+
 private:
   // Helper function to get the slot ID from an entity
   int get_slot_id(const Entity &entity) {

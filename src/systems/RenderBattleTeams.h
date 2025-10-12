@@ -25,10 +25,6 @@ struct RenderBattleTeams : afterhours::System<Transform, IsDish> {
       return; // Not a battle team item, skip
     }
 
-    // Debug logging
-    log_info("Rendering battle dish: {} at position ({}, {})", dish.name(),
-             transform.position.x, transform.position.y);
-
     // Get dish color
     raylib::Color dishColor = dish.color();
 
