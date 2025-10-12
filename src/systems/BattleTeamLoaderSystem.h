@@ -2,6 +2,7 @@
 
 #include "../components/battle_load_request.h"
 #include "../components/battle_team_tags.h"
+#include "../components/dish_battle_state.h"
 #include "../components/has_tooltip.h"
 #include "../components/is_dish.h"
 #include "../components/is_inventory_item.h"
@@ -145,6 +146,12 @@ private:
     entity.addComponent<Transform>(afterhours::vec2{x, y},
                                    afterhours::vec2{80.0f, 80.0f});
     entity.addComponent<IsDish>(dishType);
+    auto &dbs = entity.addComponent<DishBattleState>();
+    dbs.queue_index = slot;
+    dbs.team_side = isPlayer ? DishBattleState::TeamSide::Player
+                             : DishBattleState::TeamSide::Opponent;
+    dbs.phase = DishBattleState::Phase::InQueue;
+    dbs.phase_progress = 0.0f;
     entity.addComponent<HasRenderOrder>(RenderOrder::BattleTeams);
 
     if (isPlayer) {
