@@ -172,6 +172,14 @@ struct DropWhenNoLongerHeld : System<IsHeld, Transform> {
         }
 
         if (item_in_slot) {
+          // Don't allow rearranging if either item is a shop item
+          if (entity.has<IsShopItem>() || item_in_slot->has<IsShopItem>()) {
+            // Snap back to original position - no swapping allowed
+            entity.get<Transform>().position = held.original_position;
+            entity.removeComponent<IsHeld>();
+            return;
+          }
+
           // Get the original slot of the item being dropped
           int original_slot_id = -1;
           if (entity.has<IsInventoryItem>()) {
