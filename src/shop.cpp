@@ -1,5 +1,6 @@
 #include "shop.h"
 #include "components/can_drop_onto.h"
+#include "components/has_tooltip.h"
 #include "components/is_dish.h"
 #include "components/is_draggable.h"
 #include "components/is_drop_slot.h"
@@ -42,6 +43,10 @@ Entity &make_shop_item(int slot, IsDish::DishInfo info) {
   e.addComponent<IsShopItem>(slot);
   e.addComponent<IsDraggable>(true);
   e.addComponent<ShopItemColor>(info.color);
+  
+  // Add tooltip with dish information
+  std::string tooltip_text = info.name + "\nPrice: " + std::to_string(info.price) + " gold";
+  e.addComponent<HasTooltip>(tooltip_text);
 
   return e;
 }
