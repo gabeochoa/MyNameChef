@@ -179,28 +179,5 @@ private:
     entity.addComponent<HasTooltip>(generate_dish_tooltip(dishType));
   }
 
-  void add_random_dish_to_inventory() {
-    // Pick a random dish from shared pool
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    const auto &pool = get_default_dish_pool();
-    std::uniform_int_distribution<> dis(0, (int)pool.size() - 1);
-    DishType randomDish = pool[dis(gen)];
-
-    // Create the inventory item entity
-    auto &entity = afterhours::EntityHelper::createEntity();
-
-    // Position it in the first inventory slot (slot 100)
-    float x = 100.0f; // First inventory slot X position
-    float y = 500.0f; // Inventory row Y position
-
-    entity.addComponent<Transform>(afterhours::vec2{x, y},
-                                   afterhours::vec2{80.0f, 80.0f});
-    entity.addComponent<IsDish>(randomDish);
-    entity.addComponent<IsInventoryItem>();
-    entity.get<IsInventoryItem>().slot = 100; // First inventory slot
-
-    log_info("Added random dish to inventory: {} at slot 100",
-             magic_enum::enum_name(randomDish));
-  }
+  // add_random_dish_to_inventory removed as unused
 };
