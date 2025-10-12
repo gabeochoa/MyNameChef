@@ -1,5 +1,7 @@
 #include "shop.h"
 #include "components/is_dish.h"
+#include "components/is_draggable.h"
+#include "components/is_drop_slot.h"
 #include "components/is_shop_item.h"
 #include "components/transform.h"
 #include "game_state_manager.h"
@@ -35,7 +37,19 @@ Entity &make_shop_item(int slot, const char *name, raylib::Color color) {
   e.addComponent<Transform>(vec2{x, y}, vec2{(float)itemW, (float)itemH});
   e.addComponent<IsDish>(name, color);
   e.addComponent<IsShopItem>(slot);
+  e.addComponent<IsDraggable>(true);
   e.addComponent<ShopItemColor>(color);
+
+  return e;
+}
+
+Entity &make_drop_slot(int slot_id, vec2 position, vec2 size,
+                       bool accepts_inventory = true,
+                       bool accepts_shop = true) {
+  auto &e = EntityHelper::createEntity();
+
+  e.addComponent<Transform>(position, size);
+  e.addComponent<IsDropSlot>(slot_id, accepts_inventory, accepts_shop);
 
   return e;
 }
@@ -61,7 +75,28 @@ struct ShopGenerationSystem : System<> {
       return;
     initialized = true;
 
-    // Determine occupied slots
+    // Create drop slots FIRST so they render behind items
+    int slotW = 80, slotH = 80, startX = 100, startY = 200, gap = 10;
+    for (int i = 0; i < 7; ++i) {
+      float x = startX + (i % 4) * (slotW + gap);
+      float y = startY + (i / 4) * (slotH + gap);
+      make_drop_slot(i, vec2{x, y}, vec2{(float)slotW, (float)slotH}, false,
+                     true);
+    }
+
+    // Create inventory drop slots (example: at the bottom of the screen)
+    int invStartX = 100, invStartY = 500, invSlotW = 80, invSlotH = 80,
+        invGap = 10;
+    for (int i = 0; i < 7; ++i) {
+      float x = invStartX + i * (invSlotW + invGap);
+      float y = invStartY;
+      make_drop_slot(100 + i, vec2{x, y},
+                     vec2{(float)invSlotW, (float)invSlotH}, true, false);
+    }
+
+    // Merge temp entities so we can query for existing shop items
+    EntityHelper::merge_entity_arrays();
+
     std::array<bool, 7> occupied{};
     occupied.fill(false);
     for (auto &ref : EntityQuery().whereHasComponent<IsShopItem>().gen()) {
@@ -89,9 +124,6 @@ struct ShopGenerationSystem : System<> {
       int slot = free_slots[(size_t)i];
       auto &entity = make_shop_item(slot, nm, col);
     }
-
-    // Merge temp entities into main entity list so they're visible to queries
-    EntityHelper::merge_entity_arrays();
   }
 };
 

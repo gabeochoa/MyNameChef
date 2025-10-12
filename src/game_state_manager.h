@@ -12,7 +12,7 @@ struct GameStateManager {
     Menu,
     Playing,
     Paused,
-  } current_state = GameState::Menu;
+  } current_state = GameState::Playing;
 
   enum struct Screen {
     None, // No Main Menu (ie game active)

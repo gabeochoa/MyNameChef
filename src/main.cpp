@@ -15,7 +15,9 @@ backward::SignalHandling sh;
 #include "shop.h"
 #include "sound_systems.h"
 #include "systems/begin_post_processing_shader.h"
+#include "systems/drop_when_no_longer_held.h"
 #include "systems/mark_entities_with_shaders.h"
+#include "systems/mark_is_held_when_held.h"
 #include "systems/post_processing_systems.h"
 #include "systems/render_debug_window_info.h"
 #include "systems/render_entities.h"
@@ -79,6 +81,8 @@ void game() {
     systems.register_update_system(std::make_unique<UpdateSpriteTransform>());
     systems.register_update_system(std::make_unique<UpdateShaderValues>());
     systems.register_update_system(std::make_unique<MarkEntitiesWithShaders>());
+    systems.register_update_system(std::make_unique<MarkIsHeldWhenHeld>());
+    systems.register_update_system(std::make_unique<DropWhenNoLongerHeld>());
     texture_manager::register_update_systems(systems);
 
     register_sound_systems(systems);
@@ -129,24 +133,9 @@ void game() {
       //
     }
 
-    std::cout << "Starting game loop" << std::endl;
-    std::cout << "Render systems count: " << systems.render_systems_.size()
-              << std::endl;
-    std::cout << "Update systems count: " << systems.update_systems_.size()
-              << std::endl;
-    int frame_count = 0;
     while (running && !raylib::WindowShouldClose()) {
-      frame_count++;
-      if (frame_count <= 3) {
-        std::cout << "Frame " << frame_count << std::endl;
-      }
       systems.run(raylib::GetFrameTime());
     }
-    std::cout << "Game loop ended after " << frame_count << " frames"
-              << std::endl;
-
-    std::cout << "Num entities: " << EntityHelper::get_entities().size()
-              << std::endl;
   }
 }
 
