@@ -27,8 +27,7 @@ void make_shop_manager(Entity &sophie) {
   EntityHelper::registerSingleton<ShopState>(sophie);
 }
 
-Entity &make_shop_item(int slot, const char *name, raylib::Color color,
-                       int price = 1) {
+Entity &make_shop_item(int slot, IsDish::DishInfo info) {
   auto &e = EntityHelper::createEntity();
 
   // Position items in a grid layout
@@ -37,10 +36,10 @@ Entity &make_shop_item(int slot, const char *name, raylib::Color color,
   float y = startY + (slot / 4) * (itemH + gap);
 
   e.addComponent<Transform>(vec2{x, y}, vec2{(float)itemW, (float)itemH});
-  e.addComponent<IsDish>(name, color, price);
+  e.addComponent<IsDish>(info);
   e.addComponent<IsShopItem>(slot);
   e.addComponent<IsDraggable>(true);
-  e.addComponent<ShopItemColor>(color);
+  e.addComponent<ShopItemColor>(info.color);
 
   return e;
 }
@@ -57,23 +56,37 @@ Entity &make_drop_slot(int slot_id, vec2 position, vec2 size,
   return e;
 }
 
-struct DishInfo {
-  const char *name;
-  raylib::Color color;
-  int price;
-};
-
-static constexpr DishInfo dish_pool[] = {
-    {"Garlic Bread", raylib::Color{180, 120, 80, 255}, 2},
-    {"Tomato Soup", raylib::Color{160, 40, 40, 255}, 3},
-    {"Grilled Cheese", raylib::Color{200, 160, 60, 255}, 4},
-    {"Chicken Skewer", raylib::Color{150, 80, 60, 255}, 5},
-    {"Cucumber Salad", raylib::Color{60, 160, 100, 255}, 2},
-    {"Vanilla Soft Serve", raylib::Color{220, 200, 180, 255}, 3},
-    {"Caprese Salad", raylib::Color{120, 200, 140, 255}, 4},
-    {"Minestrone", raylib::Color{160, 90, 60, 255}, 3},
-    {"Seared Salmon", raylib::Color{230, 140, 90, 255}, 6},
-    {"Steak Florentine", raylib::Color{160, 80, 80, 255}, 7},
+static constexpr IsDish::DishInfo dish_pool[] = {
+    IsDish::DishInfo{.name = "Garlic Bread",
+                     .color = raylib::Color{180, 120, 80, 255},
+                     .price = 2},
+    IsDish::DishInfo{.name = "Tomato Soup",
+                     .color = raylib::Color{160, 40, 40, 255},
+                     .price = 3},
+    IsDish::DishInfo{.name = "Grilled Cheese",
+                     .color = raylib::Color{200, 160, 60, 255},
+                     .price = 4},
+    IsDish::DishInfo{.name = "Chicken Skewer",
+                     .color = raylib::Color{150, 80, 60, 255},
+                     .price = 5},
+    IsDish::DishInfo{.name = "Cucumber Salad",
+                     .color = raylib::Color{60, 160, 100, 255},
+                     .price = 2},
+    IsDish::DishInfo{.name = "Vanilla Soft Serve",
+                     .color = raylib::Color{220, 200, 180, 255},
+                     .price = 3},
+    IsDish::DishInfo{.name = "Caprese Salad",
+                     .color = raylib::Color{120, 200, 140, 255},
+                     .price = 4},
+    IsDish::DishInfo{.name = "Minestrone",
+                     .color = raylib::Color{160, 90, 60, 255},
+                     .price = 3},
+    IsDish::DishInfo{.name = "Seared Salmon",
+                     .color = raylib::Color{230, 140, 90, 255},
+                     .price = 6},
+    IsDish::DishInfo{.name = "Steak Florentine",
+                     .color = raylib::Color{160, 80, 80, 255},
+                     .price = 7},
 };
 
 struct ShopGenerationSystem : System<> {
@@ -131,8 +144,7 @@ struct ShopGenerationSystem : System<> {
     for (int i = 0; i < take; ++i) {
       auto dish_info = dish_pool[(size_t)idx[(size_t)i]];
       int slot = free_slots[(size_t)i];
-      auto &entity = make_shop_item(slot, dish_info.name, dish_info.color,
-                                    dish_info.price);
+      auto &entity = make_shop_item(slot, dish_info);
     }
 
     // Merge temp entities so we can query for slots

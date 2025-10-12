@@ -99,19 +99,23 @@ struct DropWhenNoLongerHeld : System<IsHeld, Transform> {
         entity.get<Transform>().position = slot_center - item_size * 0.5f;
 
         // Handle purchasing logic for shop items dropped into inventory
-        if (entity.has<IsShopItem>() && best_drop_slot->get<IsDropSlot>().accepts_inventory_items) {
-          // This is a shop item being dropped into an inventory slot - purchase it
+        if (entity.has<IsShopItem>() &&
+            best_drop_slot->get<IsDropSlot>().accepts_inventory_items) {
+          // This is a shop item being dropped into an inventory slot - purchase
+          // it
           auto &dish = entity.get<IsDish>();
           auto wallet_entity = EntityHelper::get_singleton<Wallet>();
-          
-          if (wallet_entity.get().has<Wallet>() && wallet_entity.get().get<Wallet>().gold >= dish.price) {
+
+          if (wallet_entity.get().has<Wallet>() &&
+              wallet_entity.get().get<Wallet>().gold >= dish.price()) {
             // Deduct cost from wallet
-            wallet_entity.get().get<Wallet>().gold -= dish.price;
-            
+            wallet_entity.get().get<Wallet>().gold -= dish.price();
+
             // Remove IsShopItem component and add IsInventoryItem
             entity.removeComponent<IsShopItem>();
             entity.addComponent<IsInventoryItem>();
-            entity.get<IsInventoryItem>().slot = best_drop_slot->get<IsDropSlot>().slot_id;
+            entity.get<IsInventoryItem>().slot =
+                best_drop_slot->get<IsDropSlot>().slot_id;
           } else {
             // Not enough gold - snap back to original position
             entity.get<Transform>().position = held.original_position;
@@ -199,7 +203,9 @@ struct DropWhenNoLongerHeld : System<IsHeld, Transform> {
 
           // Find and update the original slot's occupied state
           if (original_slot_id >= 0) {
-            auto original_slot = EQ().whereHasComponent<IsDropSlot>().whereSlotID(original_slot_id).gen_first();
+            auto original_slot = EQ().whereHasComponent<IsDropSlot>()
+                                     .whereSlotID(original_slot_id)
+                                     .gen_first();
             if (original_slot) {
               original_slot->get<IsDropSlot>().occupied = true;
             }

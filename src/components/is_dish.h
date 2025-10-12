@@ -5,11 +5,16 @@
 #include <string>
 
 struct IsDish : afterhours::BaseComponent {
-  std::string name;
-  raylib::Color color{200, 200, 200, 255};
-  int price = 1; // Default price
+  struct DishInfo {
+    std::string name;
+    raylib::Color color{200, 200, 200, 255};
+    int price = 1; // Default price
+  };
+
+  DishInfo info;
 
   IsDish() = default;
-  IsDish(std::string n, raylib::Color c) : name(std::move(n)), color(c) {}
-  IsDish(std::string n, raylib::Color c, int p) : name(std::move(n)), color(c), price(p) {}
+  IsDish(DishInfo info) : info(info) {}
+
+  const int price() const { return info.price; }
 };
