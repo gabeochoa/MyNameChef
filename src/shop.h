@@ -36,6 +36,7 @@ constexpr int INVENTORY_SLOT_OFFSET = 100;
 
 // Forward declarations for shop functions
 afterhours::Entity &make_shop_manager(afterhours::Entity &);
+afterhours::Entity &make_judging_manager(afterhours::Entity &);
 afterhours::Entity &make_shop_item(int slot, DishType type);
 afterhours::Entity &make_drop_slot(int slot_id, afterhours::vec2 position,
                                    afterhours::vec2 size,

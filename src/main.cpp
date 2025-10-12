@@ -19,6 +19,7 @@ backward::SignalHandling sh;
 #include "systems/CleanupBattleEntities.h"
 #include "systems/DropWhenNoLongerHeld.h"
 #include "systems/InitialShopFill.h"
+#include "systems/JudgingSystems.h"
 #include "systems/LoadBattleResults.h"
 #include "systems/MarkEntitiesWithShaders.h"
 #include "systems/MarkIsHeldWhenHeld.h"
@@ -69,6 +70,7 @@ void game() {
     texture_manager::enforce_singletons(systems);
     enforce_ui_singletons(systems);
     make_shop_manager(sophie);
+    make_judging_manager(sophie);
   }
 
   // external plugins
@@ -96,6 +98,8 @@ void game() {
     systems.register_update_system(std::make_unique<DropWhenNoLongerHeld>());
     systems.register_update_system(std::make_unique<BattleTeamLoaderSystem>());
     systems.register_update_system(std::make_unique<BattleDebugSystem>());
+    systems.register_update_system(std::make_unique<InitJudgingState>());
+    systems.register_update_system(std::make_unique<AdvanceJudging>());
     systems.register_update_system(std::make_unique<CleanupBattleEntities>());
     texture_manager::register_update_systems(systems);
     afterhours::animation::register_update_systems<

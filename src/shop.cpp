@@ -6,6 +6,7 @@
 #include "components/is_drop_slot.h"
 #include "components/is_inventory_item.h"
 #include "components/is_shop_item.h"
+#include "components/judging_state.h"
 #include "components/render_order.h"
 #include "components/transform.h"
 #include "dish_types.h"
@@ -79,6 +80,21 @@ Entity &make_shop_manager(Entity &sophie) {
   EntityHelper::registerSingleton<Wallet>(sophie);
   EntityHelper::registerSingleton<Health>(sophie);
   EntityHelper::registerSingleton<ShopState>(sophie);
+  return sophie;
+}
+
+Entity &make_judging_manager(Entity &sophie) {
+  if (!sophie.has<JudgingState>()) {
+    sophie.addComponent<JudgingState>();
+  }
+  auto &js = sophie.get<JudgingState>();
+  js.current_index = -1;
+  js.total_courses = 7;
+  js.player_total = 0;
+  js.opponent_total = 0;
+  js.complete = false;
+  js.timer = 0.0f;
+  EntityHelper::registerSingleton<JudgingState>(sophie);
   return sophie;
 }
 
