@@ -19,7 +19,8 @@ struct RenderEntities : System<Transform> {
 
   virtual void for_each_with(const Entity &entity, const Transform &transform,
                              float) const override {
-    // Skip entities that have sprites - they should be rendered by sprite systems
+    // Skip entities that have sprites - they should be rendered by sprite
+    // systems
     if (entity.has<afterhours::texture_manager::HasSprite>()) {
       return;
     }
@@ -70,7 +71,8 @@ struct RenderEntities : System<Transform> {
       const Entity &entity = *pair.first;
       const Transform &transform = entity.get<Transform>();
 
-      // Skip entities that have sprites - they should be rendered by sprite systems
+      // Skip entities that have sprites - they should be rendered by sprite
+      // systems
       if (entity.has<afterhours::texture_manager::HasSprite>()) {
         continue;
       }
