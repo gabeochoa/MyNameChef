@@ -34,6 +34,11 @@ struct RenderSpritesByOrder
       }
     }
 
+    // If entity uses shaders, let the shader-based renderer handle it
+    if (entity.has<HasShader>()) {
+      return;
+    }
+
     // Additional phase filtering for battle entities
     if (gsm.active_screen == GameStateManager::Screen::Battle &&
         entity.has<DishBattleState>()) {
