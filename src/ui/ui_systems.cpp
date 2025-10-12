@@ -127,6 +127,10 @@ struct ScheduleMainMenuUI : System<afterhours::ui::UIContext<InputAction>> {
       gsm.active_screen = battle_screen(entity, context);
       return;
     }
+    if (gsm.active_screen == Screen::Results) {
+      gsm.active_screen = results_screen(entity, context);
+      return;
+    }
     gsm.active_screen = gsm.active_screen;
   }
 
@@ -134,6 +138,7 @@ struct ScheduleMainMenuUI : System<afterhours::ui::UIContext<InputAction>> {
   Screen settings_screen(Entity &entity, UIContext<InputAction> &context);
   Screen shop_screen(Entity &entity, UIContext<InputAction> &context);
   Screen battle_screen(Entity &entity, UIContext<InputAction> &context);
+  Screen results_screen(Entity &entity, UIContext<InputAction> &context);
 
   void exit_game() { running = false; }
 };
@@ -354,6 +359,36 @@ Screen ScheduleMainMenuUI::battle_screen(Entity &entity,
 
   auto top_left =
       column_left<InputAction>(context, bg.ent(), "battle_top_left", 0);
+
+  // Create Skip to Results button
+  button_labeled<InputAction>(
+      context, top_left.ent(), "Skip to Results",
+      []() {
+        log_info("Skip to Results button clicked!");
+        GameStateManager::get().to_results();
+      },
+      0);
+
+  return GameStateManager::get().next_screen.value_or(
+      GameStateManager::get().active_screen);
+}
+
+Screen ScheduleMainMenuUI::results_screen(Entity &entity,
+                                          UIContext<InputAction> &context) {
+  auto elem =
+      ui_helpers::create_screen_container(context, entity, "results_screen");
+
+  // Add a background
+  auto bg =
+      imm::div(context, mk(elem.ent()),
+               ComponentConfig{}
+                   .with_size(ComponentSize{screen_pct(1.f), screen_pct(1.f)})
+                   .with_color_usage(Theme::Usage::Background)
+                   .with_debug_name("results_background")
+                   .with_rounded_corners(RoundedCorners().all_sharp()));
+
+  auto top_left =
+      column_left<InputAction>(context, bg.ent(), "results_top_left", 0);
 
   // Create Back to Shop button
   button_labeled<InputAction>(
