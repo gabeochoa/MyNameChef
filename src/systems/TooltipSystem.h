@@ -3,6 +3,7 @@
 #include "../components/has_tooltip.h"
 #include "../components/is_dish.h"
 #include "../components/transform.h"
+#include "../game_state_manager.h"
 #include "../query.h"
 #include "../rl.h"
 #include <afterhours/ah.h>
@@ -11,6 +12,11 @@
 
 struct RenderTooltipSystem : System<> {
 public:
+  virtual bool should_run(float) const override {
+    auto &gsm = GameStateManager::get();
+    return gsm.current_state == GameStateManager::GameState::Playing;
+  }
+
   virtual void once(float) const override {
     Entity *hovered_entity = nullptr;
 
@@ -63,7 +69,6 @@ public:
 
     // Keep tooltip on screen
     float screen_width = raylib::GetScreenWidth();
-    float screen_height = raylib::GetScreenHeight();
 
     if (tooltip_x + tooltip_width > screen_width) {
       tooltip_x = screen_width - tooltip_width - 10;

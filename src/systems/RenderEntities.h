@@ -2,6 +2,7 @@
 
 #include "../components/render_order.h"
 #include "../components/transform.h"
+#include "../game_state_manager.h"
 #include "../query.h"
 #include <afterhours/ah.h>
 #include <afterhours/src/plugins/color.h>
@@ -9,6 +10,12 @@
 #include <vector>
 
 struct RenderEntities : System<Transform> {
+
+  virtual bool should_run(float) const override {
+    auto &gsm = GameStateManager::get();
+    return gsm.active_screen == GameStateManager::Screen::Shop ||
+           gsm.active_screen == GameStateManager::Screen::Battle;
+  }
 
   virtual void for_each_with(const Entity &entity, const Transform &transform,
                              float) const override {
