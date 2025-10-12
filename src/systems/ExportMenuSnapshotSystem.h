@@ -12,6 +12,16 @@
 #include <nlohmann/json.hpp>
 #include <random>
 
+/**
+ * ExportMenuSnapshotSystem - Exports player inventory to battle format
+ * 
+ * This system:
+ * - Queries all inventory dishes
+ * - Exports them to JSON format for battle loading
+ * - Creates or updates BattleLoadRequest singleton for battle system
+ * 
+ * Handles singleton reuse to prevent crashes on multiple battles.
+ */
 class ExportMenuSnapshotSystem {
 public:
   std::string export_menu_snapshot() {
@@ -25,7 +35,6 @@ public:
     }
 
     if (inventory_dishes.empty()) {
-      log_info("No dishes in inventory to export");
       return "";
     }
 
@@ -80,21 +89,30 @@ public:
     if (file.is_open()) {
       file << snapshot.dump(2);
       file.close();
-      log_info("Exported menu snapshot to: {}", filename);
 
       // Create BattleLoadRequest singleton for battle loading
-      auto &requestEntity = afterhours::EntityHelper::createEntity();
       BattleLoadRequest request;
       request.playerJsonPath = filename;
-      request.opponentJsonPath =
-          "resources/battles/opponent_sample.json"; // Default opponent
-      requestEntity.addComponent<BattleLoadRequest>(std::move(request));
-      afterhours::EntityHelper::registerSingleton<BattleLoadRequest>(
-          requestEntity);
+      request.opponentJsonPath = "resources/battles/opponent_sample.json";
 
-      log_info(
-          "Created BattleLoadRequest singleton with player: {}, opponent: {}",
-          filename, request.opponentJsonPath);
+      // Check if singleton already exists and update it, or create new one
+      const auto componentId = afterhours::components::get_type_id<BattleLoadRequest>();
+      bool singletonExists = afterhours::EntityHelper::get().singletonMap.contains(componentId);
+
+      if (singletonExists) {
+        // Update existing singleton
+        auto existingRequest = afterhours::EntityHelper::get_singleton<BattleLoadRequest>();
+        if (existingRequest.get().has<BattleLoadRequest>()) {
+          auto &existingBattleRequest = existingRequest.get().get<BattleLoadRequest>();
+          existingBattleRequest.playerJsonPath = filename;
+          existingBattleRequest.opponentJsonPath = "resources/battles/opponent_sample.json";
+        }
+      } else {
+        // Create new singleton
+        auto &requestEntity = afterhours::EntityHelper::createEntity();
+        requestEntity.addComponent<BattleLoadRequest>(std::move(request));
+        afterhours::EntityHelper::registerSingleton<BattleLoadRequest>(requestEntity);
+      }
 
       return filename;
     } else {

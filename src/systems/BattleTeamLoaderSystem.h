@@ -19,15 +19,24 @@
 
 struct BattleTeamLoaderSystem : afterhours::System<> {
   bool loaded = false;
+  GameStateManager::Screen last_screen = GameStateManager::Screen::Main;
 
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
+
+    // Reset loaded flag when leaving battle screen
+    if (last_screen == GameStateManager::Screen::Battle &&
+        gsm.active_screen != GameStateManager::Screen::Battle) {
+      loaded = false;
+    }
+
+    last_screen = gsm.active_screen;
     return gsm.active_screen == GameStateManager::Screen::Battle && !loaded;
   }
 
   void once(float) override {
-    auto battleRequest =
-        afterhours::EntityHelper::get_singleton<BattleLoadRequest>();
+    auto battleRequest = afterhours::EntityHelper::get_singleton<BattleLoadRequest>();
+
     if (!battleRequest.get().has<BattleLoadRequest>()) {
       log_error("No BattleLoadRequest found");
       return;
@@ -50,8 +59,6 @@ struct BattleTeamLoaderSystem : afterhours::System<> {
 
     // Merge entities so they can be found by rendering systems
     afterhours::EntityHelper::merge_entity_arrays();
-
-    log_info("Battle teams loaded successfully");
   }
 
 private:
@@ -146,10 +153,6 @@ private:
     }
 
     entity.addComponent<HasTooltip>(generate_dish_tooltip(dishType));
-
-    log_info("Created {} battle dish: {} at slot {}",
-             isPlayer ? "player" : "opponent", magic_enum::enum_name(dishType),
-             slot);
   }
 
   void add_random_dish_to_inventory() {

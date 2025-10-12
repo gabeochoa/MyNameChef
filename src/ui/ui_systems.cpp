@@ -314,18 +314,13 @@ Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
   button_labeled<InputAction>(
       context, top_right.ent(), "Next Round",
       []() {
-        log_info("Next Round button clicked!");
         // Export menu snapshot
         ExportMenuSnapshotSystem export_system;
         std::string filename = export_system.export_menu_snapshot();
 
         if (!filename.empty()) {
-          log_info("Export successful, navigating to battle");
-
           // Navigate to battle screen
           GameStateManager::get().to_battle();
-        } else {
-          log_info("Export failed");
         }
       },
       0);
@@ -344,7 +339,6 @@ Screen ScheduleMainMenuUI::battle_screen(Entity &entity,
   button_labeled<InputAction>(
       context, top_left.ent(), "Skip to Results",
       []() {
-        log_info("Skip to Results button clicked!");
         GameStateManager::get().to_results();
       },
       0);

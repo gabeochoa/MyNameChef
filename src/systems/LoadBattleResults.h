@@ -10,9 +10,18 @@
 
 struct LoadBattleResults : afterhours::System<> {
   bool loaded = false;
+  GameStateManager::Screen last_screen = GameStateManager::Screen::Main;
 
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
+
+    // Reset loaded flag when leaving results screen
+    if (last_screen == GameStateManager::Screen::Results &&
+        gsm.active_screen != GameStateManager::Screen::Results) {
+      loaded = false;
+    }
+
+    last_screen = gsm.active_screen;
     return gsm.active_screen == GameStateManager::Screen::Results && !loaded;
   }
 
@@ -35,9 +44,29 @@ struct LoadBattleResults : afterhours::System<> {
       create_default_results(result);
     }
 
-    auto &ent = afterhours::EntityHelper::createEntity();
-    ent.addComponent<BattleResult>(std::move(result));
-    afterhours::EntityHelper::registerSingleton<BattleResult>(ent);
+    // Check if BattleResult singleton already exists
+    const auto componentId = afterhours::components::get_type_id<BattleResult>();
+    bool singletonExists = afterhours::EntityHelper::get().singletonMap.contains(componentId);
+
+    if (singletonExists) {
+      // Update existing singleton
+      auto existingResult = afterhours::EntityHelper::get_singleton<BattleResult>();
+      if (existingResult.get().has<BattleResult>()) {
+        auto &existingBattleResult = existingResult.get().get<BattleResult>();
+        existingBattleResult.outcome = result.outcome;
+        existingBattleResult.totalPlayerScore = result.totalPlayerScore;
+        existingBattleResult.totalOpponentScore = result.totalOpponentScore;
+        existingBattleResult.judgeScores = std::move(result.judgeScores);
+      } else {
+        // Add component to existing entity
+        existingResult.get().addComponent<BattleResult>(std::move(result));
+      }
+    } else {
+      // Create new singleton
+      auto &ent = afterhours::EntityHelper::createEntity();
+      ent.addComponent<BattleResult>(std::move(result));
+      afterhours::EntityHelper::registerSingleton<BattleResult>(ent);
+    }
     loaded = true;
   }
 

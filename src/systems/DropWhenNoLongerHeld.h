@@ -13,6 +13,7 @@
 #include "../shop.h"
 #include <afterhours/ah.h>
 #include <limits>
+#include <magic_enum/magic_enum.hpp>
 
 using namespace afterhours;
 
@@ -79,15 +80,22 @@ private:
     auto &dish = entity.get<IsDish>();
     auto wallet_entity = EntityHelper::get_singleton<Wallet>();
 
-    if (!wallet_entity.get().has<Wallet>() ||
-        wallet_entity.get().get<Wallet>().gold < dish.price()) {
+    if (!wallet_entity.get().has<Wallet>()) {
       return false;
     }
 
-    wallet_entity.get().get<Wallet>().gold -= dish.price();
+    auto &wallet = wallet_entity.get().get<Wallet>();
+    int dish_price = dish.price();
+
+    if (wallet.gold < dish_price) {
+      return false;
+    }
+
+    wallet.gold -= dish_price;
     entity.removeComponent<IsShopItem>();
     entity.addComponent<IsInventoryItem>();
     entity.get<IsInventoryItem>().slot = drop_slot->get<IsDropSlot>().slot_id;
+
     return true;
   }
 
