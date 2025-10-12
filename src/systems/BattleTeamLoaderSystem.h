@@ -18,6 +18,7 @@
 #include <magic_enum/magic_enum.hpp> // For enum string conversion
 #include <nlohmann/json.hpp>
 #include <random>
+#include "../render_constants.h"
 
 struct BattleTeamLoaderSystem : afterhours::System<> {
   bool loaded = false;
@@ -165,9 +166,10 @@ private:
       auto dish_info = get_dish_info(dishType);
       const auto frame = afterhours::texture_manager::idx_to_sprite_frame(
           dish_info.sprite.i, dish_info.sprite.j);
-      entity.addComponent<afterhours::texture_manager::HasSprite>(
-          afterhours::vec2{x, y}, afterhours::vec2{80.0f, 80.0f}, 0.f, frame,
-          2.0F, raylib::Color{255, 255, 255, 255});
+    entity.addComponent<afterhours::texture_manager::HasSprite>(
+        afterhours::vec2{x, y}, afterhours::vec2{80.0f, 80.0f}, 0.f, frame,
+        render_constants::kDishSpriteScale,
+        raylib::Color{255, 255, 255, 255});
     }
 
     if (isPlayer) {

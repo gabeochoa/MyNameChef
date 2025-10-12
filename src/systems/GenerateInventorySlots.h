@@ -12,6 +12,7 @@
 #include <afterhours/src/plugins/color.h>
 #include <afterhours/src/plugins/texture_manager.h>
 #include <magic_enum/magic_enum.hpp>
+#include "../render_constants.h"
 
 using namespace afterhours;
 
@@ -50,7 +51,8 @@ private:
       const auto frame = afterhours::texture_manager::idx_to_sprite_frame(
           dish_info.sprite.i, dish_info.sprite.j);
       entity.addComponent<afterhours::texture_manager::HasSprite>(
-          position, vec2{SLOT_SIZE, SLOT_SIZE}, 0.f, frame, 2.0F,
+          position, vec2{SLOT_SIZE, SLOT_SIZE}, 0.f, frame,
+          render_constants::kDishSpriteScale,
           raylib::Color{255, 255, 255, 255});
     }
     entity.addComponent<HasTooltip>(generate_dish_tooltip(dish_type));

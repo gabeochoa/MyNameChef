@@ -18,6 +18,7 @@
 #include <magic_enum/magic_enum.hpp>
 #include <memory>
 #include <random>
+#include "render_constants.h"
 
 using namespace afterhours;
 
@@ -105,7 +106,8 @@ Entity &make_shop_item(int slot, DishType type) {
         dish_info.sprite.i, dish_info.sprite.j);
     // Position and size are updated each frame by UpdateSpriteTransform
     e.addComponent<afterhours::texture_manager::HasSprite>(
-        position, vec2{SLOT_SIZE, SLOT_SIZE}, 0.f, frame, 2.0F, raylib::WHITE);
+        position, vec2{SLOT_SIZE, SLOT_SIZE}, 0.f, frame,
+        render_constants::kDishSpriteScale, raylib::WHITE);
   }
   e.addComponent<HasTooltip>(generate_dish_tooltip(type));
 
