@@ -1,8 +1,7 @@
 #pragma once
 
-#include "../components/battle_team_tags.h"
+#include "../components/dish_battle_state.h"
 #include "../components/is_dish.h"
-#include "../components/judged.h"
 #include "../components/transform.h"
 #include "../game_state_manager.h"
 #include "../rl.h"
@@ -20,16 +19,14 @@ struct RenderBattleTeams : afterhours::System<Transform, IsDish> {
                      const Transform &transform, const IsDish &dish,
                      float) const override {
 
-    // Only render entities that have battle team tags
-    bool isPlayer = entity.has<IsPlayerTeamItem>();
-    bool isOpponent = entity.has<IsOpponentTeamItem>();
-
-    if (!isPlayer && !isOpponent) {
-      return; // Not a battle team item, skip
-    }
+    // Only render battle items
+    if (!entity.has<DishBattleState>())
+      return;
+    const auto &dbs = entity.get<DishBattleState>();
+    bool isPlayer = dbs.team_side == DishBattleState::TeamSide::Player;
 
     // Hide judged dishes on battle screen (kept for results rendering)
-    if (entity.has<Judged>()) {
+    if (dbs.phase == DishBattleState::Phase::Judged) {
       return;
     }
 
@@ -58,25 +55,33 @@ struct RenderBattleTeams : afterhours::System<Transform, IsDish> {
       offset_y = (1.0f - slide_v) * off;
     }
 
+    // Presentation animation: move toward judges (center line)
+    float present_v = dbs.phase == DishBattleState::Phase::Presenting
+                          ? std::clamp(dbs.phase_progress, 0.0f, 1.0f)
+                          : 0.0f;
+    float judge_center_y = 360.0f; // rough judges row
+    float present_offset_y =
+        (judge_center_y - transform.position.y) * present_v;
+
     // Draw the dish rectangle
-    raylib::DrawRectangle((int)(transform.position.x + offset_x),
-                          (int)(transform.position.y + offset_y),
-                          (int)transform.size.x, (int)transform.size.y,
-                          dishColor);
+    raylib::DrawRectangle(
+        (int)(transform.position.x + offset_x),
+        (int)(transform.position.y + offset_y + present_offset_y),
+        (int)transform.size.x, (int)transform.size.y, dishColor);
 
     // Draw border
     raylib::Color borderColor = isPlayer ? raylib::GREEN : raylib::RED;
-    raylib::DrawRectangleLines((int)(transform.position.x + offset_x),
-                               (int)(transform.position.y + offset_y),
-                               (int)transform.size.x, (int)transform.size.y,
-                               borderColor);
+    raylib::DrawRectangleLines(
+        (int)(transform.position.x + offset_x),
+        (int)(transform.position.y + offset_y + present_offset_y),
+        (int)transform.size.x, (int)transform.size.y, borderColor);
 
     // Draw dish name above the rectangle
     std::string dishName = dish.name();
     float textWidth = raylib::MeasureText(dishName.c_str(), 16);
     float textX =
         transform.position.x + offset_x + (transform.size.x - textWidth) / 2.0f;
-    float textY = transform.position.y + offset_y - 25.0f;
+    float textY = transform.position.y + offset_y + present_offset_y - 25.0f;
 
     raylib::DrawText(dishName.c_str(), (int)textX, (int)textY, 16,
                      raylib::WHITE);
@@ -86,7 +91,8 @@ struct RenderBattleTeams : afterhours::System<Transform, IsDish> {
     float labelWidth = raylib::MeasureText(teamLabel.c_str(), 12);
     float labelX = transform.position.x + offset_x +
                    (transform.size.x - labelWidth) / 2.0f;
-    float labelY = transform.position.y + offset_y + transform.size.y + 5.0f;
+    float labelY = transform.position.y + offset_y + present_offset_y +
+                   transform.size.y + 5.0f;
 
     raylib::DrawText(teamLabel.c_str(), (int)labelX, (int)labelY, 12,
                      borderColor);
