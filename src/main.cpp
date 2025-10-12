@@ -20,9 +20,11 @@ backward::SignalHandling sh;
 #include "systems/MarkEntitiesWithShaders.h"
 #include "systems/MarkIsHeldWhenHeld.h"
 #include "systems/PostProcessingSystems.h"
+#include "systems/RenderBattleTeams.h"
 #include "systems/RenderDebugWindowInfo.h"
 #include "systems/RenderEntities.h"
 #include "systems/RenderFPS.h"
+#include "systems/RenderJudges.h"
 #include "systems/RenderLetterboxBars.h"
 #include "systems/RenderRenderTexture.h"
 #include "systems/RenderSpritesWithShaders.h"
@@ -104,6 +106,8 @@ void game() {
       {
         systems.register_render_system(std::make_unique<BeginCameraMode>());
         systems.register_render_system(std::make_unique<RenderEntities>());
+        systems.register_render_system(std::make_unique<RenderBattleTeams>());
+        systems.register_render_system(std::make_unique<RenderJudges>());
         texture_manager::register_render_systems(systems);
         systems.register_render_system(
             std::make_unique<RenderSpritesWithShaders>());
