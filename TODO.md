@@ -89,6 +89,16 @@ Battle/comparison models (choose one to start):
    - Three judges with different weights (e.g., Satiety/Technique/Novelty). Total = weighted average.
    - Pros: variety; weekly metas. Cons: more numbers to surface.
 
+Judging System Implementation:
+- Three celebrity chef judges (references to real chefs) will evaluate dishes
+- Layout: [Your Team] [Judges] [Opponent Team] - arranged left to right
+- Animation: Feed judges one dish at a time, going left to right through the 7-course menu
+- Scoring visualization: Bar along left column with handle that moves:
+  - Down away from your team if opponent is winning after that dish
+  - Up towards your team if you are winning after that dish
+- Winner determination: Final handle position after all dishes determines winner
+- Victory animation: Screen pushes off loser team and judges, revealing winner
+
 Scoring sketch (for model 2):
 - Normalization: `f(x) = x / (x + k)` using `ScoringConfig.k` per tier/season.
 - Judge-weighted base: `base = Σ(weights[i] * f(stat[i]))` from `JudgeProfileRef`.
