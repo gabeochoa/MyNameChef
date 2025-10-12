@@ -19,6 +19,7 @@ struct GameStateManager {
     Settings,
     Shop,
     Battle,
+    Results,
   } active_screen = Screen::Main;
 
   std::optional<Screen> next_screen = std::nullopt;
@@ -50,6 +51,7 @@ struct GameStateManager {
   void set_next_screen(Screen screen) { next_screen = screen; }
 
   void to_battle() { set_next_screen(Screen::Battle); }
+  void to_results() { set_next_screen(Screen::Results); }
 
   // Call this at the start of each frame to apply queued screen changes
   void update_screen() {

@@ -1,0 +1,21 @@
+{
+    "team": [
+        {
+            "slot": 0,
+            "dishType": "GarlicBread"
+        },
+        {
+            "slot": 1,
+            "dishType": "TomatoSoup"
+        },
+        {
+            "slot": 2,
+            "dishType": "GrilledCheese"
+        }
+    ],
+    "seed": 1234567890,
+    "meta": {
+        "timestampIso": "20250111_000000",
+        "gameVersion": "0.1.0"
+    }
+}

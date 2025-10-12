@@ -4,6 +4,7 @@
 #include <afterhours/src/developer.h>
 #include <afterhours/src/logging.h>
 
+#include "../components/battle_load_request.h"
 #include "../game.h"
 #include "../game_state_manager.h"
 #include "../input_mapping.h"
@@ -317,6 +318,14 @@ Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
 
         if (!filename.empty()) {
           log_info("Export successful, navigating to battle");
+
+          // Create BattleLoadRequest with player path and opponent fallback
+          std::string opponentPath = "resources/battles/opponent_sample.json";
+
+          auto &battleEntity = EntityHelper::createEntity();
+          battleEntity.addComponent<BattleLoadRequest>(filename, opponentPath);
+          EntityHelper::registerSingleton<BattleLoadRequest>(battleEntity);
+
           // Navigate to battle screen
           GameStateManager::get().to_battle();
         } else {
