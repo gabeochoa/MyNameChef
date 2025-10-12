@@ -30,7 +30,7 @@ void make_shop_manager(Entity &sophie) {
   EntityHelper::registerSingleton<ShopState>(sophie);
 }
 
-Entity &make_shop_item(int slot, IsDish::DishInfo info) {
+Entity &make_shop_item(int slot, DishType type) {
   auto &e = EntityHelper::createEntity();
 
   // Position items in a grid layout
@@ -39,24 +39,28 @@ Entity &make_shop_item(int slot, IsDish::DishInfo info) {
   float y = startY + (slot / 4) * (itemH + gap);
 
   e.addComponent<Transform>(vec2{x, y}, vec2{(float)itemW, (float)itemH});
-  e.addComponent<IsDish>(info);
+  e.addComponent<IsDish>(type);
   e.addComponent<IsShopItem>(slot);
   e.addComponent<IsDraggable>(true);
-  e.addComponent<ShopItemColor>(info.color);
+
+  // Get dish info once to avoid multiple calls
+  auto dish_info = get_dish_info(type);
+  e.addComponent<ShopItemColor>(dish_info.color);
 
   // Add tooltip with dish information
   std::string tooltip_text =
-      info.name + "\n[GOLD]Price: " + std::to_string(info.price) + " gold";
+      dish_info.name + "\n[GOLD]Price: " + std::to_string(dish_info.price) +
+      " gold";
 
   // Add flavor stats (only show non-zero values) with colors
   std::vector<std::pair<std::string, int>> flavor_stats = {
-      {"[YELLOW]Sweetness", info.flavor.sweetness},
-      {"[RED]Spice", info.flavor.spice},
-      {"[GREEN]Acidity", info.flavor.acidity},
-      {"[BLUE]Umami", info.flavor.umami},
-      {"[ORANGE]Richness", info.flavor.richness},
-      {"[CYAN]Freshness", info.flavor.freshness},
-      {"[PURPLE]Satiety", info.flavor.satiety}};
+      {"[YELLOW]Sweetness", dish_info.flavor.sweetness},
+      {"[RED]Spice", dish_info.flavor.spice},
+      {"[GREEN]Acidity", dish_info.flavor.acidity},
+      {"[BLUE]Umami", dish_info.flavor.umami},
+      {"[ORANGE]Richness", dish_info.flavor.richness},
+      {"[CYAN]Freshness", dish_info.flavor.freshness},
+      {"[PURPLE]Satiety", dish_info.flavor.satiety}};
 
   for (const auto &[name, value] : flavor_stats) {
     if (value > 0) {
@@ -80,49 +84,12 @@ Entity &make_drop_slot(int slot_id, vec2 position, vec2 size,
   return e;
 }
 
-static constexpr IsDish::DishInfo dish_pool[] = {
-    IsDish::DishInfo{.name = "Garlic Bread",
-                     .color = raylib::Color{180, 120, 80, 255},
-                     .price = 3,
-                     .flavor = FlavorStats{.satiety = 2, .richness = 2}},
-    IsDish::DishInfo{.name = "Tomato Soup",
-                     .color = raylib::Color{160, 40, 40, 255},
-                     .price = 3,
-                     .flavor = FlavorStats{.acidity = 2, .freshness = 2}},
-    IsDish::DishInfo{.name = "Grilled Cheese",
-                     .color = raylib::Color{200, 160, 60, 255},
-                     .price = 3,
-                     .flavor = FlavorStats{.richness = 2, .satiety = 2}},
-    IsDish::DishInfo{.name = "Chicken Skewer",
-                     .color = raylib::Color{150, 80, 60, 255},
-                     .price = 3,
-                     .flavor = FlavorStats{.spice = 2, .umami = 2}},
-    IsDish::DishInfo{.name = "Cucumber Salad",
-                     .color = raylib::Color{60, 160, 100, 255},
-                     .price = 3,
-                     .flavor = FlavorStats{.freshness = 3}},
-    IsDish::DishInfo{.name = "Vanilla Soft Serve",
-                     .color = raylib::Color{220, 200, 180, 255},
-                     .price = 3,
-                     .flavor = FlavorStats{.sweetness = 3, .richness = 1}},
-    IsDish::DishInfo{.name = "Caprese Salad",
-                     .color = raylib::Color{120, 200, 140, 255},
-                     .price = 3,
-                     .flavor =
-                         FlavorStats{.freshness = 2, .acidity = 1, .umami = 1}},
-    IsDish::DishInfo{.name = "Minestrone",
-                     .color = raylib::Color{160, 90, 60, 255},
-                     .price = 3,
-                     .flavor = FlavorStats{.satiety = 2, .freshness = 1}},
-    IsDish::DishInfo{.name = "Seared Salmon",
-                     .color = raylib::Color{230, 140, 90, 255},
-                     .price = 3,
-                     .flavor = FlavorStats{.umami = 3, .richness = 2}},
-    IsDish::DishInfo{.name = "Steak Florentine",
-                     .color = raylib::Color{160, 80, 80, 255},
-                     .price = 3,
-                     .flavor =
-                         FlavorStats{.satiety = 3, .umami = 2, .richness = 2}},
+static constexpr DishType dish_pool[] = {
+    DishType::GarlicBread,   DishType::TomatoSoup,
+    DishType::GrilledCheese, DishType::ChickenSkewer,
+    DishType::CucumberSalad, DishType::VanillaSoftServe,
+    DishType::CapreseSalad,  DishType::Minestrone,
+    DishType::SearedSalmon,  DishType::SteakFlorentine,
 };
 
 struct ShopGenerationSystem : System<> {
@@ -178,9 +145,9 @@ struct ShopGenerationSystem : System<> {
 
     int take = std::min((int)free_slots.size(), (int)idx.size());
     for (int i = 0; i < take; ++i) {
-      auto dish_info = dish_pool[(size_t)idx[(size_t)i]];
+      auto dish_type = dish_pool[(size_t)idx[(size_t)i]];
       int slot = free_slots[(size_t)i];
-      auto &entity = make_shop_item(slot, dish_info);
+      auto &entity = make_shop_item(slot, dish_type);
     }
 
     // Merge temp entities so we can query for slots

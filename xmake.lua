@@ -61,6 +61,7 @@ target("my_name_chef")
     set_targetdir("output")
     --
     add_files("src/*.cpp")
+    add_files("src/components/*.cpp")
     add_files("src/ui/*.cpp")
     --
     add_includedirs("vendor")
