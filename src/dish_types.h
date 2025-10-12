@@ -2,7 +2,6 @@
 
 #include "rl.h"
 #include <string>
-#include <optional>
 
 enum struct DishType {
   Potato = 0,
@@ -35,13 +34,4 @@ struct DishInfo {
   FlavorStats flavor;
 };
 
-// Accessors
 DishInfo get_dish_info(DishType type);
-
-// Data-driven loading API
-// Loads dish definitions from resources/dishes.json. Safe to call multiple times.
-bool load_dish_types_from_json();
-
-// Optional helpers for conversions when working with data files
-std::optional<DishType> dish_type_from_string(const std::string &name);
-std::string dish_type_to_string(DishType type);
