@@ -5,16 +5,33 @@
 
 enum struct DishType {
   Potato = 0,
+  //
+  Burger,
+  Burrito,
+  Cheesecake,
+  Donut,
+  Dumplings,
+  FriedEgg,
+  FrenchFries,
+  IceCream,
+  LemonPie,
+  MacNCheese,
+  Meatball,
+  Nacho,
+  Omlet,
+  Pancakes,
+  Pizza,
+  Ramen,
+  RoastedChicken,
+  Sandwich,
+  Spaghetti,
+  Steak,
+  Sushi,
+  Taco,
+  Salmon,
+  Bagel,
+  Baguette,
   GarlicBread,
-  TomatoSoup,
-  GrilledCheese,
-  ChickenSkewer,
-  CucumberSalad,
-  VanillaSoftServe,
-  CapreseSalad,
-  Minestrone,
-  SearedSalmon,
-  SteakFlorentine,
 };
 
 struct FlavorStats {
@@ -27,11 +44,20 @@ struct FlavorStats {
   int freshness = 0;
 };
 
+struct SpriteLocation {
+  int i = 0;
+  int j = 0;
+};
+
 struct DishInfo {
   std::string name;
   raylib::Color color{200, 200, 200, 255};
   int price = 1;
   FlavorStats flavor;
+  SpriteLocation sprite;
 };
 
 DishInfo get_dish_info(DishType type);
+
+// Shared pool of dishes used in shop and battle systems
+const std::vector<DishType> &get_default_dish_pool();
