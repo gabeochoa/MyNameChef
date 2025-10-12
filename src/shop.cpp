@@ -1,4 +1,5 @@
 #include "shop.h"
+#include "components/can_drop_onto.h"
 #include "components/is_dish.h"
 #include "components/is_draggable.h"
 #include "components/is_drop_slot.h"
@@ -50,6 +51,7 @@ Entity &make_drop_slot(int slot_id, vec2 position, vec2 size,
 
   e.addComponent<Transform>(position, size);
   e.addComponent<IsDropSlot>(slot_id, accepts_inventory, accepts_shop);
+  e.addComponent<CanDropOnto>(true);
 
   return e;
 }
@@ -91,7 +93,7 @@ struct ShopGenerationSystem : System<> {
       float x = invStartX + i * (invSlotW + invGap);
       float y = invStartY;
       make_drop_slot(100 + i, vec2{x, y},
-                     vec2{(float)invSlotW, (float)invSlotH}, true, false);
+                     vec2{(float)invSlotW, (float)invSlotH}, true, true);
     }
 
     // Merge temp entities so we can query for existing shop items
@@ -123,6 +125,21 @@ struct ShopGenerationSystem : System<> {
       auto [nm, col] = dish_pool[(size_t)idx[(size_t)i]];
       int slot = free_slots[(size_t)i];
       auto &entity = make_shop_item(slot, nm, col);
+    }
+
+    // Merge temp entities so we can query for slots
+    EntityHelper::merge_entity_arrays();
+
+    // Mark slots as occupied for items that were just created
+    for (int i = 0; i < take; ++i) {
+      int slot = free_slots[(size_t)i];
+      for (auto &ref : EntityQuery().whereHasComponent<IsDropSlot>().gen()) {
+        auto &slot_entity = ref.get();
+        if (slot_entity.get<IsDropSlot>().slot_id == slot) {
+          slot_entity.get<IsDropSlot>().occupied = true;
+          break;
+        }
+      }
     }
   }
 };

@@ -1,4 +1,4 @@
-#include "letterbox_layout.h"
+#include "LetterboxLayout.h"
 
 struct RenderRenderTexture : System<window_manager::ProvidesCurrentResolution> {
   virtual ~RenderRenderTexture() {}

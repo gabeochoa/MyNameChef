@@ -1,6 +1,6 @@
 #pragma once
 
-#include "letterbox_layout.h"
+#include "LetterboxLayout.h"
 #include <afterhours/ah.h>
 
 struct RenderLetterboxBars : System<window_manager::ProvidesCurrentResolution> {
