@@ -7,6 +7,7 @@
 #include "../game_state_manager.h"
 #include <afterhours/ah.h>
 #include <afterhours/src/plugins/animation.h>
+#include <cmath>
 
 enum struct ScoreBarKey : size_t { Handle };
 
@@ -16,7 +17,7 @@ struct RenderScoringBar : afterhours::System<> {
     return gsm.active_screen == GameStateManager::Screen::Battle;
   }
 
-  void once(float) const override {
+  void once(float dt) const override {
     // Read live judging totals if available
     int pTotal = 0;
     int oTotal = 0;
@@ -49,34 +50,25 @@ struct RenderScoringBar : afterhours::System<> {
     const float target_bias =
         static_cast<float>(p - o) / static_cast<float>(sum); // [-1,1]
 
-    // Start animation to target if not active yet
-    auto handle = afterhours::animation::anim(ScoreBarKey::Handle);
-    if (!handle.is_active() && std::abs(handle.value()) < 1e-6f) {
-      afterhours::animation::one_shot(
-          ScoreBarKey::Handle, [target_bias](auto h) {
-            h.from(0.0f)
-                .to(target_bias * 1.05f, 0.35f,
-                    afterhours::animation::EasingType::EaseOutQuad)
-                .to(target_bias, 0.15f,
-                    afterhours::animation::EasingType::EaseOutQuad);
-          });
-    }
-
-    // Current animated bias value
-    const float bias = std::clamp(
-        afterhours::animation::clamp_value(ScoreBarKey::Handle, -1.0f, 1.0f),
-        -1.0f, 1.0f);
+    // Smoothly track target with simple per-frame lerp (independent of anim
+    // sys)
+    static float bias_value = 0.0f;
+    const float speed = 6.0f; // responsiveness per second
+    const float t = std::clamp(speed * dt, 0.0f, 1.0f);
+    const float prev = bias_value;
+    bias_value = std::clamp(prev + (target_bias - prev) * t, -1.0f, 1.0f);
+    // no-op logging removed
 
     // Map bias to Y position on bar (upwards for positive bias)
     const float half = static_cast<float>(height) * 0.5f;
-    const float y_offset = -bias * (half - 6.0f);
+    const float y_offset = -bias_value * (half - 6.0f);
     const int handle_y = static_cast<int>(center_y + y_offset);
 
     // Draw handle
     const int handle_w = 26;
     const int handle_h = 8;
     const int handle_x = center_x - handle_w / 2;
-    raylib::Color handle_col = bias >= 0.0f ? raylib::GREEN : raylib::RED;
+    raylib::Color handle_col = bias_value >= 0.0f ? raylib::GREEN : raylib::RED;
     raylib::DrawRectangle(handle_x, handle_y - handle_h / 2, handle_w, handle_h,
                           handle_col);
     raylib::DrawRectangleLines(handle_x, handle_y - handle_h / 2, handle_w,
