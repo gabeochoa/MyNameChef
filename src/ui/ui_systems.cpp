@@ -7,10 +7,8 @@
 #include "../game.h"
 #include "../game_state_manager.h"
 #include "../input_mapping.h"
-#include "../preload.h" // FontID
-#include "../query.h"
 #include "../settings.h"
-#include "../shop.h"
+#include "../systems/ExportMenuSnapshotSystem.h"
 #include "../translation_manager.h"
 #include "containers.h"
 #include "controls.h"
@@ -103,7 +101,8 @@ struct SetupGameStylingDefaults
 struct ScheduleMainMenuUI : System<afterhours::ui::UIContext<InputAction>> {
 
   virtual bool should_run(float) override {
-    return GameStateManager::get().is_menu_active();
+    auto &gsm = GameStateManager::get();
+    return gsm.is_menu_active() || gsm.is_game_active();
   }
 
   virtual void for_each_with(Entity &entity, UIContext<InputAction> &context,
@@ -119,11 +118,21 @@ struct ScheduleMainMenuUI : System<afterhours::ui::UIContext<InputAction>> {
       gsm.active_screen = settings_screen(entity, context);
       return;
     }
+    if (gsm.active_screen == Screen::Shop) {
+      gsm.active_screen = shop_screen(entity, context);
+      return;
+    }
+    if (gsm.active_screen == Screen::Battle) {
+      gsm.active_screen = battle_screen(entity, context);
+      return;
+    }
     gsm.active_screen = gsm.active_screen;
   }
 
   Screen main_screen(Entity &entity, UIContext<InputAction> &context);
   Screen settings_screen(Entity &entity, UIContext<InputAction> &context);
+  Screen shop_screen(Entity &entity, UIContext<InputAction> &context);
+  Screen battle_screen(Entity &entity, UIContext<InputAction> &context);
 
   void exit_game() { running = false; }
 };
@@ -286,6 +295,65 @@ Screen ScheduleMainMenuUI::settings_screen(Entity &entity,
           Settings::get().get_post_processing_enabled(), 5)) {
     Settings::get().toggle_post_processing();
   }
+
+  return GameStateManager::get().next_screen.value_or(
+      GameStateManager::get().active_screen);
+}
+
+Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
+                                       UIContext<InputAction> &context) {
+  // Don't create a full screen container - just add the button overlay
+  auto top_right =
+      column_right<InputAction>(context, entity, "shop_top_right", 0);
+
+  // Create Next Round button
+  button_labeled<InputAction>(
+      context, top_right.ent(), "Next Round",
+      []() {
+        log_info("Next Round button clicked!");
+        // Export menu snapshot
+        ExportMenuSnapshotSystem export_system;
+        std::string filename = export_system.export_menu_snapshot();
+
+        if (!filename.empty()) {
+          log_info("Export successful, navigating to battle");
+          // Navigate to battle screen
+          GameStateManager::get().to_battle();
+        } else {
+          log_info("Export failed");
+        }
+      },
+      0);
+
+  return GameStateManager::get().next_screen.value_or(
+      GameStateManager::get().active_screen);
+}
+
+Screen ScheduleMainMenuUI::battle_screen(Entity &entity,
+                                         UIContext<InputAction> &context) {
+  auto elem =
+      ui_helpers::create_screen_container(context, entity, "battle_screen");
+
+  // Add a background
+  auto bg =
+      imm::div(context, mk(elem.ent()),
+               ComponentConfig{}
+                   .with_size(ComponentSize{screen_pct(1.f), screen_pct(1.f)})
+                   .with_color_usage(Theme::Usage::Background)
+                   .with_debug_name("battle_background")
+                   .with_rounded_corners(RoundedCorners().all_sharp()));
+
+  auto top_left =
+      column_left<InputAction>(context, bg.ent(), "battle_top_left", 0);
+
+  // Create Back to Shop button
+  button_labeled<InputAction>(
+      context, top_left.ent(), "Back to Shop",
+      []() {
+        log_info("Back to Shop button clicked!");
+        GameStateManager::get().set_next_screen(Screen::Shop);
+      },
+      0);
 
   return GameStateManager::get().next_screen.value_or(
       GameStateManager::get().active_screen);

@@ -15,16 +15,17 @@ struct GameStateManager {
   } current_state = GameState::Playing;
 
   enum struct Screen {
-    None, // No Main Menu (ie game active)
     Main,
     Settings,
+    Shop,
+    Battle,
   } active_screen = Screen::Main;
 
   std::optional<Screen> next_screen = std::nullopt;
 
   void start_game() {
     current_state = GameState::Playing;
-    active_screen = Screen::None;
+    set_next_screen(Screen::Shop);
   }
 
   void end_game() {
@@ -47,6 +48,8 @@ struct GameStateManager {
   void set_screen(Screen screen) { active_screen = screen; }
 
   void set_next_screen(Screen screen) { next_screen = screen; }
+
+  void to_battle() { set_next_screen(Screen::Battle); }
 
   // Call this at the start of each frame to apply queued screen changes
   void update_screen() {

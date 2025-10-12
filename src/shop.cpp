@@ -7,11 +7,6 @@
 #include "components/is_shop_item.h"
 #include "components/transform.h"
 #include "game_state_manager.h"
-#include "input_mapping.h"
-#include "ui/containers.h"
-#include "ui/controls.h"
-#include "ui/metrics.h"
-#include "ui/ui_systems.h"
 #include <afterhours/src/plugins/color.h>
 #include <memory>
 
@@ -84,13 +79,15 @@ Entity &make_drop_slot(int slot_id, vec2 position, vec2 size,
   return e;
 }
 
-static constexpr DishType dish_pool[] = {
+namespace {
+constexpr DishType dish_pool[] = {
     DishType::GarlicBread,   DishType::TomatoSoup,
     DishType::GrilledCheese, DishType::ChickenSkewer,
     DishType::CucumberSalad, DishType::VanillaSoftServe,
     DishType::CapreseSalad,  DishType::Minestrone,
     DishType::SearedSalmon,  DishType::SteakFlorentine,
 };
+}
 
 struct ShopGenerationSystem : System<> {
   bool initialized = false;
@@ -147,7 +144,7 @@ struct ShopGenerationSystem : System<> {
     for (int i = 0; i < take; ++i) {
       auto dish_type = dish_pool[(size_t)idx[(size_t)i]];
       int slot = free_slots[(size_t)i];
-      auto &entity = make_shop_item(slot, dish_type);
+      make_shop_item(slot, dish_type);
     }
 
     // Merge temp entities so we can query for slots
@@ -167,8 +164,15 @@ struct ShopGenerationSystem : System<> {
   }
 };
 
+struct ScreenTransitionSystem : System<> {
+  void for_each_with(Entity &, float) override {
+    GameStateManager::get().update_screen();
+  }
+};
+
 void register_shop_update_systems(afterhours::SystemManager &systems) {
   systems.register_update_system(std::make_unique<ShopGenerationSystem>());
+  systems.register_update_system(std::make_unique<ScreenTransitionSystem>());
 }
 
-void register_shop_render_systems(afterhours::SystemManager &systems) {}
+void register_shop_render_systems(afterhours::SystemManager &) {}
