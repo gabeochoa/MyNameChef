@@ -17,6 +17,7 @@ backward::SignalHandling sh;
 #include "systems/BattleDebugSystem.h"
 #include "systems/BattleTeamLoaderSystem.h"
 #include "systems/CleanupBattleEntities.h"
+#include "systems/CleanupShopEntities.h"
 #include "systems/DropWhenNoLongerHeld.h"
 #include "systems/InitialShopFill.h"
 #include "systems/JudgingSystems.h"
@@ -101,6 +102,7 @@ void game() {
     systems.register_update_system(std::make_unique<InitJudgingState>());
     systems.register_update_system(std::make_unique<AdvanceJudging>());
     systems.register_update_system(std::make_unique<CleanupBattleEntities>());
+    systems.register_update_system(std::make_unique<CleanupShopEntities>());
     texture_manager::register_update_systems(systems);
     afterhours::animation::register_update_systems<
         afterhours::animation::CompositeKey>(systems);
