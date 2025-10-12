@@ -15,6 +15,7 @@
 #include "sound_library.h"
 #include "texture_library.h"
 #include "translation_manager.h"
+#include "dish_types.h"
 #include "ui/ui_systems.h"
 
 using namespace afterhours;
@@ -82,6 +83,8 @@ Preload &Preload::init(const char *title) {
 
   load_gamepad_mappings();
   load_sounds();
+  // Load dish registry from resources; falls back to compiled defaults if missing
+  load_dish_types_from_json();
 
   // TODO add load folder for shaders
 
