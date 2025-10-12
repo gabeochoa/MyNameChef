@@ -6,6 +6,8 @@
 #include "../query.h"
 #include "../rl.h"
 #include <afterhours/ah.h>
+#include <map>
+#include <sstream>
 
 struct RenderTooltipSystem : System<> {
 public:
@@ -48,8 +50,16 @@ public:
     float text_width = raylib::MeasureText(tooltip.text.c_str(),
                                            static_cast<int>(tooltip.font_size));
     float tooltip_width = text_width + tooltip.padding * 2;
+
+    // Calculate height based on number of lines
+    int line_count = 1; // Start with 1 for the first line
+    for (char c : tooltip.text) {
+      if (c == '\n') {
+        line_count++;
+      }
+    }
     float tooltip_height =
-        tooltip.font_size + tooltip.padding * 4; // Even taller background
+        (tooltip.font_size * line_count) + tooltip.padding * 2;
 
     // Keep tooltip on screen
     float screen_width = raylib::GetScreenWidth();
@@ -74,10 +84,40 @@ public:
                                static_cast<int>(tooltip_width),
                                static_cast<int>(tooltip_height), raylib::WHITE);
 
-    // Draw tooltip text
-    raylib::DrawText(tooltip.text.c_str(),
-                     static_cast<int>(tooltip_x + tooltip.padding),
-                     static_cast<int>(tooltip_y + tooltip.padding),
-                     static_cast<int>(tooltip.font_size), tooltip.text_color);
+    // Draw tooltip text with color support
+    float current_y = tooltip_y + tooltip.padding;
+    std::istringstream text_stream(tooltip.text);
+    std::string line;
+
+    // Color mapping
+    std::map<std::string, raylib::Color> color_map = {
+        {"[GOLD]", raylib::GOLD},     {"[RED]", raylib::RED},
+        {"[GREEN]", raylib::GREEN},   {"[BLUE]", raylib::BLUE},
+        {"[ORANGE]", raylib::ORANGE}, {"[PURPLE]", raylib::PURPLE},
+        {"[CYAN]", raylib::SKYBLUE},  {"[YELLOW]", raylib::YELLOW}};
+
+    while (std::getline(text_stream, line)) {
+      raylib::Color text_color = tooltip.text_color; // Default color
+
+      // Check for color markers
+      for (const auto &[marker, color] : color_map) {
+        if (line.find(marker) != std::string::npos) {
+          text_color = color;
+          // Remove the marker from the line
+          size_t pos = line.find(marker);
+          if (pos != std::string::npos) {
+            line.replace(pos, marker.length(), "");
+          }
+          break;
+        }
+      }
+
+      // Draw the line with the determined color
+      raylib::DrawText(line.c_str(),
+                       static_cast<int>(tooltip_x + tooltip.padding),
+                       static_cast<int>(current_y),
+                       static_cast<int>(tooltip.font_size), text_color);
+      current_y += tooltip.font_size;
+    }
   }
 };

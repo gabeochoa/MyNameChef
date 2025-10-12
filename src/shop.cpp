@@ -43,9 +43,26 @@ Entity &make_shop_item(int slot, IsDish::DishInfo info) {
   e.addComponent<IsShopItem>(slot);
   e.addComponent<IsDraggable>(true);
   e.addComponent<ShopItemColor>(info.color);
-  
+
   // Add tooltip with dish information
-  std::string tooltip_text = info.name + "\nPrice: " + std::to_string(info.price) + " gold";
+  std::string tooltip_text =
+      info.name + "\n[GOLD]Price: " + std::to_string(info.price) + " gold";
+
+  // Add flavor stats (only show non-zero values) with colors
+  std::vector<std::pair<std::string, int>> flavor_stats = {
+      {"[YELLOW]Sweetness", info.flavor.sweetness},
+      {"[RED]Spice", info.flavor.spice},
+      {"[GREEN]Acidity", info.flavor.acidity},
+      {"[BLUE]Umami", info.flavor.umami},
+      {"[ORANGE]Richness", info.flavor.richness},
+      {"[CYAN]Freshness", info.flavor.freshness},
+      {"[PURPLE]Satiety", info.flavor.satiety}};
+
+  for (const auto &[name, value] : flavor_stats) {
+    if (value > 0) {
+      tooltip_text += "\n" + name + ": " + std::to_string(value);
+    }
+  }
   e.addComponent<HasTooltip>(tooltip_text);
 
   return e;
@@ -66,34 +83,46 @@ Entity &make_drop_slot(int slot_id, vec2 position, vec2 size,
 static constexpr IsDish::DishInfo dish_pool[] = {
     IsDish::DishInfo{.name = "Garlic Bread",
                      .color = raylib::Color{180, 120, 80, 255},
-                     .price = 3},
+                     .price = 3,
+                     .flavor = FlavorStats{.satiety = 2, .richness = 2}},
     IsDish::DishInfo{.name = "Tomato Soup",
                      .color = raylib::Color{160, 40, 40, 255},
-                     .price = 3},
+                     .price = 3,
+                     .flavor = FlavorStats{.acidity = 2, .freshness = 2}},
     IsDish::DishInfo{.name = "Grilled Cheese",
                      .color = raylib::Color{200, 160, 60, 255},
-                     .price = 3},
+                     .price = 3,
+                     .flavor = FlavorStats{.richness = 2, .satiety = 2}},
     IsDish::DishInfo{.name = "Chicken Skewer",
                      .color = raylib::Color{150, 80, 60, 255},
-                     .price = 3},
+                     .price = 3,
+                     .flavor = FlavorStats{.spice = 2, .umami = 2}},
     IsDish::DishInfo{.name = "Cucumber Salad",
                      .color = raylib::Color{60, 160, 100, 255},
-                     .price = 3},
+                     .price = 3,
+                     .flavor = FlavorStats{.freshness = 3}},
     IsDish::DishInfo{.name = "Vanilla Soft Serve",
                      .color = raylib::Color{220, 200, 180, 255},
-                     .price = 3},
+                     .price = 3,
+                     .flavor = FlavorStats{.sweetness = 3, .richness = 1}},
     IsDish::DishInfo{.name = "Caprese Salad",
                      .color = raylib::Color{120, 200, 140, 255},
-                     .price = 3},
+                     .price = 3,
+                     .flavor =
+                         FlavorStats{.freshness = 2, .acidity = 1, .umami = 1}},
     IsDish::DishInfo{.name = "Minestrone",
                      .color = raylib::Color{160, 90, 60, 255},
-                     .price = 3},
+                     .price = 3,
+                     .flavor = FlavorStats{.satiety = 2, .freshness = 1}},
     IsDish::DishInfo{.name = "Seared Salmon",
                      .color = raylib::Color{230, 140, 90, 255},
-                     .price = 3},
+                     .price = 3,
+                     .flavor = FlavorStats{.umami = 3, .richness = 2}},
     IsDish::DishInfo{.name = "Steak Florentine",
                      .color = raylib::Color{160, 80, 80, 255},
-                     .price = 3},
+                     .price = 3,
+                     .flavor =
+                         FlavorStats{.satiety = 3, .umami = 2, .richness = 2}},
 };
 
 struct ShopGenerationSystem : System<> {
