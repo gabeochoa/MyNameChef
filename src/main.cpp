@@ -31,7 +31,6 @@ backward::SignalHandling sh;
 #include "systems/RenderSpritesByOrder.h"
 #include "systems/RenderBattleTeams.h"
 #include "systems/RenderDebugWindowInfo.h"
-#include "systems/RenderEntities.h"
 #include "systems/RenderFPS.h"
 #include "systems/RenderJudges.h"
 #include "systems/RenderLetterboxBars.h"
