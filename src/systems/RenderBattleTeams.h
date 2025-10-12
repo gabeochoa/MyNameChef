@@ -2,6 +2,7 @@
 
 #include "../components/battle_team_tags.h"
 #include "../components/is_dish.h"
+#include "../components/judged.h"
 #include "../components/transform.h"
 #include "../game_state_manager.h"
 #include "../rl.h"
@@ -25,6 +26,11 @@ struct RenderBattleTeams : afterhours::System<Transform, IsDish> {
 
     if (!isPlayer && !isOpponent) {
       return; // Not a battle team item, skip
+    }
+
+    // Hide judged dishes on battle screen (kept for results rendering)
+    if (entity.has<Judged>()) {
+      return;
     }
 
     // Get dish color
