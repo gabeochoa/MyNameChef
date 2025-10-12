@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../components/battle_load_request.h"
 #include "../components/is_dish.h"
 #include "../components/is_inventory_item.h"
 #include <afterhours/ah.h>
@@ -80,6 +81,21 @@ public:
       file << snapshot.dump(2);
       file.close();
       log_info("Exported menu snapshot to: {}", filename);
+
+      // Create BattleLoadRequest singleton for battle loading
+      auto &requestEntity = afterhours::EntityHelper::createEntity();
+      BattleLoadRequest request;
+      request.playerJsonPath = filename;
+      request.opponentJsonPath =
+          "resources/battles/opponent_sample.json"; // Default opponent
+      requestEntity.addComponent<BattleLoadRequest>(std::move(request));
+      afterhours::EntityHelper::registerSingleton<BattleLoadRequest>(
+          requestEntity);
+
+      log_info(
+          "Created BattleLoadRequest singleton with player: {}, opponent: {}",
+          filename, request.opponentJsonPath);
+
       return filename;
     } else {
       log_error("Failed to write snapshot file: {}", filename);

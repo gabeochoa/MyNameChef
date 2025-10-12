@@ -212,8 +212,7 @@ ElementResult create_column_container(UIContext<InputAction> &context,
 
 Screen ScheduleMainMenuUI::main_screen(Entity &entity,
                                        UIContext<InputAction> &context) {
-  auto elem =
-      ui_helpers::create_screen_container(context, entity, "screen");
+  auto elem = ui_helpers::create_screen_container(context, entity, "screen");
 
   // Add a background
   auto bg =
@@ -247,8 +246,7 @@ Screen ScheduleMainMenuUI::main_screen(Entity &entity,
 
 Screen ScheduleMainMenuUI::settings_screen(Entity &entity,
                                            UIContext<InputAction> &context) {
-  auto elem =
-      ui_helpers::create_screen_container(context, entity, "screen");
+  auto elem = ui_helpers::create_screen_container(context, entity, "screen");
   auto top_left =
       column_left<InputAction>(context, elem.ent(), "settings_top_left", 0);
   {
@@ -308,8 +306,7 @@ Screen ScheduleMainMenuUI::settings_screen(Entity &entity,
 
 Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
                                        UIContext<InputAction> &context) {
-  auto elem =
-      ui_helpers::create_screen_container(context, entity, "screen");
+  auto elem = ui_helpers::create_screen_container(context, entity, "screen");
   auto top_right =
       column_right<InputAction>(context, elem.ent(), "shop_top_right", 0);
 
@@ -325,13 +322,6 @@ Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
         if (!filename.empty()) {
           log_info("Export successful, navigating to battle");
 
-          // Create BattleLoadRequest with player path and opponent fallback
-          std::string opponentPath = "resources/battles/opponent_sample.json";
-
-          auto &battleEntity = EntityHelper::createEntity();
-          battleEntity.addComponent<BattleLoadRequest>(filename, opponentPath);
-          EntityHelper::registerSingleton<BattleLoadRequest>(battleEntity);
-
           // Navigate to battle screen
           GameStateManager::get().to_battle();
         } else {
@@ -346,8 +336,7 @@ Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
 
 Screen ScheduleMainMenuUI::battle_screen(Entity &entity,
                                          UIContext<InputAction> &context) {
-  auto elem =
-      ui_helpers::create_screen_container(context, entity, "screen");
+  auto elem = ui_helpers::create_screen_container(context, entity, "screen");
   auto top_left =
       column_left<InputAction>(context, elem.ent(), "battle_top_left", 0);
 
@@ -366,8 +355,7 @@ Screen ScheduleMainMenuUI::battle_screen(Entity &entity,
 
 Screen ScheduleMainMenuUI::results_screen(Entity &entity,
                                           UIContext<InputAction> &context) {
-  auto elem =
-      ui_helpers::create_screen_container(context, entity, "screen");
+  auto elem = ui_helpers::create_screen_container(context, entity, "screen");
 
   // Add a background
   auto bg =

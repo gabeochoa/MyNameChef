@@ -18,9 +18,11 @@ backward::SignalHandling sh;
 #include "systems/BeginPostProcessingShader.h"
 #include "systems/CleanupBattleEntities.h"
 #include "systems/DropWhenNoLongerHeld.h"
+#include "systems/LoadBattleResults.h"
 #include "systems/MarkEntitiesWithShaders.h"
 #include "systems/MarkIsHeldWhenHeld.h"
 #include "systems/PostProcessingSystems.h"
+#include "systems/RenderBattleResults.h"
 #include "systems/RenderBattleTeams.h"
 #include "systems/RenderDebugWindowInfo.h"
 #include "systems/RenderEntities.h"
@@ -95,6 +97,8 @@ void game() {
 
     register_sound_systems(systems);
     register_ui_systems(systems);
+    // Ensure results are loaded in the same frame UI switches to Results
+    systems.register_update_system(std::make_unique<LoadBattleResults>());
     register_shop_update_systems(systems);
 
     systems.register_update_system(std::make_unique<UpdateRenderTexture>());
@@ -138,6 +142,7 @@ void game() {
       systems.register_render_system(
           std::make_unique<EndPostProcessingShader>());
       systems.register_render_system(std::make_unique<RenderLetterboxBars>());
+      systems.register_render_system(std::make_unique<RenderBattleResults>());
       systems.register_render_system(std::make_unique<RenderTooltipSystem>());
       systems.register_render_system(std::make_unique<RenderFPS>());
       systems.register_render_system(std::make_unique<RenderDebugWindowInfo>());
