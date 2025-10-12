@@ -6,12 +6,33 @@
 #include "../components/is_inventory_item.h"
 #include "../components/is_shop_item.h"
 #include "../components/transform.h"
+#include "../query.h"
 #include "../rl.h"
 #include <afterhours/ah.h>
 
 using namespace afterhours;
 
 struct MarkIsHeldWhenHeld : System<IsDraggable, Transform> {
+private:
+  // Helper function to get the slot ID from an entity
+  int get_slot_id(const Entity &entity) {
+    if (entity.has<IsInventoryItem>()) {
+      return entity.get<IsInventoryItem>().slot;
+    } else if (entity.has<IsShopItem>()) {
+      return entity.get<IsShopItem>().slot;
+    }
+    return -1;
+  }
+
+  void mark_slot_unoccupied(int slot_id) {
+    auto slot_entity = 
+         EQ().whereHasComponent<IsDropSlot>().whereSlotID(slot_id).gen_first();
+    if (slot_entity) {
+      slot_entity->get<IsDropSlot>().occupied = false;
+    }
+  }
+
+public:
   void for_each_with(Entity &entity, IsDraggable &draggable,
                      Transform &transform, float) override {
     if (!draggable.enabled) {
@@ -41,24 +62,8 @@ struct MarkIsHeldWhenHeld : System<IsDraggable, Transform> {
         entity.addComponent<IsHeld>(offset, original_position);
 
         // Mark the slot this item was in as unoccupied
-        int item_slot = -1;
-        if (entity.has<IsInventoryItem>()) {
-          item_slot = entity.get<IsInventoryItem>().slot;
-        } else if (entity.has<IsShopItem>()) {
-          item_slot = entity.get<IsShopItem>().slot;
-        }
-
-        if (item_slot >= 0) {
-          // Find the slot entity and mark it as unoccupied
-          for (auto &ref :
-               EntityQuery().whereHasComponent<IsDropSlot>().gen()) {
-            auto &slot_entity = ref.get();
-            if (slot_entity.get<IsDropSlot>().slot_id == item_slot) {
-              slot_entity.get<IsDropSlot>().occupied = false;
-              break;
-            }
-          }
-        }
+        int item_slot = get_slot_id(entity);
+        mark_slot_unoccupied(item_slot);
       }
     }
   }

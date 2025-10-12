@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include "components/is_drop_slot.h"
 #include "components/transform.h"
 #include "math_util.h"
 #include "rl.h"
@@ -57,4 +58,17 @@ struct EQ : public EntityQuery<EQ> {
   };
 
   EQ &whereOverlaps(const Rectangle r) { return add_mod(new WhereOverlaps(r)); }
+
+  struct WhereSlotID : EntityQuery::Modification {
+    int slot_id;
+
+    explicit WhereSlotID(int id) : slot_id(id) {}
+
+    bool operator()(const afterhours::Entity &entity) const override {
+      return entity.has<IsDropSlot>() &&
+             entity.get<IsDropSlot>().slot_id == slot_id;
+    }
+  };
+
+  EQ &whereSlotID(int id) { return add_mod(new WhereSlotID(id)); }
 };
