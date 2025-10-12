@@ -24,10 +24,6 @@ struct RenderBattleResults : afterhours::System<> {
     auto &result = entity.get<BattleResult>();
 
     float screenWidth = raylib::GetScreenWidth();
-    float screenHeight = raylib::GetScreenHeight();
-
-    raylib::DrawRectangle(0, 0, (int)screenWidth, (int)screenHeight,
-                          raylib::Color{20, 20, 20, 255});
 
     std::string title = "BATTLE RESULTS";
     float titleWidth = raylib::MeasureText(title.c_str(), 48);
