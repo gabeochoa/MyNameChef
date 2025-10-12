@@ -4,17 +4,54 @@
 #include "components/is_dish.h"
 #include "components/is_draggable.h"
 #include "components/is_drop_slot.h"
+#include "components/is_inventory_item.h"
 #include "components/is_shop_item.h"
+#include "components/render_order.h"
 #include "components/transform.h"
+#include "dish_types.h"
 #include "game_state_manager.h"
 #include <afterhours/src/plugins/color.h>
+#include <magic_enum/magic_enum.hpp>
 #include <memory>
+#include <random>
+#include <sstream>
 
 using namespace afterhours;
 
 struct ShopItemColor : HasColor {
   ShopItemColor(raylib::Color color) : HasColor(color) {}
 };
+
+// Helper function to generate comprehensive dish tooltip text
+std::string generate_dish_tooltip(DishType dishType) {
+  auto dishInfo = get_dish_info(dishType);
+  std::ostringstream tooltip;
+
+  // Dish name
+  tooltip << "[GOLD]" << dishInfo.name << "\n";
+
+  // Price
+  tooltip << "[CYAN]Price: " << dishInfo.price << " coins\n";
+
+  // Flavor stats
+  tooltip << "Flavor Stats:\n";
+  if (dishInfo.flavor.satiety > 0)
+    tooltip << "[PURPLE]  Satiety: " << dishInfo.flavor.satiety << "\n";
+  if (dishInfo.flavor.sweetness > 0)
+    tooltip << "[YELLOW]  Sweetness: " << dishInfo.flavor.sweetness << "\n";
+  if (dishInfo.flavor.spice > 0)
+    tooltip << "[RED]  Spice: " << dishInfo.flavor.spice << "\n";
+  if (dishInfo.flavor.acidity > 0)
+    tooltip << "[GREEN]  Acidity: " << dishInfo.flavor.acidity << "\n";
+  if (dishInfo.flavor.umami > 0)
+    tooltip << "[BLUE]  Umami: " << dishInfo.flavor.umami << "\n";
+  if (dishInfo.flavor.richness > 0)
+    tooltip << "[ORANGE]  Richness: " << dishInfo.flavor.richness << "\n";
+  if (dishInfo.flavor.freshness > 0)
+    tooltip << "[CYAN]  Freshness: " << dishInfo.flavor.freshness << "\n";
+
+  return tooltip.str();
+}
 
 void make_shop_manager(Entity &sophie) {
   sophie.addComponent<Wallet>();
@@ -37,32 +74,14 @@ Entity &make_shop_item(int slot, DishType type) {
   e.addComponent<IsDish>(type);
   e.addComponent<IsShopItem>(slot);
   e.addComponent<IsDraggable>(true);
+  e.addComponent<HasRenderOrder>(RenderOrder::ShopItems);
 
   // Get dish info once to avoid multiple calls
   auto dish_info = get_dish_info(type);
   e.addComponent<ShopItemColor>(dish_info.color);
 
-  // Add tooltip with dish information
-  std::string tooltip_text =
-      dish_info.name + "\n[GOLD]Price: " + std::to_string(dish_info.price) +
-      " gold";
-
-  // Add flavor stats (only show non-zero values) with colors
-  std::vector<std::pair<std::string, int>> flavor_stats = {
-      {"[YELLOW]Sweetness", dish_info.flavor.sweetness},
-      {"[RED]Spice", dish_info.flavor.spice},
-      {"[GREEN]Acidity", dish_info.flavor.acidity},
-      {"[BLUE]Umami", dish_info.flavor.umami},
-      {"[ORANGE]Richness", dish_info.flavor.richness},
-      {"[CYAN]Freshness", dish_info.flavor.freshness},
-      {"[PURPLE]Satiety", dish_info.flavor.satiety}};
-
-  for (const auto &[name, value] : flavor_stats) {
-    if (value > 0) {
-      tooltip_text += "\n" + name + ": " + std::to_string(value);
-    }
-  }
-  e.addComponent<HasTooltip>(tooltip_text);
+  // Add comprehensive tooltip with dish information
+  e.addComponent<HasTooltip>(generate_dish_tooltip(type));
 
   return e;
 }
@@ -75,6 +94,7 @@ Entity &make_drop_slot(int slot_id, vec2 position, vec2 size,
   e.addComponent<Transform>(position, size);
   e.addComponent<IsDropSlot>(slot_id, accepts_inventory, accepts_shop);
   e.addComponent<CanDropOnto>(true);
+  e.addComponent<HasRenderOrder>(RenderOrder::DropSlots);
 
   return e;
 }
@@ -147,6 +167,8 @@ struct ShopGenerationSystem : System<> {
       make_shop_item(slot, dish_type);
     }
 
+    add_random_dish_to_inventory();
+
     // Merge temp entities so we can query for slots
     EntityHelper::merge_entity_arrays();
 
@@ -161,6 +183,46 @@ struct ShopGenerationSystem : System<> {
         }
       }
     }
+  }
+
+  void add_random_dish_to_inventory() {
+    // Array of all available dish types
+    constexpr DishType dish_pool[] = {
+        DishType::GarlicBread,   DishType::TomatoSoup,
+        DishType::GrilledCheese, DishType::ChickenSkewer,
+        DishType::CucumberSalad, DishType::VanillaSoftServe,
+        DishType::CapreseSalad,  DishType::Minestrone,
+        DishType::SearedSalmon,  DishType::SteakFlorentine,
+    };
+
+    // Pick a random dish
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(
+        0, sizeof(dish_pool) / sizeof(dish_pool[0]) - 1);
+    DishType randomDish = dish_pool[dis(gen)];
+
+    // Create the inventory item entity
+    auto &entity = EntityHelper::createEntity();
+
+    // Position it in the first inventory slot (slot 100)
+    float x = 100.0f; // First inventory slot X position
+    float y = 500.0f; // Inventory row Y position
+
+    entity.addComponent<Transform>(vec2{x, y}, vec2{80.0f, 80.0f});
+    entity.addComponent<IsDish>(randomDish);
+    entity.addComponent<IsInventoryItem>();
+    entity.addComponent<HasRenderOrder>(RenderOrder::InventoryItems);
+    entity.addComponent<ShopItemColor>(get_dish_info(randomDish).color);
+    entity.addComponent<HasTooltip>(generate_dish_tooltip(randomDish));
+    entity.get<IsInventoryItem>().slot = 100; // First inventory slot
+
+    // Merge immediately so the entity is available for rendering
+    EntityHelper::merge_entity_arrays();
+
+    log_info(
+        "Added random dish to inventory: {} at slot 100, position ({}, {})",
+        magic_enum::enum_name(randomDish), x, y);
   }
 };
 
