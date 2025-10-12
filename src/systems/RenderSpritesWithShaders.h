@@ -80,8 +80,6 @@ private:
     }
 
     raylib::Texture2D sheet = spritesheet_component->texture;
-    Rectangle source_frame =
-        afterhours::texture_manager::idx_to_sprite_frame(0, 1);
 
     // Render each entity with its own shader state
     for (const auto &entity_data : entities) {
@@ -91,8 +89,7 @@ private:
       update_shader_uniforms(shader, shader_type);
 
       // Render the entity with its specific uniforms
-      render_single_entity(entity_data, sheet, source_frame, shader,
-                           shader_type);
+      render_single_entity(entity_data, sheet, shader, shader_type);
 
       raylib::EndShaderMode();
     }
@@ -134,16 +131,10 @@ private:
     auto *spritesheet_component = EntityHelper::get_singleton_cmp<
         afterhours::texture_manager::HasSpritesheet>();
     if (spritesheet_component) {
-      raylib::Texture2D sheet = spritesheet_component->texture;
-      Rectangle source_frame =
-          afterhours::texture_manager::idx_to_sprite_frame(0, 1);
-
-      float uvMin[2] = {source_frame.x / static_cast<float>(sheet.width),
-                        source_frame.y / static_cast<float>(sheet.height)};
-      float uvMax[2] = {(source_frame.x + source_frame.width) /
-                            static_cast<float>(sheet.width),
-                        (source_frame.y + source_frame.height) /
-                            static_cast<float>(sheet.height)};
+      // Using per-entity frames; default UVs to full sheet. If a shader needs
+      // exact UVs, compute them per-entity from hasSprite.frame.
+      float uvMin[2] = {0.f, 0.f};
+      float uvMax[2] = {1.f, 1.f};
 
       int uvMinLoc = raylib::GetShaderLocation(shader, "uvMin");
       if (uvMinLoc != -1) {
@@ -160,7 +151,6 @@ private:
 
   void render_single_entity(const EntityRenderData &entity_data,
                             const raylib::Texture2D &sheet,
-                            const Rectangle &source_frame,
                             const raylib::Shader &shader,
                             ShaderType shader_type) const {
     const auto &transform = *entity_data.transform;
@@ -173,8 +163,8 @@ private:
                                shader_type);
 
     // Calculate rendering parameters
-    float dest_width = source_frame.width * hasSprite.scale;
-    float dest_height = source_frame.height * hasSprite.scale;
+    float dest_width = hasSprite.frame.width * hasSprite.scale;
+    float dest_height = hasSprite.frame.height * hasSprite.scale;
 
     float offset_x = 0.0f; // SPRITE_OFFSET_X
     float offset_y = 0.0f; // SPRITE_OFFSET_Y
@@ -186,7 +176,7 @@ private:
 
     // Render the sprite
     raylib::DrawTexturePro(
-        sheet, source_frame,
+        sheet, hasSprite.frame,
         Rectangle{
             transform.position.x + transform.size.x / 2.f + rotated_x,
             transform.position.y + transform.size.y / 2.f + rotated_y,

@@ -8,11 +8,13 @@
 #include "BattleAnimations.h"
 #include <afterhours/ah.h>
 #include <afterhours/src/plugins/animation.h>
+#include <afterhours/src/plugins/texture_manager.h>
 
 struct RenderBattleTeams : afterhours::System<Transform, IsDish> {
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
-    return gsm.active_screen == GameStateManager::Screen::Battle;
+    return gsm.active_screen == GameStateManager::Screen::Battle ||
+           gsm.active_screen == GameStateManager::Screen::Results;
   }
 
   void for_each_with(const afterhours::Entity &entity,
@@ -25,13 +27,12 @@ struct RenderBattleTeams : afterhours::System<Transform, IsDish> {
     const auto &dbs = entity.get<DishBattleState>();
     bool isPlayer = dbs.team_side == DishBattleState::TeamSide::Player;
 
-    // Hide judged dishes on battle screen (kept for results rendering)
-    if (dbs.phase == DishBattleState::Phase::Judged) {
+    // Hide judged dishes on battle screen, but show them on results screen
+    auto &gsm = GameStateManager::get();
+    if (dbs.phase == DishBattleState::Phase::Judged &&
+        gsm.active_screen == GameStateManager::Screen::Battle) {
       return;
     }
-
-    // Get dish color
-    raylib::Color dishColor = dish.color();
 
     // Apply slide-in animation offset (vertical: player from top, opponent from
     // bottom)
@@ -63,11 +64,49 @@ struct RenderBattleTeams : afterhours::System<Transform, IsDish> {
     float present_offset_y =
         (judge_center_y - transform.position.y) * present_v;
 
-    // Draw the dish rectangle
-    raylib::DrawRectangle(
-        (int)(transform.position.x + offset_x),
-        (int)(transform.position.y + offset_y + present_offset_y),
-        (int)transform.size.x, (int)transform.size.y, dishColor);
+    // Draw the dish sprite or fallback rectangle
+    if (entity.has<afterhours::texture_manager::HasSprite>()) {
+      const auto &hasSprite =
+          entity.get<afterhours::texture_manager::HasSprite>();
+
+      // Get spritesheet
+      auto *spritesheet_component = afterhours::EntityHelper::get_singleton_cmp<
+          afterhours::texture_manager::HasSpritesheet>();
+      if (!spritesheet_component) {
+        log_warn("No spritesheet found, rendering pink fallback for entity {}",
+                 entity.id);
+        raylib::DrawRectangle(
+            (int)(transform.position.x + offset_x),
+            (int)(transform.position.y + offset_y + present_offset_y),
+            (int)transform.size.x, (int)transform.size.y, raylib::PINK);
+        return;
+      }
+
+      raylib::Texture2D sheet = spritesheet_component->texture;
+
+      float dest_width = hasSprite.frame.width * hasSprite.scale;
+      float dest_height = hasSprite.frame.height * hasSprite.scale;
+
+      raylib::DrawTexturePro(
+          sheet, hasSprite.frame,
+          Rectangle{
+              transform.position.x + offset_x + transform.size.x / 2.f,
+              transform.position.y + offset_y + present_offset_y +
+                  transform.size.y / 2.f,
+              dest_width,
+              dest_height,
+          },
+          vec2{dest_width / 2.f, dest_height / 2.f}, 0.0f, raylib::WHITE);
+    } else {
+      // Fallback: draw pink rectangle and log warning
+      log_warn("Battle dish entity {} has no HasSprite component, rendering "
+               "pink fallback",
+               entity.id);
+      raylib::DrawRectangle(
+          (int)(transform.position.x + offset_x),
+          (int)(transform.position.y + offset_y + present_offset_y),
+          (int)transform.size.x, (int)transform.size.y, raylib::PINK);
+    }
 
     // Draw border
     raylib::Color borderColor = isPlayer ? raylib::GREEN : raylib::RED;

@@ -1,11 +1,12 @@
 #pragma once
 
+#include "../components/is_dish.h"
 #include "../components/render_order.h"
 #include "../components/transform.h"
 #include "../game_state_manager.h"
-#include "../query.h"
 #include <afterhours/ah.h>
 #include <afterhours/src/plugins/color.h>
+#include <afterhours/src/plugins/texture_manager.h>
 #include <algorithm>
 #include <vector>
 
@@ -20,14 +21,26 @@ struct RenderEntities : System<Transform> {
                              float) const override {
     // Only runs on Shop; no filtering needed for Battle here
     raylib::Color color = raylib::RAYWHITE;
-    if (entity.has_child_of<HasColor>()) {
-      color = entity.get_with_child<HasColor>().color();
-    }
 
-    raylib::DrawRectangle(static_cast<int>(transform.position.x),
-                          static_cast<int>(transform.position.y),
-                          static_cast<int>(transform.size.x),
-                          static_cast<int>(transform.size.y), color);
+    // Check if this is a dish entity without a sprite (fallback case)
+    if (entity.has<IsDish>() &&
+        !entity.has<afterhours::texture_manager::HasSprite>()) {
+      log_warn(
+          "Dish entity {} has no HasSprite component, rendering pink fallback",
+          entity.id);
+      color = raylib::PINK;
+      raylib::DrawRectangle(static_cast<int>(transform.position.x),
+                            static_cast<int>(transform.position.y),
+                            static_cast<int>(transform.size.x),
+                            static_cast<int>(transform.size.y), color);
+    } else if (entity.has_child_of<HasColor>()) {
+      color = entity.get_with_child<HasColor>().color();
+
+      raylib::DrawRectangle(static_cast<int>(transform.position.x),
+                            static_cast<int>(transform.position.y),
+                            static_cast<int>(transform.size.x),
+                            static_cast<int>(transform.size.y), color);
+    }
   };
 
   virtual void once(float) const override {
@@ -53,7 +66,15 @@ struct RenderEntities : System<Transform> {
       const Transform &transform = entity.get<Transform>();
 
       raylib::Color color = raylib::RAYWHITE;
-      if (entity.has_child_of<HasColor>()) {
+
+      // Check if this is a dish entity without a sprite (fallback case)
+      if (entity.has<IsDish>() &&
+          !entity.has<afterhours::texture_manager::HasSprite>()) {
+        log_warn("Dish entity {} has no HasSprite component, rendering pink "
+                 "fallback",
+                 entity.id);
+        color = raylib::PINK;
+      } else if (entity.has_child_of<HasColor>()) {
         color = entity.get_with_child<HasColor>().color();
       }
 
