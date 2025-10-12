@@ -50,8 +50,8 @@ ECS components (proposed):
 
   drink pairings are how you can boost your dish without replacing it. 
   also we need to add levels so you can combine multiple of the same dish to upgrade the level 
-
-  merge dishtype with dishtypes to load all the dishtypes and info from a json file so that we can more easily configure the dishes going forwad 
+  combile keyboard and controlx into a single sheet 
+  replace dish pools with enum_values
 
 
 ECS systems (proposed):
