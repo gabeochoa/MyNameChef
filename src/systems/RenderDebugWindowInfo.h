@@ -1,7 +1,9 @@
 #pragma once
 
+#include "../game_state_manager.h"
 #include "../input_mapping.h"
 #include <afterhours/ah.h>
+#include <magic_enum/magic_enum.hpp>
 
 struct RenderDebugWindowInfo
     : System<window_manager::ProvidesCurrentResolution> {
@@ -33,10 +35,13 @@ struct RenderDebugWindowInfo
     const int window_w = raylib::GetScreenWidth();
     const int window_h = raylib::GetScreenHeight();
     const auto rez = pCurrentResolution.current_resolution;
+    const auto &gsm = GameStateManager::get();
 
-    const int x = pCurrentResolution.width() - 160;
+    const int x = pCurrentResolution.width() - 200; // Increased width for more text
     const int y0 = 18;
     const int y1 = 36;
+    const int y2 = 54;
+    const int y3 = 72;
     const int font = 14;
     const raylib::Color col = raylib::WHITE;
 
@@ -44,5 +49,11 @@ struct RenderDebugWindowInfo
                      y0, font, col);
     raylib::DrawText(fmt::format("game {}x{}", rez.width, rez.height).c_str(),
                      x, y1, font, col);
+    
+    // Add game state and screen information
+    std::string state_name = std::string(magic_enum::enum_name(gsm.current_state));
+    std::string screen_name = std::string(magic_enum::enum_name(gsm.active_screen));
+    raylib::DrawText(fmt::format("state: {}", state_name).c_str(), x, y2, font, col);
+    raylib::DrawText(fmt::format("screen: {}", screen_name).c_str(), x, y3, font, col);
   }
 };
