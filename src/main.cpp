@@ -9,20 +9,20 @@ backward::SignalHandling sh;
 #include "game.h"
 //
 #include "argh.h"
-#include "game_state_manager.h"
 #include "preload.h"
 #include "settings.h"
 #include "shop.h"
 #include "sound_systems.h"
 #include "systems/BattleDebugSystem.h"
 #include "systems/BattleTeamLoaderSystem.h"
-#include "systems/BeginPostProcessingShader.h"
 #include "systems/CleanupBattleEntities.h"
 #include "systems/DropWhenNoLongerHeld.h"
+#include "systems/InitialShopFill.h"
 #include "systems/LoadBattleResults.h"
 #include "systems/MarkEntitiesWithShaders.h"
 #include "systems/MarkIsHeldWhenHeld.h"
 #include "systems/PostProcessingSystems.h"
+#include "systems/ProcessBattleRewards.h"
 #include "systems/RenderBattleResults.h"
 #include "systems/RenderBattleTeams.h"
 #include "systems/RenderDebugWindowInfo.h"
@@ -101,6 +101,10 @@ void game() {
     register_ui_systems(systems);
     // Ensure results are loaded in the same frame UI switches to Results
     systems.register_update_system(std::make_unique<LoadBattleResults>());
+    // Process battle rewards and refill store after results are loaded
+    systems.register_update_system(std::make_unique<ProcessBattleRewards>());
+    // Fill shop on first game start
+    systems.register_update_system(std::make_unique<InitialShopFill>());
     register_shop_update_systems(systems);
 
     systems.register_update_system(std::make_unique<UpdateRenderTexture>());
