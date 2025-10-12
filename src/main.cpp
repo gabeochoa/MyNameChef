@@ -16,6 +16,7 @@ backward::SignalHandling sh;
 #include "sound_systems.h"
 #include "systems/BattleTeamLoaderSystem.h"
 #include "systems/BeginPostProcessingShader.h"
+#include "systems/CleanupBattleEntities.h"
 #include "systems/DropWhenNoLongerHeld.h"
 #include "systems/MarkEntitiesWithShaders.h"
 #include "systems/MarkIsHeldWhenHeld.h"
@@ -89,6 +90,7 @@ void game() {
     systems.register_update_system(std::make_unique<MarkIsHeldWhenHeld>());
     systems.register_update_system(std::make_unique<DropWhenNoLongerHeld>());
     systems.register_update_system(std::make_unique<BattleTeamLoaderSystem>());
+    systems.register_update_system(std::make_unique<CleanupBattleEntities>());
     texture_manager::register_update_systems(systems);
 
     register_sound_systems(systems);
