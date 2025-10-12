@@ -1,8 +1,7 @@
 #pragma once
 
-#include "../components/battle_team_tags.h"
+#include "../components/dish_battle_state.h"
 #include "../components/is_dish.h"
-#include "../components/judged.h"
 #include "../components/judging_state.h"
 #include "../dish_types.h"
 #include "../game_state_manager.h"
@@ -49,58 +48,58 @@ struct AdvanceJudging : afterhours::System<JudgingState> {
       return;
     }
 
-    js.timer += dt;
-    if (js.timer < js.per_course_delay)
-      return;
-    js.timer = 0.0f;
-
-    // Score and then remove first dish per side; entities shift visually
-    bool any_scored = false;
-    {
-      auto first = afterhours::EntityQuery()
-                       .whereHasComponent<IsPlayerTeamItem>()
-                       .whereHasComponent<IsDish>()
-                       .whereLambda([](const afterhours::Entity &e) {
-                         return !e.has<Judged>();
-                       })
-                       .gen_first();
-      if (first) {
-        const auto &dish = first->get<IsDish>();
-        DishInfo info = get_dish_info(dish.type);
-        const auto &f = info.flavor;
-        js.player_total += f.satiety + f.sweetness + f.spice + f.acidity +
-                           f.umami + f.richness + f.freshness;
-        first->addComponent<Judged>();
-        any_scored = true;
+    // 1) advance in-flight presentations
+    const float present_duration = 0.45f; // seconds
+    int num_presenting = 0;
+    for (auto &ref :
+         afterhours::EntityQuery().whereHasComponent<DishBattleState>().gen()) {
+      auto &e = ref.get();
+      auto &s = e.get<DishBattleState>();
+      if (s.phase == DishBattleState::Phase::Presenting) {
+        num_presenting++;
+        s.phase_progress =
+            std::min(1.0f, s.phase_progress + dt / present_duration);
+        if (s.phase_progress >= 1.0f) {
+          s.phase = DishBattleState::Phase::Judged;
+        }
       }
     }
-    {
-      auto first = afterhours::EntityQuery()
-                       .whereHasComponent<IsOpponentTeamItem>()
-                       .whereHasComponent<IsDish>()
-                       .whereLambda([](const afterhours::Entity &e) {
-                         return !e.has<Judged>();
-                       })
-                       .gen_first();
-      if (first) {
-        const auto &dish = first->get<IsDish>();
-        DishInfo info = get_dish_info(dish.type);
-        const auto &f = info.flavor;
-        js.opponent_total += f.satiety + f.sweetness + f.spice + f.acidity +
-                             f.umami + f.richness + f.freshness;
-        first->addComponent<Judged>();
-        any_scored = true;
-      }
-    }
-    if (!any_scored) {
-      js.complete = true;
-      js.post_complete_elapsed = 0.0f;
-    }
 
-    js.current_index++;
-    if (js.current_index >= js.total_courses) {
-      js.complete = true;
-      js.post_complete_elapsed = 0.0f;
+    // 2) if no one is presenting, after delay pick next per side and start
+    if (num_presenting == 0) {
+      js.timer += dt;
+      if (js.timer >= js.per_course_delay) {
+        js.timer = 0.0f;
+        auto pick_and_start = [&](DishBattleState::TeamSide side) {
+          auto first = afterhours::EntityQuery()
+                           .whereHasComponent<DishBattleState>()
+                           .whereLambda([&](const afterhours::Entity &e) {
+                             const auto &s = e.get<DishBattleState>();
+                             return s.team_side == side &&
+                                    s.phase == DishBattleState::Phase::InQueue;
+                           })
+                           .orderByLambda([](const afterhours::Entity &a,
+                                             const afterhours::Entity &b) {
+                             return a.get<DishBattleState>().queue_index <
+                                    b.get<DishBattleState>().queue_index;
+                           })
+                           .gen_first();
+          if (first) {
+            auto &s = first->get<DishBattleState>();
+            s.phase = DishBattleState::Phase::Presenting;
+            s.phase_progress = 0.0f;
+            return true;
+          }
+          return false;
+        };
+        bool started = false;
+        started |= pick_and_start(DishBattleState::TeamSide::Player);
+        started |= pick_and_start(DishBattleState::TeamSide::Opponent);
+        if (!started) {
+          js.complete = true;
+          js.post_complete_elapsed = 0.0f;
+        }
+      }
     }
   }
 };
