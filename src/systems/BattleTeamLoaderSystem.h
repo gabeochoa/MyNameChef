@@ -12,6 +12,7 @@
 #include "../game_state_manager.h"
 #include "../tooltip.h"
 #include <afterhours/ah.h>
+#include <afterhours/src/plugins/texture_manager.h>
 #include <filesystem>
 #include <fstream>
 #include <magic_enum/magic_enum.hpp> // For enum string conversion
@@ -121,8 +122,8 @@ private:
 
   void create_fallback_opponent_team() {
     log_info("Creating fallback opponent team");
-    std::vector<DishType> fallbackDishes = {
-        DishType::GarlicBread, DishType::TomatoSoup, DishType::GrilledCheese};
+    std::vector<DishType> fallbackDishes = {DishType::Potato, DishType::Potato,
+                                            DishType::Potato};
 
     for (size_t i = 0; i < fallbackDishes.size(); ++i) {
       create_battle_dish_entity(fallbackDishes[i], (int)i, false);
@@ -154,6 +155,16 @@ private:
     dbs.phase_progress = 0.0f;
     entity.addComponent<HasRenderOrder>(RenderOrder::BattleTeams);
 
+    // Attach sprite using dish atlas grid indices
+    {
+      auto dish_info = get_dish_info(dishType);
+      const auto frame = afterhours::texture_manager::idx_to_sprite_frame(
+          dish_info.sprite.i, dish_info.sprite.j);
+      entity.addComponent<afterhours::texture_manager::HasSprite>(
+          afterhours::vec2{x, y}, afterhours::vec2{80.0f, 80.0f}, 0.f, frame,
+          2.0F, raylib::Color{255, 255, 255, 255});
+    }
+
     if (isPlayer) {
       entity.addComponent<IsPlayerTeamItem>();
     } else {
@@ -164,21 +175,12 @@ private:
   }
 
   void add_random_dish_to_inventory() {
-    // Array of all available dish types
-    constexpr DishType dish_pool[] = {
-        DishType::GarlicBread,   DishType::TomatoSoup,
-        DishType::GrilledCheese, DishType::ChickenSkewer,
-        DishType::CucumberSalad, DishType::VanillaSoftServe,
-        DishType::CapreseSalad,  DishType::Minestrone,
-        DishType::SearedSalmon,  DishType::SteakFlorentine,
-    };
-
-    // Pick a random dish
+    // Pick a random dish from shared pool
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<> dis(
-        0, sizeof(dish_pool) / sizeof(dish_pool[0]) - 1);
-    DishType randomDish = dish_pool[dis(gen)];
+    const auto &pool = get_default_dish_pool();
+    std::uniform_int_distribution<> dis(0, (int)pool.size() - 1);
+    DishType randomDish = pool[dis(gen)];
 
     // Create the inventory item entity
     auto &entity = afterhours::EntityHelper::createEntity();

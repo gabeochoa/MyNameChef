@@ -4,7 +4,6 @@
 #include "components/is_dish.h"
 #include "components/is_draggable.h"
 #include "components/is_drop_slot.h"
-#include "components/is_inventory_item.h"
 #include "components/is_shop_item.h"
 #include "components/judging_state.h"
 #include "components/render_order.h"
@@ -15,21 +14,12 @@
 #include "systems/GenerateShopSlots.h"
 #include "tooltip.h"
 #include <afterhours/src/plugins/color.h>
+#include <afterhours/src/plugins/texture_manager.h>
 #include <magic_enum/magic_enum.hpp>
 #include <memory>
 #include <random>
 
 using namespace afterhours;
-
-namespace {
-constexpr DishType dish_pool[] = {
-    DishType::GarlicBread,   DishType::TomatoSoup,
-    DishType::GrilledCheese, DishType::ChickenSkewer,
-    DishType::CucumberSalad, DishType::VanillaSoftServe,
-    DishType::CapreseSalad,  DishType::Minestrone,
-    DishType::SearedSalmon,  DishType::SteakFlorentine,
-};
-} // namespace
 
 vec2 calculate_slot_position(int slot, int start_x, int start_y, int cols) {
   int col = slot % cols;
@@ -69,8 +59,9 @@ std::vector<int> get_free_slots(int max_slots) {
 DishType get_random_dish() {
   static std::random_device rd;
   static std::mt19937 gen(rd());
-  static std::uniform_int_distribution<> dis(0, std::size(dish_pool) - 1);
-  return dish_pool[dis(gen)];
+  const auto &pool = get_default_dish_pool();
+  static std::uniform_int_distribution<> dis(0, (int)pool.size() - 1);
+  return pool[dis(gen)];
 }
 
 Entity &make_shop_manager(Entity &sophie) {
@@ -108,7 +99,14 @@ Entity &make_shop_item(int slot, DishType type) {
   e.addComponent<IsShopItem>(slot);
   e.addComponent<IsDraggable>(true);
   e.addComponent<HasRenderOrder>(RenderOrder::ShopItems);
-  e.addComponent<ShopItemColor>(dish_info.color);
+  // Attach sprite using dish atlas grid indices
+  {
+    const auto frame = afterhours::texture_manager::idx_to_sprite_frame(
+        dish_info.sprite.i, dish_info.sprite.j);
+    // Position and size are updated each frame by UpdateSpriteTransform
+    e.addComponent<afterhours::texture_manager::HasSprite>(
+        position, vec2{SLOT_SIZE, SLOT_SIZE}, 0.f, frame, 2.0F, raylib::WHITE);
+  }
   e.addComponent<HasTooltip>(generate_dish_tooltip(type));
 
   return e;

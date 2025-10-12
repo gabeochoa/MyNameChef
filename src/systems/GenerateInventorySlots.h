@@ -2,7 +2,6 @@
 
 #include "../components/has_tooltip.h"
 #include "../components/is_dish.h"
-#include "../components/is_drop_slot.h"
 #include "../components/is_inventory_item.h"
 #include "../components/render_order.h"
 #include "../components/transform.h"
@@ -11,13 +10,10 @@
 #include "../tooltip.h"
 #include <afterhours/ah.h>
 #include <afterhours/src/plugins/color.h>
+#include <afterhours/src/plugins/texture_manager.h>
 #include <magic_enum/magic_enum.hpp>
 
 using namespace afterhours;
-
-struct ShopItemColor : HasColor {
-  ShopItemColor(raylib::Color color) : HasColor(color) {}
-};
 
 struct GenerateInventorySlots : System<> {
   bool initialized = false;
@@ -48,7 +44,14 @@ private:
     entity.addComponent<IsDish>(dish_type);
     entity.addComponent<IsInventoryItem>();
     entity.addComponent<HasRenderOrder>(RenderOrder::InventoryItems);
-    entity.addComponent<ShopItemColor>(dish_info.color);
+    // Attach sprite using dish atlas grid indices
+    {
+      const auto frame = afterhours::texture_manager::idx_to_sprite_frame(
+          dish_info.sprite.i, dish_info.sprite.j);
+      entity.addComponent<afterhours::texture_manager::HasSprite>(
+          position, vec2{SLOT_SIZE, SLOT_SIZE}, 0.f, frame, 2.0F,
+          raylib::Color{255, 255, 255, 255});
+    }
     entity.addComponent<HasTooltip>(generate_dish_tooltip(dish_type));
     entity.get<IsInventoryItem>().slot = INVENTORY_SLOT_OFFSET;
 
