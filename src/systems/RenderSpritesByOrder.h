@@ -4,6 +4,7 @@
 #include "../components/render_order.h"
 #include "../game_state_manager.h"
 #include <afterhours/ah.h>
+#include "../render_utils.h"
 #include <afterhours/src/plugins/texture_manager.h>
 
 struct RenderSpritesByOrder
