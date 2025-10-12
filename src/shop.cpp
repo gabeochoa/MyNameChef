@@ -98,7 +98,7 @@ Entity &make_shop_item(int slot, DishType type) {
   e.addComponent<IsDish>(type);
   e.addComponent<IsShopItem>(slot);
   e.addComponent<IsDraggable>(true);
-  e.addComponent<HasRenderOrder>(RenderOrder::ShopItems);
+  e.addComponent<HasRenderOrder>(RenderOrder::ShopItems, RenderScreen::Shop);
   // Attach sprite using dish atlas grid indices
   {
     const auto frame = afterhours::texture_manager::idx_to_sprite_frame(
@@ -119,7 +119,7 @@ Entity &make_drop_slot(int slot_id, vec2 position, vec2 size,
   e.addComponent<Transform>(position, size);
   e.addComponent<IsDropSlot>(slot_id, accepts_inventory, accepts_shop);
   e.addComponent<CanDropOnto>(true);
-  e.addComponent<HasRenderOrder>(RenderOrder::DropSlots);
+  e.addComponent<HasRenderOrder>(RenderOrder::DropSlots, RenderScreen::Shop);
 
   return e;
 }

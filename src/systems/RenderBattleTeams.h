@@ -27,10 +27,18 @@ struct RenderBattleTeams : afterhours::System<Transform, IsDish> {
     const auto &dbs = entity.get<DishBattleState>();
     bool isPlayer = dbs.team_side == DishBattleState::TeamSide::Player;
 
-    // Hide judged dishes on battle screen, but show them on results screen
+    // Only render entities that are in appropriate phases for the current screen
     auto &gsm = GameStateManager::get();
-    if (dbs.phase == DishBattleState::Phase::Judged &&
-        gsm.active_screen == GameStateManager::Screen::Battle) {
+    if (gsm.active_screen == GameStateManager::Screen::Battle) {
+      // On battle screen, only show InQueue and Presenting phases
+      if (dbs.phase == DishBattleState::Phase::Judged) {
+        return;
+      }
+    } else if (gsm.active_screen == GameStateManager::Screen::Results) {
+      // On results screen, show all phases (including Judged)
+      // No filtering needed
+    } else {
+      // On other screens, don't render battle entities
       return;
     }
 

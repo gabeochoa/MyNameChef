@@ -27,6 +27,8 @@ backward::SignalHandling sh;
 #include "systems/PostProcessingSystems.h"
 #include "systems/ProcessBattleRewards.h"
 #include "systems/RenderBattleResults.h"
+#include "systems/RenderEntitiesByOrder.h"
+#include "systems/RenderSpritesByOrder.h"
 #include "systems/RenderBattleTeams.h"
 #include "systems/RenderDebugWindowInfo.h"
 #include "systems/RenderEntities.h"
@@ -129,10 +131,10 @@ void game() {
 
       {
         systems.register_render_system(std::make_unique<BeginCameraMode>());
-        systems.register_render_system(std::make_unique<RenderEntities>());
+        systems.register_render_system(std::make_unique<RenderEntitiesByOrder>());
         systems.register_render_system(std::make_unique<RenderBattleTeams>());
         systems.register_render_system(std::make_unique<RenderJudges>());
-        texture_manager::register_render_systems(systems);
+        systems.register_render_system(std::make_unique<RenderSpritesByOrder>());
         systems.register_render_system(
             std::make_unique<RenderSpritesWithShaders>());
         systems.register_render_system(std::make_unique<RenderWalletHUD>());

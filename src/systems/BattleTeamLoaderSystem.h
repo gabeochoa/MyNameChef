@@ -153,7 +153,7 @@ private:
                              : DishBattleState::TeamSide::Opponent;
     dbs.phase = DishBattleState::Phase::InQueue;
     dbs.phase_progress = 0.0f;
-    entity.addComponent<HasRenderOrder>(RenderOrder::BattleTeams);
+    entity.addComponent<HasRenderOrder>(RenderOrder::BattleTeams, RenderScreen::Battle | RenderScreen::Results);
 
     // Attach sprite using dish atlas grid indices
     {

@@ -43,7 +43,7 @@ private:
     entity.addComponent<Transform>(position, vec2{SLOT_SIZE, SLOT_SIZE});
     entity.addComponent<IsDish>(dish_type);
     entity.addComponent<IsInventoryItem>();
-    entity.addComponent<HasRenderOrder>(RenderOrder::InventoryItems);
+    entity.addComponent<HasRenderOrder>(RenderOrder::InventoryItems, RenderScreen::Shop);
     // Attach sprite using dish atlas grid indices
     {
       const auto frame = afterhours::texture_manager::idx_to_sprite_frame(

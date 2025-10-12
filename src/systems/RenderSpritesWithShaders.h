@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../components/render_order.h"
 #include "../components/has_shader.h"
 #include "../components/transform.h"
 #include "../game_state_manager.h"
@@ -11,10 +12,10 @@ using namespace afterhours;
 
 struct RenderSpritesWithShaders
     : System<Transform, afterhours::texture_manager::HasSprite, HasShader,
-             HasColor> {
+             HasColor, HasRenderOrder> {
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
-    return gsm.active_screen == GameStateManager::Screen::Shop;
+    return gsm.is_game_active();
   }
 
   struct EntityRenderData {
@@ -35,7 +36,15 @@ struct RenderSpritesWithShaders
   for_each_with(const Entity & /* entity */, const Transform &transform,
                 const afterhours::texture_manager::HasSprite &hasSprite,
                 const HasShader &hasShader, const HasColor &hasColor,
-                float) const override {
+                const HasRenderOrder &render_order, float) const override {
+    // Check if this entity should render on the current screen
+    auto &gsm = GameStateManager::get();
+    RenderScreen current_screen = get_current_render_screen(gsm);
+    
+    if (!render_order.should_render_on_screen(current_screen)) {
+      return;
+    }
+
     // Collect entity data for batching instead of rendering immediately
     if (hasShader.shaders.empty()) {
       return;
@@ -58,6 +67,21 @@ struct RenderSpritesWithShaders
   }
 
 private:
+  RenderScreen get_current_render_screen(const GameStateManager &gsm) const {
+    switch (gsm.active_screen) {
+      case GameStateManager::Screen::Shop:
+        return RenderScreen::Shop;
+      case GameStateManager::Screen::Battle:
+        return RenderScreen::Battle;
+      case GameStateManager::Screen::Results:
+        return RenderScreen::Results;
+      case GameStateManager::Screen::Main:
+      case GameStateManager::Screen::Settings:
+      default:
+        return RenderScreen::All; // Default to all screens for other screens
+    }
+  }
+
   void render_all_batches() const {
     for (auto &[shader_type, entities] : shader_batches) {
       if (entities.empty())
