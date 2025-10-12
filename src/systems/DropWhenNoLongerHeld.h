@@ -7,6 +7,7 @@
 #include "../components/is_inventory_item.h"
 #include "../components/is_shop_item.h"
 #include "../components/transform.h"
+#include "../dish_types.h"
 #include "../game_state_manager.h"
 #include "../query.h"
 #include "../rl.h"
@@ -85,7 +86,7 @@ private:
     }
 
     auto &wallet = wallet_entity.get().get<Wallet>();
-    int dish_price = dish.price();
+    int dish_price = get_dish_info(dish.type).price;
 
     if (wallet.gold < dish_price) {
       return false;

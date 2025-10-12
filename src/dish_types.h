@@ -1,6 +1,5 @@
 #pragma once
 
-#include "rl.h"
 #include <string>
 
 enum struct DishType {
@@ -51,7 +50,6 @@ struct SpriteLocation {
 
 struct DishInfo {
   std::string name;
-  raylib::Color color{200, 200, 200, 255};
   int price = 1;
   FlavorStats flavor;
   SpriteLocation sprite;

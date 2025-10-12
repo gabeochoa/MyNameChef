@@ -12,7 +12,6 @@ struct IsDish : afterhours::BaseComponent {
 
   // Helper methods that delegate to dish_types registry
   std::string name() const;
-  raylib::Color color() const;
   int price() const;
   FlavorStats flavor() const;
 };
