@@ -76,5 +76,5 @@ target("my_name_chef")
     add_cxxflags("-ftime-trace")
 
     after_build(function(target)
-        os.exec("./output/my_name_chef.exe")
+        os.exec("timeout 3 ./output/my_name_chef.exe")
     end)

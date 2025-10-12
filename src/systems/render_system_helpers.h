@@ -1,7 +1,7 @@
 #pragma once
 
-#include <afterhours/ah.h>
 #include "../components/has_camera.h"
+#include <afterhours/ah.h>
 
 struct BeginWorldRender : System<> {
   virtual void once(float) const override {

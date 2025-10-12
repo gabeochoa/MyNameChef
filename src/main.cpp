@@ -21,6 +21,7 @@ backward::SignalHandling sh;
 #include "systems/render_entities.h"
 #include "systems/render_fps.h"
 #include "systems/render_letterbox_bars.h"
+#include "systems/render_render_texture.h"
 #include "systems/render_sprites_with_shaders.h"
 #include "systems/render_system_helpers.h"
 #include "systems/tag_shader_render.h"
@@ -45,14 +46,16 @@ void game() {
                                        Settings::get().get_screen_height());
 
   SystemManager systems;
+  auto &sophie = EntityHelper::createEntity();
 
-  // debug systems
+  // singleton systems
   {
     window_manager::enforce_singletons(systems);
     ui::enforce_singletons<InputAction>(systems);
     input::enforce_singletons(systems);
     texture_manager::enforce_singletons(systems);
     enforce_ui_singletons(systems);
+    make_shop_manager(sophie);
   }
 
   // external plugins
@@ -70,7 +73,6 @@ void game() {
     systems.register_update_system([&](float) {
       if (create_startup) {
         create_startup = false;
-        make_shop_manager();
       }
     });
 
@@ -81,6 +83,7 @@ void game() {
 
     register_sound_systems(systems);
     register_ui_systems(systems);
+    register_shop_update_systems(systems);
 
     systems.register_update_system(std::make_unique<UpdateRenderTexture>());
     systems.register_update_system(std::make_unique<MarkEntitiesWithShaders>());
@@ -88,6 +91,7 @@ void game() {
     // renders
     {
       systems.register_render_system(std::make_unique<BeginWorldRender>());
+      register_shop_render_systems(systems);
 
       {
         systems.register_render_system(std::make_unique<BeginCameraMode>());
@@ -99,6 +103,10 @@ void game() {
         // (UI moved to pass 2 so it is after tag shader)
       }
       systems.register_render_system(std::make_unique<EndWorldRender>());
+
+      // Draw mainRT to screen
+      systems.register_render_system(std::make_unique<RenderRenderTexture>());
+
       // pass 2: render mainRT with tag shader into screenRT, then draw UI into
       // screenRT
       systems.register_render_system(std::make_unique<BeginTagShaderRender>());
@@ -117,14 +125,25 @@ void game() {
       systems.register_render_system(std::make_unique<RenderLetterboxBars>());
       systems.register_render_system(std::make_unique<RenderFPS>());
       systems.register_render_system(std::make_unique<RenderDebugWindowInfo>());
-
       systems.register_render_system(std::make_unique<EndDrawing>());
       //
     }
 
+    std::cout << "Starting game loop" << std::endl;
+    std::cout << "Render systems count: " << systems.render_systems_.size()
+              << std::endl;
+    std::cout << "Update systems count: " << systems.update_systems_.size()
+              << std::endl;
+    int frame_count = 0;
     while (running && !raylib::WindowShouldClose()) {
+      frame_count++;
+      if (frame_count <= 3) {
+        std::cout << "Frame " << frame_count << std::endl;
+      }
       systems.run(raylib::GetFrameTime());
     }
+    std::cout << "Game loop ended after " << frame_count << " frames"
+              << std::endl;
 
     std::cout << "Num entities: " << EntityHelper::get_entities().size()
               << std::endl;

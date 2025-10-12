@@ -1,6 +1,9 @@
 #pragma once
 
+#include "rl.h"
 #include <afterhours/ah.h>
+#include <array>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -9,15 +12,9 @@ struct Wallet : afterhours::BaseComponent {
 };
 
 struct ShopState : afterhours::BaseComponent {
-  struct Item {
-    std::string name;
-    int price = 3;
-  };
-
-  std::vector<Item> shop_items;
-  std::vector<Item> inventory_items;
   bool initialized = false;
 };
 
-void make_shop_manager();
-void register_shop_systems(afterhours::SystemManager &systems);
+void make_shop_manager(afterhours::Entity &);
+void register_shop_update_systems(afterhours::SystemManager &systems);
+void register_shop_render_systems(afterhours::SystemManager &systems);

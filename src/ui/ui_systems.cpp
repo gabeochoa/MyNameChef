@@ -298,8 +298,6 @@ void register_ui_systems(afterhours::SystemManager &systems) {
         std::make_unique<SetupGameStylingDefaults>());
     systems.register_update_system(std::make_unique<NavigationSystem>());
     systems.register_update_system(std::make_unique<ScheduleMainMenuUI>());
-    // Register shop UI within the UI update window so it's laid out/rendered
-    register_shop_systems(systems);
   }
   ui::register_after_ui_updates<InputAction>(systems);
 }

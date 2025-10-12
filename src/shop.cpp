@@ -1,105 +1,102 @@
 #include "shop.h"
+#include "components/is_dish.h"
+#include "components/is_shop_item.h"
+#include "components/transform.h"
 #include "game_state_manager.h"
 #include "input_mapping.h"
 #include "ui/containers.h"
 #include "ui/controls.h"
 #include "ui/metrics.h"
 #include "ui/ui_systems.h"
+#include <afterhours/src/plugins/color.h>
 #include <memory>
 
 using namespace afterhours;
 
-void make_shop_manager() {
-  Entity &e = EntityHelper::createEntity();
-  e.addComponent<Wallet>();
-  e.addComponent<ShopState>();
-  EntityHelper::registerSingleton<Wallet>(e);
-  EntityHelper::registerSingleton<ShopState>(e);
+struct ShopItemColor : HasColor {
+  ShopItemColor(raylib::Color color) : HasColor(color) {}
+};
+
+void make_shop_manager(Entity &sophie) {
+  sophie.addComponent<Wallet>();
+  sophie.addComponent<ShopState>();
+  EntityHelper::registerSingleton<Wallet>(sophie);
+  EntityHelper::registerSingleton<ShopState>(sophie);
 }
 
-struct ShopGenerationSystem : System<ShopState> {
-  virtual bool should_run(float) override {
-    return GameStateManager::get().is_game_active();
-  }
-  void for_each_with(Entity &, ShopState &shop, float) override {
-    if (shop.initialized)
+Entity &make_shop_item(int slot, const char *name, raylib::Color color) {
+  auto &e = EntityHelper::createEntity();
+
+  // Position items in a grid layout
+  int itemW = 80, itemH = 80, startX = 100, startY = 200, gap = 10;
+  float x = startX + (slot % 4) * (itemW + gap);
+  float y = startY + (slot / 4) * (itemH + gap);
+
+  e.addComponent<Transform>(vec2{x, y}, vec2{(float)itemW, (float)itemH});
+  e.addComponent<IsDish>(name, color);
+  e.addComponent<IsShopItem>(slot);
+  e.addComponent<ShopItemColor>(color);
+
+  return e;
+}
+
+static constexpr std::pair<const char *, raylib::Color> dish_pool[] = {
+    {"Garlic Bread", raylib::Color{180, 120, 80, 255}},
+    {"Tomato Soup", raylib::Color{160, 40, 40, 255}},
+    {"Grilled Cheese", raylib::Color{200, 160, 60, 255}},
+    {"Chicken Skewer", raylib::Color{150, 80, 60, 255}},
+    {"Cucumber Salad", raylib::Color{60, 160, 100, 255}},
+    {"Vanilla Soft Serve", raylib::Color{220, 200, 180, 255}},
+    {"Caprese Salad", raylib::Color{120, 200, 140, 255}},
+    {"Minestrone", raylib::Color{160, 90, 60, 255}},
+    {"Seared Salmon", raylib::Color{230, 140, 90, 255}},
+    {"Steak Florentine", raylib::Color{160, 80, 80, 255}},
+};
+
+struct ShopGenerationSystem : System<> {
+  bool initialized = false;
+
+  void once(float) override {
+    if (initialized)
       return;
-    shop.initialized = true;
-    shop.shop_items = {
-        {"Garlic Bread", 3},   {"Tomato Soup", 3},    {"Grilled Cheese", 3},
-        {"Chicken Skewer", 3}, {"Cucumber Salad", 3}, {"Vanilla Soft Serve", 3},
-    };
+    initialized = true;
+
+    // Determine occupied slots
+    std::array<bool, 7> occupied{};
+    occupied.fill(false);
+    for (auto &ref : EntityQuery().whereHasComponent<IsShopItem>().gen()) {
+      auto &ent = ref.get();
+      int s = std::clamp(ent.get<IsShopItem>().slot, 0, 6);
+      occupied[(size_t)s] = true;
+    }
+    // Free slots
+    std::vector<int> free_slots;
+    free_slots.reserve(7);
+    for (int s = 0; s < 7; ++s)
+      if (!occupied[(size_t)s])
+        free_slots.push_back(s);
+    if (free_slots.empty()) {
+      return;
+    }
+
+    std::vector<int> idx(sizeof(dish_pool) / sizeof(dish_pool[0]));
+    std::iota(idx.begin(), idx.end(), 0);
+    std::shuffle(idx.begin(), idx.end(), std::mt19937{std::random_device{}()});
+
+    int take = std::min((int)free_slots.size(), (int)idx.size());
+    for (int i = 0; i < take; ++i) {
+      auto [nm, col] = dish_pool[(size_t)idx[(size_t)i]];
+      int slot = free_slots[(size_t)i];
+      auto &entity = make_shop_item(slot, nm, col);
+    }
+
+    // Merge temp entities into main entity list so they're visible to queries
+    EntityHelper::merge_entity_arrays();
   }
 };
 
-struct ShopUISystem : System<ui::UIContext<InputAction>> {
-  virtual bool should_run(float) override {
-    return GameStateManager::get().is_game_active();
-  }
-
-  void for_each_with(Entity &entity, ui::UIContext<InputAction> &context,
-                     float) override {
-    using namespace afterhours::ui;
-    using namespace afterhours::ui::imm;
-    using namespace afterhours::ui::controls;
-    using namespace afterhours::ui::containers;
-
-    auto *wallet = EntityHelper::get_singleton_cmp<Wallet>();
-    auto *shop = EntityHelper::get_singleton_cmp<ShopState>();
-    if (!wallet || !shop)
-      return;
-
-    // Root container
-    auto root = imm::div(context, mk(entity),
-                         imm::ComponentConfig{}
-                             .with_size(ui::ComponentSize{ui::screen_pct(1.f),
-                                                          ui::screen_pct(1.f)})
-                             .with_debug_name("shop_root")
-                             .with_absolute_position());
-
-    auto left = column_left<InputAction>(context, root.ent(), "shop_left", 0);
-    auto right =
-        column_right<InputAction>(context, root.ent(), "shop_right", 1);
-
-    // Wallet display
-    imm::div(context, mk(left.ent(), 0),
-             imm::ComponentConfig{}
-                 .with_label("Gold: " + std::to_string(wallet->gold))
-                 .with_debug_name("wallet_label"));
-
-    // Shop items list with Buy buttons
-    int idx = 1;
-    for (size_t i = 0; i < shop->shop_items.size(); ++i) {
-      const auto &item = shop->shop_items[i];
-      std::string label = item.name + " ($" + std::to_string(item.price) + ")";
-      if (imm::button(context, mk(left.ent(), idx++),
-                      imm::ComponentConfig{}.with_label("Buy: " + label))) {
-        if (wallet->gold >= item.price) {
-          wallet->gold -= item.price;
-          shop->inventory_items.push_back(item);
-        }
-      }
-    }
-
-    // Inventory list with Sell buttons
-    imm::div(context, mk(right.ent(), 0),
-             imm::ComponentConfig{}.with_label("Inventory:"));
-    int ridx = 1;
-    for (size_t i = 0; i < shop->inventory_items.size(); ++i) {
-      const auto &inv = shop->inventory_items[i];
-      if (imm::button(context, mk(right.ent(), ridx++),
-                      imm::ComponentConfig{}.with_label("Sell: " + inv.name))) {
-        wallet->gold += inv.price; // 100% refund for Step 1 simplicity
-        // remove one instance
-        shop->inventory_items.erase(shop->inventory_items.begin() +
-                                    static_cast<long>(i));
-        --i;
-      }
-    }
-  }
-};
-
-void register_shop_systems(SystemManager &systems) {
+void register_shop_update_systems(afterhours::SystemManager &systems) {
   systems.register_update_system(std::make_unique<ShopGenerationSystem>());
-  systems.register_update_system(std::make_unique<ShopUISystem>());
 }
+
+void register_shop_render_systems(afterhours::SystemManager &systems) {}

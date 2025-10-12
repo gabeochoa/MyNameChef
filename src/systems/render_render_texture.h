@@ -9,6 +9,7 @@ struct RenderRenderTexture : System<window_manager::ProvidesCurrentResolution> {
     const int window_h = raylib::GetScreenHeight();
     const int content_w = mainRT.texture.width;
     const int content_h = mainRT.texture.height;
+
     const LetterboxLayout layout =
         compute_letterbox_layout(window_w, window_h, content_w, content_h);
 
