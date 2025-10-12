@@ -13,6 +13,7 @@ backward::SignalHandling sh;
 #include "settings.h"
 #include "shop.h"
 #include "sound_systems.h"
+#include "systems/BattleAnimations.h"
 #include "systems/BattleDebugSystem.h"
 #include "systems/BattleTeamLoaderSystem.h"
 #include "systems/CleanupBattleEntities.h"
@@ -96,6 +97,10 @@ void game() {
     systems.register_update_system(std::make_unique<BattleDebugSystem>());
     systems.register_update_system(std::make_unique<CleanupBattleEntities>());
     texture_manager::register_update_systems(systems);
+    afterhours::animation::register_update_systems<
+        afterhours::animation::CompositeKey>(systems);
+    afterhours::animation::register_update_systems<BattleAnimKey>(systems);
+    systems.register_update_system(std::make_unique<TriggerBattleSlideIn>());
 
     register_sound_systems(systems);
     register_ui_systems(systems);
