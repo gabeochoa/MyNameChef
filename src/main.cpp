@@ -32,6 +32,7 @@ backward::SignalHandling sh;
 #include "systems/RenderJudges.h"
 #include "systems/RenderLetterboxBars.h"
 #include "systems/RenderRenderTexture.h"
+#include "systems/RenderScoringBar.h"
 #include "systems/RenderSpritesWithShaders.h"
 #include "systems/RenderSystemHelpers.h"
 #include "systems/RenderWalletHUD.h"
@@ -154,6 +155,7 @@ void game() {
           std::make_unique<EndPostProcessingShader>());
       systems.register_render_system(std::make_unique<RenderLetterboxBars>());
       systems.register_render_system(std::make_unique<RenderBattleResults>());
+      systems.register_render_system(std::make_unique<RenderScoringBar>());
       systems.register_render_system(std::make_unique<RenderTooltipSystem>());
       systems.register_render_system(std::make_unique<RenderFPS>());
       systems.register_render_system(std::make_unique<RenderDebugWindowInfo>());
