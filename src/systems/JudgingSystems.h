@@ -71,10 +71,11 @@ struct AdvanceJudging : afterhours::System<JudgingState> {
             const auto &dish = e.get<IsDish>();
             DishInfo info = get_dish_info(dish.type);
             const FlavorStats &flavor = info.flavor;
-            const int dishScore = flavor.satiety + flavor.sweetness + flavor.spice +
-                                  flavor.acidity + flavor.umami + flavor.richness +
-                                  flavor.freshness;
-            auto jsEnt = afterhours::EntityHelper::get_singleton<JudgingState>();
+            const int dishScore = flavor.satiety + flavor.sweetness +
+                                  flavor.spice + flavor.acidity + flavor.umami +
+                                  flavor.richness + flavor.freshness;
+            auto jsEnt =
+                afterhours::EntityHelper::get_singleton<JudgingState>();
             if (jsEnt.get().has<JudgingState>()) {
               auto &js_state = jsEnt.get().get<JudgingState>();
               if (s.team_side == DishBattleState::TeamSide::Player) {

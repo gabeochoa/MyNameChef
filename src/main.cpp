@@ -27,15 +27,15 @@ backward::SignalHandling sh;
 #include "systems/PostProcessingSystems.h"
 #include "systems/ProcessBattleRewards.h"
 #include "systems/RenderBattleResults.h"
-#include "systems/RenderEntitiesByOrder.h"
-#include "systems/RenderSpritesByOrder.h"
 #include "systems/RenderBattleTeams.h"
 #include "systems/RenderDebugWindowInfo.h"
+#include "systems/RenderEntitiesByOrder.h"
 #include "systems/RenderFPS.h"
 #include "systems/RenderJudges.h"
 #include "systems/RenderLetterboxBars.h"
 #include "systems/RenderRenderTexture.h"
 #include "systems/RenderScoringBar.h"
+#include "systems/RenderSpritesByOrder.h"
 #include "systems/RenderSpritesWithShaders.h"
 #include "systems/RenderSystemHelpers.h"
 #include "systems/RenderWalletHUD.h"
@@ -108,6 +108,7 @@ void game() {
     afterhours::animation::register_update_systems<
         afterhours::animation::CompositeKey>(systems);
     afterhours::animation::register_update_systems<BattleAnimKey>(systems);
+    afterhours::animation::register_update_systems<ScoreBarKey>(systems);
     systems.register_update_system(std::make_unique<TriggerBattleSlideIn>());
 
     register_sound_systems(systems);
@@ -130,10 +131,12 @@ void game() {
 
       {
         systems.register_render_system(std::make_unique<BeginCameraMode>());
-        systems.register_render_system(std::make_unique<RenderEntitiesByOrder>());
+        systems.register_render_system(
+            std::make_unique<RenderEntitiesByOrder>());
         systems.register_render_system(std::make_unique<RenderBattleTeams>());
         systems.register_render_system(std::make_unique<RenderJudges>());
-        systems.register_render_system(std::make_unique<RenderSpritesByOrder>());
+        systems.register_render_system(
+            std::make_unique<RenderSpritesByOrder>());
         systems.register_render_system(
             std::make_unique<RenderSpritesWithShaders>());
         systems.register_render_system(std::make_unique<RenderWalletHUD>());
