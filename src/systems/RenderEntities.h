@@ -19,6 +19,11 @@ struct RenderEntities : System<Transform> {
 
   virtual void for_each_with(const Entity &entity, const Transform &transform,
                              float) const override {
+    // Skip entities that have sprites - they should be rendered by sprite systems
+    if (entity.has<afterhours::texture_manager::HasSprite>()) {
+      return;
+    }
+
     // Only runs on Shop; no filtering needed for Battle here
     raylib::Color color = raylib::RAYWHITE;
 
@@ -64,6 +69,11 @@ struct RenderEntities : System<Transform> {
     for (const auto &pair : entities_to_render) {
       const Entity &entity = *pair.first;
       const Transform &transform = entity.get<Transform>();
+
+      // Skip entities that have sprites - they should be rendered by sprite systems
+      if (entity.has<afterhours::texture_manager::HasSprite>()) {
+        continue;
+      }
 
       raylib::Color color = raylib::RAYWHITE;
 

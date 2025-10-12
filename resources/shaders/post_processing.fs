@@ -12,9 +12,9 @@ uniform sampler2D texture1;
 uniform sampler2D texture2;
 
 // Bloom controls
-uniform float bloomThreshold = 0.5;    // Brightness threshold for bloom
-uniform float bloomIntensity = 1.2;    // Overall bloom strength
-uniform float bloomRadius = 4.0;       // Bloom spread radius
+uniform float bloomThreshold = 0.55;   // Brightness threshold for bloom
+uniform float bloomIntensity = 0.6;    // Overall bloom strength (reduced)
+uniform float bloomRadius = 3.0;       // Bloom spread radius (reduced)
 uniform vec3 bloomTint = vec3(1.0);    // Color tint for bloom
 
 out vec4 finalColor;
