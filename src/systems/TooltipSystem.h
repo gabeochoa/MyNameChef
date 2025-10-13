@@ -1,15 +1,18 @@
 #pragma once
 
+#include "../components/dish_level.h"
 #include "../components/has_tooltip.h"
+#include "../components/is_dish.h"
 #include "../components/render_order.h"
 #include "../components/transform.h"
 #include "../game_state_manager.h"
 #include "../rl.h"
+#include "../tooltip.h"
 #include <afterhours/ah.h>
 #include <map>
 #include <sstream>
 
-struct RenderTooltipSystem : System<HasRenderOrder, HasTooltip> {
+struct RenderTooltipSystem : afterhours::System<HasRenderOrder, HasTooltip> {
   GameStateManager::Screen current_screen;
 
 public:
@@ -24,7 +27,7 @@ public:
     return is_playing && on_allowed_screen;
   }
 
-  virtual void for_each_with(const Entity &entity,
+  virtual void for_each_with(const afterhours::Entity &entity,
                              const HasRenderOrder &render_order,
                              const HasTooltip &tooltip, float) const override {
 
@@ -56,17 +59,26 @@ public:
     if (!mouse_over)
       return;
 
+    // Generate dynamic tooltip for dishes with level information
+    std::string tooltip_text = tooltip.text;
+    if (entity.has<IsDish>() && entity.has<DishLevel>()) {
+      const auto &dish = entity.get<IsDish>();
+      const auto &level = entity.get<DishLevel>();
+      tooltip_text = generate_dish_tooltip_with_level(
+          dish.type, level.level, level.merge_progress, level.merges_needed);
+    }
+
     float tooltip_x = mouse_pos.x + 10; // Offset from mouse
     float tooltip_y = mouse_pos.y - 30; // Above mouse
 
     // Measure text to calculate tooltip size
-    float text_width = raylib::MeasureText(tooltip.text.c_str(),
+    float text_width = raylib::MeasureText(tooltip_text.c_str(),
                                            static_cast<int>(tooltip.font_size));
     float tooltip_width = text_width + tooltip.padding * 2;
 
     // Calculate height based on number of lines
     int line_count = 1; // Start with 1 for the first line
-    for (char c : tooltip.text) {
+    for (char c : tooltip_text) {
       if (c == '\n') {
         line_count++;
       }
@@ -98,7 +110,7 @@ public:
 
     // Draw tooltip text with color support
     float current_y = tooltip_y + tooltip.padding;
-    std::istringstream text_stream(tooltip.text);
+    std::istringstream text_stream(tooltip_text);
     std::string line;
 
     // Color mapping
@@ -106,7 +118,8 @@ public:
         {"[GOLD]", raylib::GOLD},     {"[RED]", raylib::RED},
         {"[GREEN]", raylib::GREEN},   {"[BLUE]", raylib::BLUE},
         {"[ORANGE]", raylib::ORANGE}, {"[PURPLE]", raylib::PURPLE},
-        {"[CYAN]", raylib::SKYBLUE},  {"[YELLOW]", raylib::YELLOW}};
+        {"[CYAN]", raylib::SKYBLUE},  {"[YELLOW]", raylib::YELLOW},
+        {"[WHITE]", raylib::WHITE}};
 
     while (std::getline(text_stream, line)) {
       raylib::Color text_color = tooltip.text_color; // Default color
