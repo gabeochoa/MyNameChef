@@ -2,9 +2,6 @@
 
 #include "rl.h"
 #include <afterhours/ah.h>
-#include <array>
-#include <optional>
-#include <string>
 #include <vector>
 
 // Forward declaration for DishType
@@ -21,6 +18,10 @@ struct Health : afterhours::BaseComponent {
 
 struct ShopState : afterhours::BaseComponent {
   bool initialized = false;
+};
+
+struct ShopTier : afterhours::BaseComponent {
+  int current_tier = 1;
 };
 
 // Shop system constants
@@ -49,6 +50,7 @@ afterhours::Entity &make_drop_slot(int slot_id, afterhours::vec2 position,
                                    bool accepts_shop = true);
 std::vector<int> get_free_slots(int max_slots);
 DishType get_random_dish();
+DishType get_random_dish_for_tier(int tier);
 afterhours::vec2 calculate_slot_position(int slot, int start_x, int start_y,
                                          int cols = 4);
 afterhours::vec2 calculate_inventory_position(int slot);

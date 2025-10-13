@@ -363,8 +363,15 @@ Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
         afterhours::EntityHelper::cleanup();
 
         // Regenerate shop items for all slots
+        // Get current shop tier
+        auto shop_tier_entity = EntityHelper::get_singleton<ShopTier>();
+        int current_tier = 1; // Default to tier 1
+        if (shop_tier_entity.get().has<ShopTier>()) {
+          current_tier = shop_tier_entity.get().get<ShopTier>().current_tier;
+        }
+
         for (int slot = 0; slot < SHOP_SLOTS; ++slot) {
-          make_shop_item(slot, get_random_dish());
+          make_shop_item(slot, get_random_dish_for_tier(current_tier));
         }
         afterhours::EntityHelper::merge_entity_arrays();
       },

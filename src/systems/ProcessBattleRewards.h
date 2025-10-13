@@ -78,10 +78,18 @@ private:
 
   void refill_store() {
     auto free_slots = get_free_slots(SHOP_SLOTS);
+    
+    // Get current shop tier
+    auto shop_tier_entity = EntityHelper::get_singleton<ShopTier>();
+    int current_tier = 1; // Default to tier 1
+    if (shop_tier_entity.get().has<ShopTier>()) {
+      current_tier = shop_tier_entity.get().get<ShopTier>().current_tier;
+    }
+    
     for (int slot : free_slots) {
-      make_shop_item(slot, get_random_dish());
+      make_shop_item(slot, get_random_dish_for_tier(current_tier));
     }
     EntityHelper::merge_entity_arrays();
-    log_info("Store refilled with {} new items", free_slots.size());
+    log_info("Store refilled with {} new items at tier {}", free_slots.size(), current_tier);
   }
 };

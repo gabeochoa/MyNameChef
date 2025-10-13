@@ -68,13 +68,27 @@ DishType get_random_dish() {
   return pool[dis(gen)];
 }
 
+DishType get_random_dish_for_tier(int tier) {
+  static std::random_device rd;
+  static std::mt19937 gen(rd());
+  const auto &pool = get_dishes_for_tier(tier);
+  if (pool.empty()) {
+    log_warn("No dishes available for tier {}, falling back to potato", tier);
+    return DishType::Potato;
+  }
+  static std::uniform_int_distribution<> dis(0, (int)pool.size() - 1);
+  return pool[dis(gen)];
+}
+
 Entity &make_shop_manager(Entity &sophie) {
   sophie.addComponent<Wallet>();
   sophie.addComponent<Health>();
   sophie.addComponent<ShopState>();
+  sophie.addComponent<ShopTier>();
   EntityHelper::registerSingleton<Wallet>(sophie);
   EntityHelper::registerSingleton<Health>(sophie);
   EntityHelper::registerSingleton<ShopState>(sophie);
+  EntityHelper::registerSingleton<ShopTier>(sophie);
   return sophie;
 }
 

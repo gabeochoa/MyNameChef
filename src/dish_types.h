@@ -51,6 +51,7 @@ struct SpriteLocation {
 struct DishInfo {
   std::string name;
   int price = 1;
+  int tier = 1;
   FlavorStats flavor;
   SpriteLocation sprite;
 };
@@ -59,3 +60,6 @@ DishInfo get_dish_info(DishType type);
 
 // Shared pool of dishes used in shop and battle systems
 const std::vector<DishType> &get_default_dish_pool();
+
+// Get dishes available at a specific tier or lower
+const std::vector<DishType> &get_dishes_for_tier(int max_tier);

@@ -5,10 +5,11 @@
 static constexpr int kUnifiedDishPrice = 3;
 
 static DishInfo make_dish(const char *name, FlavorStats flavor,
-                          SpriteLocation sprite) {
+                          SpriteLocation sprite, int tier = 2) {
   DishInfo result;
   result.name = name;
   result.price = kUnifiedDishPrice; // Always 3
+  result.tier = tier;
   result.flavor = flavor;
   result.sprite = sprite;
   return result;
@@ -96,8 +97,8 @@ DishInfo get_dish_info(DishType type) {
         "Garlic Bread", FlavorStats{.satiety = 1, .richness = 1},
         SpriteLocation{0, 9}); // 07_bread.png x=0,y=288 (placeholder)
   case DishType::Potato:
-    return make_dish("Potato", FlavorStats{.satiety = 1},
-                     SpriteLocation{13, 3}); // potato.png x=416,y=96
+    return make_dish("Potato", FlavorStats{.satiety = 1}, SpriteLocation{13, 3},
+                     1); // potato.png x=416,y=96 - Tier 1
   }
   return DishInfo{};
 }
@@ -115,4 +116,19 @@ const std::vector<DishType> &get_default_dish_pool() {
       DishType::Baguette,    DishType::GarlicBread,    DishType::Potato,
   };
   return pool;
+}
+
+const std::vector<DishType> &get_dishes_for_tier(int max_tier) {
+  static std::vector<DishType> tier_pool;
+  tier_pool.clear();
+
+  const auto &all_dishes = get_default_dish_pool();
+  for (const auto &dish : all_dishes) {
+    auto info = get_dish_info(dish);
+    if (info.tier <= max_tier) {
+      tier_pool.push_back(dish);
+    }
+  }
+
+  return tier_pool;
 }
