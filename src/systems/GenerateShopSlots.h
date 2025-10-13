@@ -28,7 +28,8 @@ struct GenerateShopSlots : System<> {
                            .template whereHasComponent<IsDropSlot>()
                            .gen()) {
         const auto &drop_slot = ref.get().template get<IsDropSlot>();
-        if (!drop_slot.accepts_inventory_items && drop_slot.accepts_shop_items) {
+        if (!drop_slot.accepts_inventory_items &&
+            drop_slot.accepts_shop_items) {
           shop_slots_exist = true;
           break;
         }
@@ -37,7 +38,8 @@ struct GenerateShopSlots : System<> {
       // Only create shop slots if they don't exist
       if (!shop_slots_exist) {
         for (int i = 0; i < SHOP_SLOTS; ++i) {
-          auto position = calculate_slot_position(i, SHOP_START_X, SHOP_START_Y);
+          auto position =
+              calculate_slot_position(i, SHOP_START_X, SHOP_START_Y);
           make_drop_slot(i, position, vec2{SLOT_SIZE, SLOT_SIZE}, false, true);
         }
 
