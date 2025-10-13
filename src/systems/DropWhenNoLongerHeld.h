@@ -105,6 +105,28 @@ private:
     vec2 slot_center = drop_slot->get<Transform>().center();
     entity.get<Transform>().position = slot_center - transform.size * 0.5f;
 
+    // Handle selling: dropping an inventory item onto SELL_SLOT_ID sells it
+    if (drop_slot->get<IsDropSlot>().slot_id == SELL_SLOT_ID &&
+        entity.has<IsInventoryItem>()) {
+      // Free the original inventory slot
+      int original_slot_id = get_slot_id(entity);
+      if (original_slot_id >= 0) {
+        if (auto original_slot = EQ().whereHasComponent<IsDropSlot>()
+                                     .whereSlotID(original_slot_id)
+                                     .gen_first()) {
+          original_slot->get<IsDropSlot>().occupied = false;
+        }
+      }
+
+      auto wallet_entity = EntityHelper::get_singleton<Wallet>();
+      if (wallet_entity.get().has<Wallet>()) {
+        auto &wallet = wallet_entity.get().get<Wallet>();
+        wallet.gold += 1; // flat refund for now
+      }
+      entity.cleanup = true; // remove the sold item
+      return;
+    }
+
     if (!try_purchase_shop_item(entity, drop_slot)) {
       snap_back_to_original(entity, held);
       return;

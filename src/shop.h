@@ -34,6 +34,11 @@ constexpr int INVENTORY_START_X = 100;
 constexpr int INVENTORY_START_Y = 500;
 constexpr int INVENTORY_SLOT_OFFSET = 100;
 
+// Sell slot constants
+constexpr int SELL_SLOT_ID = 999;
+constexpr int SELL_SLOT_X = INVENTORY_START_X + (SLOT_SIZE + SLOT_GAP) * 8;
+constexpr int SELL_SLOT_Y = INVENTORY_START_Y;
+
 // Forward declarations for shop functions
 afterhours::Entity &make_shop_manager(afterhours::Entity &);
 afterhours::Entity &make_judging_manager(afterhours::Entity &);

@@ -35,6 +35,7 @@ backward::SignalHandling sh;
 #include "systems/RenderLetterboxBars.h"
 #include "systems/RenderRenderTexture.h"
 #include "systems/RenderScoringBar.h"
+#include "systems/RenderSellSlot.h"
 #include "systems/RenderSpritesByOrder.h"
 #include "systems/RenderSpritesWithShaders.h"
 #include "systems/RenderSystemHelpers.h"
@@ -164,6 +165,7 @@ void game() {
       systems.register_render_system(
           std::make_unique<EndPostProcessingShader>());
       systems.register_render_system(std::make_unique<RenderLetterboxBars>());
+      systems.register_render_system(std::make_unique<RenderSellSlot>());
       systems.register_render_system(std::make_unique<RenderBattleResults>());
       systems.register_render_system(std::make_unique<RenderScoringBar>());
       systems.register_render_system(std::make_unique<RenderTooltipSystem>());

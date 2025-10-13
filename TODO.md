@@ -1,3 +1,49 @@
+## Next additions (incremental, with how-to)
+
+- Deterministic RNG across shop and results
+  - Add singleton `SeededRng{ std::mt19937_64 gen; uint64_t seed; }`.
+  - Seed it in `ExportMenuSnapshotSystem` (use the snapshot `seed` you already write), then store in a singleton before transitioning to Battle.
+  - Replace `std::random_device` usages in shop fill, judge variation, and any future random calls with `SeededRng.gen` so outcomes are reproducible.
+
+- Reroll and Freeze in Shop
+  - Components: `RerollCost{ base=1, increment=0 }`, `Freezeable{ isFrozen }` on shop items.
+  - System `RerollFreezeSystem`: when Reroll button pressed, charge wallet, replace non-frozen shop items using `SeededRng`; keep frozen items.
+  - UI: Add “Reroll” button on Shop; click toggles per-item freeze (badge or small icon on the slot).
+
+- Sell from inventory (basic economy loop)
+  - System `SellSystem`: on right-click (or drop onto a dedicated Sell slot), remove `IsInventoryItem`, award refund (e.g., half of `price` rounded down) to `Wallet`.
+  - Optional: simple “trashcan” drop slot using `resources/images/trashcan.png` for discoverability.
+
+- Course/tags and synergy counts (display-only)
+  - Components on dishes: `CourseTag`, `CuisineTag`, `BrandTag`, `DietaryTag`, `DishArchetypeTag`.
+  - System `SynergyCountingSystem`: scan current inventory once per frame on Shop, compute counts per tag set into `SynergyCounts` singleton for UI.
+  - Update tooltips to show tags and current set thresholds reached.
+
+- Replace static dish pool with enum values
+  - Change `get_default_dish_pool()` to use `magic_enum::enum_values<DishType>()` to derive the pool, optionally filter placeholders.
+
+- Judge profile and base scoring (no pairings yet)
+  - Singletons: `JudgeProfileRef{ weights[7] }`, `ScoringConfig{ k }`.
+  - Systems: `NormalizationSystem` (compute `ComputedFlavor` via `f(x)=x/(x+k)` and weighted base), `HarmonySystem` (compute `HarmonyScore = 1 - stddev(normalized)`), store per-dish for UI.
+  - Use these to compute player/opponent totals deterministically in Results (no random variation).
+
+- Persist `BattleReport` for replay
+  - Component `BattleReport{ opponentId, seed, perCourse[], totals }`.
+  - On Results, write JSON to `output/battles/results/*.json` using the same seed; load it on replay to reproduce scores and UI.
+
+- Basic pairing rule to start the system
+  - Add `PairingAndClashSystem` scaffolding with a single rule: `CourseTag=Drink` adjacent to `Meat` adds small +umami multiplier.
+  - Compute per-course additive/multiplicative bonuses (`AppliedBonuses`) and include in final score.
+
+- Combine duplicates into levels
+  - Component `Level{ value }` on dishes.
+  - System `CombineDuplicates`: when 3 of the same `DishType` are in inventory, merge into one entity with `Level+1` and boosted stats/cost; remove the others.
+
+- Small UX affordances
+  - Show price on shop items; show “frozen” badge, and a faint highlight on legal drop targets.
+  - In Results, add a “Replay” button once `BattleReport` exists.
+
+
 # TODO
 Food-themed async autobattler — ECS design notes
 
@@ -292,3 +338,107 @@ Notes:
 - These numbers are illustrative to show how base, harmony, and multipliers combine. The exact weights and thresholds should be tuned in content.
 
 // Section merged into top design; the separate refinements list was inlined above.
+
+
+## Flavor-trigger model v0 (SAP-inspired, chef-unique)
+
+Goals:
+- Make flavorful, readable abilities that feel culinary, not combat.
+- Keep effects data-driven (JSON) and judged per-course with clear hooks.
+
+Triggers (battle-phase oriented):
+- OnServe — when this dish is presented to judges.
+- OnTaste — when judges taste/evaluate this dish.
+- OnPair — when placed adjacent to a complementary neighbor (resolved at serve).
+- OnSequence — when a planned flavor progression condition holds (e.g., spice rising across slots).
+- OnCourseComplete — after the course resolves (safe point for chain buffs).
+- OnSynergyChanged — when cuisine/course/technique set thresholds change (pre-battle/shop time).
+- OnClash — when adjacent pair hits a known clash rule.
+- OnOverwhelm — when a dish exceeds a stat threshold (e.g., richness ≥ 3).
+
+Effect ops (JSON, composable):
+- AddStat{ stat, amount } — modify raw `FlavorStats` for this evaluation window.
+- AddBonusAdditive{ amount } — adds to per-dish additive bonus before multiplier.
+- AddBonusMultiplicative{ amount } — modifies per-dish multiplier (e.g., +0.03).
+- StealStat{ stat, amount, from: Opponent|Adjacent } — transfer along axis.
+- RedistributeStat{ from, to, amount } — preserve sum, shift profile.
+- CleanseNext{ statuses:[...], count } — remove negative statuses from following dishes.
+- CopyStatFromAdjacent{ stat, scale } — model pair carryover.
+- GrantStatus{ name, stacks, durationCourses } — e.g., PalateCleanser, Heat, SweetTooth, Fatigue.
+- QueueTrigger{ when, payload } — schedule a delayed effect (e.g., next course).
+
+Status effects (short, flavorful):
+- PalateCleanser — removes one negative status from the next dish; small freshness add.
+- Heat — small +spice; may penalize delicate desserts if unpaired.
+- SweetTooth — small +sweetness; reduces harmony if stacked too high.
+- Fatigue — slight −freshness, −harmony; decays after 1 course.
+
+Pairings and clashes (rules, not per-dish effects):
+- Beverage↔Meat (or Rich mains) → +umami, mitigates smoke/bitter clashes.
+- Soup↔Bread → satiety buffer; early-course comfort pairing.
+- Acid↔Dairy clash → small multiplicative penalty unless buffered by richness.
+
+JSON sketches (consistent with data plan):
+```json
+{
+  "effects": [
+    {
+      "id": "ramen_spice_bloom",
+      "when": "OnServe",
+      "ops": [ { "op": "AddStat", "stat": "spice", "amount": 1, "target": "Adjacent" } ]
+    },
+    {
+      "id": "ramen_sweet_rich_link",
+      "when": "OnSequence",
+      "require": { "nextDish": { "sweetnessAtLeast": 2 } },
+      "ops": [ { "op": "AddStat", "stat": "richness", "amount": 2, "target": "Next" } ]
+    }
+  ]
+}
+```
+
+```json
+{
+  "effects": [
+    {
+      "id": "sushi_fresh_cut",
+      "when": "OnTaste",
+      "require": { "opponent": { "freshnessBelow": 2 } },
+      "ops": [ { "op": "StealStat", "stat": "freshness", "amount": 1, "from": "Opponent" } ]
+    },
+    {
+      "id": "sushi_umami_pair",
+      "when": "OnPair",
+      "ops": [ { "op": "AddBonusAdditive", "amount": 0.02, "target": "SelfAndAdjacent" } ]
+    }
+  ]
+}
+```
+
+```json
+{
+  "effects": [
+    {
+      "id": "cheesecake_table_service",
+      "when": "OnCourseComplete",
+      "ops": [ { "op": "AddStat", "stat": "sweetness", "amount": 1, "target": "AllDesserts" } ]
+    },
+    {
+      "id": "cheesecake_sugar_rush",
+      "when": "OnOverwhelm",
+      "require": { "self": { "richnessAtLeast": 3 } },
+      "ops": [ { "op": "GrantStatus", "name": "SweetTooth", "stacks": 1, "durationCourses": 2, "target": "NextTwo" } ]
+    }
+  ]
+}
+```
+
+Mapping to current dishes (examples using existing `DishType`s):
+- Ramen — spice bloom OnServe; sweetness→richness link OnSequence.
+- Sushi — fresh cut advantage OnTaste; umami pair addend OnPair.
+- Cheesecake — dessert table service OnCourseComplete; sugar rush OnOverwhelm.
+
+Notes:
+- Keep numbers small (+1 stat, +0.02–0.04 mult) and scale with tiers.
+- Prefer adjacency and sequence readability over opaque global auras early on.
+

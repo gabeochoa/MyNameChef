@@ -30,6 +30,14 @@ struct GenerateInventorySlots : System<> {
                      vec2{SLOT_SIZE, SLOT_SIZE}, true, true);
     }
 
+    // Create a sell drop slot to the right of inventory
+    {
+      vec2 pos{static_cast<float>(SELL_SLOT_X),
+               static_cast<float>(SELL_SLOT_Y)};
+      make_drop_slot(SELL_SLOT_ID, pos, vec2{SLOT_SIZE, SLOT_SIZE}, true,
+                     false);
+    }
+
     add_starter_inventory_item();
     EntityHelper::merge_entity_arrays();
   }
