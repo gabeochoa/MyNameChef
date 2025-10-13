@@ -29,6 +29,7 @@ backward::SignalHandling sh;
 #include "systems/RenderBattleResults.h"
 #include "systems/RenderBattleTeams.h"
 #include "systems/RenderDebugWindowInfo.h"
+#include "systems/RenderDishProgressBars.h"
 #include "systems/RenderEntitiesByOrder.h"
 #include "systems/RenderFPS.h"
 #include "systems/RenderJudges.h"
@@ -140,6 +141,8 @@ void game() {
             std::make_unique<RenderSpritesByOrder>());
         systems.register_render_system(
             std::make_unique<RenderSpritesWithShaders>());
+        systems.register_render_system(
+            std::make_unique<RenderDishProgressBars>());
         systems.register_render_system(std::make_unique<RenderWalletHUD>());
         systems.register_render_system(std::make_unique<EndCameraMode>());
         // (UI moved to pass 2 so it is after tag shader)

@@ -29,14 +29,18 @@ inline std::string generate_dish_tooltip(DishType dishType) {
   return tooltip.str();
 }
 
-inline std::string generate_dish_tooltip_with_level(DishType dishType, int level, int merge_progress, int merges_needed) {
+inline std::string generate_dish_tooltip_with_level(DishType dishType,
+                                                    int level,
+                                                    int merge_progress,
+                                                    int merges_needed) {
   auto dishInfo = get_dish_info(dishType);
   std::ostringstream tooltip;
 
   tooltip << "[GOLD]" << dishInfo.name << "\n";
   tooltip << "[CYAN]Price: " << dishInfo.price << " coins\n";
   tooltip << "[YELLOW]Level: " << level << "\n";
-  tooltip << "[WHITE]Progress: " << merge_progress << "/" << merges_needed << " merges\n";
+  tooltip << "[WHITE]Progress: " << merge_progress << "/" << merges_needed
+          << " merges\n";
   tooltip << "Flavor Stats:\n";
   if (dishInfo.flavor.satiety > 0)
     tooltip << "[PURPLE]  Satiety: " << dishInfo.flavor.satiety << "\n";

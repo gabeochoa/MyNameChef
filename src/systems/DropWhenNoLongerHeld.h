@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../components/can_drop_onto.h"
+#include "../components/dish_level.h"
 #include "../components/is_dish.h"
 #include "../components/is_drop_slot.h"
 #include "../components/is_held.h"
@@ -70,6 +71,55 @@ private:
   void snap_back_to_original(Entity &entity, const IsHeld &held) {
     entity.get<Transform>().position = held.original_position;
     entity.removeComponent<IsHeld>();
+  }
+
+  bool can_merge_dishes(const Entity &entity, const Entity &target_item) {
+    if (!entity.has<IsDish>() || !target_item.has<IsDish>()) {
+      return false;
+    }
+
+    auto &entity_dish = entity.get<IsDish>();
+    auto &target_dish = target_item.get<IsDish>();
+
+    // Can only merge same dish types
+    if (entity_dish.type != target_dish.type) {
+      return false;
+    }
+
+    // Both must have DishLevel components
+    if (!entity.has<DishLevel>() || !target_item.has<DishLevel>()) {
+      return false;
+    }
+
+    auto &entity_level = entity.get<DishLevel>();
+    auto &target_level = target_item.get<DishLevel>();
+
+    // Can only merge dishes of the same level
+    return entity_level.level == target_level.level;
+  }
+
+  void merge_dishes(Entity &entity, Entity *target_item, Entity *,
+                    const Transform &, const IsHeld &) {
+    auto &target_level = target_item->get<DishLevel>();
+
+    // Add merge progress to target item
+    target_level.add_merge();
+
+    // Don't move the target item - it should stay where it is
+    // The target item keeps its current position (inventory or shop)
+
+    // Remove the dropped item
+    entity.cleanup = true;
+
+    // Free the original slot if it was occupied
+    int original_slot_id = get_slot_id(entity);
+    if (original_slot_id >= 0) {
+      if (auto original_slot = EQ().whereHasComponent<IsDropSlot>()
+                                   .whereSlotID(original_slot_id)
+                                   .gen_first()) {
+        original_slot->get<IsDropSlot>().occupied = false;
+      }
+    }
   }
 
   bool try_purchase_shop_item(Entity &entity, Entity *drop_slot) {
@@ -143,7 +193,16 @@ private:
     if (!item_in_slot)
       return;
 
-    if (entity.has<IsShopItem>() || item_in_slot->has<IsShopItem>()) {
+    // Check if we can merge instead of swap
+    if (can_merge_dishes(entity, *item_in_slot)) {
+      merge_dishes(entity, item_in_slot, occupied_slot, transform, held);
+      return;
+    }
+
+    // Only prevent swapping if one is shop item and one is inventory item
+    // Allow shop-to-shop and inventory-to-inventory swaps
+    if ((entity.has<IsShopItem>() && item_in_slot->has<IsInventoryItem>()) ||
+        (entity.has<IsInventoryItem>() && item_in_slot->has<IsShopItem>())) {
       snap_back_to_original(entity, held);
       return;
     }
