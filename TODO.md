@@ -10,10 +10,6 @@
   - System `RerollFreezeSystem`: when Reroll button pressed, charge wallet, replace non-frozen shop items using `SeededRng`; keep frozen items.
   - UI: Add “Reroll” button on Shop; click toggles per-item freeze (badge or small icon on the slot).
 
-- Sell from inventory (basic economy loop)
-  - System `SellSystem`: on right-click (or drop onto a dedicated Sell slot), remove `IsInventoryItem`, award refund (e.g., half of `price` rounded down) to `Wallet`.
-  - Optional: simple “trashcan” drop slot using `resources/images/trashcan.png` for discoverability.
-
 - Course/tags and synergy counts (display-only)
   - Components on dishes: `CourseTag`, `CuisineTag`, `BrandTag`, `DietaryTag`, `DishArchetypeTag`.
   - System `SynergyCountingSystem`: scan current inventory once per frame on Shop, compute counts per tag set into `SynergyCounts` singleton for UI.

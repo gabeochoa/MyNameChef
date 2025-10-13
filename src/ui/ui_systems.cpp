@@ -4,11 +4,12 @@
 #include <afterhours/src/developer.h>
 #include <afterhours/src/logging.h>
 
-#include "../components/battle_load_request.h"
+#include "../components/is_shop_item.h"
 #include "../game.h"
 #include "../game_state_manager.h"
 #include "../input_mapping.h"
 #include "../settings.h"
+#include "../shop.h"
 #include "../systems/ExportMenuSnapshotSystem.h"
 #include "../translation_manager.h"
 #include "containers.h"
@@ -307,8 +308,14 @@ Screen ScheduleMainMenuUI::settings_screen(Entity &entity,
 Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
                                        UIContext<InputAction> &context) {
   auto elem = ui_helpers::create_screen_container(context, entity, "screen");
+
   auto top_right =
-      column_right<InputAction>(context, elem.ent(), "shop_top_right", 0);
+      div(context, mk(elem.ent()),
+          ComponentConfig{}
+              .with_size(ComponentSize{screen_pct(0.8f), screen_pct(0.2f)})
+              .with_margin(Spacing::sm)
+              .with_flex_direction(FlexDirection::Row)
+              .with_debug_name("shop_buttons_row"));
 
   // Create Next Round button
   button_labeled<InputAction>(
@@ -322,6 +329,42 @@ Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
           // Navigate to battle screen
           GameStateManager::get().to_battle();
         }
+      },
+      1);
+
+  div(context, mk(top_right.ent()),
+      ComponentConfig{}
+          .with_size(ComponentSize{screen_pct(0.4f), screen_pct(0.1f)})
+          .with_margin(
+              Margin{.left = screen_pct(0.6f), .top = screen_pct(0.05f)})
+          .with_flex_direction(FlexDirection::Row)
+          .with_debug_name("shop_buttons_row"));
+
+  // Reroll button (cost 5 gold): delete all shop items and regenerate
+  button_labeled<InputAction>(
+      context, top_right.ent(), "Reroll (5)",
+      []() {
+        auto wallet_entity = EntityHelper::get_singleton<Wallet>();
+        if (!wallet_entity.get().has<Wallet>())
+          return;
+        auto &wallet = wallet_entity.get().get<Wallet>();
+        if (wallet.gold < 5)
+          return;
+        wallet.gold -= 5;
+
+        // Mark existing shop items for cleanup
+        for (auto &ref : afterhours::EntityQuery()
+                             .template whereHasComponent<IsShopItem>()
+                             .gen()) {
+          ref.get().cleanup = true;
+        }
+        afterhours::EntityHelper::merge_entity_arrays();
+
+        // Regenerate shop items for all slots
+        for (int slot = 0; slot < SHOP_SLOTS; ++slot) {
+          make_shop_item(slot, get_random_dish());
+        }
+        afterhours::EntityHelper::merge_entity_arrays();
       },
       0);
 
