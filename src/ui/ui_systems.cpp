@@ -353,12 +353,14 @@ Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
         wallet.gold -= 5;
 
         // Mark existing shop items for cleanup
-        for (auto &ref : afterhours::EntityQuery()
+        for (auto &ref : afterhours::EntityQuery({.force_merge = true})
                              .template whereHasComponent<IsShopItem>()
                              .gen()) {
           ref.get().cleanup = true;
         }
-        afterhours::EntityHelper::merge_entity_arrays();
+
+        // Force cleanup of marked entities before creating new ones
+        afterhours::EntityHelper::cleanup();
 
         // Regenerate shop items for all slots
         for (int slot = 0; slot < SHOP_SLOTS; ++slot) {

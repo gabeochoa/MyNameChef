@@ -1,5 +1,6 @@
 #include "shop.h"
 #include "components/can_drop_onto.h"
+#include "components/dish_level.h"
 #include "components/has_tooltip.h"
 #include "components/is_dish.h"
 #include "components/is_draggable.h"
@@ -42,7 +43,9 @@ std::vector<int> get_free_slots(int max_slots) {
   for (int i = 0; i < max_slots; ++i) {
     bool occupied = false;
 
-    for (auto &ref : EntityQuery().whereHasComponent<IsShopItem>().gen()) {
+    for (auto &ref : EntityQuery({.force_merge = true})
+                         .whereHasComponent<IsShopItem>()
+                         .gen()) {
       if (ref.get().get<IsShopItem>().slot == i) {
         occupied = true;
         break;
@@ -97,6 +100,7 @@ Entity &make_shop_item(int slot, DishType type) {
 
   e.addComponent<Transform>(position, vec2{SLOT_SIZE, SLOT_SIZE});
   e.addComponent<IsDish>(type);
+  e.addComponent<DishLevel>(1); // Start at level 1
   e.addComponent<IsShopItem>(slot);
   e.addComponent<IsDraggable>(true);
   e.addComponent<HasRenderOrder>(RenderOrder::ShopItems, RenderScreen::Shop);
