@@ -8,14 +8,12 @@
 #include "../components/is_inventory_item.h"
 #include "../components/is_shop_item.h"
 #include "../components/transform.h"
-#include "../dish_types.h"
 #include "../game_state_manager.h"
 #include "../query.h"
 #include "../rl.h"
 #include "../shop.h"
 #include <afterhours/ah.h>
 #include <limits>
-#include <magic_enum/magic_enum.hpp>
 
 using namespace afterhours;
 
@@ -94,8 +92,8 @@ private:
     auto &entity_level = entity.get<DishLevel>();
     auto &target_level = target_item.get<DishLevel>();
 
-    // Can only merge dishes of the same level
-    return entity_level.level == target_level.level;
+    // Allow merge if donor level <= target level
+    return entity_level.level <= target_level.level;
   }
 
   void merge_dishes(Entity &entity, Entity *target_item, Entity *,
@@ -112,9 +110,10 @@ private:
     }
 
     auto &target_level = target_item->get<DishLevel>();
+    auto &donor_level = entity.get<DishLevel>();
 
-    // Add merge progress to target item
-    target_level.add_merge();
+    // Add donor's full contribution to target
+    target_level.add_merge_value(donor_level.contribution_value());
 
     // Don't move the target item - it should stay where it is
     // The target item keeps its current position (inventory or shop)

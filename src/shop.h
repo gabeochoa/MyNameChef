@@ -8,7 +8,7 @@
 enum struct DishType;
 
 struct Wallet : afterhours::BaseComponent {
-  int gold = 10;
+  int gold = 100;
 };
 
 struct Health : afterhours::BaseComponent {

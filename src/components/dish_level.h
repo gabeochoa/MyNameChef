@@ -12,11 +12,18 @@ struct DishLevel : afterhours::BaseComponent {
 
   bool can_level_up() const { return merge_progress >= merges_needed; }
 
-  void add_merge() {
-    merge_progress++;
-    if (can_level_up()) {
+  void add_merge() { add_merge_value(1); }
+
+  int contribution_value() const {
+    return 1 + (level - 1) * merges_needed + merge_progress;
+  }
+
+  void add_merge_value(int value) {
+    int total = merge_progress + value;
+    while (total >= merges_needed) {
+      total -= merges_needed;
       level++;
-      merge_progress = 0; // reset for next level
     }
+    merge_progress = total;
   }
 };
