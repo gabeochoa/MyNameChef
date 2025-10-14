@@ -18,13 +18,12 @@ struct RenderTooltipSystem : afterhours::System<HasRenderOrder, HasTooltip> {
 public:
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
-    const bool is_playing =
-        gsm.current_state == GameStateManager::GameState::Playing;
     const bool on_allowed_screen =
         gsm.active_screen == GameStateManager::Screen::Shop ||
-        gsm.active_screen == GameStateManager::Screen::Battle;
+        gsm.active_screen == GameStateManager::Screen::Battle ||
+        gsm.active_screen == GameStateManager::Screen::Dishes;
     current_screen = gsm.active_screen;
-    return is_playing && on_allowed_screen;
+    return on_allowed_screen;
   }
 
   virtual void for_each_with(const afterhours::Entity &entity,

@@ -17,6 +17,7 @@ struct GameStateManager {
   enum struct Screen {
     Main,
     Settings,
+    Dishes,
     Shop,
     Battle,
     Results,

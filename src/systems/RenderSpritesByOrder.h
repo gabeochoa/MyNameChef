@@ -10,8 +10,8 @@
 struct RenderSpritesByOrder
     : System<afterhours::texture_manager::HasSprite, HasRenderOrder> {
   virtual bool should_run(float) override {
-    auto &gsm = GameStateManager::get();
-    return gsm.is_game_active();
+    // Run for both gameplay and menu screens so gallery sprites render
+    return true;
   }
 
   virtual void
@@ -74,6 +74,8 @@ private:
       return RenderScreen::Battle;
     case GameStateManager::Screen::Results:
       return RenderScreen::Results;
+    case GameStateManager::Screen::Dishes:
+      return RenderScreen::All; // allow gallery items to render
     case GameStateManager::Screen::Main:
     case GameStateManager::Screen::Settings:
     default:

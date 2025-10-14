@@ -4,18 +4,22 @@
 #include <afterhours/src/developer.h>
 #include <afterhours/src/logging.h>
 
+#include "../components/is_gallery_item.h"
 #include "../components/is_shop_item.h"
 #include "../game.h"
 #include "../game_state_manager.h"
 #include "../input_mapping.h"
+#include "../render_constants.h"
 #include "../settings.h"
 #include "../shop.h"
 #include "../systems/ExportMenuSnapshotSystem.h"
+#include "../tooltip.h"
 #include "../translation_manager.h"
 #include "containers.h"
 #include "controls.h"
 #include "metrics.h"
 #include "navigation.h"
+#include <afterhours/src/plugins/texture_manager.h>
 
 using namespace afterhours;
 
@@ -120,6 +124,10 @@ struct ScheduleMainMenuUI : System<afterhours::ui::UIContext<InputAction>> {
       gsm.active_screen = settings_screen(entity, context);
       return;
     }
+    if (gsm.active_screen == Screen::Dishes) {
+      gsm.active_screen = dishes_screen(entity, context);
+      return;
+    }
     if (gsm.active_screen == Screen::Shop) {
       gsm.active_screen = shop_screen(entity, context);
       return;
@@ -137,6 +145,7 @@ struct ScheduleMainMenuUI : System<afterhours::ui::UIContext<InputAction>> {
 
   Screen main_screen(Entity &entity, UIContext<InputAction> &context);
   Screen settings_screen(Entity &entity, UIContext<InputAction> &context);
+  Screen dishes_screen(Entity &entity, UIContext<InputAction> &context);
   Screen shop_screen(Entity &entity, UIContext<InputAction> &context);
   Screen battle_screen(Entity &entity, UIContext<InputAction> &context);
   Screen results_screen(Entity &entity, UIContext<InputAction> &context);
@@ -237,9 +246,29 @@ Screen ScheduleMainMenuUI::main_screen(Entity &entity,
       context, top_left.ent(), "Settings",
       []() { navigation::to(GameStateManager::Screen::Settings); }, 1);
 
+  // Dishes button
+  button_labeled<InputAction>(
+      context, top_left.ent(), "Dishes",
+      []() { navigation::to(GameStateManager::Screen::Dishes); }, 2);
+
   // Exit button
   button_labeled<InputAction>(
-      context, top_left.ent(), "Quit", [this]() { exit_game(); }, 2);
+      context, top_left.ent(), "Quit", [this]() { exit_game(); }, 3);
+
+  return GameStateManager::get().next_screen.value_or(
+      GameStateManager::get().active_screen);
+}
+
+Screen ScheduleMainMenuUI::dishes_screen(Entity &entity,
+                                         UIContext<InputAction> &context) {
+  auto elem = ui_helpers::create_screen_container(context, entity, "screen");
+
+  // Do NOT draw a fullscreen background here; it would cover world sprites.
+  auto top_left =
+      column_left<InputAction>(context, elem.ent(), "dishes_top_left", 0);
+
+  button_labeled<InputAction>(
+      context, top_left.ent(), "Back", []() { navigation::back(); }, 0);
 
   return GameStateManager::get().next_screen.value_or(
       GameStateManager::get().active_screen);
