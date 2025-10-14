@@ -57,3 +57,8 @@ afterhours::vec2 calculate_inventory_position(int slot);
 
 void register_shop_update_systems(afterhours::SystemManager &systems);
 void register_shop_render_systems(afterhours::SystemManager &systems);
+
+// Wallet helpers
+bool wallet_can_afford(int cost);
+bool wallet_charge(int cost);
+bool charge_for_shop_purchase(DishType type);

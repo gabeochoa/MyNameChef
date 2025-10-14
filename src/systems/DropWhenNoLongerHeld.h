@@ -99,7 +99,18 @@ private:
   }
 
   void merge_dishes(Entity &entity, Entity *target_item, Entity *,
-                    const Transform &, const IsHeld &) {
+                    const Transform &, const IsHeld &held) {
+    // If the dropped item came from the shop and we're merging into an
+    // inventory item, charge before consuming the dropped item
+    if (entity.has<IsShopItem>() && target_item &&
+        target_item->has<IsInventoryItem>()) {
+      auto &dish = entity.get<IsDish>();
+      if (!charge_for_shop_purchase(dish.type)) {
+        snap_back_to_original(entity, held);
+        return;
+      }
+    }
+
     auto &target_level = target_item->get<DishLevel>();
 
     // Add merge progress to target item
@@ -129,20 +140,10 @@ private:
     }
 
     auto &dish = entity.get<IsDish>();
-    auto wallet_entity = EntityHelper::get_singleton<Wallet>();
-
-    if (!wallet_entity.get().has<Wallet>()) {
+    if (!charge_for_shop_purchase(dish.type)) {
       return false;
     }
 
-    auto &wallet = wallet_entity.get().get<Wallet>();
-    int dish_price = get_dish_info(dish.type).price;
-
-    if (wallet.gold < dish_price) {
-      return false;
-    }
-
-    wallet.gold -= dish_price;
     entity.removeComponent<IsShopItem>();
     entity.addComponent<IsInventoryItem>();
     entity.get<IsInventoryItem>().slot = drop_slot->get<IsDropSlot>().slot_id;

@@ -157,3 +157,27 @@ void register_shop_update_systems(afterhours::SystemManager &systems) {
 }
 
 void register_shop_render_systems(afterhours::SystemManager &) {}
+
+bool wallet_can_afford(int cost) {
+  auto wallet_entity = EntityHelper::get_singleton<Wallet>();
+  if (!wallet_entity.get().has<Wallet>())
+    return false;
+  auto &wallet = wallet_entity.get().get<Wallet>();
+  return wallet.gold >= cost;
+}
+
+bool wallet_charge(int cost) {
+  auto wallet_entity = EntityHelper::get_singleton<Wallet>();
+  if (!wallet_entity.get().has<Wallet>())
+    return false;
+  auto &wallet = wallet_entity.get().get<Wallet>();
+  if (wallet.gold < cost)
+    return false;
+  wallet.gold -= cost;
+  return true;
+}
+
+bool charge_for_shop_purchase(DishType type) {
+  const int price = get_dish_info(type).price;
+  return wallet_charge(price);
+}
