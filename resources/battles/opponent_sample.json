@@ -6,11 +6,11 @@
         },
         {
             "slot": 1,
-            "dishType": "TomatoSoup"
+            "dishType": "Potato"
         },
         {
             "slot": 2,
-            "dishType": "GrilledCheese"
+            "dishType": "Potato"
         }
     ],
     "seed": 1234567890,

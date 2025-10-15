@@ -1,9 +1,9 @@
 #pragma once
-
+#include <afterhours/ah.h>
+//
 #include "../components/is_drop_slot.h"
 #include "../game_state_manager.h"
 #include "../shop.h"
-#include <afterhours/ah.h>
 
 using namespace afterhours;
 

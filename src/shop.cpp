@@ -1,5 +1,6 @@
 #include "shop.h"
 #include "components/can_drop_onto.h"
+#include "components/combat_queue.h"
 #include "components/dish_level.h"
 #include "components/has_tooltip.h"
 #include "components/is_dish.h"
@@ -89,6 +90,12 @@ Entity &make_shop_manager(Entity &sophie) {
   EntityHelper::registerSingleton<Health>(sophie);
   EntityHelper::registerSingleton<ShopState>(sophie);
   EntityHelper::registerSingleton<ShopTier>(sophie);
+  return sophie;
+}
+
+Entity &make_combat_manager(Entity &sophie) {
+  auto &cq = sophie.addComponentIfMissing<CombatQueue>();
+  EntityHelper::registerSingleton<CombatQueue>(sophie);
   return sophie;
 }
 

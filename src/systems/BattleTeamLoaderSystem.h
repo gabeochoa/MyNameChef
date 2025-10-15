@@ -3,6 +3,7 @@
 #include "../components/battle_load_request.h"
 #include "../components/battle_team_tags.h"
 #include "../components/dish_battle_state.h"
+#include "../components/dish_generation_ability.h"
 #include "../components/dish_level.h"
 #include "../components/has_tooltip.h"
 #include "../components/is_dish.h"
@@ -182,7 +183,59 @@ private:
     }
 
     entity.addComponent<HasTooltip>(generate_dish_tooltip(dishType));
+
+    // Add generation abilities for testing
+    add_test_generation_ability(entity, dishType);
   }
 
-  // add_random_dish_to_inventory removed as unused
+private:
+  void add_test_generation_ability(afterhours::Entity &entity,
+                                   DishType dishType) {
+    // Add generation abilities to specific dishes for testing
+    switch (dishType) {
+    case DishType::Potato: {
+      // Potato spawns another Potato when it enters combat
+      entity.addComponent<DishGenerationAbility>();
+      auto &potatoAbility = entity.get<DishGenerationAbility>();
+      potatoAbility.generatedDishType = DishType::Potato;
+      potatoAbility.trigger = GenerationTrigger::OnEnterCombat;
+      potatoAbility.position = GenerationPosition::EndOfQueue;
+      potatoAbility.maxGenerations = 1;
+      potatoAbility.delaySeconds = 0.5f;
+      break;
+    }
+
+    case DishType::Burger: {
+      // Burger spawns French Fries when defeated
+      entity.addComponent<DishGenerationAbility>();
+      auto &burgerAbility = entity.get<DishGenerationAbility>();
+      burgerAbility.generatedDishType = DishType::FrenchFries;
+      burgerAbility.trigger = GenerationTrigger::OnDefeat;
+      burgerAbility.position = GenerationPosition::InSitu;
+      burgerAbility.maxGenerations = 1;
+      burgerAbility.replacesSelf = true;
+      break;
+    }
+
+    case DishType::Pizza: {
+      // Pizza spawns smaller dishes every few ticks
+      entity.addComponent<DishGenerationAbility>();
+      auto &pizzaAbility = entity.get<DishGenerationAbility>();
+      pizzaAbility.generatedDishType = DishType::Meatball;
+      pizzaAbility.trigger = GenerationTrigger::EveryTick;
+      pizzaAbility.position = GenerationPosition::AdjacentSlots;
+      pizzaAbility.maxGenerations = 3;
+      pizzaAbility.delaySeconds = 0.2f;
+      pizzaAbility.cooldownSeconds = 1.0f;
+      // TODO builder for abilities
+      break;
+    }
+
+    default:
+      // No generation ability for other dishes
+      break;
+    }
+
+    // add_random_dish_to_inventory removed as unused
+  }
 };

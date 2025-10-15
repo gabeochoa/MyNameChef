@@ -13,14 +13,18 @@ backward::SignalHandling sh;
 #include "settings.h"
 #include "shop.h"
 #include "sound_systems.h"
+#include "systems/AdvanceCourseSystem.h"
 #include "systems/BattleAnimations.h"
 #include "systems/BattleDebugSystem.h"
+#include "systems/BattleEnterAnimationSystem.h"
 #include "systems/BattleTeamLoaderSystem.h"
 #include "systems/CleanupBattleEntities.h"
 #include "systems/CleanupDishesEntities.h"
 #include "systems/CleanupShopEntities.h"
+#include "systems/ComputeCombatStatsSystem.h"
 #include "systems/DropWhenNoLongerHeld.h"
 #include "systems/GenerateDishesGallery.h"
+#include "systems/InitCombatState.h"
 #include "systems/InitialShopFill.h"
 #include "systems/LoadBattleResults.h"
 #include "systems/MarkEntitiesWithShaders.h"
@@ -41,6 +45,8 @@ backward::SignalHandling sh;
 #include "systems/RenderSystemHelpers.h"
 #include "systems/RenderWalletHUD.h"
 #include "systems/RenderZingBodyOverlay.h"
+#include "systems/ResolveCombatTickSystem.h"
+#include "systems/StartCourseSystem.h"
 #include "systems/TagShaderRender.h"
 #include "systems/TooltipSystem.h"
 #include "systems/UpdateRenderTexture.h"
@@ -74,6 +80,7 @@ void game() {
     texture_manager::enforce_singletons(systems);
     enforce_ui_singletons(systems);
     make_shop_manager(sophie);
+    make_combat_manager(sophie);
   }
 
   // external plugins
@@ -101,6 +108,14 @@ void game() {
     systems.register_update_system(std::make_unique<DropWhenNoLongerHeld>());
     systems.register_update_system(std::make_unique<BattleTeamLoaderSystem>());
     systems.register_update_system(std::make_unique<BattleDebugSystem>());
+    systems.register_update_system(std::make_unique<InitCombatState>());
+    systems.register_update_system(
+        std::make_unique<ComputeCombatStatsSystem>());
+    systems.register_update_system(std::make_unique<StartCourseSystem>());
+    systems.register_update_system(
+        std::make_unique<BattleEnterAnimationSystem>());
+    systems.register_update_system(std::make_unique<ResolveCombatTickSystem>());
+    systems.register_update_system(std::make_unique<AdvanceCourseSystem>());
     systems.register_update_system(std::make_unique<CleanupBattleEntities>());
     systems.register_update_system(std::make_unique<CleanupShopEntities>());
     systems.register_update_system(std::make_unique<CleanupDishesEntities>());
