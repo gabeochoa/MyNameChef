@@ -15,7 +15,7 @@ struct RenderSpritesWithShaders
              HasColor, HasRenderOrder> {
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
-    return gsm.is_game_active();
+    return GameStateManager::should_render_world_entities(gsm.active_screen);
   }
 
   struct EntityRenderData {
@@ -80,18 +80,8 @@ struct RenderSpritesWithShaders
 
 private:
   RenderScreen get_current_render_screen(const GameStateManager &gsm) const {
-    switch (gsm.active_screen) {
-    case GameStateManager::Screen::Shop:
-      return RenderScreen::Shop;
-    case GameStateManager::Screen::Battle:
-      return RenderScreen::Battle;
-    case GameStateManager::Screen::Results:
-      return RenderScreen::Results;
-    case GameStateManager::Screen::Main:
-    case GameStateManager::Screen::Settings:
-    default:
-      return RenderScreen::All; // Default to all screens for other screens
-    }
+    return static_cast<RenderScreen>(
+        GameStateManager::render_screen_for(gsm.active_screen));
   }
 
   void render_all_batches() const {

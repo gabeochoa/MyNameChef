@@ -23,7 +23,7 @@ public:
   }
 
   virtual void for_each_with(const afterhours::Entity &entity,
-                             const HasRenderOrder &render_order,
+                             const HasRenderOrder & /*render_order*/,
                              const HasTooltip &tooltip, float) const override {
 
     // Screen filtering is handled by should_run(); allow all render orders here
