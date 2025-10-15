@@ -1,0 +1,91 @@
+#pragma once
+
+#include "../components/dish_level.h"
+#include "../components/is_dish.h"
+#include "../components/render_order.h"
+#include "../components/transform.h"
+#include "../dish_types.h"
+#include "../game_state_manager.h"
+#include "../rl.h"
+#include <afterhours/ah.h>
+
+// Draw Zing/Body badges on top of dish sprites (top-left: Zing, top-right:
+// Body)
+struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
+  virtual bool should_run(float) override {
+    auto &gsm = GameStateManager::get();
+    return GameStateManager::should_render_world_entities(gsm.active_screen);
+  }
+
+  virtual void for_each_with(const afterhours::Entity &entity,
+                             const HasRenderOrder & /*render_order*/,
+                             const IsDish &is_dish, float) const override {
+    // Determine screen filtering using transform rect
+    if (!entity.has<Transform>())
+      return;
+    const auto &transform = entity.get<Transform>();
+
+    // Compute base Zing and Body from FlavorStats (presence >= 1)
+    const FlavorStats flavor = is_dish.flavor();
+    int zing = 0;
+    zing += (flavor.spice >= 1) ? 1 : 0;
+    zing += (flavor.acidity >= 1) ? 1 : 0;
+    zing += (flavor.umami >= 1) ? 1 : 0;
+
+    int body = 0;
+    body += (flavor.satiety >= 1) ? 1 : 0;
+    body += (flavor.richness >= 1) ? 1 : 0;
+    body += (flavor.sweetness >= 1) ? 1 : 0;
+    body += (flavor.freshness >= 1) ? 1 : 0;
+
+    // Level scaling: if level > 1, multiply both by 2
+    if (entity.has<DishLevel>()) {
+      const auto &lvl = entity.get<DishLevel>();
+      if (lvl.level > 1) {
+        zing *= 2;
+        body *= 2;
+      }
+    }
+
+    // Badge sizes relative to sprite rect
+    const Rectangle rect = transform.rect();
+    const float badgeSize =
+        std::max(18.0f, std::min(rect.width, rect.height) * 0.26f);
+    const float padding = 5.0f;
+
+    // Zing: green rhombus (diamond) top-left
+    const float zx = rect.x + padding + badgeSize * 0.5f;
+    const float zy = rect.y + padding + badgeSize * 0.5f;
+    // Zing: red
+    raylib::Color zingColor = raylib::Color{200, 40, 40, 245};
+    // Draw as a rotated square to guarantee a full diamond
+    Rectangle diamond{zx, zy, badgeSize, badgeSize};
+    raylib::DrawRectanglePro(diamond, vec2{badgeSize * 0.5f, badgeSize * 0.5f},
+                             45.0f, zingColor);
+
+    // Zing number (supports up to two digits)
+    const int fontSize = static_cast<int>(badgeSize * 0.72f);
+    const std::string zingText = std::to_string(zing);
+    const int zw = raylib::MeasureText(zingText.c_str(), fontSize);
+    raylib::DrawText(zingText.c_str(), static_cast<int>(zx - zw / 2),
+                     static_cast<int>(zy - fontSize / 2), fontSize,
+                     raylib::BLACK);
+
+    // Body: pale yellow square top-right
+    const float bx = rect.x + rect.width - padding - badgeSize;
+    const float by = rect.y + padding;
+    // Body: green
+    raylib::Color bodyColor = raylib::Color{30, 160, 70, 245};
+    raylib::DrawRectangle(static_cast<int>(bx), static_cast<int>(by),
+                          static_cast<int>(badgeSize),
+                          static_cast<int>(badgeSize), bodyColor);
+
+    const std::string bodyText = std::to_string(body);
+    const int bw = raylib::MeasureText(bodyText.c_str(), fontSize);
+    const int bh = fontSize;
+    raylib::DrawText(bodyText.c_str(),
+                     static_cast<int>(bx + (badgeSize - bw) * 0.5f),
+                     static_cast<int>(by + (badgeSize - bh) * 0.5f), fontSize,
+                     raylib::BLACK);
+  }
+};

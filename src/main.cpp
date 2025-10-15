@@ -39,6 +39,7 @@ backward::SignalHandling sh;
 #include "systems/RenderRenderTexture.h"
 #include "systems/RenderScoringBar.h"
 #include "systems/RenderSellSlot.h"
+#include "systems/RenderZingBodyOverlay.h"
 #include "systems/RenderSpritesByOrder.h"
 #include "systems/RenderSpritesWithShaders.h"
 #include "systems/RenderSystemHelpers.h"
@@ -145,6 +146,9 @@ void game() {
             std::make_unique<RenderSpritesByOrder>());
         systems.register_render_system(
             std::make_unique<RenderSpritesWithShaders>());
+        // Zing/Body overlays on top of sprites
+        systems.register_render_system(
+            std::make_unique<RenderZingBodyOverlay>());
         systems.register_render_system(
             std::make_unique<RenderDishProgressBars>());
         systems.register_render_system(std::make_unique<RenderWalletHUD>());
