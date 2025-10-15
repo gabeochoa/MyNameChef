@@ -1,21 +1,17 @@
 #pragma once
 
 #include <afterhours/ah.h>
-#include <string>
 #include <vector>
 
 struct BattleResult : afterhours::BaseComponent {
   enum struct Outcome { PlayerWin, OpponentWin, Tie } outcome = Outcome::Tie;
-
-  struct JudgeScore {
-    int playerScore = 0;
-    int opponentScore = 0;
-    std::string judgeName = "Judge";
+  struct CourseOutcome {
+    int slotIndex = 0;
+    enum struct Winner { Player, Opponent, Tie } winner = Winner::Tie;
+    int ticks = 0;
   };
-
-  std::vector<JudgeScore> judgeScores;
-  int totalPlayerScore = 0;
-  int totalOpponentScore = 0;
-
-  BattleResult() = default;
+  int playerWins = 0;
+  int opponentWins = 0;
+  int ties = 0;
+  std::vector<CourseOutcome> outcomes;
 };

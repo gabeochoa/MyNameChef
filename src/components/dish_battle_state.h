@@ -5,6 +5,12 @@
 struct DishBattleState : afterhours::BaseComponent {
   enum struct TeamSide { Player, Opponent } team_side = TeamSide::Player;
   int queue_index = 0; // left-to-right order
-  enum struct Phase { InQueue, Presenting, Judged } phase = Phase::InQueue;
-  float phase_progress = 0.0f; // 0..1 for animation toward judges
+  enum struct Phase {
+    InQueue,
+    Entering,
+    InCombat,
+    Finished
+  } phase = Phase::InQueue;
+  float enter_progress = 0.0f; // slide-in animation 0..1
+  float bite_timer = 0.0f;     // pacing timer during combat
 };

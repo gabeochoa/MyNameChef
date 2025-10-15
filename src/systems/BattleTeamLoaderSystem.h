@@ -159,7 +159,8 @@ private:
     dbs.team_side = isPlayer ? DishBattleState::TeamSide::Player
                              : DishBattleState::TeamSide::Opponent;
     dbs.phase = DishBattleState::Phase::InQueue;
-    dbs.phase_progress = 0.0f;
+    dbs.enter_progress = 0.0f;
+    dbs.bite_timer = 0.0f;
     entity.addComponent<HasRenderOrder>(
         RenderOrder::BattleTeams, RenderScreen::Battle | RenderScreen::Results);
 

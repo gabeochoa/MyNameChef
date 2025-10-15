@@ -31,15 +31,12 @@ struct RenderBattleTeams : afterhours::System<Transform, IsDish> {
     // screen
     auto &gsm = GameStateManager::get();
     if (gsm.active_screen == GameStateManager::Screen::Battle) {
-      // On battle screen, only show InQueue and Presenting phases
-      if (dbs.phase == DishBattleState::Phase::Judged) {
-        log_info("BATTLE RENDER: Skipping entity {} (Judged phase)", entity.id);
+      // On battle screen, show entities that are entering or in combat
+      if (dbs.phase == DishBattleState::Phase::Finished) {
         return;
       }
-      // debug logging removed
     } else if (gsm.active_screen == GameStateManager::Screen::Results) {
-      // On results screen, show all phases (including Judged)
-      // debug logging removed
+      // On results screen, show all phases
     } else {
       // On other screens, don't render battle entities
       log_info(
@@ -70,11 +67,11 @@ struct RenderBattleTeams : afterhours::System<Transform, IsDish> {
       offset_y = (1.0f - slide_v) * off;
     }
 
-    // Presentation animation: move toward judges (center line)
-    float present_v = dbs.phase == DishBattleState::Phase::Presenting
-                          ? std::clamp(dbs.phase_progress, 0.0f, 1.0f)
+    // Enter animation: slide to in-place using enter_progress
+    float present_v = dbs.phase == DishBattleState::Phase::Entering
+                          ? std::clamp(dbs.enter_progress, 0.0f, 1.0f)
                           : 0.0f;
-    float judge_center_y = 360.0f; // rough judges row
+    float judge_center_y = 360.0f; // temporary midline target
     float present_offset_y =
         (judge_center_y - transform.position.y) * present_v;
 

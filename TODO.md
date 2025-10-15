@@ -55,6 +55,7 @@
     - Clashes (e.g., Acid↔Dairy) apply −1 Zing to all dishes on your team for this battle.
     - Keep magnitudes tiny and readable; apply after Level scaling.
   - Triggers: keep trigger hooks, but exact trigger list to be decided later.
+  - Visualization: serve both dishes simultaneously to a two-headed judge who alternates bites from each; each bite maps to a damage tick until one dish’s Body reaches 0. Keep the animation cute and readable.
 
 - Z/B UI and tooltip updates
   - Overlay: draw Zing as a green rhombus with a number (supports 2 digits) at top-left of the sprite.

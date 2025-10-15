@@ -63,9 +63,10 @@ struct LoadBattleResults : afterhours::System<> {
       if (existingResult.get().has<BattleResult>()) {
         auto &existingBattleResult = existingResult.get().get<BattleResult>();
         existingBattleResult.outcome = result.outcome;
-        existingBattleResult.totalPlayerScore = result.totalPlayerScore;
-        existingBattleResult.totalOpponentScore = result.totalOpponentScore;
-        existingBattleResult.judgeScores = std::move(result.judgeScores);
+        existingBattleResult.playerWins = result.playerWins;
+        existingBattleResult.opponentWins = result.opponentWins;
+        existingBattleResult.ties = result.ties;
+        existingBattleResult.outcomes = std::move(result.outcomes);
       } else {
         // Add component to existing entity
         existingResult.get().addComponent<BattleResult>(std::move(result));
@@ -101,25 +102,7 @@ private:
       else
         out.outcome = BattleResult::Outcome::Tie;
     }
-    if (j.contains("totalScores")) {
-      auto ts = j["totalScores"];
-      if (ts.contains("player"))
-        out.totalPlayerScore = ts["player"].get<int>();
-      if (ts.contains("opponent"))
-        out.totalOpponentScore = ts["opponent"].get<int>();
-    }
-    if (j.contains("judgeScores") && j["judgeScores"].is_array()) {
-      for (const auto &js : j["judgeScores"]) {
-        BattleResult::JudgeScore s;
-        if (js.contains("judgeName"))
-          s.judgeName = js["judgeName"].get<std::string>();
-        if (js.contains("playerScore"))
-          s.playerScore = js["playerScore"].get<int>();
-        if (js.contains("opponentScore"))
-          s.opponentScore = js["opponentScore"].get<int>();
-        out.judgeScores.push_back(s);
-      }
-    }
+    // Ignore legacy totals/judge breakdown in new model
     return true;
   }
 
@@ -151,28 +134,10 @@ private:
     log_info("Player team score: {}, Opponent team score: {}", playerTeamScore,
              opponentTeamScore);
 
-    // Create judge scores with some variation
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> variation(-2, 2);
-
-    for (int i = 0; i < 3; ++i) {
-      BattleResult::JudgeScore s;
-      s.judgeName = "Judge " + std::to_string(i + 1);
-
-      // Base scores on team strength with some random variation
-      s.playerScore = std::max(1, playerTeamScore + variation(gen));
-      s.opponentScore = std::max(1, opponentTeamScore + variation(gen));
-
-      out.totalPlayerScore += s.playerScore;
-      out.totalOpponentScore += s.opponentScore;
-      out.judgeScores.push_back(s);
-    }
-
-    // Determine outcome
-    if (out.totalPlayerScore > out.totalOpponentScore)
+    // Determine simple outcome (placeholder until H2H loop)
+    if (playerTeamScore > opponentTeamScore)
       out.outcome = BattleResult::Outcome::PlayerWin;
-    else if (out.totalOpponentScore > out.totalPlayerScore)
+    else if (opponentTeamScore > playerTeamScore)
       out.outcome = BattleResult::Outcome::OpponentWin;
     else
       out.outcome = BattleResult::Outcome::Tie;

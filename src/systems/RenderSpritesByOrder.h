@@ -44,7 +44,7 @@ struct RenderSpritesByOrder
     if (gsm.active_screen == GameStateManager::Screen::Battle &&
         entity.has<DishBattleState>()) {
       const auto &dbs = entity.get<DishBattleState>();
-      if (dbs.phase == DishBattleState::Phase::Judged) {
+      if (dbs.phase == DishBattleState::Phase::Finished) {
         return;
       }
     }
