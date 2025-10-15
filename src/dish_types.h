@@ -41,6 +41,21 @@ struct FlavorStats {
   int umami = 0;
   int richness = 0;
   int freshness = 0;
+  inline int zing() const {
+    int total = 0;
+    total += spice;
+    total += acidity;
+    total += umami;
+    return total;
+  }
+  inline int body() const {
+    int total = 0;
+    total += satiety;
+    total += richness;
+    total += sweetness;
+    total += freshness;
+    return total;
+  }
 };
 
 struct SpriteLocation {

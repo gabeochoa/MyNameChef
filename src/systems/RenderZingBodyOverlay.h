@@ -25,18 +25,10 @@ struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
       return;
     const auto &transform = entity.get<Transform>();
 
-    // Compute base Zing and Body from FlavorStats (presence >= 1)
+    // Compute Zing and Body from FlavorStats using per-point sums
     const FlavorStats flavor = is_dish.flavor();
-    int zing = 0;
-    zing += (flavor.spice >= 1) ? 1 : 0;
-    zing += (flavor.acidity >= 1) ? 1 : 0;
-    zing += (flavor.umami >= 1) ? 1 : 0;
-
-    int body = 0;
-    body += (flavor.satiety >= 1) ? 1 : 0;
-    body += (flavor.richness >= 1) ? 1 : 0;
-    body += (flavor.sweetness >= 1) ? 1 : 0;
-    body += (flavor.freshness >= 1) ? 1 : 0;
+    int zing = flavor.zing();
+    int body = flavor.body();
 
     // Level scaling: if level > 1, multiply both by 2
     if (entity.has<DishLevel>()) {
