@@ -68,49 +68,6 @@ struct RenderBattleResults : afterhours::System<> {
     // Display teams used in battle
     float teamsY = outcomeY + 60.0f;
     render_teams(screenWidth, teamsY);
-
-    float judgeY = teamsY + 120.0f;
-    float judgeStartX = (screenWidth - 400.0f) / 2.0f;
-    float judgeSpacing = 150.0f;
-
-    for (size_t i = 0; i < result.judgeScores.size(); ++i) {
-      const auto &judgeScore = result.judgeScores[i];
-
-      float judgeX = judgeStartX + i * judgeSpacing;
-
-      raylib::DrawText(judgeScore.judgeName.c_str(), (int)judgeX, (int)judgeY,
-                       18, raylib::WHITE);
-
-      std::string playerScoreText =
-          "P: " + std::to_string(judgeScore.playerScore);
-      raylib::DrawText(playerScoreText.c_str(), (int)judgeX, (int)(judgeY + 30),
-                       16, raylib::GREEN);
-
-      std::string opponentScoreText =
-          "O: " + std::to_string(judgeScore.opponentScore);
-      raylib::DrawText(opponentScoreText.c_str(), (int)judgeX,
-                       (int)(judgeY + 55), 16, raylib::RED);
-    }
-
-    float totalY = judgeY + 120.0f;
-
-    std::string totalPlayerText =
-        "Player Total: " + std::to_string(result.totalPlayerScore);
-    std::string totalOpponentText =
-        "Opponent Total: " + std::to_string(result.totalOpponentScore);
-
-    float totalPlayerWidth = raylib::MeasureText(totalPlayerText.c_str(), 24);
-    float totalOpponentWidth =
-        raylib::MeasureText(totalOpponentText.c_str(), 24);
-
-    float totalPlayerX =
-        (screenWidth - totalPlayerWidth - totalOpponentWidth - 50) / 2.0f;
-    float totalOpponentX = totalPlayerX + totalPlayerWidth + 50;
-
-    raylib::DrawText(totalPlayerText.c_str(), (int)totalPlayerX, (int)totalY,
-                     24, raylib::GREEN);
-    raylib::DrawText(totalOpponentText.c_str(), (int)totalOpponentX,
-                     (int)totalY, 24, raylib::RED);
   }
 
 private:

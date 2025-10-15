@@ -18,9 +18,18 @@ struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
   }
 
   virtual void for_each_with(const afterhours::Entity &entity,
-                             const HasRenderOrder & /*render_order*/,
+                             const HasRenderOrder &render_order,
                              const IsDish &is_dish, float) const override {
-    // Determine screen filtering using transform rect
+    // Only overlay on battle/result dishes; skip shop/inventory duplicates
+    if (!entity.has<DishBattleState>())
+      return;
+
+    // Respect screen render flags
+    auto &gsm = GameStateManager::get();
+    RenderScreen current_screen = static_cast<RenderScreen>(
+        GameStateManager::render_screen_for(gsm.active_screen));
+    if (!render_order.should_render_on_screen(current_screen))
+      return;
     if (!entity.has<Transform>())
       return;
     const auto &transform = entity.get<Transform>();

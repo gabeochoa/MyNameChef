@@ -22,7 +22,6 @@ backward::SignalHandling sh;
 #include "systems/DropWhenNoLongerHeld.h"
 #include "systems/GenerateDishesGallery.h"
 #include "systems/InitialShopFill.h"
-#include "systems/JudgingSystems.h"
 #include "systems/LoadBattleResults.h"
 #include "systems/MarkEntitiesWithShaders.h"
 #include "systems/MarkIsHeldWhenHeld.h"
@@ -34,16 +33,14 @@ backward::SignalHandling sh;
 #include "systems/RenderDishProgressBars.h"
 #include "systems/RenderEntitiesByOrder.h"
 #include "systems/RenderFPS.h"
-#include "systems/RenderJudges.h"
 #include "systems/RenderLetterboxBars.h"
 #include "systems/RenderRenderTexture.h"
-#include "systems/RenderScoringBar.h"
 #include "systems/RenderSellSlot.h"
-#include "systems/RenderZingBodyOverlay.h"
 #include "systems/RenderSpritesByOrder.h"
 #include "systems/RenderSpritesWithShaders.h"
 #include "systems/RenderSystemHelpers.h"
 #include "systems/RenderWalletHUD.h"
+#include "systems/RenderZingBodyOverlay.h"
 #include "systems/TagShaderRender.h"
 #include "systems/TooltipSystem.h"
 #include "systems/UpdateRenderTexture.h"
@@ -77,7 +74,6 @@ void game() {
     texture_manager::enforce_singletons(systems);
     enforce_ui_singletons(systems);
     make_shop_manager(sophie);
-    make_judging_manager(sophie);
   }
 
   // external plugins
@@ -105,8 +101,6 @@ void game() {
     systems.register_update_system(std::make_unique<DropWhenNoLongerHeld>());
     systems.register_update_system(std::make_unique<BattleTeamLoaderSystem>());
     systems.register_update_system(std::make_unique<BattleDebugSystem>());
-    systems.register_update_system(std::make_unique<InitJudgingState>());
-    systems.register_update_system(std::make_unique<AdvanceJudging>());
     systems.register_update_system(std::make_unique<CleanupBattleEntities>());
     systems.register_update_system(std::make_unique<CleanupShopEntities>());
     systems.register_update_system(std::make_unique<CleanupDishesEntities>());
@@ -115,7 +109,6 @@ void game() {
     afterhours::animation::register_update_systems<
         afterhours::animation::CompositeKey>(systems);
     afterhours::animation::register_update_systems<BattleAnimKey>(systems);
-    afterhours::animation::register_update_systems<ScoreBarKey>(systems);
     systems.register_update_system(std::make_unique<TriggerBattleSlideIn>());
 
     register_sound_systems(systems);
@@ -141,7 +134,6 @@ void game() {
         systems.register_render_system(
             std::make_unique<RenderEntitiesByOrder>());
         systems.register_render_system(std::make_unique<RenderBattleTeams>());
-        systems.register_render_system(std::make_unique<RenderJudges>());
         systems.register_render_system(
             std::make_unique<RenderSpritesByOrder>());
         systems.register_render_system(
@@ -178,7 +170,6 @@ void game() {
       systems.register_render_system(std::make_unique<RenderLetterboxBars>());
       systems.register_render_system(std::make_unique<RenderSellSlot>());
       systems.register_render_system(std::make_unique<RenderBattleResults>());
-      systems.register_render_system(std::make_unique<RenderScoringBar>());
       systems.register_render_system(std::make_unique<RenderTooltipSystem>());
       systems.register_render_system(std::make_unique<RenderFPS>());
       systems.register_render_system(std::make_unique<RenderDebugWindowInfo>());
