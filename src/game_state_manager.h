@@ -72,4 +72,49 @@ struct GameStateManager {
   [[nodiscard]] bool is_paused() const {
     return current_state == GameState::Paused;
   }
+
+  // Centralized screen policy helpers
+  [[nodiscard]] static bool should_render_world_entities(Screen s) {
+    switch (s) {
+    case Screen::Shop:
+    case Screen::Battle:
+    case Screen::Results:
+    case Screen::Dishes:
+      return true;
+    case Screen::Main:
+    case Screen::Settings:
+      return false;
+    }
+    return false;
+  }
+
+  [[nodiscard]] static bool should_render_tooltips(Screen s) {
+    switch (s) {
+    case Screen::Shop:
+    case Screen::Battle:
+    case Screen::Dishes:
+      return true;
+    case Screen::Results:
+    case Screen::Main:
+    case Screen::Settings:
+      return false;
+    }
+    return false;
+  }
+
+  [[nodiscard]] static int render_screen_for(Screen s) {
+    switch (s) {
+    case Screen::Shop:
+      return 1; // RenderScreen::Shop
+    case Screen::Battle:
+      return 2; // RenderScreen::Battle
+    case Screen::Results:
+      return 4; // RenderScreen::Results
+    case Screen::Dishes:
+    case Screen::Main:
+    case Screen::Settings:
+    default:
+      return 1 | 2 | 4; // RenderScreen::All
+    }
+  }
 };

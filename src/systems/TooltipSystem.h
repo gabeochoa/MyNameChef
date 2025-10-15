@@ -18,32 +18,15 @@ struct RenderTooltipSystem : afterhours::System<HasRenderOrder, HasTooltip> {
 public:
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
-    const bool on_allowed_screen =
-        gsm.active_screen == GameStateManager::Screen::Shop ||
-        gsm.active_screen == GameStateManager::Screen::Battle ||
-        gsm.active_screen == GameStateManager::Screen::Dishes;
     current_screen = gsm.active_screen;
-    return on_allowed_screen;
+    return GameStateManager::should_render_tooltips(gsm.active_screen);
   }
 
   virtual void for_each_with(const afterhours::Entity &entity,
                              const HasRenderOrder &render_order,
                              const HasTooltip &tooltip, float) const override {
 
-    if (render_order.order == RenderOrder::BattleTeams &&
-        current_screen != GameStateManager::Screen::Battle) {
-      return;
-    }
-
-    if (render_order.order == RenderOrder::ShopItems &&
-        current_screen != GameStateManager::Screen::Shop) {
-      return;
-    }
-
-    if (render_order.order == RenderOrder::InventoryItems &&
-        current_screen != GameStateManager::Screen::Shop) {
-      return;
-    }
+    // Screen filtering is handled by should_run(); allow all render orders here
 
     const auto &transform = entity.get<Transform>();
 

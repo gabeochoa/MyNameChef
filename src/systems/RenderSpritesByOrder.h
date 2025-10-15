@@ -10,8 +10,8 @@
 struct RenderSpritesByOrder
     : System<afterhours::texture_manager::HasSprite, HasRenderOrder> {
   virtual bool should_run(float) override {
-    // Run for both gameplay and menu screens so gallery sprites render
-    return true;
+    auto &gsm = GameStateManager::get();
+    return GameStateManager::should_render_world_entities(gsm.active_screen);
   }
 
   virtual void
@@ -67,19 +67,7 @@ struct RenderSpritesByOrder
 
 private:
   RenderScreen get_current_render_screen(const GameStateManager &gsm) const {
-    switch (gsm.active_screen) {
-    case GameStateManager::Screen::Shop:
-      return RenderScreen::Shop;
-    case GameStateManager::Screen::Battle:
-      return RenderScreen::Battle;
-    case GameStateManager::Screen::Results:
-      return RenderScreen::Results;
-    case GameStateManager::Screen::Dishes:
-      return RenderScreen::All; // allow gallery items to render
-    case GameStateManager::Screen::Main:
-    case GameStateManager::Screen::Settings:
-    default:
-      return RenderScreen::All; // Default to all screens for other screens
-    }
+    return static_cast<RenderScreen>(
+        GameStateManager::render_screen_for(gsm.active_screen));
   }
 };

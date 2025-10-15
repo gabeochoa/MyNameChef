@@ -13,20 +13,22 @@
 struct RenderEntitiesByOrder : System<Transform, HasRenderOrder> {
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
-    return gsm.is_game_active();
+    return GameStateManager::should_render_world_entities(gsm.active_screen);
   }
 
   virtual void for_each_with(const Entity &entity, const Transform &transform,
-                             const HasRenderOrder &render_order, float) const override {
+                             const HasRenderOrder &render_order,
+                             float) const override {
     // Check if this entity should render on the current screen
     auto &gsm = GameStateManager::get();
     RenderScreen current_screen = get_current_render_screen(gsm);
-    
+
     if (!render_order.should_render_on_screen(current_screen)) {
       return;
     }
 
-    // Skip entities that have sprites - they should be rendered by sprite systems
+    // Skip entities that have sprites - they should be rendered by sprite
+    // systems
     if (entity.has<afterhours::texture_manager::HasSprite>()) {
       return;
     }
@@ -52,17 +54,8 @@ struct RenderEntitiesByOrder : System<Transform, HasRenderOrder> {
 
 private:
   RenderScreen get_current_render_screen(const GameStateManager &gsm) const {
-    switch (gsm.active_screen) {
-      case GameStateManager::Screen::Shop:
-        return RenderScreen::Shop;
-      case GameStateManager::Screen::Battle:
-        return RenderScreen::Battle;
-      case GameStateManager::Screen::Results:
-        return RenderScreen::Results;
-      case GameStateManager::Screen::Main:
-      case GameStateManager::Screen::Settings:
-      default:
-        return RenderScreen::All; // Default to all screens for other screens
-    }
+    // Use centralized policy mapping
+    return static_cast<RenderScreen>(
+        GameStateManager::render_screen_for(gsm.active_screen));
   }
 };
