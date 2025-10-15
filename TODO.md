@@ -39,6 +39,33 @@
   - Show price on shop items; show “frozen” badge, and a faint highlight on legal drop targets.
   - In Results, add a “Replay” button once `BattleReport` exists.
 
+- Zing and Body (SAP-style, simple)
+  - Zing (attack): [spice ≥ 1] + [acidity ≥ 1] + [umami ≥ 1] → 0–3
+  - Body (health): [satiety ≥ 1] + [richness ≥ 1] + [sweetness ≥ 1] + [freshness ≥ 1] → 0–4
+  - Examples: FrenchFries → Zing 0, Body 2; Salmon → Zing 3, Body 2
+  - Keep synergy (types/pairings/sets) as multipliers/addends applied after base counts; do not modify base Zing/Body.
+  - Level scaling: if `Level.value > 1`, multiply both Zing and Body by 2 (post-base, pre-synergy).
+
+- SAP-style combat (replaces judge score model)
+  - Head-to-head resolve: front dish vs front dish. Each “bites” the other: Body is reduced by opponent Zing until one hits 0.
+  - Events: `OnBiteTaken` fired on each damage tick; `OnDishFinished` fired when Body reaches 0.
+  - Round outcome: last team with any dish standing wins. Later we may add a simple “menu quality” tiebreaker.
+  - Pairings/clashes as global modifiers (pre-battle):
+    - Pairings (e.g., Bread↔Soup) grant +1 Body to all dishes on your team for this battle.
+    - Clashes (e.g., Acid↔Dairy) apply −1 Zing to all dishes on your team for this battle.
+    - Keep magnitudes tiny and readable; apply after Level scaling.
+  - Triggers: keep trigger hooks, but exact trigger list to be decided later.
+
+- Z/B UI and tooltip updates
+  - Overlay: draw Zing as a green rhombus with a number (supports 2 digits) at top-left of the sprite.
+  - Overlay: draw Body as a pale yellow square with a number at top-right of the sprite.
+  - Tooltip grouping: group flavor stats into “Zing stats” (spice, acidity, umami) and “Body stats” (satiety, richness, sweetness, freshness).
+
+- Plan adjustments and deferrals
+  - Deferred: `NormalizationSystem`, `HarmonySystem`, `ComputedFlavor`, and judge-weighted base scoring (replaced by SAP-style combat).
+  - Deferred: detailed `EffectResolutionSystem` and large JSON-driven effect library; keep minimal hooks only for now.
+  - Note: “Scoring sketch (for model 2)” and related judge UI are obsolete for the current gameplay direction.
+
 
 # TODO
 Food-themed async autobattler — ECS design notes
