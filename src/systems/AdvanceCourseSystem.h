@@ -18,24 +18,23 @@ struct AdvanceCourseSystem : afterhours::System<CombatQueue> {
       return;
     }
 
-    // log_info("COMBAT: AdvanceCourseSystem checking course {} (index {})",
-    //          cq.current_index + 1, cq.current_index);
+    // (quiet)
 
     // Check if both dishes for current course are finished
     if (both_dishes_finished(cq.current_index)) {
-      // log_info("COMBAT: Both dishes finished for course {}, advancing", cq.current_index + 1);
+      // (quiet)
 
       cq.current_index++;
 
       if (cq.current_index >= cq.total_courses) {
         cq.complete = true;
-        // log_info("COMBAT: All courses complete, transitioning to results");
+        // (quiet)
         GameStateManager::get().to_results();
       } else {
-        // log_info("COMBAT: Advanced to course {} (index {})", cq.current_index + 1, cq.current_index);
+        // (quiet)
       }
     } else {
-      // log_info("COMBAT: Course {} not finished yet, waiting", cq.current_index + 1);
+      // (quiet)
     }
   }
 
@@ -58,10 +57,7 @@ private:
       }
     }
 
-    log_info(
-        "COMBAT: both_dishes_finished for slot {} - Player: {}, Opponent: {}",
-        slot_index, player_finished ? "finished" : "not finished",
-        opponent_finished ? "finished" : "not finished");
+    // (quiet)
 
     return player_finished && opponent_finished;
   }

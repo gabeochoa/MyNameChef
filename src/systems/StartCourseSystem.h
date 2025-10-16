@@ -17,8 +17,7 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
       return;
     }
 
-    // log_info("COMBAT: StartCourseSystem checking course {} (index {})",
-    //          cq.current_index + 1, cq.current_index);
+    // (quiet)
 
     // Check if any dishes are currently entering or in combat
     bool any_active = false;
@@ -31,19 +30,12 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
           dbs.phase == DishBattleState::Phase::InCombat) {
         any_active = true;
         active_count++;
-        // log_info("COMBAT: Found active dish {} - team: {}, slot: {}, phase: {}",
-        //          e.id,
-        //          (dbs.team_side == DishBattleState::TeamSide::Player)
-        //              ? "Player"
-        //              : "Opponent",
-        //          dbs.queue_index,
-        //          (dbs.phase == DishBattleState::Phase::Entering) ? "Entering"
-        //                                                          : "InCombat");
+        // (quiet)
       }
     }
 
     if (any_active) {
-      // log_info("COMBAT: {} dishes still active, waiting for current course to finish", active_count);
+      // (quiet)
       return; // Wait for current course to finish
     }
 
@@ -53,9 +45,7 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
     auto opponent_dish = find_dish_for_slot(
         cq.current_index, DishBattleState::TeamSide::Opponent);
 
-    // log_info("COMBAT: Looking for dishes in slot {} - Player: {}, Opponent: {}",
-    //          cq.current_index, player_dish ? "found" : "missing",
-    //          opponent_dish ? "found" : "missing");
+    // (quiet)
 
     if (player_dish && opponent_dish) {
       // Start both dishes entering
@@ -68,10 +58,7 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
       opponent_dbs.phase = DishBattleState::Phase::Entering;
       opponent_dbs.enter_progress = 0.0f;
 
-      // log_info("COMBAT: Started course {} - Player entity {} (slot {}), Opponent entity {} (slot {})",
-      //          cq.current_index + 1, player_dish.value()->id,
-      //          player_dbs.queue_index, opponent_dish.value()->id,
-      //          opponent_dbs.queue_index);
+      // (quiet)
     } else {
       // No more dishes, mark combat complete and transition to results
       cq.complete = true;

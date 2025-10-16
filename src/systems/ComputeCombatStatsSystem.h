@@ -14,9 +14,7 @@ struct ComputeCombatStatsSystem : afterhours::System<IsDish, DishLevel> {
 
   void for_each_with(afterhours::Entity &e, IsDish &dish, DishLevel &lvl,
                      float) override {
-    // Debug: comment out to reduce spam
-    // log_info("COMBAT: ComputeCombatStatsSystem processing entity {} - dish: {}",
-    //          e.id, static_cast<int>(dish.type));
+    // (quiet)
 
     // Add components if they don't exist
     CombatStats &cs = e.addComponentIfMissing<CombatStats>();
@@ -41,7 +39,6 @@ struct ComputeCombatStatsSystem : afterhours::System<IsDish, DishLevel> {
     cs.baseZing = cs.currentZing = std::max(0, zing + pre.zingDelta);
     cs.baseBody = cs.currentBody = std::max(0, body + pre.bodyDelta);
 
-    // Debug: comment out to reduce spam
-    // log_info("COMBAT: Entity {} stats - Zing: {}, Body: {}", e.id, cs.currentZing, cs.currentBody);
+    // (quiet)
   }
 };

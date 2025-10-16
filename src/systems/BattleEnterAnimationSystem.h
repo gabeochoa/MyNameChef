@@ -22,10 +22,6 @@ struct BattleEnterAnimationSystem : afterhours::System<DishBattleState> {
     if (dbs.enter_progress >= 1.0f) {
       dbs.phase = DishBattleState::Phase::InCombat;
       dbs.bite_timer = 0.0f;
-      // log_info("COMBAT: Entity {} finished entering, now in combat - team: {}, slot: {}",
-      //          e.id,
-      //          (dbs.team_side == DishBattleState::TeamSide::Player) ? "Player" : "Opponent",
-      //          dbs.queue_index);
     }
   }
 };

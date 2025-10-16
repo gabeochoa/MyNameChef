@@ -27,8 +27,7 @@ struct RenderBattleResults : afterhours::System<> {
 
     auto &result = entity.get<BattleResult>();
 
-    // Debug: Print teams to console (commented to reduce spam)
-    // print_teams_debug();
+    // (quiet)
 
     float screenWidth = raylib::GetScreenWidth();
 

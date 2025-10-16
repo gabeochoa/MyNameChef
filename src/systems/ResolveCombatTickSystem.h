@@ -13,25 +13,11 @@ struct ResolveCombatTickSystem
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
     bool should_run = gsm.active_screen == GameStateManager::Screen::Battle;
-    // Debug: comment out to reduce spam
-    // log_info("COMBAT: ResolveCombatTickSystem should_run: {} (screen: {})",
-    //          should_run,
-    //          (gsm.active_screen == GameStateManager::Screen::Battle) ?
-    //          "Battle"
-    //                                                                  :
-    //                                                                  "Other");
     return should_run;
   }
 
   void for_each_with(afterhours::Entity &e, DishBattleState &dbs,
                      CombatStats &cs, float dt) override {
-    // Debug: comment out to reduce spam
-    // log_info("COMBAT: ResolveCombatTickSystem processing entity {} - phase:
-    // {}",
-    //          e.id,
-    //          (dbs.phase == DishBattleState::Phase::InCombat) ? "InCombat"
-    //                                                          : "Other");
-
     if (dbs.phase != DishBattleState::Phase::InCombat)
       return;
 
@@ -61,9 +47,6 @@ struct ResolveCombatTickSystem
         damage = 1; // minimal damage fallback to avoid stalemates
       opponent_cs.currentBody -= damage;
       did_bite = true;
-      // log_info("COMBAT: Bite slot {} -> P zing:{} body:{} | O zing:{} body:{} (P->O dmg:{})",
-      //          dbs.queue_index, cs.currentZing, cs.currentBody,
-      //          opponent_cs.currentZing, opponent_cs.currentBody, damage);
     } else if (!player_turn &&
                dbs.team_side == DishBattleState::TeamSide::Opponent) {
       // Opponent bites player
@@ -72,9 +55,6 @@ struct ResolveCombatTickSystem
         damage = 1; // minimal damage fallback to avoid stalemates
       cs.currentBody -= damage;
       did_bite = true;
-      // log_info("COMBAT: Bite slot {} -> P zing:{} body:{} | O zing:{} body:{} (O->P dmg:{})",
-      //          dbs.queue_index, cs.currentZing, cs.currentBody,
-      //          opponent_cs.currentZing, opponent_cs.currentBody, damage);
     }
 
     if (did_bite) {
