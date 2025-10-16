@@ -7,7 +7,6 @@
 #include "components/is_draggable.h"
 #include "components/is_drop_slot.h"
 #include "components/is_shop_item.h"
-#include "components/judging_state.h"
 #include "components/render_order.h"
 #include "components/transform.h"
 #include "dish_types.h"
@@ -94,27 +93,10 @@ Entity &make_shop_manager(Entity &sophie) {
 }
 
 Entity &make_combat_manager(Entity &sophie) {
-  auto &cq = sophie.addComponentIfMissing<CombatQueue>();
+  sophie.addComponentIfMissing<CombatQueue>();
   EntityHelper::registerSingleton<CombatQueue>(sophie);
   return sophie;
 }
-
-#ifdef LEGACY_JUDGING
-Entity &make_judging_manager(Entity &sophie) {
-  if (!sophie.has<JudgingState>()) {
-    sophie.addComponent<JudgingState>();
-  }
-  auto &js = sophie.get<JudgingState>();
-  js.current_index = -1;
-  js.total_courses = 7;
-  js.player_total = 0;
-  js.opponent_total = 0;
-  js.complete = false;
-  js.timer = 0.0f;
-  EntityHelper::registerSingleton<JudgingState>(sophie);
-  return sophie;
-}
-#endif
 
 Entity &make_shop_item(int slot, DishType type) {
   auto &e = EntityHelper::createEntity();
