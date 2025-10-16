@@ -48,15 +48,17 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
     // (quiet)
 
     if (player_dish && opponent_dish) {
+      const float enter_start_delay =
+          0.25f; // delay after slide-in before enter animation
       // Start both dishes entering
       auto &player_dbs = player_dish.value()->get<DishBattleState>();
       auto &opponent_dbs = opponent_dish.value()->get<DishBattleState>();
 
       player_dbs.phase = DishBattleState::Phase::Entering;
-      player_dbs.enter_progress = 0.0f;
+      player_dbs.enter_progress = -enter_start_delay;
 
       opponent_dbs.phase = DishBattleState::Phase::Entering;
-      opponent_dbs.enter_progress = 0.0f;
+      opponent_dbs.enter_progress = -enter_start_delay;
 
       // (quiet)
     } else {

@@ -67,13 +67,15 @@ struct RenderBattleTeams : afterhours::System<Transform, IsDish> {
       offset_y = (1.0f - slide_v) * off;
     }
 
-    // Enter animation: slide to in-place using enter_progress
-    float present_v = dbs.phase == DishBattleState::Phase::Entering
-                          ? std::clamp(dbs.enter_progress, 0.0f, 1.0f)
-                          : 0.0f;
-    float judge_center_y = 360.0f; // temporary midline target
-    float present_offset_y =
-        (judge_center_y - transform.position.y) * present_v;
+    // Enter animation: while Entering, interpolate vertically toward the
+    // battle midline based on enter_progress; once InCombat, draw at final
+    // snapped Transform (BattleEnterAnimationSystem snaps it on completion).
+    float present_offset_y = 0.0f;
+    if (dbs.phase == DishBattleState::Phase::Entering) {
+      float present_v = std::clamp(dbs.enter_progress, 0.0f, 1.0f);
+      float judge_center_y = 360.0f;
+      present_offset_y = (judge_center_y - transform.position.y) * present_v;
+    }
 
     // Draw the dish sprite or fallback rectangle
     if (entity.has<afterhours::texture_manager::HasSprite>()) {
@@ -86,10 +88,10 @@ struct RenderBattleTeams : afterhours::System<Transform, IsDish> {
       if (!spritesheet_component) {
         log_warn("No spritesheet found, rendering pink fallback for entity {}",
                  entity.id);
-        raylib::DrawRectangle(
-            (int)(transform.position.x + offset_x),
-            (int)(transform.position.y + offset_y + present_offset_y),
-            (int)transform.size.x, (int)transform.size.y, raylib::PINK);
+        raylib::DrawRectangle((int)(transform.position.x + offset_x),
+                              (int)(transform.position.y + offset_y),
+                              (int)transform.size.x, (int)transform.size.y,
+                              raylib::PINK);
         return;
       }
 
@@ -100,13 +102,10 @@ struct RenderBattleTeams : afterhours::System<Transform, IsDish> {
 
       raylib::DrawTexturePro(
           sheet, hasSprite.frame,
-          Rectangle{
-              transform.position.x + offset_x + transform.size.x / 2.f,
-              transform.position.y + offset_y + present_offset_y +
-                  transform.size.y / 2.f,
-              dest_width,
-              dest_height,
-          },
+          Rectangle{transform.position.x + offset_x + transform.size.x / 2.f,
+                    transform.position.y + offset_y + present_offset_y +
+                        transform.size.y / 2.f,
+                    dest_width, dest_height},
           vec2{dest_width / 2.f, dest_height / 2.f}, 0.0f, raylib::WHITE);
     } else {
       // Fallback: draw pink rectangle and log warning

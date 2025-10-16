@@ -52,7 +52,6 @@ struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
     // follows the moving sprite
     float offset_x = 0.0f;
     float offset_y = 0.0f;
-    float present_offset_y = 0.0f;
 
     if (entity.has<DishBattleState>()) {
       const auto &dbs = entity.get<DishBattleState>();
@@ -75,12 +74,15 @@ struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
         offset_y = (1.0f - slide_v) * off;
       }
 
-      // Enter animation vertical ease towards midline during Entering
-      float present_v = dbs.phase == DishBattleState::Phase::Entering
-                            ? std::clamp(dbs.enter_progress, 0.0f, 1.0f)
-                            : 0.0f;
-      float judge_center_y = 360.0f; // must match RenderBattleTeams
-      present_offset_y = (judge_center_y - transform.position.y) * present_v;
+      // While entering, mirror the RenderBattleTeams midline ease so overlays
+      // stay glued to the sprite. Once InCombat, position remains at
+      // snapped transform.
+      if (dbs.phase == DishBattleState::Phase::Entering &&
+          dbs.enter_progress >= 0.0f) {
+        float present_v = std::clamp(dbs.enter_progress, 0.0f, 1.0f);
+        float judge_center_y = 360.0f;
+        offset_y += (judge_center_y - transform.position.y) * present_v;
+      }
     }
 
     // Compute Zing and Body from FlavorStats using per-point sums
@@ -98,10 +100,9 @@ struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
     }
 
     // Badge sizes relative to sprite rect
-    const Rectangle rect =
-        Rectangle{transform.position.x + offset_x,
-                  transform.position.y + offset_y + present_offset_y,
-                  transform.size.x, transform.size.y};
+    const Rectangle rect = Rectangle{transform.position.x + offset_x,
+                                     transform.position.y + offset_y,
+                                     transform.size.x, transform.size.y};
     const float badgeSize =
         std::max(18.0f, std::min(rect.width, rect.height) * 0.26f);
     const float padding = 5.0f;
