@@ -99,6 +99,7 @@ Entity &make_combat_manager(Entity &sophie) {
   return sophie;
 }
 
+#ifdef LEGACY_JUDGING
 Entity &make_judging_manager(Entity &sophie) {
   if (!sophie.has<JudgingState>()) {
     sophie.addComponent<JudgingState>();
@@ -113,6 +114,7 @@ Entity &make_judging_manager(Entity &sophie) {
   EntityHelper::registerSingleton<JudgingState>(sophie);
   return sophie;
 }
+#endif
 
 Entity &make_shop_item(int slot, DishType type) {
   auto &e = EntityHelper::createEntity();

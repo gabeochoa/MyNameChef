@@ -43,7 +43,9 @@ constexpr int SELL_SLOT_Y = INVENTORY_START_Y;
 // Forward declarations for shop functions
 afterhours::Entity &make_shop_manager(afterhours::Entity &);
 afterhours::Entity &make_combat_manager(afterhours::Entity &);
+#ifdef LEGACY_JUDGING
 afterhours::Entity &make_judging_manager(afterhours::Entity &);
+#endif
 afterhours::Entity &make_shop_item(int slot, DishType type);
 afterhours::Entity &make_drop_slot(int slot_id, afterhours::vec2 position,
                                    afterhours::vec2 size,

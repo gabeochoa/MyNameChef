@@ -3,6 +3,7 @@
 #include "../components/battle_load_request.h"
 #include "../components/battle_team_tags.h"
 #include "../components/dish_battle_state.h"
+#include "../components/dish_generation_ability.h"
 #include "../components/dish_level.h"
 #include "../components/has_tooltip.h"
 #include "../components/is_dish.h"

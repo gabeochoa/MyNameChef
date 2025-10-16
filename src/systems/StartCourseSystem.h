@@ -21,7 +21,6 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
 
     // Check if any dishes are currently entering or in combat
     bool any_active = false;
-    int active_count = 0;
     for (auto &ref :
          afterhours::EntityQuery().whereHasComponent<DishBattleState>().gen()) {
       auto &e = ref.get();
@@ -29,7 +28,6 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
       if (dbs.phase == DishBattleState::Phase::Entering ||
           dbs.phase == DishBattleState::Phase::InCombat) {
         any_active = true;
-        active_count++;
         // (quiet)
       }
     }

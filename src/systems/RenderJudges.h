@@ -1,5 +1,6 @@
 #pragma once
 
+#ifdef LEGACY_JUDGING
 #include "../game_state_manager.h"
 #include "../rl.h"
 #include <afterhours/ah.h>
@@ -58,3 +59,4 @@ struct RenderJudges : afterhours::System<> {
                      raylib::YELLOW);
   }
 };
+#endif // LEGACY_JUDGING

@@ -2,8 +2,8 @@
 
 #include "../components/battle_load_request.h"
 #include "../components/battle_team_tags.h"
+#include "../components/combat_queue.h"
 #include "../components/is_dish.h"
-#include "../components/judging_state.h"
 #include "../game_state_manager.h"
 #include <afterhours/ah.h>
 
@@ -30,17 +30,17 @@ struct BattleDebugSystem : afterhours::System<> {
   }
 
   void once(float) override {
-    // If judging is in progress, allow teams to be empty without error
-    bool judging_active = afterhours::EntityQuery()
-                              .whereHasComponent<JudgingState>()
-                              .gen_count() > 0;
+    // Check if combat is active instead of judging
+    bool combat_active =
+        afterhours::EntityQuery().whereHasComponent<CombatQueue>().gen_count() >
+        0;
 
-    validate_two_teams(judging_active);
-    validate_teams_have_dishes(judging_active);
+    validate_two_teams(combat_active);
+    validate_teams_have_dishes(combat_active);
   }
 
 private:
-  void validate_two_teams(bool judging_active) {
+  void validate_two_teams(bool combat_active) {
     size_t playerCount = afterhours::EntityQuery()
                              .whereHasComponent<IsPlayerTeamItem>()
                              .gen_count();
@@ -50,8 +50,8 @@ private:
                                .gen_count();
 
     if (playerCount == 0 || opponentCount == 0) {
-      if (!judging_active) {
-        // Before judging starts we expect both sides; after that empties are ok
+      if (!combat_active) {
+        // Before combat starts we expect both sides; after that empties are ok
         if (playerCount == 0) {
           log_warn("Battle validation: No player team found");
         }
@@ -62,7 +62,7 @@ private:
     }
   }
 
-  void validate_teams_have_dishes(bool judging_active) {
+  void validate_teams_have_dishes(bool combat_active) {
     size_t playerDishCount = afterhours::EntityQuery()
                                  .whereHasComponent<IsPlayerTeamItem>()
                                  .whereHasComponent<IsDish>()
@@ -74,7 +74,7 @@ private:
                                    .gen_count();
 
     if (playerDishCount == 0 || opponentDishCount == 0) {
-      if (!judging_active) {
+      if (!combat_active) {
         if (playerDishCount == 0) {
           log_warn("Battle validation: Player team has no dishes");
         }

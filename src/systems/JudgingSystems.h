@@ -1,5 +1,6 @@
 #pragma once
 
+#ifdef LEGACY_JUDGING
 #include "../components/dish_battle_state.h"
 #include "../components/is_dish.h"
 #include "../components/judging_state.h"
@@ -135,3 +136,4 @@ struct AdvanceJudging : afterhours::System<JudgingState> {
     }
   }
 };
+#endif // LEGACY_JUDGING

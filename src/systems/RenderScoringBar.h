@@ -1,5 +1,6 @@
 #pragma once
 
+#ifdef LEGACY_JUDGING
 #include "../components/battle_team_tags.h"
 #include "../components/is_dish.h"
 #include "../components/judging_state.h"
@@ -80,3 +81,4 @@ struct RenderScoringBar : afterhours::System<> {
                      raylib::RED);
   }
 };
+#endif // LEGACY_JUDGING
