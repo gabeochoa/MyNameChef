@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../components/dish_battle_state.h"
 #include "../components/dish_level.h"
 #include "../components/is_dish.h"
 #include "../components/render_order.h"
@@ -7,7 +8,9 @@
 #include "../dish_types.h"
 #include "../game_state_manager.h"
 #include "../rl.h"
+#include "BattleAnimations.h"
 #include <afterhours/ah.h>
+#include <afterhours/src/plugins/animation.h>
 
 // Draw Zing/Body badges on top of dish sprites (top-left: Zing, top-right:
 // Body)
@@ -20,9 +23,13 @@ struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
   virtual void for_each_with(const afterhours::Entity &entity,
                              const HasRenderOrder &render_order,
                              const IsDish &is_dish, float) const override {
+    // Do not render overlays for entities marked for cleanup
+    if (entity.cleanup)
+      return;
     // Only overlay on battle/result dishes; skip shop/inventory duplicates
     if (!entity.has<DishBattleState>())
       return;
+    const DishBattleState &dbs_check = entity.get<DishBattleState>();
 
     // Respect screen render flags
     auto &gsm = GameStateManager::get();
@@ -30,9 +37,51 @@ struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
         GameStateManager::render_screen_for(gsm.active_screen));
     if (!render_order.should_render_on_screen(current_screen))
       return;
+
+    // On battle screen, skip overlays for finished dishes
+    if (GameStateManager::get().active_screen ==
+        GameStateManager::Screen::Battle) {
+      if (dbs_check.phase == DishBattleState::Phase::Finished)
+        return;
+    }
     if (!entity.has<Transform>())
       return;
     const auto &transform = entity.get<Transform>();
+
+    // Compute on-screen rect including battle animation offsets so the overlay
+    // follows the moving sprite
+    float offset_x = 0.0f;
+    float offset_y = 0.0f;
+    float present_offset_y = 0.0f;
+
+    if (entity.has<DishBattleState>()) {
+      const auto &dbs = entity.get<DishBattleState>();
+      bool isPlayer = dbs.team_side == DishBattleState::TeamSide::Player;
+
+      // Slide-in animation (vertical)
+      float slide_v = 1.0f;
+      if (auto v = afterhours::animation::get_value(BattleAnimKey::SlideIn,
+                                                    (size_t)entity.id);
+          v.has_value()) {
+        slide_v = std::clamp(v.value(), 0.0f, 1.0f);
+      }
+
+      if (isPlayer) {
+        float off = -(transform.position.y + transform.size.y + 20.0f);
+        offset_y = (1.0f - slide_v) * off;
+      } else {
+        float screen_h = raylib::GetScreenHeight();
+        float off = (screen_h - transform.position.y) + 20.0f;
+        offset_y = (1.0f - slide_v) * off;
+      }
+
+      // Enter animation vertical ease towards midline during Entering
+      float present_v = dbs.phase == DishBattleState::Phase::Entering
+                            ? std::clamp(dbs.enter_progress, 0.0f, 1.0f)
+                            : 0.0f;
+      float judge_center_y = 360.0f; // must match RenderBattleTeams
+      present_offset_y = (judge_center_y - transform.position.y) * present_v;
+    }
 
     // Compute Zing and Body from FlavorStats using per-point sums
     const FlavorStats flavor = is_dish.flavor();
@@ -49,7 +98,10 @@ struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
     }
 
     // Badge sizes relative to sprite rect
-    const Rectangle rect = transform.rect();
+    const Rectangle rect =
+        Rectangle{transform.position.x + offset_x,
+                  transform.position.y + offset_y + present_offset_y,
+                  transform.size.x, transform.size.y};
     const float badgeSize =
         std::max(18.0f, std::min(rect.width, rect.height) * 0.26f);
     const float padding = 5.0f;
