@@ -10,6 +10,33 @@ struct ResolveCombatTickSystem
     : afterhours::System<DishBattleState, CombatStats> {
   static constexpr float kTickMs = 150.0f / 1000.0f; // 150ms bite cadence
 
+private:
+
+  // Determine who goes first based on dish stats
+  // Tiebreakers: 1) Highest Zing, 2) Highest Body, 3) Deterministic fallback
+  bool determine_first_attacker(const CombatStats &player_cs,
+                                const CombatStats &opponent_cs) {
+    // Use base stats for tiebreakers (initial values, not current combat
+    // values) Tiebreaker 1: Highest Zing
+    if (player_cs.baseZing > opponent_cs.baseZing) {
+      return true; // Player goes first
+    } else if (opponent_cs.baseZing > player_cs.baseZing) {
+      return false; // Opponent goes first
+    }
+
+    // Tiebreaker 2: Highest Body (if Zing is tied)
+    if (player_cs.baseBody > opponent_cs.baseBody) {
+      return true; // Player goes first
+    } else if (opponent_cs.baseBody > player_cs.baseBody) {
+      return false; // Opponent goes first
+    }
+
+    // Tiebreaker 3: Deterministic fallback (if both Zing and Body are tied)
+    // Since we don't have separate health, use a deterministic rule
+    // Player goes first as a consistent fallback
+    return true;
+  }
+
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
     bool should_run = gsm.active_screen == GameStateManager::Screen::Battle;
@@ -36,8 +63,19 @@ struct ResolveCombatTickSystem
     DishBattleState &opponent_dbs = opponent.get<DishBattleState>();
     CombatStats &opponent_cs = opponent.get<CombatStats>();
 
-    // Alternate turns: player goes first, then opponent
-    static bool player_turn = true;
+    // Determine who goes first based on dish stats, then alternate turns
+    // Tiebreakers: 1) Highest Zing, 2) Highest Body, 3) Deterministic fallback
+    bool player_goes_first = determine_first_attacker(cs, opponent_cs);
+    
+    // Simple alternating turns: first bite uses stats, then alternate
+    static bool current_turn_player = true; // Reset per battle
+    bool player_turn = current_turn_player;
+    
+    // For the very first bite of this pairing, use stat-based determination
+    if (dbs.bite_timer == 0.0f) {
+      player_turn = player_goes_first;
+      current_turn_player = player_goes_first;
+    }
 
     bool did_bite = false;
     if (player_turn && dbs.team_side == DishBattleState::TeamSide::Player) {
@@ -58,12 +96,22 @@ struct ResolveCombatTickSystem
     }
 
     if (did_bite) {
-      player_turn = !player_turn; // Alternate turns only after a bite
+      current_turn_player = !current_turn_player; // Alternate turns
     }
 
     // Check if either dish is defeated
     if (cs.currentBody <= 0 || opponent_cs.currentBody <= 0) {
       finish_course(e, opponent, dbs, opponent_dbs);
+
+      // If one dish is defeated but the other is still alive,
+      // the surviving dish should fight the next opponent dish
+      if (cs.currentBody > 0 && opponent_cs.currentBody <= 0) {
+        // Player dish survived, find next opponent dish
+        advance_to_next_opponent(e, dbs);
+      } else if (opponent_cs.currentBody > 0 && cs.currentBody <= 0) {
+        // Opponent dish survived, find next player dish
+        advance_to_next_opponent(opponent, opponent_dbs);
+      }
     }
   }
 
@@ -80,6 +128,57 @@ private:
       if (other_dbs.team_side == opponent_side &&
           other_dbs.queue_index == dbs.queue_index &&
           other_dbs.phase == DishBattleState::Phase::InCombat) {
+        return afterhours::OptEntity(e);
+      }
+    }
+    return afterhours::OptEntity();
+  }
+
+  // Advance surviving dish to fight next opponent
+  void advance_to_next_opponent(afterhours::Entity &surviving_dish,
+                                DishBattleState &surviving_dbs) {
+    // Find next available opponent dish
+    afterhours::OptEntity next_opponent =
+        find_next_available_opponent(surviving_dbs);
+
+    if (next_opponent) {
+      afterhours::Entity &opponent = next_opponent.asE();
+      DishBattleState &opponent_dbs = opponent.get<DishBattleState>();
+
+      // Set both dishes to InCombat
+      surviving_dbs.phase = DishBattleState::Phase::InCombat;
+      opponent_dbs.phase = DishBattleState::Phase::InCombat;
+
+      // Reset bite timer for both dishes
+      surviving_dbs.bite_timer = 0.0f;
+      opponent_dbs.bite_timer = 0.0f;
+
+      log_info(
+          "COMBAT: Dish {} advances to fight next opponent {}",
+          surviving_dish.id, opponent.id);
+    } else {
+      // No more opponents, this dish wins the entire battle
+      surviving_dbs.phase = DishBattleState::Phase::Finished;
+      log_info("COMBAT: Dish {} has no more opponents - battle complete!",
+               surviving_dish.id);
+    }
+  }
+
+  // Find next available opponent dish
+  afterhours::OptEntity
+  find_next_available_opponent(const DishBattleState &surviving_dbs) {
+    DishBattleState::TeamSide opponent_side =
+        (surviving_dbs.team_side == DishBattleState::TeamSide::Player)
+            ? DishBattleState::TeamSide::Opponent
+            : DishBattleState::TeamSide::Player;
+
+    // Look for next opponent dish that's in queue or entering
+    for (afterhours::Entity &e :
+         afterhours::EntityQuery().whereHasComponent<DishBattleState>().gen()) {
+      DishBattleState &other_dbs = e.get<DishBattleState>();
+      if (other_dbs.team_side == opponent_side &&
+          (other_dbs.phase == DishBattleState::Phase::InQueue ||
+           other_dbs.phase == DishBattleState::Phase::Entering)) {
         return afterhours::OptEntity(e);
       }
     }
