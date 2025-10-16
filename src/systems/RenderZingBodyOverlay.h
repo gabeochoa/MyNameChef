@@ -121,8 +121,8 @@ struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
     const int fontSize = static_cast<int>(badgeSize * 0.72f);
     const std::string zingText = std::to_string(zing);
     const int zw = raylib::MeasureText(zingText.c_str(), fontSize);
-    raylib::DrawText(zingText.c_str(), static_cast<int>(zx - zw / 2),
-                     static_cast<int>(zy - fontSize / 2), fontSize,
+    raylib::DrawText(zingText.c_str(), static_cast<int>(zx - zw / 2.0f),
+                     static_cast<int>(zy - fontSize / 2.0f), fontSize,
                      raylib::BLACK);
 
     // Body: pale yellow square top-right

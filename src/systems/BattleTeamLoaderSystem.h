@@ -3,11 +3,9 @@
 #include "../components/battle_load_request.h"
 #include "../components/battle_team_tags.h"
 #include "../components/dish_battle_state.h"
-#include "../components/dish_generation_ability.h"
 #include "../components/dish_level.h"
 #include "../components/has_tooltip.h"
 #include "../components/is_dish.h"
-#include "../components/is_inventory_item.h"
 #include "../components/render_order.h"
 #include "../components/transform.h"
 #include "../dish_types.h"
@@ -20,7 +18,6 @@
 #include <fstream>
 #include <magic_enum/magic_enum.hpp> // For enum string conversion
 #include <nlohmann/json.hpp>
-#include <random>
 
 struct BattleTeamLoaderSystem : afterhours::System<> {
   bool loaded = false;
@@ -231,6 +228,30 @@ private:
       break;
     }
 
+    case DishType::FrenchFries:
+    case DishType::Meatball:
+    case DishType::Burrito:
+    case DishType::Cheesecake:
+    case DishType::Donut:
+    case DishType::Dumplings:
+    case DishType::FriedEgg:
+    case DishType::IceCream:
+    case DishType::LemonPie:
+    case DishType::MacNCheese:
+    case DishType::Nacho:
+    case DishType::Omlet:
+    case DishType::Pancakes:
+    case DishType::Ramen:
+    case DishType::RoastedChicken:
+    case DishType::Sandwich:
+    case DishType::Spaghetti:
+    case DishType::Steak:
+    case DishType::Sushi:
+    case DishType::Taco:
+    case DishType::Salmon:
+    case DishType::Bagel:
+    case DishType::Baguette:
+    case DishType::GarlicBread:
     default:
       // No generation ability for other dishes
       break;

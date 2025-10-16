@@ -1,3 +1,50 @@
+# COMPLETED FEATURES
+
+## Core Game Systems ✅
+- **Basic dish system**: `IsDish` component with `DishType` enum, `FlavorStats` with 7 flavor axes (satiety, sweetness, spice, acidity, umami, richness, freshness)
+- **Dish types**: 30+ dishes implemented with tier system (1-5), unified pricing, sprite locations
+- **Shop system**: Basic shop with 7 slots, wallet system, purchase/sell functionality
+- **Inventory system**: 7-slot inventory with drag-and-drop, slot management
+- **Level system**: `DishLevel` component with merge progress tracking (2 merges needed per level)
+- **Wallet and health**: Singleton components with gold/health management, battle rewards
+
+## Combat System ✅
+- **SAP-style combat**: Head-to-head dish vs dish combat with Zing (attack) and Body (health)
+- **Combat stats**: `CombatStats` component with base/current Zing and Body values
+- **Battle phases**: `DishBattleState` with InQueue, Entering, InCombat, Finished phases
+- **Course-by-course resolution**: 7-course battles with alternating bite mechanics
+- **Combat systems**: `InitCombatState`, `ComputeCombatStatsSystem`, `StartCourseSystem`, `ResolveCombatTickSystem`, `AdvanceCourseSystem`
+- **Battle results**: `BattleResult` with course outcomes and match results
+- **Battle animations**: Slide-in animations, bite timing, visual feedback
+
+## Rendering and UI ✅
+- **Multi-pass rendering**: Main render texture, shader support, post-processing
+- **Sprite system**: Texture management with spritesheet support
+- **Render ordering**: `HasRenderOrder` component with screen-specific rendering
+- **Battle team rendering**: Specialized `RenderBattleTeams` system
+- **Zing/Body overlays**: `RenderZingBodyOverlay` showing combat stats
+- **Progress bars**: `RenderDishProgressBars` for health visualization
+- **HUD systems**: Wallet display, health display, FPS counter
+- **Tooltip system**: Context-sensitive tooltips
+- **UI navigation**: Screen transitions (Shop → Battle → Results)
+
+## Game State Management ✅
+- **Screen management**: Shop, Battle, Results screens with proper transitions
+- **Entity cleanup**: Systems for cleaning up battle, shop, and dish entities
+- **Singleton management**: Proper singleton patterns for global state
+- **Input handling**: Drag-and-drop, UI interactions
+
+## Technical Infrastructure ✅
+- **ECS architecture**: Component-system design with proper inheritance
+- **Animation system**: Integration with afterhours animation plugin
+- **Sound system**: Basic sound integration
+- **Settings system**: Configuration management
+- **Build system**: xmake integration, proper compilation
+
+---
+
+# REMAINING TASKS
+
 ## Next additions (incremental, with how-to)
 
 - Deterministic RNG across shop and results
@@ -8,7 +55,7 @@
 - Reroll and Freeze in Shop
   - Components: `RerollCost{ base=1, increment=0 }`, `Freezeable{ isFrozen }` on shop items.
   - System `RerollFreezeSystem`: when Reroll button pressed, charge wallet, replace non-frozen shop items using `SeededRng`; keep frozen items.
-  - UI: Add “Reroll” button on Shop; click toggles per-item freeze (badge or small icon on the slot).
+  - UI: Add "Reroll" button on Shop; click toggles per-item freeze (badge or small icon on the slot).
 
 - Course/tags and synergy counts (display-only)
   - Components on dishes: `CourseTag`, `CuisineTag`, `BrandTag`, `DietaryTag`, `DishArchetypeTag`.
@@ -36,8 +83,8 @@
   - System `CombineDuplicates`: when 3 of the same `DishType` are in inventory, merge into one entity with `Level+1` and boosted stats/cost; remove the others.
 
 - Small UX affordances
-  - Show price on shop items; show “frozen” badge, and a faint highlight on legal drop targets.
-  - In Results, add a “Replay” button once `BattleReport` exists.
+  - Show price on shop items; show "frozen" badge, and a faint highlight on legal drop targets.
+  - In Results, add a "Replay" button once `BattleReport` exists.
 
 - Zing and Body (SAP-style, simple)
   - Zing (attack): [spice ≥ 1] + [acidity ≥ 1] + [umami ≥ 1] → 0–3
@@ -47,25 +94,25 @@
   - Level scaling: if `Level.value > 1`, multiply both Zing and Body by 2 (post-base, pre-synergy).
 
 - SAP-style combat (replaces judge score model)
-  - Head-to-head resolve: front dish vs front dish. Each “bites” the other: Body is reduced by opponent Zing until one hits 0.
+  - Head-to-head resolve: front dish vs front dish. Each "bites" the other: Body is reduced by opponent Zing until one hits 0.
   - Events: `OnBiteTaken` fired on each damage tick; `OnDishFinished` fired when Body reaches 0.
-  - Round outcome: last team with any dish standing wins. Later we may add a simple “menu quality” tiebreaker.
+  - Round outcome: last team with any dish standing wins. Later we may add a simple "menu quality" tiebreaker.
   - Pairings/clashes as global modifiers (pre-battle):
     - Pairings (e.g., Bread↔Soup) grant +1 Body to all dishes on your team for this battle.
     - Clashes (e.g., Acid↔Dairy) apply −1 Zing to all dishes on your team for this battle.
     - Keep magnitudes tiny and readable; apply after Level scaling.
   - Triggers: keep trigger hooks, but exact trigger list to be decided later.
-  - Visualization: serve both dishes simultaneously to a two-headed judge who alternates bites from each; each bite maps to a damage tick until one dish’s Body reaches 0. Keep the animation cute and readable.
+  - Visualization: serve both dishes simultaneously to a two-headed judge who alternates bites from each; each bite maps to a damage tick until one dish's Body reaches 0. Keep the animation cute and readable.
 
 - Z/B UI and tooltip updates
   - Overlay: draw Zing as a green rhombus with a number (supports 2 digits) at top-left of the sprite.
   - Overlay: draw Body as a pale yellow square with a number at top-right of the sprite.
-  - Tooltip grouping: group flavor stats into “Zing stats” (spice, acidity, umami) and “Body stats” (satiety, richness, sweetness, freshness).
+  - Tooltip grouping: group flavor stats into "Zing stats" (spice, acidity, umami) and "Body stats" (satiety, richness, sweetness, freshness).
 
 - Plan adjustments and deferrals
   - Deferred: `NormalizationSystem`, `HarmonySystem`, `ComputedFlavor`, and judge-weighted base scoring (replaced by SAP-style combat).
   - Deferred: detailed `EffectResolutionSystem` and large JSON-driven effect library; keep minimal hooks only for now.
-  - Note: “Scoring sketch (for model 2)” and related judge UI are obsolete for the current gameplay direction.
+  - Note: "Scoring sketch (for model 2)" and related judge UI are obsolete for the current gameplay direction.
 
 
 # TODO
