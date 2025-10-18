@@ -8,6 +8,11 @@
 #include <afterhours/src/plugins/autolayout.h>
 #include <afterhours/src/plugins/ui/components.h>
 
+// Include the component headers we need for entity validation
+#include "../components/is_drop_slot.h"
+#include "../components/is_shop_item.h"
+#include "../components/is_inventory_item.h"
+
 struct UITestHelpers {
   // Check if a UI element with the given label is visible
   static bool visible_ui_exists(const std::string &label) {
@@ -116,5 +121,93 @@ struct UITestHelpers {
       }
     }
     return count;
+  }
+
+  // ===== ENTITY VALIDATION FUNCTIONS =====
+  // These functions validate visual elements (entities with components) rather than UI elements
+
+  // Check if entities with specific components exist (for visual elements)
+  static bool entities_exist_with_component(const std::string &component_name) {
+    if (component_name == "IsDropSlot") {
+      for (auto &ref : afterhours::EntityQuery()
+                           .whereHasComponent<IsDropSlot>()
+                           .gen()) {
+        return true; // Found at least one IsDropSlot entity
+      }
+    }
+    // Add more component checks as needed
+    return false;
+  }
+
+  // Count entities with specific components
+  static int count_entities_with_component(const std::string &component_name) {
+    int count = 0;
+    if (component_name == "IsDropSlot") {
+      for (auto &ref : afterhours::EntityQuery()
+                           .whereHasComponent<IsDropSlot>()
+                           .gen()) {
+        count++;
+      }
+    }
+    // Add more component checks as needed
+    return count;
+  }
+
+  // Check if shop slots exist (visual elements, not UI elements)
+  static bool shop_slots_exist() {
+    int shop_slot_count = 0;
+    for (auto &ref : afterhours::EntityQuery()
+                         .whereHasComponent<IsDropSlot>()
+                         .gen()) {
+      auto &entity = ref.get();
+      if (entity.has<IsDropSlot>()) {
+        auto &drop_slot = entity.get<IsDropSlot>();
+        // Shop slots accept shop items but not inventory items
+        if (!drop_slot.accepts_inventory_items && drop_slot.accepts_shop_items) {
+          shop_slot_count++;
+        }
+      }
+    }
+    return shop_slot_count >= 7; // Expected 7 shop slots
+  }
+
+  // Check if inventory slots exist (visual elements, not UI elements)
+  static bool inventory_slots_exist() {
+    int inventory_slot_count = 0;
+    for (auto &ref : afterhours::EntityQuery()
+                         .whereHasComponent<IsDropSlot>()
+                         .gen()) {
+      auto &entity = ref.get();
+      if (entity.has<IsDropSlot>()) {
+        auto &drop_slot = entity.get<IsDropSlot>();
+        // Inventory slots accept both inventory and shop items
+        if (drop_slot.accepts_inventory_items && drop_slot.accepts_shop_items) {
+          inventory_slot_count++;
+        }
+      }
+    }
+    return inventory_slot_count >= 7; // Expected 7 inventory slots
+  }
+
+  // Check if shop items exist (dishes in shop slots)
+  static bool shop_items_exist() {
+    int shop_item_count = 0;
+    for (auto &ref : afterhours::EntityQuery()
+                         .whereHasComponent<IsShopItem>()
+                         .gen()) {
+      shop_item_count++;
+    }
+    return shop_item_count > 0; // At least one shop item should exist
+  }
+
+  // Check if inventory items exist (dishes in inventory slots)
+  static bool inventory_items_exist() {
+    int inventory_item_count = 0;
+    for (auto &ref : afterhours::EntityQuery()
+                         .whereHasComponent<IsInventoryItem>()
+                         .gen()) {
+      inventory_item_count++;
+    }
+    return inventory_item_count > 0; // At least one inventory item should exist
   }
 };

@@ -19,6 +19,9 @@ struct RenderWalletHUD : System<> {
     std::string wallet_text = std::to_string(wallet.gold) + " gold";
     float text_size = 20.f;
 
+    // TODO: Convert wallet display to UI element with label for better testability
+    // Expected: Wallet should be a UI element with label "Gold: 100" or similar
+    // This would allow UITestHelpers::visible_ui_exists("Gold:") to work
     raylib::DrawText(wallet_text.c_str(), 20, 80, static_cast<int>(text_size),
                      raylib::GOLD);
 
