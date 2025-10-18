@@ -10,6 +10,7 @@
 #include "components/is_shop_item.h"
 #include "components/render_order.h"
 #include "components/transform.h"
+#include "components/trigger_queue.h"
 #include "dish_types.h"
 #include "game_state_manager.h"
 #include "render_constants.h"
@@ -102,6 +103,8 @@ Entity &make_combat_manager(Entity &sophie) {
 Entity &make_battle_processor_manager(Entity &sophie) {
   sophie.addComponentIfMissing<BattleProcessor>();
   EntityHelper::registerSingleton<BattleProcessor>(sophie);
+  sophie.addComponentIfMissing<TriggerQueue>();
+  EntityHelper::registerSingleton<TriggerQueue>(sophie);
   return sophie;
 }
 

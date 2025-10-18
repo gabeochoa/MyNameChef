@@ -7,14 +7,13 @@
 
 struct BattleProcessorSystem : afterhours::System<BattleProcessor> {
   virtual bool should_run(float) override {
+    auto &gsm = GameStateManager::get();
+    if (gsm.active_screen != GameStateManager::Screen::Battle)
+      return false;
+
     auto battleProcessor =
         afterhours::EntityHelper::get_singleton<BattleProcessor>();
-    if (!battleProcessor.get().has<BattleProcessor>()) {
-      return false;
-    }
-
-    auto &processor = battleProcessor.get().get<BattleProcessor>();
-    return processor.isBattleActive();
+    return battleProcessor.get().has<BattleProcessor>();
   }
 
   void for_each_with(afterhours::Entity &, BattleProcessor &processor,

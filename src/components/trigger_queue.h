@@ -6,22 +6,18 @@
 
 struct TriggerQueue : afterhours::BaseComponent {
   std::vector<TriggerEvent> events;
-  
+
   TriggerQueue() = default;
-  
-  void add_event(const TriggerEvent& event) {
-    events.push_back(event);
+
+  // Prefer in-place construction to avoid copying non-copyable component types
+  void add_event(TriggerHook hook, int sourceEntityId, int slotIndex,
+                 DishBattleState::TeamSide teamSide) {
+    events.emplace_back(hook, sourceEntityId, slotIndex, teamSide);
   }
-  
-  void clear() {
-    events.clear();
-  }
-  
-  bool empty() const {
-    return events.empty();
-  }
-  
-  size_t size() const {
-    return events.size();
-  }
+
+  void clear() { events.clear(); }
+
+  bool empty() const { return events.empty(); }
+
+  size_t size() const { return events.size(); }
 };

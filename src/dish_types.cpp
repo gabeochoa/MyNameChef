@@ -1,17 +1,24 @@
 #include "dish_types.h"
+#include "components/dish_battle_state.h"
+#include "components/is_dish.h"
+#include "components/pre_battle_modifiers.h"
+#include "query.h"
+#include <afterhours/ah.h>
 #include <vector>
 
 // All dishes now have the same price
 static constexpr int kUnifiedDishPrice = 3;
 
 static DishInfo make_dish(const char *name, FlavorStats flavor,
-                          SpriteLocation sprite, int tier = 2) {
+                          SpriteLocation sprite, int tier = 2,
+                          OnServeHandler onServe = nullptr) {
   DishInfo result;
   result.name = name;
   result.price = kUnifiedDishPrice; // Always 3
   result.tier = tier;
   result.flavor = flavor;
   result.sprite = sprite;
+  result.onServe = onServe;
   return result;
 }
 
@@ -41,9 +48,32 @@ DishInfo get_dish_info(DishType type) {
                      SpriteLocation{2, 7},
                      1); // 38_friedegg.png x=64,y=224 - Tier 1
   case DishType::FrenchFries:
-    return make_dish("French Fries", FlavorStats{.satiety = 1, .richness = 1},
-                     SpriteLocation{1, 9},
-                     1); // 44_frenchfries.png x=32,y=288 - Tier 1
+    return make_dish(
+        "French Fries", FlavorStats{.satiety = 1, .richness = 1},
+        SpriteLocation{1, 9}, 1,
+        /*onServe=*/[](int sourceEntityId) {
+          // Grant +1 Zing to other ally dishes that have not served yet
+          for (afterhours::Entity &e : afterhours::EntityQuery()
+                                           .whereHasComponent<IsDish>()
+                                           .whereHasComponent<DishBattleState>()
+                                           .gen()) {
+            if (e.id == sourceEntityId)
+              continue;
+            auto &dbs = e.get<DishBattleState>();
+            if (auto src = EQ().whereID(sourceEntityId).gen_first()) {
+              if (!src->has<DishBattleState>())
+                continue;
+              if (dbs.team_side != src->get<DishBattleState>().team_side)
+                continue;
+            }
+            if (dbs.phase == DishBattleState::Phase::InQueue) {
+              auto &pre = e.addComponentIfMissing<PreBattleModifiers>();
+              pre.zingDelta += 1;
+              log_info("TRIGGER french fries handler: dish={} (id={})",
+                       e.get<IsDish>().name(), e.id);
+            }
+          }
+        }); // 44_frenchfries.png x=32,y=288 - Tier 1
 
   // Tier 2: Simple 2-ingredient items
   case DishType::Pancakes:

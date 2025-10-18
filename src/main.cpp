@@ -50,6 +50,7 @@ backward::SignalHandling sh;
 #include "systems/StartCourseSystem.h"
 #include "systems/TagShaderRender.h"
 #include "systems/TooltipSystem.h"
+#include "systems/TriggerDispatchSystem.h"
 #include "systems/UpdateRenderTexture.h"
 #include "systems/UpdateSpriteTransform.h"
 #include "ui/ui_systems.h"
@@ -111,6 +112,7 @@ void game() {
     systems.register_update_system(std::make_unique<BattleTeamLoaderSystem>());
     systems.register_update_system(std::make_unique<BattleDebugSystem>());
     systems.register_update_system(std::make_unique<BattleProcessorSystem>());
+    systems.register_update_system(std::make_unique<TriggerDispatchSystem>());
     // Legacy battle systems - can be removed once BattleProcessor is working
     systems.register_update_system(std::make_unique<InitCombatState>());
     systems.register_update_system(

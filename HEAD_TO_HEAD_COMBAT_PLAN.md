@@ -267,6 +267,66 @@ struct TriggerQueue : BaseComponent { std::vector<TriggerEvent> q; };
 struct TriggerDispatchSystem : System<TriggerQueue> { /* drain q in deterministic order */ };
 ```
 
+**CURRENT STATUS: Phase 2b - Trigger System Implementation**
+
+### Step-by-Step Implementation Plan
+
+#### Step 1: Add OnStartBattle Hook ✅ COMPLETED
+- [x] Add `OnStartBattle` to `TriggerHook` enum in `src/components/trigger_event.h`
+- [x] Verify existing `TriggerEvent` and `TriggerQueue` components are ready
+
+#### Step 2: Create TriggerDispatchSystem
+- [ ] Create `src/systems/TriggerDispatchSystem.h`
+- [ ] Implement deterministic event processing order: `(slotIndex asc, Player then Opponent, sourceEntityId asc)`
+- [ ] Add handler methods for each trigger hook:
+  - `handleOnStartBattle()` - Log battle initialization
+  - `handleOnServe()` - Log dish entering combat
+  - `handleOnBiteTaken()` - Log damage dealt
+  - `handleOnDishFinished()` - Log dish defeat
+  - `handleOnCourseStart()` - Log course beginning
+  - `handleOnCourseComplete()` - Log course completion
+
+#### Step 3: Integrate TriggerQueue with BattleProcessor
+- [ ] Add `TriggerQueue` singleton creation to `make_battle_processor_manager()`
+- [ ] Update `BattleProcessor::startBattle()` to fire `OnStartBattle` trigger
+- [ ] Update `BattleProcessor::processCourse()` to fire `OnCourseStart` trigger
+- [ ] Update `BattleProcessor::resolveCombatTick()` to fire `OnBiteTaken` trigger
+- [ ] Update `BattleProcessor::finishCourse()` to fire `OnDishFinished` and `OnCourseComplete` triggers
+
+#### Step 4: Register TriggerDispatchSystem
+- [ ] Add `#include "systems/TriggerDispatchSystem.h"` to `src/main.cpp`
+- [ ] Register `TriggerDispatchSystem` in the update systems list
+- [ ] Ensure it runs after `BattleProcessorSystem` but before legacy systems
+
+#### Step 5: Test Trigger System
+- [ ] Verify `OnStartBattle` fires when battle begins
+- [ ] Verify `OnCourseStart` fires for each course
+- [ ] Verify `OnBiteTaken` fires for each bite
+- [ ] Verify `OnDishFinished` fires when dishes are defeated
+- [ ] Verify `OnCourseComplete` fires when courses finish
+- [ ] Check deterministic ordering of events
+
+#### Step 6: Add Effect System Foundation
+- [ ] Create `src/components/deferred_flavor_mods.h`
+- [ ] Create `src/components/pending_combat_mods.h`
+- [ ] Create `src/systems/EffectResolutionSystem.h` (stub for now)
+- [ ] Register `EffectResolutionSystem` to run after `TriggerDispatchSystem`
+
+### Integration Points with BattleProcessor
+
+The trigger system will integrate with `BattleProcessor` at these key points:
+
+1. **Battle Start**: `BattleProcessor::startBattle()` → Fire `OnStartBattle`
+2. **Course Start**: `BattleProcessor::processCourse()` → Fire `OnCourseStart` 
+3. **Combat Tick**: `BattleProcessor::resolveCombatTick()` → Fire `OnBiteTaken`
+4. **Course End**: `BattleProcessor::finishCourse()` → Fire `OnDishFinished` + `OnCourseComplete`
+
+### Next Phase Preview: Effect System (Phase 3b)
+Once triggers are working, we'll add:
+- `AddFlavorStat` effects for future dishes
+- `AddCombatBody/Zing` effects for current combat
+- Sample effects like "increase sweetness for dishes after this one"
+
 Phase 2c — Client replay foundation
 - Deliverables:
   - `ReplayState`, `ReplayControllerSystem`, `ReplayUISystem` with playback of a local/dev `BattleReport`.

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <functional>
 
 enum struct DishType {
   Potato = 0,
@@ -63,12 +64,15 @@ struct SpriteLocation {
   int j = 0;
 };
 
+using OnServeHandler = std::function<void(int /*sourceEntityId*/)>;
+
 struct DishInfo {
   std::string name;
   int price = 1;
   int tier = 1;
   FlavorStats flavor;
   SpriteLocation sprite;
+  OnServeHandler onServe = nullptr;
 };
 
 DishInfo get_dish_info(DishType type);
