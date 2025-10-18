@@ -1,13 +1,11 @@
 #pragma once
 
 #include "../components/animation_event.h"
-#include "../components/battle_anim_keys.h"
 #include "../components/dish_battle_state.h"
 #include "../components/transform.h"
 #include "../game_state_manager.h"
 #include "../rl.h"
 #include <afterhours/ah.h>
-#include <afterhours/src/plugins/animation.h>
 
 // Unified system to render all animation effects
 struct RenderAnimations : afterhours::System<AnimationEvent> {
@@ -64,14 +62,15 @@ private:
       return;
     }
 
-    // Check if animation exists - if not, skip rendering
-    auto progress = afterhours::animation::get_value(BattleAnimKey::StatBoost,
-                                                     (size_t)animEntity.id);
-    if (!progress.has_value()) {
+    // Get animation progress from AnimationTimer instead of
+    // afterhours::animation
+    if (!animEntity.has<AnimationTimer>()) {
       return;
     }
 
-    float animProgress = std::clamp(progress.value(), 0.0f, 1.0f);
+    const auto &timer = animEntity.get<AnimationTimer>();
+    float animProgress = std::clamp(timer.elapsed / timer.duration, 0.0f, 1.0f);
+
     if (animProgress >= 1.0f) {
       return;
     }
@@ -146,14 +145,15 @@ private:
       return;
     }
 
-    // Check if animation exists - if not, skip rendering
-    auto progress = afterhours::animation::get_value(
-        BattleAnimKey::FreshnessChain, (size_t)animEntity.id);
-    if (!progress.has_value()) {
+    // Get animation progress from AnimationTimer instead of
+    // afterhours::animation
+    if (!animEntity.has<AnimationTimer>()) {
       return;
     }
 
-    float animProgress = std::clamp(progress.value(), 0.0f, 1.0f);
+    const auto &timer = animEntity.get<AnimationTimer>();
+    float animProgress = std::clamp(timer.elapsed / timer.duration, 0.0f, 1.0f);
+
     if (animProgress >= 1.0f) {
       return;
     }
