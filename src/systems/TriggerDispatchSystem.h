@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../components/animation_event.h"
 #include "../components/combat_stats.h"
 #include "../components/dish_battle_state.h"
 #include "../components/is_dish.h"
@@ -17,7 +18,7 @@ struct TriggerDispatchSystem : afterhours::System<TriggerQueue> {
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
     return gsm.active_screen == GameStateManager::Screen::Battle &&
-           !hasTriggerAnimationRunning();
+           !hasActiveAnimation();
   }
 
   void for_each_with(afterhours::Entity &, TriggerQueue &queue,
@@ -68,6 +69,8 @@ struct TriggerDispatchSystem : afterhours::System<TriggerQueue> {
                                                                 : "Opponent",
                ev.sourceEntityId, ev.payloadInt);
       handle_event(ev);
+      // After each dispatch, enqueue a small non-blocking animation event if
+      // desired
     }
 
     log_info("TRIGGER_QUEUE processed and cleared ({} events)", order.size());

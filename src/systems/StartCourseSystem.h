@@ -9,8 +9,12 @@
 struct StartCourseSystem : afterhours::System<CombatQueue> {
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
-    return gsm.active_screen == GameStateManager::Screen::Battle &&
-           !hasTriggerAnimationRunning();
+    bool should_run = gsm.active_screen == GameStateManager::Screen::Battle &&
+                      !hasActiveAnimation();
+    if (!should_run && gsm.active_screen == GameStateManager::Screen::Battle) {
+      log_info("COMBAT: StartCourseSystem paused - animation active");
+    }
+    return should_run;
   }
 
   void for_each_with(afterhours::Entity &, CombatQueue &cq, float) override {

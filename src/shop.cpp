@@ -1,4 +1,5 @@
 #include "shop.h"
+#include "components/animation_event.h"
 #include "components/battle_processor.h"
 #include "components/can_drop_onto.h"
 #include "components/combat_queue.h"
@@ -10,7 +11,6 @@
 #include "components/is_shop_item.h"
 #include "components/render_order.h"
 #include "components/transform.h"
-#include "components/trigger_animation_state.h"
 #include "components/trigger_queue.h"
 #include "dish_types.h"
 #include "game_state_manager.h"
@@ -106,9 +106,6 @@ Entity &make_battle_processor_manager(Entity &sophie) {
   EntityHelper::registerSingleton<BattleProcessor>(sophie);
   sophie.addComponentIfMissing<TriggerQueue>();
   EntityHelper::registerSingleton<TriggerQueue>(sophie);
-  // Ensure TriggerAnimationState singleton exists early so gate checks are safe
-  sophie.addComponentIfMissing<TriggerAnimationState>();
-  EntityHelper::registerSingleton<TriggerAnimationState>(sophie);
   return sophie;
 }
 
@@ -187,9 +184,26 @@ bool charge_for_shop_purchase(DishType type) {
   return wallet_charge(price);
 }
 
-bool hasTriggerAnimationRunning() {
-  auto gate = EntityHelper::get_singleton<TriggerAnimationState>();
-  if (!gate.get().has<TriggerAnimationState>())
-    return false;
-  return gate.get().get<TriggerAnimationState>().running;
+bool hasActiveAnimation() {
+  auto opt =
+      EntityQuery().whereHasComponent<IsBlockingAnimationEvent>().gen_first();
+  bool has_active = (bool)opt;
+  if (has_active) {
+    log_info("ANIMATION: hasActiveAnimation() = true, found blocking event "
+             "entity={}",
+             opt->id);
+  }
+  return has_active;
+}
+
+afterhours::Entity &make_animation_event(AnimationEventType type,
+                                         bool blocking) {
+  auto &e = EntityHelper::createEntity();
+  e.addComponent<AnimationEvent>();
+  e.get<AnimationEvent>().type = type;
+  if (blocking)
+    e.addComponent<IsBlockingAnimationEvent>();
+  log_info("ANIMATION: Created {} animation event entity={}",
+           type == AnimationEventType::SlideIn ? "SlideIn" : "Unknown", e.id);
+  return e;
 }

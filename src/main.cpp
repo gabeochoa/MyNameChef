@@ -9,12 +9,15 @@ backward::SignalHandling sh;
 #include "game.h"
 //
 #include "argh.h"
+#include "components/animation_event.h"
+#include "components/battle_anim_keys.h"
 #include "preload.h"
 #include "settings.h"
 #include "shop.h"
 #include "sound_systems.h"
 #include "systems/AdvanceCourseSystem.h"
 #include "systems/ApplyPendingCombatModsSystem.h"
+#include "systems/BattleAnimationSystem.h"
 #include "systems/BattleAnimations.h"
 #include "systems/BattleDebugSystem.h"
 #include "systems/BattleEnterAnimationSystem.h"
@@ -134,6 +137,7 @@ void game() {
         afterhours::animation::CompositeKey>(systems);
     afterhours::animation::register_update_systems<BattleAnimKey>(systems);
     systems.register_update_system(std::make_unique<TriggerBattleSlideIn>());
+    systems.register_update_system(std::make_unique<BattleAnimationSystem>());
 
     register_sound_systems(systems);
     register_ui_systems(systems);

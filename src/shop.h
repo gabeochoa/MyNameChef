@@ -1,5 +1,6 @@
 #pragma once
 
+#include "components/animation_event.h"
 #include "rl.h"
 #include <afterhours/ah.h>
 #include <vector>
@@ -62,5 +63,9 @@ bool wallet_can_afford(int cost);
 bool wallet_charge(int cost);
 bool charge_for_shop_purchase(DishType type);
 
-// Battle/trigger animation utils
-bool hasTriggerAnimationRunning();
+// Battle animation utils
+bool hasActiveAnimation();
+
+// Animation event creation
+afterhours::Entity &make_animation_event(AnimationEventType type,
+                                         bool blocking = true);

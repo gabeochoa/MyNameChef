@@ -16,7 +16,7 @@ struct BattleProcessorSystem : afterhours::System<BattleProcessor> {
         afterhours::EntityHelper::get_singleton<BattleProcessor>();
     if (!battleProcessor.get().has<BattleProcessor>())
       return false;
-    return !hasTriggerAnimationRunning();
+    return !hasActiveAnimation();
   }
 
   void for_each_with(afterhours::Entity &, BattleProcessor &processor,

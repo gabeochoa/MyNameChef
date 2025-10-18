@@ -40,7 +40,7 @@ private:
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
     bool should_run = gsm.active_screen == GameStateManager::Screen::Battle &&
-                      !hasTriggerAnimationRunning();
+                      !hasActiveAnimation();
     return should_run;
   }
 

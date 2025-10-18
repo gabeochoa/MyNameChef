@@ -1,16 +1,15 @@
 #pragma once
 
+#include "../components/animation_event.h"
+#include "../components/battle_anim_keys.h"
 #include "../components/battle_team_tags.h"
 #include "../components/dish_battle_state.h"
 #include "../components/is_dish.h"
 #include "../components/transform.h"
-#include "../components/trigger_animation_state.h"
 #include "../game_state_manager.h"
+#include "../shop.h"
 #include <afterhours/ah.h>
 #include <afterhours/src/plugins/animation.h>
-#include <algorithm>
-
-enum struct BattleAnimKey : size_t { SlideIn };
 
 struct TriggerBattleSlideIn : afterhours::System<> {
   bool started = false;
@@ -80,30 +79,10 @@ struct TriggerBattleSlideIn : afterhours::System<> {
     }
 
     if (started_count > 0) {
-      // Increment gate and schedule decrement on completion of the slowest
-      // track
-      auto gate =
-          afterhours::EntityHelper::get_singleton<TriggerAnimationState>();
-      if (!gate.get().has<TriggerAnimationState>()) {
-        auto &ent = afterhours::EntityHelper::createEntity();
-        ent.addComponent<TriggerAnimationState>();
-        afterhours::EntityHelper::registerSingleton<TriggerAnimationState>(ent);
-        gate = afterhours::EntityHelper::get_singleton<TriggerAnimationState>();
-      }
-      auto &state = gate.get().get<TriggerAnimationState>();
-      state.active += 1;
-      state.running = state.active > 0;
-
-      // Use a dedicated manager track (non-one_shot) to represent the slide-in
-      // window The per-entity slide-in is 0.18 + 0.08 = 0.26s; hold for ~0.27s.
-      afterhours::animation::anim(BattleAnimKey::SlideIn, /*index=*/0)
-          .sequence({{.to_value = 1.0f,
-                      .duration = 0.27f,
-                      .easing = afterhours::animation::EasingType::Hold}})
-          .on_complete([&state]() mutable {
-            state.active = std::max(0, state.active - 1);
-            state.running = state.active > 0;
-          });
+      // Enqueue a blocking SlideIn animation event
+      log_info("ANIMATION: Creating SlideIn animation event for {} dishes",
+               started_count);
+      make_animation_event(AnimationEventType::SlideIn, true);
     }
 
     started = true;
