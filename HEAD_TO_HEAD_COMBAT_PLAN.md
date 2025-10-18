@@ -327,6 +327,125 @@ Once triggers are working, we'll add:
 - `AddCombatBody/Zing` effects for current combat
 - Sample effects like "increase sweetness for dishes after this one"
 
+## Tier 1 Food Trigger Effects Design
+
+### Design Philosophy
+- **Simple but Valuable**: Effects should be easy to understand but provide meaningful strategic value
+- **Thematic**: Effects should match the food's characteristics and real-world properties
+- **Balanced**: Effects should be strong enough to justify purchasing tier 1 foods over higher-tier options
+- **Synergistic**: Effects should encourage thoughtful team composition
+
+### Current Tier 1 Foods & Proposed Effects
+
+#### 1. **Potato** (Satiety: 1)
+- **Current Stats**: Low base stats (1 Body, 0 Zing)
+- **Proposed Trigger**: **No trigger** - Raw ingredient, no special effect
+- **Theme**: "Raw Ingredient" - Basic food with no special properties until enhanced
+- **Strategic Value**: Cheap filler option, but can be enhanced by other foods' effects
+- **Future Synergy**: Could be "cooked" by foods with `OnServe` → `CookRawIngredients` effects
+
+#### 2. **Salmon** (Umami: 3, Freshness: 2) 
+- **Current Stats**: High Zing (3), decent Body (2)
+- **Proposed Trigger**: `OnServe` → If previous OR next dish has freshness, `AddFlavorStat(freshness, +1)` to `Self`, `Previous`, and `Next`
+- **Theme**: "Fresh Harmony" - Salmon creates a fresh flavor chain when paired with other fresh ingredients
+- **Strategic Value**: Conditional team boost that rewards thoughtful positioning of fresh ingredients
+- **Real Restaurant Pairing**: Salmon works best when surrounded by fresh vegetables, herbs, and light accompaniments
+
+#### 3. **Bagel** (Satiety: 1)
+- **Current Stats**: Low base stats (1 Body, 0 Zing)
+- **Proposed Trigger**: `OnServe` → `AddFlavorStat(richness, +1)` to `DishesAfterSelf`
+- **Theme**: "Morning Fuel" - Bagels provide sustained energy, enhancing richness of subsequent dishes
+- **Strategic Value**: Improves the Body of dishes that serve after this one
+
+#### 4. **Baguette** (Satiety: 1)
+- **Current Stats**: Low base stats (1 Body, 0 Zing)
+- **Proposed Trigger**: `OnServe` → `AddCombatZing(-1)` to `Opponent` (the dish it's fighting against)
+- **Theme**: "French Elegance" - The refined taste of baguette overwhelms and reduces the opponent's aggression
+- **Strategic Value**: Direct combat debuff that weakens the opponent's attack power 
+
+#### 5. **Garlic Bread** (Satiety: 1, Richness: 1)
+- **Current Stats**: Decent base stats (2 Body, 0 Zing)
+- **Proposed Trigger**: `OnServe` → `AddFlavorStat(spice, +1)` to `FutureAllies`
+- **Theme**: "Garlic Aroma" - The strong garlic flavor enhances the spice of future dishes
+- **Strategic Value**: Boosts Zing of future dishes, making them more aggressive
+
+#### 6. **Fried Egg** (Richness: 1)
+- **Current Stats**: Low base stats (1 Body, 0 Zing)
+- **Proposed Trigger**: `OnDishFinished` → `AddCombatBody(+2)` to `AllAllies`
+- **Theme**: "Protein Recovery" - When a dish falls, the egg provides quick protein recovery
+- **Strategic Value**: Emergency healing when allies are defeated, encouraging sacrificial strategies
+
+#### 7. **French Fries** (Satiety: 1, Richness: 1) ✅ **ALREADY IMPLEMENTED**
+- **Current Stats**: Decent base stats (2 Body, 0 Zing)
+- **Current Trigger**: `OnServe` → `AddCombatZing(+1)` to `FutureAllies`
+- **Theme**: "Fast Food Energy" - Quick energy boost for the team
+- **Strategic Value**: Team-wide Zing boost for future dishes
+
+### Effect Implementation Notes
+
+#### Trigger Timing Strategy
+- **OnServe**: Effects that prepare the battlefield (Potato, Bagel, Garlic Bread, French Fries)
+- **OnBiteTaken**: Effects that activate during combat (Salmon)
+- **OnCourseComplete**: Effects that reward course completion (Baguette)
+- **OnDishFinished**: Effects that activate on defeat (Fried Egg)
+
+#### Targeting Scope Rationale
+- **FutureAllies**: Prepares the battlefield for upcoming dishes
+- **DishesAfterSelf**: Affects only dishes that serve after this one
+- **AllAllies**: Team-wide effects for maximum impact
+- **Self**: Personal effects for individual dishes
+
+#### Balance Considerations
+- **Low Base Stats**: Tier 1 foods have weak base stats, so effects must be valuable enough to justify their inclusion
+- **Synergy Potential**: Effects should encourage interesting team compositions
+- **Counterplay**: Effects should be strong but not overwhelming
+- **Scaling**: Effects should remain relevant even in late-game scenarios
+
+### Sample Team Compositions
+
+#### **"Comfort Food Combo"**
+- Bagel (OnServe → +1 richness to DishesAfterSelf)  
+- Garlic Bread (OnServe → +1 spice to FutureAllies)
+- **Result**: Future dishes get +1 Body and +1 Zing, creating a strong foundation
+
+#### **"Raw Ingredient Enhancement"**
+- Potato (No trigger - raw ingredient)
+- Garlic Bread (OnServe → +1 spice to FutureAllies)
+- **Future Enhancement**: Could add "Cooking" effects to higher-tier foods that enhance raw ingredients
+
+#### **"French Breakfast"**
+- Baguette (OnServe → -1 Zing to Opponent)
+- French Fries (OnServe → +1 Zing to FutureAllies)
+- **Result**: Direct opponent debuff + team-wide Zing boost
+
+#### **"Fresh Chain Combo"**
+- Salmon (OnServe → If adjacent has freshness, +1 freshness to Self/Previous/Next)
+- Any dish with freshness (to trigger the chain)
+- **Result**: Conditional freshness boost that rewards strategic positioning
+
+### Future Enhancement Ideas
+
+#### **Cooking/Enhancement Mechanics**
+- **Raw Ingredients**: Basic foods (Potato, etc.) with no triggers but can be enhanced
+- **Cooking Effects**: Higher-tier foods could have `OnServe` → `CookRawIngredients` effects
+- **Enhancement Examples**:
+  - Steak (Tier 5) → `OnServe` → `CookRawIngredients` → Raw ingredients get +2 Body and +1 Zing
+  - Pizza (Tier 4) → `OnServe` → `CookRawIngredients` → Raw ingredients get +1 Body and +1 Zing
+  - Burger (Tier 3) → `OnServe` → `CookRawIngredients` → Raw ingredients get +1 Body
+
+#### **Ingredient Categories**
+- **Raw Ingredients** (Tier 1): No triggers, can be enhanced
+- **Basic Foods** (Tier 1-2): Simple triggers, moderate effects
+- **Cooking Foods** (Tier 3+): Can enhance raw ingredients
+- **Gourmet Foods** (Tier 4-5): Complex triggers, powerful effects
+
+### Implementation Priority
+1. **Phase 1**: Implement basic trigger effects for 2-3 tier 1 foods (excluding raw ingredients)
+2. **Phase 2**: Add remaining tier 1 effects and test balance
+3. **Phase 3**: Expand to higher tiers with more complex effects
+4. **Phase 4**: Add cooking/enhancement mechanics for raw ingredients
+5. **Phase 5**: Add counterplay mechanics and advanced interactions
+
 Phase 2c — Client replay foundation
 - Deliverables:
   - `ReplayState`, `ReplayControllerSystem`, `ReplayUISystem` with playback of a local/dev `BattleReport`.

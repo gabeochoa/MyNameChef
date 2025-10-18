@@ -1,4 +1,5 @@
 #include "dish_types.h"
+#include "components/deferred_flavor_mods.h"
 #include "components/dish_battle_state.h"
 #include "components/is_dish.h"
 #include "components/pending_combat_mods.h"
@@ -29,9 +30,96 @@ DishInfo get_dish_info(DishType type) {
     return make_dish("Potato", FlavorStats{.satiety = 1}, SpriteLocation{13, 3},
                      1); // potato.png x=416,y=96 - Tier 1
   case DishType::Salmon:
-    return make_dish("Salmon", FlavorStats{.umami = 3, .freshness = 2},
-                     SpriteLocation{6, 7},
-                     1); // 88_salmon.png x=192,y=224 - Tier 1
+    return make_dish(
+        "Salmon", FlavorStats{.umami = 3, .freshness = 2}, SpriteLocation{6, 7},
+        1,
+        /*onServe=*/[](int sourceEntityId) {
+          // Find the source dish to get its queue position
+          auto src_opt = EQ().whereID(sourceEntityId).gen_first();
+          if (!src_opt || !src_opt->has<DishBattleState>()) {
+            return;
+          }
+
+          auto &src_dbs = src_opt->get<DishBattleState>();
+          int src_queue_index = src_dbs.queue_index;
+
+          // Check if previous or next dish has freshness
+          bool has_freshness_adjacent = false;
+
+          // Check previous dish
+          for (afterhours::Entity &e : afterhours::EntityQuery()
+                                           .whereHasComponent<IsDish>()
+                                           .whereHasComponent<DishBattleState>()
+                                           .gen()) {
+            auto &dbs = e.get<DishBattleState>();
+            if (dbs.team_side == src_dbs.team_side &&
+                dbs.queue_index == src_queue_index - 1) {
+              auto &dish = e.get<IsDish>();
+              auto dish_info = get_dish_info(dish.type);
+              if (dish_info.flavor.freshness > 0) {
+                has_freshness_adjacent = true;
+                break;
+              }
+            }
+          }
+
+          // Check next dish if previous didn't have freshness
+          if (!has_freshness_adjacent) {
+            for (afterhours::Entity &e :
+                 afterhours::EntityQuery()
+                     .whereHasComponent<IsDish>()
+                     .whereHasComponent<DishBattleState>()
+                     .gen()) {
+              auto &dbs = e.get<DishBattleState>();
+              if (dbs.team_side == src_dbs.team_side &&
+                  dbs.queue_index == src_queue_index + 1) {
+                auto &dish = e.get<IsDish>();
+                auto dish_info = get_dish_info(dish.type);
+                if (dish_info.flavor.freshness > 0) {
+                  has_freshness_adjacent = true;
+                  break;
+                }
+              }
+            }
+          }
+
+          // If adjacent dish has freshness, boost freshness of self, previous,
+          // and next
+          if (has_freshness_adjacent) {
+            // Boost self
+            auto &src_deferred =
+                src_opt->addComponentIfMissing<DeferredFlavorMods>();
+            src_deferred.freshness += 1;
+
+            // Boost previous dish
+            for (afterhours::Entity &e :
+                 afterhours::EntityQuery()
+                     .whereHasComponent<IsDish>()
+                     .whereHasComponent<DishBattleState>()
+                     .gen()) {
+              auto &dbs = e.get<DishBattleState>();
+              if (dbs.team_side == src_dbs.team_side &&
+                  dbs.queue_index == src_queue_index - 1) {
+                auto &deferred = e.addComponentIfMissing<DeferredFlavorMods>();
+                deferred.freshness += 1;
+              }
+            }
+
+            // Boost next dish
+            for (afterhours::Entity &e :
+                 afterhours::EntityQuery()
+                     .whereHasComponent<IsDish>()
+                     .whereHasComponent<DishBattleState>()
+                     .gen()) {
+              auto &dbs = e.get<DishBattleState>();
+              if (dbs.team_side == src_dbs.team_side &&
+                  dbs.queue_index == src_queue_index + 1) {
+                auto &deferred = e.addComponentIfMissing<DeferredFlavorMods>();
+                deferred.freshness += 1;
+              }
+            }
+          }
+        }); // 88_salmon.png x=192,y=224 - Tier 1
   case DishType::Bagel:
     return make_dish("Bagel", FlavorStats{.satiety = 1}, SpriteLocation{13, 0},
                      1); // 20_bagel.png x=416,y=0 - Tier 1
