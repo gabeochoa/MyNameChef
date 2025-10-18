@@ -1,10 +1,23 @@
 #pragma once
 
 #include "../../game_state_manager.h"
+#include "../TestInteraction.h"
 #include "../UITestHelpers.h"
 
 struct ValidateShopFunctionalityTest {
   static void execute() {
+    // Step 1: Navigate to shop screen first
+    if (UITestHelpers::visible_ui_exists("Play")) {
+      // We're on main menu, click Play to go to shop
+      if (!UITestHelpers::click_ui("Play")) {
+        return; // Failed to click Play
+      }
+      
+      // Apply the screen transition
+      TestInteraction::start_game();
+      GameStateManager::get().update_screen();
+    }
+
     // Test 1: Validate shop screen elements exist
     bool shop_elements_exist = UITestHelpers::visible_ui_exists("Next Round") &&
                                UITestHelpers::visible_ui_exists("Reroll (5)");
@@ -14,37 +27,22 @@ struct ValidateShopFunctionalityTest {
     }
 
     // Test 2: Validate shop slots are present (should have 7 slots)
-    int shop_slot_count = 0;
-    for (int i = 1; i <= 7; ++i) {
-      if (UITestHelpers::visible_ui_exists("Shop Slot " + std::to_string(i))) {
-        shop_slot_count++;
-      }
-    }
-
-    // TODO: Shop slots should be visible - currently may not be rendering
-    // properly Expected: 7 shop slots should be visible Bug: Shop slot
-    // rendering may be broken
+    // Note: Shop slots are IsDropSlot components, not UI elements with labels
+    // TODO: Add UI labels to shop slots for better testing
+    // Expected: 7 shop slots should be visible
+    // Bug: Shop slots don't have UI labels, only visual rendering
 
     // Test 3: Validate inventory slots are present (should have 7 slots)
-    int inventory_slot_count = 0;
-    for (int i = 1; i <= 7; ++i) {
-      if (UITestHelpers::visible_ui_exists("Inventory Slot " +
-                                           std::to_string(i))) {
-        inventory_slot_count++;
-      }
-    }
-
-    // TODO: Inventory slots should be visible - currently may not be rendering
-    // properly Expected: 7 inventory slots should be visible Bug: Inventory
-    // slot rendering may be broken
+    // Note: Inventory slots are IsDropSlot components, not UI elements with labels
+    // TODO: Add UI labels to inventory slots for better testing
+    // Expected: 7 inventory slots should be visible
+    // Bug: Inventory slots don't have UI labels, only visual rendering
 
     // Test 4: Validate wallet display
-    bool wallet_display_exists = UITestHelpers::visible_ui_exists("Gold:") ||
-                                 UITestHelpers::visible_ui_exists("Wallet");
-
-    // TODO: Wallet display should be visible
+    // Note: Wallet is rendered as text using raylib::DrawText(), not as UI element
+    // TODO: Convert wallet display to UI element with label
     // Expected: Wallet/gold display should be present
-    // Bug: Wallet UI may not be rendering
+    // Bug: Wallet display is not a UI element, only text rendering
 
     // Test 5: Validate shop items have prices
     // This would require checking if shop items show price information
@@ -64,6 +62,7 @@ struct ValidateShopFunctionalityTest {
   }
 
   static bool validate_shop_complete() {
+    // Only check for UI elements that actually exist
     return UITestHelpers::visible_ui_exists("Next Round") &&
            UITestHelpers::visible_ui_exists("Reroll (5)");
   }
