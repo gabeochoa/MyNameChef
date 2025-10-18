@@ -9,7 +9,6 @@ backward::SignalHandling sh;
 #include "game.h"
 //
 #include "argh.h"
-#include "components/animation_event.h"
 #include "components/battle_anim_keys.h"
 #include "preload.h"
 #include "settings.h"
@@ -17,10 +16,7 @@ backward::SignalHandling sh;
 #include "sound_systems.h"
 #include "systems/AdvanceCourseSystem.h"
 #include "systems/ApplyPendingCombatModsSystem.h"
-#include "systems/UnifiedAnimationSystem.h"
-#include "systems/RenderAnimations.h"
 #include "systems/BattleDebugSystem.h"
-#include "systems/SimplifiedOnServeSystem.h"
 #include "systems/BattleEnterAnimationSystem.h"
 #include "systems/BattleProcessorSystem.h"
 #include "systems/BattleTeamLoaderSystem.h"
@@ -37,30 +33,34 @@ backward::SignalHandling sh;
 #include "systems/MarkIsHeldWhenHeld.h"
 #include "systems/PostProcessingSystems.h"
 #include "systems/ProcessBattleRewards.h"
+#include "systems/RenderAnimations.h"
 #include "systems/RenderBattleResults.h"
 #include "systems/RenderBattleTeams.h"
 #include "systems/RenderDebugWindowInfo.h"
 #include "systems/RenderDishProgressBars.h"
 #include "systems/RenderEntitiesByOrder.h"
 #include "systems/RenderFPS.h"
+#include "systems/RenderLetterboxBars.h"
+#include "systems/RenderRenderTexture.h"
+#include "systems/RenderSellSlot.h"
 #include "systems/RenderSpritesByOrder.h"
 #include "systems/RenderSpritesWithShaders.h"
-#include "systems/RenderRenderTexture.h"
-#include "systems/RenderLetterboxBars.h"
-#include "systems/RenderAnimations.h"
 #include "systems/RenderSystemHelpers.h"
 #include "systems/RenderWalletHUD.h"
-#include "systems/RenderSellSlot.h"
 #include "systems/RenderZingBodyOverlay.h"
 #include "systems/ResolveCombatTickSystem.h"
+#include "systems/SimplifiedOnServeSystem.h"
 #include "systems/StartCourseSystem.h"
 #include "systems/TagShaderRender.h"
+#include "systems/TestSystem.h"
 #include "systems/TooltipSystem.h"
 #include "systems/TriggerDispatchSystem.h"
+#include "systems/UnifiedAnimationSystem.h"
 #include "systems/UpdateRenderTexture.h"
 #include "systems/UpdateSpriteTransform.h"
 #include "ui/ui_systems.h"
 #include <afterhours/src/plugins/animation.h>
+#include <optional>
 
 // TODO add honking
 
@@ -71,7 +71,7 @@ raylib::RenderTexture2D screenRT;
 
 using namespace afterhours;
 
-void game() {
+void game(const std::optional<std::string> &run_test) {
   mainRT = raylib::LoadRenderTexture(Settings::get().get_screen_width(),
                                      Settings::get().get_screen_height());
   screenRT = raylib::LoadRenderTexture(Settings::get().get_screen_width(),
@@ -128,8 +128,7 @@ void game() {
     systems.register_update_system(std::make_unique<StartCourseSystem>());
     systems.register_update_system(
         std::make_unique<BattleEnterAnimationSystem>());
-    systems.register_update_system(
-        std::make_unique<SimplifiedOnServeSystem>());
+    systems.register_update_system(std::make_unique<SimplifiedOnServeSystem>());
     systems.register_update_system(std::make_unique<ResolveCombatTickSystem>());
     systems.register_update_system(std::make_unique<AdvanceCourseSystem>());
     systems.register_update_system(std::make_unique<CleanupBattleEntities>());
@@ -145,6 +144,11 @@ void game() {
 
     register_sound_systems(systems);
     register_ui_systems(systems);
+
+    if (run_test.has_value()) {
+      systems.register_update_system(std::make_unique<TestSystem>(*run_test));
+    }
+
     // Ensure results are loaded in the same frame UI switches to Results
     systems.register_update_system(std::make_unique<LoadBattleResults>());
     // Process battle rewards and refill store after results are loaded
@@ -173,8 +177,7 @@ void game() {
         // Zing/Body overlays on top of sprites
         systems.register_render_system(
             std::make_unique<RenderZingBodyOverlay>());
-        systems.register_render_system(
-            std::make_unique<RenderAnimations>());
+        systems.register_render_system(std::make_unique<RenderAnimations>());
         systems.register_render_system(
             std::make_unique<RenderDishProgressBars>());
         systems.register_render_system(std::make_unique<RenderWalletHUD>());
@@ -226,6 +229,14 @@ int main(int argc, char *argv[]) {
   cmdl({"-w", "--width"}, 1280) >> screenWidth;
   cmdl({"-h", "--height"}, 720) >> screenHeight;
 
+  std::optional<std::string> run_test = std::nullopt;
+  std::string test_value;
+  if (cmdl("--run-test") >> test_value) {
+    if (!test_value.empty()) {
+      run_test = test_value;
+    }
+  }
+
   // Load savefile first
   Settings::get().load_save_file(screenWidth, screenHeight);
 
@@ -238,7 +249,7 @@ int main(int argc, char *argv[]) {
   //   intro();
   // }
 
-  game();
+  game(run_test);
 
   Settings::get().write_save_file();
 

@@ -81,3 +81,55 @@ target("my_name_chef")
     --     os.exec("timeout 3 ./output/my_name_chef.exe")
     --     -- os.exec("./output/my_name_chef.exe")
     -- end)
+
+-- Testing Infrastructure
+-- Unified Catch2 test runner
+target("tests")
+    set_kind("binary")
+    set_targetdir("output")
+    add_files("src/testing/tests_main.cpp")
+    add_files("src/testing/test_context.cpp")
+    add_files("src/testing/ui_tests_catch.cpp")
+    add_files("src/*.cpp")
+    add_files("src/components/*.cpp")
+    add_files("src/systems/*.cpp")
+    add_files("src/ui/*.cpp")
+    remove_files("src/main.cpp")
+    add_includedirs("src")
+    add_includedirs("vendor")
+    add_defines("FMT_HEADER_ONLY")
+    add_ldflags("-L.", "-Lvendor/")
+    if is_host("windows") then
+        add_ldflags("F:/RayLib/lib/raylib.dll")
+    else
+        add_ldflags("$(shell pkg-config --libs raylib)")
+    end
+    if is_mode("debug") then
+        add_defines("DEBUG=1")
+        set_symbols("debug")
+    end
+    if is_mode("release") then
+        add_defines("NDEBUG=1")
+        set_optimize("fastest")
+    end
+
+
+
+-- Test targets
+target("test")
+    set_kind("phony")
+    on_run(function (target)
+        os.exec("./output/tests.exe")
+    end)
+
+target("test-ui")
+    set_kind("phony")
+    on_run(function (target)
+        os.exec("./output/tests.exe -i")
+    end)
+
+target("test-shop")
+    set_kind("phony")
+    on_run(function (target)
+        os.exec("./output/tests.exe -i \"[ui][navigation]\"")
+    end)

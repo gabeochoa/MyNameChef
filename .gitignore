@@ -40,3 +40,6 @@ build-analysis.html
 build-analysis.txt
 
 next.md
+src/testing/.make/*
+src/testing/.xmake/macosx/*
+src/testing/build/.build_cache/*
