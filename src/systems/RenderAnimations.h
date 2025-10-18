@@ -35,16 +35,16 @@ struct RenderAnimations : afterhours::System<AnimationEvent> {
 
 private:
   void render_stat_boost_animation(const afterhours::Entity &animEntity,
-                                   const AnimationEvent &) const {
-    if (!animEntity.has<StatBoostAnimation>()) {
+                                  const AnimationEvent &) const {
+    if (!animEntity.has<AnimationData>()) {
       return;
     }
 
-    const auto &statBoost = animEntity.get<StatBoostAnimation>();
+    const auto &animData = animEntity.get<AnimationData>();
 
     // Find the target dish entity
     auto targetOpt =
-        afterhours::EntityQuery().whereID(statBoost.targetEntityId).gen_first();
+        afterhours::EntityQuery().whereID(animData.targetEntityId).gen_first();
     if (!targetOpt) {
       return;
     }
@@ -107,9 +107,9 @@ private:
 
     // Draw stat type indicator
     std::string statType = "";
-    if (statBoost.zingDelta > 0) {
+    if (animData.zingDelta > 0) {
       statType = "ZING";
-    } else if (statBoost.bodyDelta > 0) {
+    } else if (animData.bodyDelta > 0) {
       statType = "BODY";
     }
 
@@ -125,11 +125,11 @@ private:
 
   void render_freshness_chain_animation(const afterhours::Entity &animEntity,
                                         const AnimationEvent &) const {
-    if (!animEntity.has<FreshnessChainAnimation>()) {
+    if (!animEntity.has<AnimationData>()) {
       return;
     }
 
-    const auto &freshnessAnim = animEntity.get<FreshnessChainAnimation>();
+    const auto &animData = animEntity.get<AnimationData>();
 
     // Check if animation exists - if not, skip rendering
     auto progress = afterhours::animation::get_value(
@@ -144,15 +144,15 @@ private:
     }
 
     // Render freshness chain effect for each affected dish
-    render_freshness_effect(freshnessAnim.sourceEntityId, animProgress, true);
+    render_freshness_effect(animData.sourceEntityId, animProgress, true);
 
-    if (freshnessAnim.previousEntityId != -1) {
-      render_freshness_effect(freshnessAnim.previousEntityId, animProgress,
+    if (animData.previousEntityId != -1) {
+      render_freshness_effect(animData.previousEntityId, animProgress,
                               false);
     }
 
-    if (freshnessAnim.nextEntityId != -1) {
-      render_freshness_effect(freshnessAnim.nextEntityId, animProgress, false);
+    if (animData.nextEntityId != -1) {
+      render_freshness_effect(animData.nextEntityId, animProgress, false);
     }
   }
 

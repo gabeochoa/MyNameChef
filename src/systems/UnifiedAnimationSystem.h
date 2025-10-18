@@ -32,7 +32,7 @@ struct UnifiedAnimationSystem
       break;
     }
     case AnimationEventType::StatBoost: {
-      if (!e.has<StatBoostAnimation>()) {
+      if (!e.has<AnimationData>()) {
         break;
       }
       log_info("ANIM schedule: StatBoost (event id={})", e.id);
@@ -43,7 +43,7 @@ struct UnifiedAnimationSystem
       break;
     }
     case AnimationEventType::FreshnessChain: {
-      if (!e.has<FreshnessChainAnimation>()) {
+      if (!e.has<AnimationData>()) {
         break;
       }
       log_info("ANIM schedule: FreshnessChain (event id={})", e.id);
@@ -81,11 +81,8 @@ struct AnimationTimerSystem : afterhours::System<AnimationTimer> {
       e.removeComponent<IsBlockingAnimationEvent>();
 
       // Clean up animation-specific components
-      if (e.has<StatBoostAnimation>()) {
-        e.removeComponent<StatBoostAnimation>();
-      }
-      if (e.has<FreshnessChainAnimation>()) {
-        e.removeComponent<FreshnessChainAnimation>();
+      if (e.has<AnimationData>()) {
+        e.removeComponent<AnimationData>();
       }
     }
   }

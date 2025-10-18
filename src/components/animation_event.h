@@ -25,17 +25,19 @@ struct AnimationTimer : afterhours::BaseComponent {
   float elapsed = 0.0f;
 };
 
-// Component for stat boost animations - tracks which dish gets the +1 overlay
-struct StatBoostAnimation : afterhours::BaseComponent {
+// Unified animation data component - contains all animation-specific data
+struct AnimationData : afterhours::BaseComponent {
+  // StatBoost data
   int targetEntityId = -1; // which dish gets the stat boost
   int zingDelta = 0;       // how much zing is being added
   int bodyDelta = 0;       // how much body is being added
-};
 
-// Component for freshness chain animations - tracks which dishes get freshness
-// boosts
-struct FreshnessChainAnimation : afterhours::BaseComponent {
+  // FreshnessChain data
   int sourceEntityId = -1;   // the salmon dish that triggered the chain
   int previousEntityId = -1; // previous dish that gets boosted (if any)
   int nextEntityId = -1;     // next dish that gets boosted (if any)
 };
+
+// Legacy type aliases for backwards compatibility
+using StatBoostAnimation = AnimationData;
+using FreshnessChainAnimation = AnimationData;

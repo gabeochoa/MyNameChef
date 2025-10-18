@@ -16,12 +16,11 @@ backward::SignalHandling sh;
 #include "shop.h"
 #include "sound_systems.h"
 #include "systems/AdvanceCourseSystem.h"
-#include "systems/AnimationTimerSystem.h"
 #include "systems/ApplyPendingCombatModsSystem.h"
-#include "systems/BatchOnServeTriggersSystem.h"
-#include "systems/BattleAnimationSystem.h"
-#include "systems/BattleAnimations.h"
+#include "systems/UnifiedAnimationSystem.h"
+#include "systems/RenderAnimations.h"
 #include "systems/BattleDebugSystem.h"
+#include "systems/SimplifiedOnServeSystem.h"
 #include "systems/BattleEnterAnimationSystem.h"
 #include "systems/BattleProcessorSystem.h"
 #include "systems/BattleTeamLoaderSystem.h"
@@ -44,15 +43,14 @@ backward::SignalHandling sh;
 #include "systems/RenderDishProgressBars.h"
 #include "systems/RenderEntitiesByOrder.h"
 #include "systems/RenderFPS.h"
-#include "systems/RenderFreshnessChainEffect.h"
-#include "systems/RenderLetterboxBars.h"
-#include "systems/RenderRenderTexture.h"
-#include "systems/RenderSellSlot.h"
 #include "systems/RenderSpritesByOrder.h"
 #include "systems/RenderSpritesWithShaders.h"
-#include "systems/RenderStatBoostOverlay.h"
+#include "systems/RenderRenderTexture.h"
+#include "systems/RenderLetterboxBars.h"
+#include "systems/RenderAnimations.h"
 #include "systems/RenderSystemHelpers.h"
 #include "systems/RenderWalletHUD.h"
+#include "systems/RenderSellSlot.h"
 #include "systems/RenderZingBodyOverlay.h"
 #include "systems/ResolveCombatTickSystem.h"
 #include "systems/StartCourseSystem.h"
@@ -131,7 +129,7 @@ void game() {
     systems.register_update_system(
         std::make_unique<BattleEnterAnimationSystem>());
     systems.register_update_system(
-        std::make_unique<BatchOnServeTriggersSystem>());
+        std::make_unique<SimplifiedOnServeSystem>());
     systems.register_update_system(std::make_unique<ResolveCombatTickSystem>());
     systems.register_update_system(std::make_unique<AdvanceCourseSystem>());
     systems.register_update_system(std::make_unique<CleanupBattleEntities>());
@@ -142,8 +140,7 @@ void game() {
     afterhours::animation::register_update_systems<
         afterhours::animation::CompositeKey>(systems);
     afterhours::animation::register_update_systems<BattleAnimKey>(systems);
-    systems.register_update_system(std::make_unique<TriggerBattleSlideIn>());
-    systems.register_update_system(std::make_unique<BattleAnimationSystem>());
+    systems.register_update_system(std::make_unique<UnifiedAnimationSystem>());
     systems.register_update_system(std::make_unique<AnimationTimerSystem>());
 
     register_sound_systems(systems);
@@ -177,9 +174,7 @@ void game() {
         systems.register_render_system(
             std::make_unique<RenderZingBodyOverlay>());
         systems.register_render_system(
-            std::make_unique<RenderStatBoostOverlay>());
-        systems.register_render_system(
-            std::make_unique<RenderFreshnessChainEffect>());
+            std::make_unique<RenderAnimations>());
         systems.register_render_system(
             std::make_unique<RenderDishProgressBars>());
         systems.register_render_system(std::make_unique<RenderWalletHUD>());
