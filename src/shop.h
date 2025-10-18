@@ -69,3 +69,8 @@ bool hasActiveAnimation();
 // Animation event creation
 afterhours::Entity &make_animation_event(AnimationEventType type,
                                          bool blocking = true);
+
+// Freshness chain animation creation
+afterhours::Entity &make_freshness_chain_animation(int sourceEntityId,
+                                                   int previousEntityId = -1,
+                                                   int nextEntityId = -1);

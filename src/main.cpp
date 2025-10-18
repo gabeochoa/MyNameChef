@@ -42,6 +42,7 @@ backward::SignalHandling sh;
 #include "systems/RenderDishProgressBars.h"
 #include "systems/RenderEntitiesByOrder.h"
 #include "systems/RenderFPS.h"
+#include "systems/RenderFreshnessChainEffect.h"
 #include "systems/RenderLetterboxBars.h"
 #include "systems/RenderRenderTexture.h"
 #include "systems/RenderSellSlot.h"
@@ -172,6 +173,8 @@ void game() {
             std::make_unique<RenderZingBodyOverlay>());
         systems.register_render_system(
             std::make_unique<RenderStatBoostOverlay>());
+        systems.register_render_system(
+            std::make_unique<RenderFreshnessChainEffect>());
         systems.register_render_system(
             std::make_unique<RenderDishProgressBars>());
         systems.register_render_system(std::make_unique<RenderWalletHUD>());

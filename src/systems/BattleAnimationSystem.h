@@ -56,6 +56,24 @@ struct BattleAnimationSystem
           });
       break;
     }
+    case AnimationEventType::FreshnessChain: {
+      // Get the FreshnessChainAnimation component if it exists
+      if (!e.has<FreshnessChainAnimation>()) {
+        break;
+      }
+      // Drive a global hold for the freshness chain animation duration
+      afterhours::animation::anim(BattleAnimKey::FreshnessChain,
+                                  /*index=*/(size_t)e.id)
+          .from(0.0f)
+          .to(1.0f, 2.0f, afterhours::animation::EasingType::EaseOutQuad)
+          .on_complete([id = e.id]() {
+            if (auto ent = afterhours::EntityQuery().whereID(id).gen_first()) {
+              ent->removeComponent<AnimationEvent>();
+              ent->removeComponent<FreshnessChainAnimation>();
+            }
+          });
+      break;
+    }
     }
 
     // Only run one event per update; bail after scheduling

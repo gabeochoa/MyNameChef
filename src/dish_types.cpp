@@ -1,9 +1,11 @@
 #include "dish_types.h"
+#include "components/animation_event.h"
 #include "components/deferred_flavor_mods.h"
 #include "components/dish_battle_state.h"
 #include "components/is_dish.h"
 #include "components/pending_combat_mods.h"
 #include "query.h"
+#include "shop.h"
 #include <afterhours/ah.h>
 #include <vector>
 
@@ -86,6 +88,10 @@ DishInfo get_dish_info(DishType type) {
           // If adjacent dish has freshness, boost freshness of self, previous,
           // and next
           if (has_freshness_adjacent) {
+            // Track which dishes will be affected for animation
+            int previousEntityId = -1;
+            int nextEntityId = -1;
+
             // Boost self
             auto &src_deferred =
                 src_opt->addComponentIfMissing<DeferredFlavorMods>();
@@ -102,6 +108,7 @@ DishInfo get_dish_info(DishType type) {
                   dbs.queue_index == src_queue_index - 1) {
                 auto &deferred = e.addComponentIfMissing<DeferredFlavorMods>();
                 deferred.freshness += 1;
+                previousEntityId = e.id;
               }
             }
 
@@ -116,8 +123,13 @@ DishInfo get_dish_info(DishType type) {
                   dbs.queue_index == src_queue_index + 1) {
                 auto &deferred = e.addComponentIfMissing<DeferredFlavorMods>();
                 deferred.freshness += 1;
+                nextEntityId = e.id;
               }
             }
+
+            // Create freshness chain animation
+            make_freshness_chain_animation(sourceEntityId, previousEntityId,
+                                           nextEntityId);
           }
         }); // 88_salmon.png x=192,y=224 - Tier 1
   case DishType::Bagel:
