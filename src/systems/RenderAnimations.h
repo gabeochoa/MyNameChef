@@ -36,11 +36,11 @@ struct RenderAnimations : afterhours::System<AnimationEvent> {
 private:
   void render_stat_boost_animation(const afterhours::Entity &animEntity,
                                   const AnimationEvent &) const {
-    if (!animEntity.has<AnimationData>()) {
+    if (!animEntity.has<AnimationEvent>()) {
       return;
     }
 
-    const auto &animData = animEntity.get<AnimationData>();
+    const auto &animData = animEntity.get<AnimationEvent>().data;
 
     // Find the target dish entity
     auto targetOpt =
@@ -125,11 +125,11 @@ private:
 
   void render_freshness_chain_animation(const afterhours::Entity &animEntity,
                                         const AnimationEvent &) const {
-    if (!animEntity.has<AnimationData>()) {
+    if (!animEntity.has<AnimationEvent>()) {
       return;
     }
 
-    const auto &animData = animEntity.get<AnimationData>();
+    const auto &animData = animEntity.get<AnimationEvent>().data;
 
     // Check if animation exists - if not, skip rendering
     auto progress = afterhours::animation::get_value(

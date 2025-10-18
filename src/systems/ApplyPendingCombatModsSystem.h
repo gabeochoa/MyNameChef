@@ -28,11 +28,10 @@ struct ApplyPendingCombatModsSystem : afterhours::System<PendingCombatMods> {
 
     // Create animation event before applying mods
     auto &animEvent = make_animation_event(AnimationEventType::StatBoost, true);
-    animEvent.addComponent<StatBoostAnimation>();
-    auto &statBoost = animEvent.get<StatBoostAnimation>();
-    statBoost.targetEntityId = e.id;
-    statBoost.zingDelta = pending.zingDelta;
-    statBoost.bodyDelta = pending.bodyDelta;
+    auto &animEventData = animEvent.get<AnimationEvent>().data;
+    animEventData.targetEntityId = e.id;
+    animEventData.zingDelta = pending.zingDelta;
+    animEventData.bodyDelta = pending.bodyDelta;
 
     auto &cs = e.get<CombatStats>();
 

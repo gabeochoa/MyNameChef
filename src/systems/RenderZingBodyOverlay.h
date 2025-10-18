@@ -8,7 +8,6 @@
 #include "../dish_types.h"
 #include "../game_state_manager.h"
 #include "../rl.h"
-#include "BattleAnimations.h"
 #include <afterhours/ah.h>
 #include <afterhours/src/plugins/animation.h>
 
