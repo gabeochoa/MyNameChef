@@ -3,6 +3,7 @@
 #include "../components/battle_load_request.h"
 #include "../components/battle_processor.h"
 #include "../game_state_manager.h"
+#include "../shop.h"
 #include <afterhours/ah.h>
 
 struct BattleProcessorSystem : afterhours::System<BattleProcessor> {
@@ -13,7 +14,9 @@ struct BattleProcessorSystem : afterhours::System<BattleProcessor> {
 
     auto battleProcessor =
         afterhours::EntityHelper::get_singleton<BattleProcessor>();
-    return battleProcessor.get().has<BattleProcessor>();
+    if (!battleProcessor.get().has<BattleProcessor>())
+      return false;
+    return !hasTriggerAnimationRunning();
   }
 
   void for_each_with(afterhours::Entity &, BattleProcessor &processor,

@@ -10,6 +10,7 @@
 #include "components/is_shop_item.h"
 #include "components/render_order.h"
 #include "components/transform.h"
+#include "components/trigger_animation_state.h"
 #include "components/trigger_queue.h"
 #include "dish_types.h"
 #include "game_state_manager.h"
@@ -105,6 +106,9 @@ Entity &make_battle_processor_manager(Entity &sophie) {
   EntityHelper::registerSingleton<BattleProcessor>(sophie);
   sophie.addComponentIfMissing<TriggerQueue>();
   EntityHelper::registerSingleton<TriggerQueue>(sophie);
+  // Ensure TriggerAnimationState singleton exists early so gate checks are safe
+  sophie.addComponentIfMissing<TriggerAnimationState>();
+  EntityHelper::registerSingleton<TriggerAnimationState>(sophie);
   return sophie;
 }
 
@@ -181,4 +185,11 @@ bool wallet_charge(int cost) {
 bool charge_for_shop_purchase(DishType type) {
   const int price = get_dish_info(type).price;
   return wallet_charge(price);
+}
+
+bool hasTriggerAnimationRunning() {
+  auto gate = EntityHelper::get_singleton<TriggerAnimationState>();
+  if (!gate.get().has<TriggerAnimationState>())
+    return false;
+  return gate.get().get<TriggerAnimationState>().running;
 }

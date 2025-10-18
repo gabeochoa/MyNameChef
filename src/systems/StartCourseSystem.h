@@ -3,12 +3,14 @@
 #include "../components/combat_queue.h"
 #include "../components/dish_battle_state.h"
 #include "../game_state_manager.h"
+#include "../shop.h"
 #include <afterhours/ah.h>
 
 struct StartCourseSystem : afterhours::System<CombatQueue> {
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
-    return gsm.active_screen == GameStateManager::Screen::Battle;
+    return gsm.active_screen == GameStateManager::Screen::Battle &&
+           !hasTriggerAnimationRunning();
   }
 
   void for_each_with(afterhours::Entity &, CombatQueue &cq, float) override {

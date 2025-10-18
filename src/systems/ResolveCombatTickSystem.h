@@ -4,6 +4,7 @@
 #include "../components/combat_stats.h"
 #include "../components/dish_battle_state.h"
 #include "../game_state_manager.h"
+#include "../shop.h"
 #include <afterhours/ah.h>
 
 struct ResolveCombatTickSystem
@@ -38,7 +39,8 @@ private:
 
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
-    bool should_run = gsm.active_screen == GameStateManager::Screen::Battle;
+    bool should_run = gsm.active_screen == GameStateManager::Screen::Battle &&
+                      !hasTriggerAnimationRunning();
     return should_run;
   }
 
@@ -46,7 +48,6 @@ private:
                      CombatStats &cs, float dt) override {
     if (dbs.phase != DishBattleState::Phase::InCombat)
       return;
-
     // Drive the bite cadence from the Player-side entity only to avoid
     // double progression and turn desync.
     if (dbs.team_side != DishBattleState::TeamSide::Player)

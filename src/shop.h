@@ -45,16 +45,14 @@ afterhours::Entity &make_shop_manager(afterhours::Entity &);
 afterhours::Entity &make_combat_manager(afterhours::Entity &);
 afterhours::Entity &make_battle_processor_manager(afterhours::Entity &);
 afterhours::Entity &make_shop_item(int slot, DishType type);
-afterhours::Entity &make_drop_slot(int slot_id, afterhours::vec2 position,
-                                   afterhours::vec2 size,
+afterhours::Entity &make_drop_slot(int slot_id, vec2 position, vec2 size,
                                    bool accepts_inventory = true,
                                    bool accepts_shop = true);
 std::vector<int> get_free_slots(int max_slots);
 DishType get_random_dish();
 DishType get_random_dish_for_tier(int tier);
-afterhours::vec2 calculate_slot_position(int slot, int start_x, int start_y,
-                                         int cols = 4);
-afterhours::vec2 calculate_inventory_position(int slot);
+vec2 calculate_slot_position(int slot, int start_x, int start_y, int cols = 4);
+vec2 calculate_inventory_position(int slot);
 
 void register_shop_update_systems(afterhours::SystemManager &systems);
 void register_shop_render_systems(afterhours::SystemManager &systems);
@@ -63,3 +61,6 @@ void register_shop_render_systems(afterhours::SystemManager &systems);
 bool wallet_can_afford(int cost);
 bool wallet_charge(int cost);
 bool charge_for_shop_purchase(DishType type);
+
+// Battle/trigger animation utils
+bool hasTriggerAnimationRunning();

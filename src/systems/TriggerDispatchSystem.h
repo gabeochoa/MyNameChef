@@ -8,6 +8,7 @@
 #include "../dish_types.h"
 #include "../game_state_manager.h"
 #include "../query.h"
+#include "../shop.h"
 #include <afterhours/ah.h>
 #include <algorithm>
 #include <magic_enum/magic_enum.hpp>
@@ -15,7 +16,8 @@
 struct TriggerDispatchSystem : afterhours::System<TriggerQueue> {
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
-    return gsm.active_screen == GameStateManager::Screen::Battle;
+    return gsm.active_screen == GameStateManager::Screen::Battle &&
+           !hasTriggerAnimationRunning();
   }
 
   void for_each_with(afterhours::Entity &, TriggerQueue &queue,
