@@ -1,7 +1,7 @@
 #include "dish_types.h"
 #include "components/dish_battle_state.h"
 #include "components/is_dish.h"
-#include "components/pre_battle_modifiers.h"
+#include "components/pending_combat_mods.h"
 #include "query.h"
 #include <afterhours/ah.h>
 #include <vector>
@@ -67,8 +67,9 @@ DishInfo get_dish_info(DishType type) {
                 continue;
             }
             if (dbs.phase == DishBattleState::Phase::InQueue) {
-              auto &pre = e.addComponentIfMissing<PreBattleModifiers>();
-              pre.zingDelta += 1;
+              auto &pending = e.addComponentIfMissing<PendingCombatMods>();
+              pending.zingDelta += 1;
+
               log_info("TRIGGER french fries handler: dish={} (id={})",
                        e.get<IsDish>().name(), e.id);
             }

@@ -14,6 +14,7 @@ backward::SignalHandling sh;
 #include "shop.h"
 #include "sound_systems.h"
 #include "systems/AdvanceCourseSystem.h"
+#include "systems/ApplyPendingCombatModsSystem.h"
 #include "systems/BattleAnimations.h"
 #include "systems/BattleDebugSystem.h"
 #include "systems/BattleEnterAnimationSystem.h"
@@ -113,6 +114,8 @@ void game() {
     systems.register_update_system(std::make_unique<BattleDebugSystem>());
     systems.register_update_system(std::make_unique<BattleProcessorSystem>());
     systems.register_update_system(std::make_unique<TriggerDispatchSystem>());
+    systems.register_update_system(
+        std::make_unique<ApplyPendingCombatModsSystem>());
     // Legacy battle systems - can be removed once BattleProcessor is working
     systems.register_update_system(std::make_unique<InitCombatState>());
     systems.register_update_system(

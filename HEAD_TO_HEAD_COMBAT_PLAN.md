@@ -343,18 +343,236 @@ struct ApplyPairingsAndClashesSystem : System<IsDish, PreBattleModifiers> {
 };
 ```
 
-Phase 3b — First effects via triggers
-- Deliverables:
-  - `EffectResolutionSystem` with ops: `AddFlavorStat`, `AddCombatBody`.
-  - Two sample effects:
-    - `OnBiteTaken`: `AddFlavorStat(sweetness,+1)` to `DishesAfterSelf` (same team).
-    - `OnServe`: `AddTeamFlavorStat(spice,-1)` for both teams.
-- Pseudocode:
-```cpp
-struct EffectResolutionSystem : System<TriggerQueue> {
-  void apply(const TriggerEvent& ev) { /* map to ops and mutate DeferredFlavorMods or CombatStats */ }
-};
-```
+Phase 3b — First effects via triggers (DETAILED IMPLEMENTATION PLAN)
+
+### Overview
+Transform the trigger system from logging-only to actual gameplay effects. This phase implements the core effect resolution system that will process trigger events and apply real stat modifications to dishes.
+
+### Deliverables
+- `EffectResolutionSystem` with operations: `AddFlavorStat`, `AddCombatBody`, `AddCombatZing`
+- Two sample effects demonstrating different targeting scopes:
+  - `OnBiteTaken`: `AddFlavorStat(sweetness,+1)` to `DishesAfterSelf` (same team)
+  - `OnServe`: `AddTeamFlavorStat(spice,-1)` for both teams
+- Effect targeting system supporting: `Self`, `Opponent`, `AllAllies`, `AllOpponents`, `DishesAfterSelf`, `FutureAllies`
+
+### Step-by-Step Implementation
+
+#### Step 1: Create Effect System Components
+- [ ] Create `src/components/deferred_flavor_mods.h`
+  ```cpp
+  struct DeferredFlavorMods : BaseComponent {
+    int satietyDelta = 0;
+    int sweetnessDelta = 0;
+    int spiceDelta = 0;
+    int acidityDelta = 0;
+    int umamiDelta = 0;
+    int richnessDelta = 0;
+    int freshnessDelta = 0;
+  };
+  ```
+
+- [ ] Create `src/components/pending_combat_mods.h`
+  ```cpp
+  struct PendingCombatMods : BaseComponent {
+    int zingDelta = 0;
+    int bodyDelta = 0;
+    int durationTicks = 0; // 0 = permanent
+  };
+  ```
+
+- [ ] Create `src/components/effect_operation.h`
+  ```cpp
+  enum struct EffectOp {
+    AddFlavorStat,
+    AddCombatZing,
+    AddCombatBody,
+    AddTeamFlavorStat
+  };
+  
+  enum struct TargetScope {
+    Self,
+    Opponent,
+    AllAllies,
+    AllOpponents,
+    DishesAfterSelf,
+    FutureAllies,
+    FutureOpponents
+  };
+  
+  struct EffectOperation : BaseComponent {
+    EffectOp operation;
+    TargetScope scope;
+    int statType = 0; // FlavorStats index or CombatStats field
+    int amount = 0;
+    int sourceEntityId = 0;
+    int sourceSlotIndex = 0;
+  };
+  ```
+
+#### Step 2: Create EffectResolutionSystem
+- [ ] Create `src/systems/EffectResolutionSystem.h`
+  ```cpp
+  struct EffectResolutionSystem : System<TriggerQueue> {
+    virtual bool should_run(float) override {
+      auto &gsm = GameStateManager::get();
+      return gsm.active_screen == GameStateManager::Screen::Battle;
+    }
+    
+    void for_each_with(Entity &, TriggerQueue &queue, float) override {
+      if (queue.empty()) return;
+      
+      // Process each trigger event and generate effect operations
+      for (const auto &ev : queue.events) {
+        process_trigger_event(ev);
+      }
+      
+      queue.clear();
+    }
+    
+  private:
+    void process_trigger_event(const TriggerEvent &ev);
+    void apply_effect_operation(const EffectOperation &op);
+    std::vector<Entity*> get_targets(TargetScope scope, int sourceEntityId, int sourceSlotIndex);
+  };
+  ```
+
+#### Step 3: Implement Effect Operations
+- [ ] Add effect operation processing methods:
+  ```cpp
+  void EffectResolutionSystem::process_trigger_event(const TriggerEvent &ev) {
+    switch (ev.hook) {
+    case TriggerHook::OnBiteTaken:
+      // Sample effect: Increase sweetness for dishes after this one
+      if (ev.payloadInt > 0) { // Only if damage was dealt
+        EffectOperation op;
+        op.operation = EffectOp::AddFlavorStat;
+        op.scope = TargetScope::DishesAfterSelf;
+        op.statType = 1; // sweetness
+        op.amount = 1;
+        op.sourceEntityId = ev.sourceEntityId;
+        op.sourceSlotIndex = ev.slotIndex;
+        apply_effect_operation(op);
+      }
+      break;
+      
+    case TriggerHook::OnServe:
+      // Sample effect: Reduce spice for all future dishes
+      EffectOperation op;
+      op.operation = EffectOp::AddTeamFlavorStat;
+      op.scope = TargetScope::FutureAllies;
+      op.statType = 2; // spice
+      op.amount = -1;
+      op.sourceEntityId = ev.sourceEntityId;
+      op.sourceSlotIndex = ev.slotIndex;
+      apply_effect_operation(op);
+      break;
+    }
+  }
+  ```
+
+#### Step 4: Implement Targeting System
+- [ ] Add targeting logic:
+  ```cpp
+  std::vector<Entity*> EffectResolutionSystem::get_targets(TargetScope scope, int sourceEntityId, int sourceSlotIndex) {
+    std::vector<Entity*> targets;
+    
+    switch (scope) {
+    case TargetScope::Self:
+      if (auto e = EQ().whereID(sourceEntityId).gen_first()) {
+        targets.push_back(&e->get());
+      }
+      break;
+      
+    case TargetScope::DishesAfterSelf:
+      for (Entity &e : EQ().whereHasComponent<DishBattleState>().gen()) {
+        auto &dbs = e.get<DishBattleState>();
+        if (dbs.queue_index > sourceSlotIndex && 
+            dbs.team_side == get_source_team_side(sourceEntityId)) {
+          targets.push_back(&e);
+        }
+      }
+      break;
+      
+    case TargetScope::FutureAllies:
+      for (Entity &e : EQ().whereHasComponent<DishBattleState>().gen()) {
+        auto &dbs = e.get<DishBattleState>();
+        if (dbs.phase == DishBattleState::Phase::InQueue &&
+            dbs.team_side == get_source_team_side(sourceEntityId)) {
+          targets.push_back(&e);
+        }
+      }
+      break;
+    }
+    
+    return targets;
+  }
+  ```
+
+#### Step 5: Integrate with Existing Systems
+- [ ] Update `ComputeCombatStatsSystem` to apply `DeferredFlavorMods`:
+  ```cpp
+  // In ComputeCombatStatsSystem::for_each_with()
+  auto dish_info = get_dish_info(dish.type);
+  FlavorStats flavor = dish_info.flavor;
+  
+  // Apply deferred flavor modifications
+  if (e.has<DeferredFlavorMods>()) {
+    auto &def = e.get<DeferredFlavorMods>();
+    flavor.satiety += def.satietyDelta;
+    flavor.sweetness += def.sweetnessDelta;
+    flavor.spice += def.spiceDelta;
+    flavor.acidity += def.acidityDelta;
+    flavor.umami += def.umamiDelta;
+    flavor.richness += def.richnessDelta;
+    flavor.freshness += def.freshnessDelta;
+    
+    // Clear consumed modifiers
+    e.remove<DeferredFlavorMods>();
+  }
+  ```
+
+- [ ] Update `ResolveCombatTickSystem` to apply `PendingCombatMods`:
+  ```cpp
+  // In ResolveCombatTickSystem::for_each_with()
+  if (e.has<PendingCombatMods>()) {
+    auto &pending = e.get<PendingCombatMods>();
+    cs.currentZing += pending.zingDelta;
+    cs.currentBody += pending.bodyDelta;
+    
+    if (pending.durationTicks > 0) {
+      pending.durationTicks--;
+      if (pending.durationTicks <= 0) {
+        e.remove<PendingCombatMods>();
+      }
+    }
+  }
+  ```
+
+#### Step 6: Register Systems and Test
+- [ ] Add `#include "systems/EffectResolutionSystem.h"` to `src/main.cpp`
+- [ ] Register `EffectResolutionSystem` after `TriggerDispatchSystem`
+- [ ] Test with FrenchFries effect and new sample effects
+- [ ] Verify stat modifications are applied correctly
+
+### Integration Points
+1. **Trigger Events** → `EffectResolutionSystem` processes and generates `EffectOperation`s
+2. **Effect Operations** → Applied to target entities via `DeferredFlavorMods` or `PendingCombatMods`
+3. **DeferredFlavorMods** → Consumed by `ComputeCombatStatsSystem` when dishes enter combat
+4. **PendingCombatMods** → Applied immediately by `ResolveCombatTickSystem` during combat
+
+### Sample Effects to Implement
+1. **FrenchFries OnServe**: `AddFlavorStat(zing,+1)` to `FutureAllies` (already working via PreBattleModifiers)
+2. **OnBiteTaken**: `AddFlavorStat(sweetness,+1)` to `DishesAfterSelf` 
+3. **OnServe**: `AddTeamFlavorStat(spice,-1)` to `FutureAllies`
+4. **OnDishFinished**: `AddCombatZing(+2)` to `AllAllies` for 3 ticks
+
+### Acceptance Criteria
+- [ ] Effect operations are generated from trigger events
+- [ ] Targeting system correctly identifies affected dishes
+- [ ] DeferredFlavorMods are applied before combat stats calculation
+- [ ] PendingCombatMods are applied during combat
+- [ ] Sample effects produce visible stat changes
+- [ ] Build compiles and runs without errors
 
 Phase 4 — UI overlays and feedback
 - Deliverables:
