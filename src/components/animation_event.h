@@ -1,6 +1,7 @@
 #pragma once
 
 #include <afterhours/ah.h>
+#include <variant>
 
 // Marker for an animation event entity that should block battle progression
 struct IsBlockingAnimationEvent : afterhours::BaseComponent {};
@@ -8,23 +9,31 @@ struct IsBlockingAnimationEvent : afterhours::BaseComponent {};
 // Generic animation event payload; different kinds are identified by type
 enum struct AnimationEventType { SlideIn, StatBoost, FreshnessChain };
 
+// Animation-specific data variants
+struct StatBoostData {
+  int targetEntityId = -1; // which dish gets the stat boost
+  int zingDelta = 0;       // how much zing is being added
+  int bodyDelta = 0;       // how much body is being added
+};
+
+struct FreshnessChainData {
+  int sourceEntityId = -1;   // the salmon dish that triggered the chain
+  int previousEntityId = -1; // previous dish that gets boosted (if any)
+  int nextEntityId = -1;     // next dish that gets boosted (if any)
+};
+
+struct SlideInData {
+  // No additional data needed for slide-in animations
+};
+
 struct AnimationEvent : afterhours::BaseComponent {
   AnimationEventType type = AnimationEventType::SlideIn;
   int slotIndex = -1; // which course slot, if applicable
   int entityId = -1;  // optional source entity
 
-  // Animation-specific data - only used for certain animation types
-  struct Data {
-    // StatBoost data
-    int targetEntityId = -1; // which dish gets the stat boost
-    int zingDelta = 0;       // how much zing is being added
-    int bodyDelta = 0;       // how much body is being added
-
-    // FreshnessChain data
-    int sourceEntityId = -1;   // the salmon dish that triggered the chain
-    int previousEntityId = -1; // previous dish that gets boosted (if any)
-    int nextEntityId = -1;     // next dish that gets boosted (if any)
-  } data;
+  // Animation-specific data using variant for type safety
+  std::variant<SlideInData, StatBoostData, FreshnessChainData> data =
+      SlideInData{};
 };
 
 // Marker to indicate the animation has been scheduled so we don't reschedule
@@ -37,7 +46,3 @@ struct AnimationTimer : afterhours::BaseComponent {
   float duration = 0.0f;
   float elapsed = 0.0f;
 };
-
-// Legacy type aliases for backwards compatibility
-using StatBoostAnimation = AnimationEvent::Data;
-using FreshnessChainAnimation = AnimationEvent::Data;

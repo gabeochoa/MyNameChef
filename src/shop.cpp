@@ -206,8 +206,6 @@ afterhours::Entity &make_freshness_chain_animation(int sourceEntityId,
                                                    int nextEntityId) {
   auto &e = make_animation_event(AnimationEventType::FreshnessChain, true);
   auto &animEvent = e.get<AnimationEvent>();
-  animEvent.data.sourceEntityId = sourceEntityId;
-  animEvent.data.previousEntityId = previousEntityId;
-  animEvent.data.nextEntityId = nextEntityId;
+  animEvent.data = FreshnessChainData{sourceEntityId, previousEntityId, nextEntityId};
   return e;
 }
