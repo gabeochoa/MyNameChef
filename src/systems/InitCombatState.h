@@ -20,7 +20,7 @@ struct InitCombatState : afterhours::System<CombatQueue> {
   void for_each_with(afterhours::Entity &, CombatQueue &cq, float) override {
     // Reset combat queue
     cq.reset();
-    
+
     log_info("COMBAT: Reset combat queue - current_index: {}, total_courses: "
              "{}, complete: {}",
              cq.current_index, cq.total_courses, cq.complete);
@@ -33,6 +33,7 @@ struct InitCombatState : afterhours::System<CombatQueue> {
       dbs.phase = DishBattleState::Phase::InQueue;
       dbs.enter_progress = 0.0f;
       dbs.bite_timer = 0.0f;
+      dbs.onserve_fired = false;
       dish_count++;
 
       log_info(

@@ -15,4 +15,5 @@ struct DishBattleState : afterhours::BaseComponent {
   float bite_timer = 0.0f;         // pacing timer during combat
   bool players_turn = true;        // maintained on player-side entity
   bool first_bite_decided = false; // set once per pairing
+  bool onserve_fired = false;      // track if OnServe trigger has been fired
 };

@@ -16,7 +16,9 @@ backward::SignalHandling sh;
 #include "shop.h"
 #include "sound_systems.h"
 #include "systems/AdvanceCourseSystem.h"
+#include "systems/AnimationTimerSystem.h"
 #include "systems/ApplyPendingCombatModsSystem.h"
+#include "systems/BatchOnServeTriggersSystem.h"
 #include "systems/BattleAnimationSystem.h"
 #include "systems/BattleAnimations.h"
 #include "systems/BattleDebugSystem.h"
@@ -128,6 +130,8 @@ void game() {
     systems.register_update_system(std::make_unique<StartCourseSystem>());
     systems.register_update_system(
         std::make_unique<BattleEnterAnimationSystem>());
+    systems.register_update_system(
+        std::make_unique<BatchOnServeTriggersSystem>());
     systems.register_update_system(std::make_unique<ResolveCombatTickSystem>());
     systems.register_update_system(std::make_unique<AdvanceCourseSystem>());
     systems.register_update_system(std::make_unique<CleanupBattleEntities>());
@@ -140,6 +144,7 @@ void game() {
     afterhours::animation::register_update_systems<BattleAnimKey>(systems);
     systems.register_update_system(std::make_unique<TriggerBattleSlideIn>());
     systems.register_update_system(std::make_unique<BattleAnimationSystem>());
+    systems.register_update_system(std::make_unique<AnimationTimerSystem>());
 
     register_sound_systems(systems);
     register_ui_systems(systems);

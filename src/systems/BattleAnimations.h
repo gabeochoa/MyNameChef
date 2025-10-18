@@ -79,10 +79,8 @@ struct TriggerBattleSlideIn : afterhours::System<> {
     }
 
     if (started_count > 0) {
-      // Enqueue a blocking SlideIn animation event
-      log_info("ANIMATION: Creating SlideIn animation event for {} dishes",
+      log_info("ANIMATION: Started slide-in animations for {} dishes",
                started_count);
-      make_animation_event(AnimationEventType::SlideIn, true);
     }
 
     started = true;

@@ -14,6 +14,17 @@ struct AnimationEvent : afterhours::BaseComponent {
   int entityId = -1;  // optional source entity
 };
 
+// Marker to indicate the animation has been scheduled so we don't reschedule
+// it every frame (which would prevent completion callbacks from firing)
+struct AnimationEventScheduled : afterhours::BaseComponent {};
+
+// Simple timer component for animations that don't use the complex animation
+// system
+struct AnimationTimer : afterhours::BaseComponent {
+  float duration = 0.0f;
+  float elapsed = 0.0f;
+};
+
 // Component for stat boost animations - tracks which dish gets the +1 overlay
 struct StatBoostAnimation : afterhours::BaseComponent {
   int targetEntityId = -1; // which dish gets the stat boost

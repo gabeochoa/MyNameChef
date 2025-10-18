@@ -17,8 +17,14 @@
 struct TriggerDispatchSystem : afterhours::System<TriggerQueue> {
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
-    return gsm.active_screen == GameStateManager::Screen::Battle &&
-           !hasActiveAnimation();
+    if (gsm.active_screen != GameStateManager::Screen::Battle) {
+      return false;
+    }
+
+    // Allow this system to run even when animations are active
+    // This is needed to process OnServe triggers even when FreshnessChain
+    // animations are playing
+    return true;
   }
 
   void for_each_with(afterhours::Entity &, TriggerQueue &queue,
