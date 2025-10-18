@@ -1,7 +1,15 @@
 #pragma once
 
+#include "../components/dish_level.h"
+#include "../components/is_dish.h"
+#include "../components/is_draggable.h"
 #include "../components/is_drop_slot.h"
+#include "../components/is_inventory_item.h"
+#include "../components/render_order.h"
+#include "../components/transform.h"
+#include "../dish_types.h"
 #include "../game_state_manager.h"
+#include "../render_constants.h"
 #include "../shop.h"
 #include <afterhours/ah.h>
 
@@ -52,6 +60,77 @@ struct GenerateInventorySlots : System<> {
 
         EntityHelper::merge_entity_arrays();
         log_info("Generated inventory slots for shop screen");
+      }
+    }
+
+    // Add test dishes directly to the inventory using real DishType values
+    if (gsm.active_screen == GameStateManager::Screen::Shop &&
+        last_screen != GameStateManager::Screen::Shop) {
+
+      // Check if test dishes already exist
+      bool test_dishes_exist = false;
+      for (auto &ref : afterhours::EntityQuery()
+                           .template whereHasComponent<IsInventoryItem>()
+                           .gen()) {
+        (void)ref; // Suppress unused variable warning
+        test_dishes_exist = true;
+        break;
+      }
+
+      // Only create test dishes if they don't exist
+      if (!test_dishes_exist) {
+        struct TestDishSpawn {
+          DishType dish_type;
+          int target_inventory_slot;
+        };
+
+        std::vector<TestDishSpawn> spawnList = {
+            {DishType::Bagel, INVENTORY_SLOT_OFFSET + 0},
+            {DishType::Salmon, INVENTORY_SLOT_OFFSET + 1},
+            {DishType::Salmon, INVENTORY_SLOT_OFFSET + 2},
+            {DishType::Bagel, INVENTORY_SLOT_OFFSET + 3},
+        };
+
+        for (auto &spawn : spawnList) {
+          auto position = calculate_inventory_position(
+              spawn.target_inventory_slot - INVENTORY_SLOT_OFFSET);
+
+          afterhours::Entity &dish = afterhours::EntityHelper::createEntity();
+
+          // Add core dish components
+          dish.addComponent<Transform>(position, vec2{SLOT_SIZE, SLOT_SIZE});
+          dish.addComponent<IsDish>(spawn.dish_type);
+          dish.addComponent<DishLevel>(1);
+          dish.addComponent<IsInventoryItem>();
+          dish.get<IsInventoryItem>().slot = spawn.target_inventory_slot;
+          dish.addComponent<IsDraggable>(true);
+          dish.addComponent<HasRenderOrder>(RenderOrder::ShopItems,
+                                            RenderScreen::Shop);
+
+          // Add sprite using dish atlas grid indices
+          auto dish_info = get_dish_info(spawn.dish_type);
+          const auto frame = afterhours::texture_manager::idx_to_sprite_frame(
+              dish_info.sprite.i, dish_info.sprite.j);
+          dish.addComponent<afterhours::texture_manager::HasSprite>(
+              position, vec2{SLOT_SIZE, SLOT_SIZE}, 0.f, frame,
+              render_constants::kDishSpriteScale,
+              raylib::Color{255, 255, 255, 255});
+
+          // Mark the corresponding slot as occupied
+          for (auto &ref : afterhours::EntityQuery()
+                               .template whereHasComponent<IsDropSlot>()
+                               .gen()) {
+            auto &slot_entity = ref.get();
+            if (slot_entity.get<IsDropSlot>().slot_id ==
+                spawn.target_inventory_slot) {
+              slot_entity.get<IsDropSlot>().occupied = true;
+              break;
+            }
+          }
+        }
+
+        EntityHelper::merge_entity_arrays();
+        log_info("Created test dishes in inventory slots");
       }
     }
 
