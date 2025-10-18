@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../components/battle_result.h"
 #include "../components/combat_queue.h"
 #include "../components/dish_battle_state.h"
 #include "../game_state_manager.h"
@@ -22,19 +21,15 @@ struct AdvanceCourseSystem : afterhours::System<CombatQueue> {
 
     // Check if both dishes for current course are finished
     if (both_dishes_finished(cq.current_index)) {
-      // (quiet)
+      log_info("COMBAT: Course {} finished", cq.current_index);
 
       cq.current_index++;
 
       if (cq.current_index >= cq.total_courses) {
         cq.complete = true;
-        // (quiet)
+        log_info("COMBAT: All courses complete; transitioning to results");
         GameStateManager::get().to_results();
-      } else {
-        // (quiet)
       }
-    } else {
-      // (quiet)
     }
   }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../components/combat_stats.h"
+#include "../components/dish_battle_state.h"
 #include "../components/dish_level.h"
 #include "../components/is_dish.h"
 #include "../components/pre_battle_modifiers.h"
@@ -36,8 +37,16 @@ struct ComputeCombatStatsSystem : afterhours::System<IsDish, DishLevel> {
     }
 
     // Apply pre-battle modifiers
-    cs.baseZing = cs.currentZing = std::max(0, zing + pre.zingDelta);
-    cs.baseBody = cs.currentBody = std::max(0, body + pre.bodyDelta);
+    // Do not overwrite current values if already in combat
+    bool in_combat =
+        e.has<DishBattleState>() &&
+        e.get<DishBattleState>().phase == DishBattleState::Phase::InCombat;
+    cs.baseZing = std::max(1, zing + pre.zingDelta);
+    cs.baseBody = std::max(0, body + pre.bodyDelta);
+    if (!in_combat) {
+      cs.currentZing = cs.baseZing;
+      cs.currentBody = cs.baseBody;
+    }
 
     // (quiet)
   }

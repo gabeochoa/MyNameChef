@@ -38,6 +38,7 @@ struct BattleEnterAnimationSystem : afterhours::System<DishBattleState> {
 
       dbs.phase = DishBattleState::Phase::InCombat;
       dbs.bite_timer = 0.0f;
+      dbs.first_bite_decided = false;
     }
   }
 };

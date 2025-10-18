@@ -99,6 +99,8 @@ struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
       }
     }
 
+    zing = std::max(1, zing);
+
     // Badge sizes relative to sprite rect
     const Rectangle rect = Rectangle{transform.position.x + offset_x,
                                      transform.position.y + offset_y,

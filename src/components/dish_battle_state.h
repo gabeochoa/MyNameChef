@@ -11,6 +11,8 @@ struct DishBattleState : afterhours::BaseComponent {
     InCombat,
     Finished
   } phase = Phase::InQueue;
-  float enter_progress = 0.0f; // slide-in animation 0..1
-  float bite_timer = 0.0f;     // pacing timer during combat
+  float enter_progress = 0.0f;     // slide-in animation 0..1
+  float bite_timer = 0.0f;         // pacing timer during combat
+  bool players_turn = true;        // maintained on player-side entity
+  bool first_bite_decided = false; // set once per pairing
 };

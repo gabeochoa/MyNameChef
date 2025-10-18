@@ -28,7 +28,6 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
       if (dbs.phase == DishBattleState::Phase::Entering ||
           dbs.phase == DishBattleState::Phase::InCombat) {
         any_active = true;
-        // (quiet)
       }
     }
 
@@ -58,7 +57,7 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
       opponent_dbs.phase = DishBattleState::Phase::Entering;
       opponent_dbs.enter_progress = -enter_start_delay;
 
-      // (quiet)
+      log_info("COMBAT: Starting course {}", cq.current_index);
     } else {
       // No more dishes, mark combat complete and transition to results
       cq.complete = true;
