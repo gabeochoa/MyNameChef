@@ -17,6 +17,7 @@ backward::SignalHandling sh;
 #include "systems/BattleAnimations.h"
 #include "systems/BattleDebugSystem.h"
 #include "systems/BattleEnterAnimationSystem.h"
+#include "systems/BattleProcessorSystem.h"
 #include "systems/BattleTeamLoaderSystem.h"
 #include "systems/CleanupBattleEntities.h"
 #include "systems/CleanupDishesEntities.h"
@@ -81,6 +82,7 @@ void game() {
     enforce_ui_singletons(systems);
     make_shop_manager(sophie);
     make_combat_manager(sophie);
+    make_battle_processor_manager(sophie);
   }
 
   // external plugins
@@ -108,6 +110,8 @@ void game() {
     systems.register_update_system(std::make_unique<DropWhenNoLongerHeld>());
     systems.register_update_system(std::make_unique<BattleTeamLoaderSystem>());
     systems.register_update_system(std::make_unique<BattleDebugSystem>());
+    systems.register_update_system(std::make_unique<BattleProcessorSystem>());
+    // Legacy battle systems - can be removed once BattleProcessor is working
     systems.register_update_system(std::make_unique<InitCombatState>());
     systems.register_update_system(
         std::make_unique<ComputeCombatStatsSystem>());

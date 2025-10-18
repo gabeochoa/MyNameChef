@@ -1,4 +1,5 @@
 #include "shop.h"
+#include "components/battle_processor.h"
 #include "components/can_drop_onto.h"
 #include "components/combat_queue.h"
 #include "components/dish_level.h"
@@ -95,6 +96,12 @@ Entity &make_shop_manager(Entity &sophie) {
 Entity &make_combat_manager(Entity &sophie) {
   sophie.addComponentIfMissing<CombatQueue>();
   EntityHelper::registerSingleton<CombatQueue>(sophie);
+  return sophie;
+}
+
+Entity &make_battle_processor_manager(Entity &sophie) {
+  sophie.addComponentIfMissing<BattleProcessor>();
+  EntityHelper::registerSingleton<BattleProcessor>(sophie);
   return sophie;
 }
 
