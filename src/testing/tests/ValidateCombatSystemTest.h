@@ -1,11 +1,24 @@
 #pragma once
 
 #include "../../game_state_manager.h"
+#include "../TestInteraction.h"
 #include "../UITestHelpers.h"
 
 struct ValidateCombatSystemTest {
   static void execute() {
-    // Navigate to battle screen first
+    // Step 1: Navigate to shop screen first
+    if (UITestHelpers::visible_ui_exists("Play")) {
+      // We're on main menu, click Play to go to shop
+      if (!UITestHelpers::click_ui("Play")) {
+        return; // Failed to click Play
+      }
+      
+      // Apply the screen transition
+      TestInteraction::start_game();
+      GameStateManager::get().update_screen();
+    }
+
+    // Step 2: Navigate to battle screen from shop
     if (!UITestHelpers::visible_ui_exists("Next Round")) {
       return; // Not on shop screen, can't navigate to battle
     }
@@ -15,8 +28,8 @@ struct ValidateCombatSystemTest {
       return; // Failed to click Next Round
     }
 
-    // Apply screen transition
-    GameStateManager::get().set_next_screen(GameStateManager::Screen::Battle);
+    // Apply screen transition to battle
+    GameStateManager::get().to_battle();
     GameStateManager::get().update_screen();
 
     // TODO: Battle screen validation will happen in next frame
