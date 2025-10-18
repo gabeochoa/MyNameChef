@@ -2,4 +2,4 @@
 
 #include <cstddef>
 
-enum struct BattleAnimKey : size_t { SlideIn };
+enum struct BattleAnimKey : size_t { SlideIn, StatBoost };

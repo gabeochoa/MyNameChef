@@ -1,14 +1,17 @@
 #pragma once
 
+#include "../components/animation_event.h"
 #include "../components/combat_stats.h"
 #include "../components/pending_combat_mods.h"
 #include "../game_state_manager.h"
+#include "../shop.h"
 #include <afterhours/ah.h>
 
 struct ApplyPendingCombatModsSystem : afterhours::System<PendingCombatMods> {
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
-    return gsm.active_screen == GameStateManager::Screen::Battle;
+    return gsm.active_screen == GameStateManager::Screen::Battle &&
+           !hasActiveAnimation();
   }
 
   void for_each_with(afterhours::Entity &e, PendingCombatMods &pending,
@@ -23,11 +26,15 @@ struct ApplyPendingCombatModsSystem : afterhours::System<PendingCombatMods> {
       return;
     }
 
-    auto &cs = e.get<CombatStats>();
+    // Create animation event before applying mods
+    auto &animEvent = make_animation_event(AnimationEventType::StatBoost, true);
+    animEvent.addComponent<StatBoostAnimation>();
+    auto &statBoost = animEvent.get<StatBoostAnimation>();
+    statBoost.targetEntityId = e.id;
+    statBoost.zingDelta = pending.zingDelta;
+    statBoost.bodyDelta = pending.bodyDelta;
 
-    // Store values before applying
-    int zingDelta = pending.zingDelta;
-    int bodyDelta = pending.bodyDelta;
+    auto &cs = e.get<CombatStats>();
 
     // Apply the pending modifications
     cs.currentZing += pending.zingDelta;
@@ -35,9 +42,5 @@ struct ApplyPendingCombatModsSystem : afterhours::System<PendingCombatMods> {
 
     // Clear the pending modifications (they've been applied)
     e.removeComponent<PendingCombatMods>();
-
-    log_info("APPLIED PENDING MODS: entity={} zingDelta={} bodyDelta={} -> "
-             "currentZing={} currentBody={}",
-             e.id, zingDelta, bodyDelta, cs.currentZing, cs.currentBody);
   }
 };

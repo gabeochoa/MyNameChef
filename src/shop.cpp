@@ -185,15 +185,9 @@ bool charge_for_shop_purchase(DishType type) {
 }
 
 bool hasActiveAnimation() {
-  auto opt =
-      EntityQuery().whereHasComponent<IsBlockingAnimationEvent>().gen_first();
-  bool has_active = (bool)opt;
-  if (has_active) {
-    log_info("ANIMATION: hasActiveAnimation() = true, found blocking event "
-             "entity={}",
-             opt->id);
-  }
-  return has_active;
+  return EntityQuery()
+      .whereHasComponent<IsBlockingAnimationEvent>()
+      .has_values();
 }
 
 afterhours::Entity &make_animation_event(AnimationEventType type,
@@ -201,9 +195,8 @@ afterhours::Entity &make_animation_event(AnimationEventType type,
   auto &e = EntityHelper::createEntity();
   e.addComponent<AnimationEvent>();
   e.get<AnimationEvent>().type = type;
-  if (blocking)
+  if (blocking) {
     e.addComponent<IsBlockingAnimationEvent>();
-  log_info("ANIMATION: Created {} animation event entity={}",
-           type == AnimationEventType::SlideIn ? "SlideIn" : "Unknown", e.id);
+  }
   return e;
 }
