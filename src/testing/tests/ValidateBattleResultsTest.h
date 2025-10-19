@@ -1,55 +1,222 @@
 #pragma once
 
+#include "../../components/battle_load_request.h"
+#include "../../components/battle_result.h"
+#include "../../components/battle_team_tags.h"
+#include "../../components/is_dish.h"
 #include "../../game_state_manager.h"
+#include "../TestInteraction.h"
 #include "../UITestHelpers.h"
+#include <filesystem>
+#include <fstream>
 
 struct ValidateBattleResultsTest {
   static void execute() {
-    // Navigate to results screen
-    if (!UITestHelpers::check_ui_exists("Results") &&
-        !UITestHelpers::check_ui_exists("Battle Complete")) {
-      return; // Not on results screen
+    log_info("TEST: ValidateBattleResultsTest::execute() called!");
+    log_info("TEST: Starting ValidateBattleResultsTest");
+
+    // Step 1: Create mock opponent JSON file
+    create_mock_opponent_json();
+
+    // Step 2: Navigate to shop screen
+    log_info("TEST: Navigating to shop screen");
+    UITestHelpers::assert_click_ui("Play");
+
+    // Manually trigger screen transition
+    log_info("TEST: Manually triggering screen transition to shop");
+    TestInteraction::start_game();
+    GameStateManager::get().update_screen();
+
+    log_info("TEST: Shop navigation complete, validation will run on "
+             "subsequent frames");
+  }
+
+  static void create_mock_opponent_json() {
+    // Create output directory if it doesn't exist
+    std::filesystem::create_directories("output/battles/pending");
+
+    // Create a simple opponent JSON file
+    std::string opponentJson = R"({
+    "team": [
+        {
+            "slot": 0,
+            "dishType": "GarlicBread"
+        },
+        {
+            "slot": 1,
+            "dishType": "Potato"
+        },
+        {
+            "slot": 2,
+            "dishType": "Potato"
+        }
+    ],
+    "seed": 1234567890,
+    "meta": {
+        "timestampIso": "20250111_000000",
+        "gameVersion": "0.1.0"
+    }
+})";
+
+    std::ofstream opponentFile("output/battles/pending/test_opponent.json");
+    if (opponentFile.is_open()) {
+      opponentFile << opponentJson;
+      opponentFile.close();
+      log_info("TEST: Created mock opponent JSON file");
+    } else {
+      log_error("TEST: Failed to create mock opponent JSON file");
     }
 
-    // TODO: Validate results screen elements
-    // Expected: Results screen should show match outcome
-    // Bug: Results screen may not be displaying properly
+    // Create a simple player JSON file (will be populated by
+    // ExportMenuSnapshotSystem)
+    std::string playerJson = R"({
+    "team": [
+        {
+            "slot": 0,
+            "dishType": "Bagel"
+        },
+        {
+            "slot": 1,
+            "dishType": "Salmon"
+        },
+        {
+            "slot": 2,
+            "dishType": "Salmon"
+        }
+    ],
+    "seed": 1234567890,
+    "meta": {
+        "timestampIso": "20250111_000000",
+        "gameVersion": "0.1.0"
+    }
+})";
+
+    std::ofstream playerFile("output/battles/pending/test_player.json");
+    if (playerFile.is_open()) {
+      playerFile << playerJson;
+      playerFile.close();
+      log_info("TEST: Created mock player JSON file");
+    } else {
+      log_error("TEST: Failed to create mock player JSON file");
+    }
   }
 
   static bool validate_results_screen() {
-    // Test 1: Validate results screen elements exist
-    bool results_elements_exist =
-        UITestHelpers::check_ui_exists("Results") ||
-        UITestHelpers::check_ui_exists("Battle Complete") ||
-        UITestHelpers::check_ui_exists("Victory") ||
-        UITestHelpers::check_ui_exists("Defeat");
+    log_info("TEST: Validating results screen");
 
-    // Test 2: Validate course outcomes display
-    // TODO: Results should show per-course outcomes
-    // Expected: 7 mini-panels with per-slot winner icons
-    // Bug: Course outcome display may not be implemented
+    // Check current screen and navigate accordingly
+    auto &gsm = GameStateManager::get();
+    log_info("TEST: Current screen: {}", static_cast<int>(gsm.active_screen));
 
-    // Test 3: Validate match result
-    // TODO: Results should show overall match winner
-    // Expected: Player wins if more courses won than opponent
-    // Bug: Match result calculation may be incorrect
+    // If we're on the shop screen, navigate to battle
+    if (gsm.active_screen == GameStateManager::Screen::Shop) {
+      log_info("TEST: On shop screen, navigating to battle");
 
-    // Test 4: Validate BattleResult component
-    // TODO: BattleResult should contain course outcomes and match results
-    // Expected: playerWins, opponentWins, ties, outcomes array
-    // Bug: BattleResult structure may be wrong
+      // Wait for shop UI to be ready
+      if (!UITestHelpers::check_ui_exists("Next Round")) {
+        log_info("TEST: Next Round button not ready yet, waiting...");
+        return false;
+      }
 
-    // Test 5: Validate replay functionality
-    // TODO: Results screen should have "Replay" button
-    // Expected: Replay button to watch battle again
-    // Bug: Replay functionality may not be implemented
+      // Click Next Round to start battle
+      UITestHelpers::assert_click_ui("Next Round");
 
-    // Test 6: Validate BattleReport persistence
-    // TODO: BattleReport should be saved for replay
-    // Expected: JSON file saved to output/battles/results/
-    // Bug: Battle report saving may not be implemented
+      // Create BattleLoadRequest singleton for battle
+      auto &requestEntity = afterhours::EntityHelper::createEntity();
+      BattleLoadRequest battleRequest;
+      battleRequest.playerJsonPath = "output/battles/pending/test_player.json";
+      battleRequest.opponentJsonPath =
+          "output/battles/pending/test_opponent.json";
+      battleRequest.loaded =
+          false; // Not loaded yet, will be loaded by battle systems
+      requestEntity.addComponent<BattleLoadRequest>(std::move(battleRequest));
+      afterhours::EntityHelper::registerSingleton<BattleLoadRequest>(
+          requestEntity);
 
-    return results_elements_exist;
+      // Manually trigger screen transition to battle
+      GameStateManager::get().set_next_screen(GameStateManager::Screen::Battle);
+      GameStateManager::get().update_screen();
+      return false; // Not done yet, need to wait for battle screen
+    }
+
+    // If we're on the battle screen, wait for battle to complete or skip to
+    // results
+    if (gsm.active_screen == GameStateManager::Screen::Battle) {
+      log_info("TEST: On battle screen");
+
+      // Check if we can skip to results (for faster testing)
+      if (UITestHelpers::check_ui_exists("Skip to Results")) {
+        log_info("TEST: Skipping to results for faster testing");
+        UITestHelpers::assert_click_ui("Skip to Results");
+        GameStateManager::get().set_next_screen(
+            GameStateManager::Screen::Results);
+        GameStateManager::get().update_screen();
+        return false; // Not done yet, need to wait for results screen
+      } else {
+        log_info("TEST: No Skip to Results button, waiting for battle to "
+                 "complete naturally...");
+        return false; // Wait for battle to complete
+      }
+    }
+
+    // If we're on the results screen, validate it
+    if (gsm.active_screen == GameStateManager::Screen::Results) {
+      log_info("TEST: On results screen, validating");
+
+      // Debug: Check if battle teams exist
+      int playerTeamCount = 0;
+      int opponentTeamCount = 0;
+      for (auto &ref : afterhours::EntityQuery()
+                           .template whereHasComponent<IsPlayerTeamItem>()
+                           .template whereHasComponent<IsDish>()
+                           .gen()) {
+        playerTeamCount++;
+      }
+      for (auto &ref : afterhours::EntityQuery()
+                           .template whereHasComponent<IsOpponentTeamItem>()
+                           .template whereHasComponent<IsDish>()
+                           .gen()) {
+        opponentTeamCount++;
+      }
+      log_info("TEST: Found {} player team entities, {} opponent team entities",
+               playerTeamCount, opponentTeamCount);
+
+      // Test 1: Validate BattleResult component exists
+      auto resultEntity =
+          afterhours::EntityHelper::get_singleton<BattleResult>();
+      if (!resultEntity.get().has<BattleResult>()) {
+        log_info("TEST: BattleResult component not found");
+        return false;
+      }
+
+      auto &result = resultEntity.get().get<BattleResult>();
+      log_info("TEST: BattleResult found - Player wins: {}, Opponent wins: {}, "
+               "Ties: {}, Outcome: {}",
+               result.playerWins, result.opponentWins, result.ties,
+               static_cast<int>(result.outcome));
+
+      // Test 2: Validate that we have course outcomes
+      if (result.outcomes.empty()) {
+        log_info("TEST: No course outcomes found");
+        return false;
+      }
+
+      log_info("TEST: Found {} course outcomes", result.outcomes.size());
+
+      // Test 3: Validate UI elements exist (Back to Shop button)
+      if (!UITestHelpers::check_ui_exists("Back to Shop")) {
+        log_info("TEST: Back to Shop button not found");
+        return false;
+      }
+
+      log_info("TEST: All validation checks passed");
+      return true;
+    }
+
+    // If we're not on any expected screen, something went wrong
+    log_error("TEST: Unexpected screen: {}",
+              static_cast<int>(gsm.active_screen));
+    return false;
   }
 
   static bool validate_course_outcomes() {

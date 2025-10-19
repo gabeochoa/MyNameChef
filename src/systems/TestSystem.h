@@ -177,6 +177,9 @@ private:
     auto it = test_registry.find(test_name);
     if (it != test_registry.end()) {
       test_function = it->second;
+      log_info("TEST SYSTEM DEBUG: Found test function for: {}", test_name);
+    } else {
+      log_info("TEST SYSTEM DEBUG: No test function found for: {}", test_name);
     }
   }
 

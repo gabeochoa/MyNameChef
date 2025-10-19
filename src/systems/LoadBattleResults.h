@@ -135,12 +135,38 @@ private:
              opponentTeamScore);
 
     // Determine simple outcome (placeholder until H2H loop)
-    if (playerTeamScore > opponentTeamScore)
+    if (playerTeamScore > opponentTeamScore) {
       out.outcome = BattleResult::Outcome::PlayerWin;
-    else if (opponentTeamScore > playerTeamScore)
+      out.playerWins = 1;
+      out.opponentWins = 0;
+      out.ties = 0;
+    } else if (opponentTeamScore > playerTeamScore) {
       out.outcome = BattleResult::Outcome::OpponentWin;
-    else
+      out.playerWins = 0;
+      out.opponentWins = 1;
+      out.ties = 0;
+    } else {
       out.outcome = BattleResult::Outcome::Tie;
+      out.playerWins = 0;
+      out.opponentWins = 0;
+      out.ties = 1;
+    }
+
+    // Create course outcomes (simplified - one course per team)
+    // In a real battle, this would be course-by-course comparison
+    BattleResult::CourseOutcome courseOutcome;
+    courseOutcome.slotIndex = 0; // Single course
+    courseOutcome.ticks = 0;     // No timing in simplified version
+
+    if (playerTeamScore > opponentTeamScore) {
+      courseOutcome.winner = BattleResult::CourseOutcome::Winner::Player;
+    } else if (opponentTeamScore > playerTeamScore) {
+      courseOutcome.winner = BattleResult::CourseOutcome::Winner::Opponent;
+    } else {
+      courseOutcome.winner = BattleResult::CourseOutcome::Winner::Tie;
+    }
+
+    out.outcomes.push_back(courseOutcome);
   }
 
   int calculate_team_score(
