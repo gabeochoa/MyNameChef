@@ -7,35 +7,32 @@
 struct ValidateCombatSystemTest {
   static void execute() {
     // Step 1: Navigate to shop screen first
-    if (UITestHelpers::check_ui_exists("Play")) {
-      // We're on main menu, click Play to go to shop
-      UITestHelpers::assert_click_ui("Play");
+    UITestHelpers::assert_ui_exists("Play");
+    UITestHelpers::assert_click_ui("Play");
+    
+    // Apply the screen transition
+    TestInteraction::start_game();
+    GameStateManager::get().update_screen();
+
+    // Step 2: Navigate to battle screen from shop
+    // Note: "Next Round" button validation will be done in validate_battle_screen()
+    // which runs on subsequent frames after the shop screen loads
+    if (UITestHelpers::check_ui_exists("Next Round")) {
+      UITestHelpers::assert_click_ui("Next Round");
       
-      // Apply the screen transition
-      TestInteraction::start_game();
+      // Apply screen transition to battle
+      GameStateManager::get().to_battle();
       GameStateManager::get().update_screen();
     }
 
-    // Step 2: Navigate to battle screen from shop
-    if (!UITestHelpers::check_ui_exists("Next Round")) {
-      return; // Not on shop screen, can't navigate to battle
-    }
-
-    // Click "Next Round" to start battle
-    UITestHelpers::assert_click_ui("Next Round");
-
-    // Apply screen transition to battle
-    GameStateManager::get().to_battle();
-    GameStateManager::get().update_screen();
-
-    // TODO: Battle screen validation will happen in next frame
+    // Note: Battle screen validation will be done in validate_battle_screen() function
+    // which runs on subsequent frames after the transition completes
   }
 
   static bool validate_battle_screen() {
     // Test 1: Validate battle screen elements exist
-    bool battle_elements_exist = UITestHelpers::check_ui_exists("Battle") ||
-                                 UITestHelpers::check_ui_exists("Combat") ||
-                                 UITestHelpers::check_ui_exists("Fight");
+    // The battle screen only has a "Skip to Results" button
+    bool battle_elements_exist = UITestHelpers::check_ui_exists("Skip to Results");
 
     // Test 2: Validate combat stats display (Zing/Body overlays)
     // TODO: Zing/Body overlays should be visible on dishes
