@@ -24,6 +24,8 @@ struct TestSystem : afterhours::System<> {
   std::string test_name;
   bool initialized = false;
   bool validation_completed = false;
+  bool test_completed = false;
+  int validation_attempts = 0;
   std::function<void()> test_function;
   std::function<bool()> validation_function;
 
@@ -37,16 +39,25 @@ struct TestSystem : afterhours::System<> {
     if (initialized) {
       // Run validation on subsequent frames
       if (!validation_completed && validation_function) {
+        validation_attempts++;
         bool validation_result = validation_function();
         if (validation_result) {
           validation_completed = true;
-          log_info("TEST VALIDATION PASSED: {} - Shop screen elements found",
-                   test_name);
+          test_completed = true;
+          log_info("TEST VALIDATION PASSED: {} - Validation successful after {} attempts",
+                   test_name, validation_attempts);
         } else {
-          log_info("TEST VALIDATION CHECKING: {} - Waiting for shop screen "
-                   "elements...",
-                   test_name);
+          // Log every 10 attempts to avoid spam
+          if (validation_attempts % 10 == 0) {
+            log_info("TEST VALIDATION CHECKING: {} - Attempt {} - Still waiting for validation...",
+                     test_name, validation_attempts);
+          }
         }
+      } else if (!test_completed) {
+        // Test has no validation function, mark as completed
+        test_completed = true;
+        log_info("TEST COMPLETED: {} - No validation function, test finished",
+                 test_name);
       }
       return;
     }
@@ -56,6 +67,16 @@ struct TestSystem : afterhours::System<> {
 
     if (test_function) {
       test_function();
+    }
+    
+    // Debug: Check if validation function exists
+    if (!validation_function) {
+      log_info("DEBUG: No validation function for test: {}", test_name);
+      test_completed = true;
+      log_info("TEST COMPLETED: {} - No validation function, test finished immediately",
+               test_name);
+    } else {
+      log_info("DEBUG: Validation function exists for test: {}", test_name);
     }
   }
 
@@ -102,6 +123,10 @@ private:
     } else if (test_name == "validate_full_game_flow") {
       validation_function = []() {
         return ValidateFullGameFlowTest::validate_complete_flow();
+      };
+    } else if (test_name == "validate_trigger_system") {
+      validation_function = []() {
+        return ValidateTriggerSystemTest::validate_trigger_events();
       };
     }
 

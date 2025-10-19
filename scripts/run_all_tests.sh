@@ -53,10 +53,19 @@ run_test() {
     
     echo -e "${BLUE}[$test_number/$total]${NC} Running test: ${YELLOW}$test_name${NC}"
     
-    # Run the test with timeout
-    if timeout $TEST_TIMEOUT "$EXECUTABLE" --run-test "$test_name" > /dev/null 2>&1; then
-        echo -e "  ${GREEN}✅ PASSED${NC} - Test completed successfully"
-        return 0
+    # Run the test with timeout and capture output
+    local output_file="/tmp/test_output_$$"
+    if timeout $TEST_TIMEOUT "$EXECUTABLE" --run-test "$test_name" > "$output_file" 2>&1; then
+        # Check if test completed successfully
+        if grep -q "TEST COMPLETED:" "$output_file" || grep -q "TEST VALIDATION PASSED:" "$output_file"; then
+            echo -e "  ${GREEN}✅ PASSED${NC} - Test completed successfully"
+            rm -f "$output_file"
+            return 0
+        else
+            echo -e "  ${RED}❌ INCOMPLETE${NC} - Test ran but didn't complete properly"
+            rm -f "$output_file"
+            return 1
+        fi
     else
         local exit_code=$?
         if [ $exit_code -eq 124 ]; then
@@ -66,6 +75,7 @@ run_test() {
         else
             echo -e "  ${RED}❌ FAILED${NC} - Test failed with exit code $exit_code"
         fi
+        rm -f "$output_file"
         return 1
     fi
 }

@@ -2,8 +2,9 @@
 
 ## ✅ **Test Suite Successfully Implemented!**
 
-### **Available Test Commands:**
+### **Running Tests:**
 
+#### **Individual Tests:**
 1. **`--run-test validate_main_menu`** - Validates main menu elements exist
 2. **`--run-test validate_shop_navigation`** - Tests shop navigation (✅ Working)
 3. **`--run-test validate_shop_functionality`** - Comprehensive shop functionality validation (🔧 Enhanced)
@@ -15,6 +16,12 @@
 9. **`--run-test validate_trigger_system`** - Trigger and effect system validation
 10. **`--run-test play_navigates_to_shop`** - Basic navigation test (✅ Working)
 11. **`--run-test goto_battle`** - Navigate to battle screen
+
+#### **Automated Test Runner:**
+- **`./scripts/run_all_tests.sh`** - Run all tests with proper state reset
+- **`./scripts/run_all_tests.sh --help`** - Show help and available options
+- **`./scripts/run_all_tests.sh -t 10`** - Run with custom timeout (default: 5s)
+- **Features**: Color-coded output, timeout handling, segfault detection, comprehensive reporting
 
 ### **Recent Enhancements:**
 
@@ -31,6 +38,14 @@
 - **GenerateShopSlots**: Add UI labels to shop slots for better testability
 - **GenerateInventorySlots**: Add UI labels to inventory slots for better testability
 - **RenderWalletHUD**: Convert wallet display to UI element with label
+
+#### **✅ Comprehensive Testing Framework:**
+- **Project Rules Integration**: Added Testing Framework section to PROJECT_RULES.md
+- **Test Categories**: Navigation, System, UI, and Integration tests
+- **Test Runner Script**: Created `scripts/run_all_tests.sh` for automated test execution
+- **Features**: Color-coded output, timeout handling, segfault detection, comprehensive reporting
+- **Development Integration**: Tests now part of standard development workflow
+- **Usage**: `./scripts/run_all_tests.sh` to run all tests with proper state reset
 
 ### **Bugs Discovered by Tests:**
 
