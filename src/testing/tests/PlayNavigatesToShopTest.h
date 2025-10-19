@@ -6,15 +6,11 @@
 
 struct PlayNavigatesToShopTest {
   static void execute() {
-    // Validate we start on Main screen
-    if (!UITestHelpers::visible_ui_exists("Play")) {
-      return; // Not on main screen
-    }
+    // Assert we start on Main screen
+    UITestHelpers::assert_ui_exists("Play");
 
     // Click the Play button
-    if (!UITestHelpers::click_ui("Play")) {
-      return; // Failed to click Play button
-    }
+    UITestHelpers::assert_click_ui("Play");
 
     // Apply the screen transition
     TestInteraction::start_game();

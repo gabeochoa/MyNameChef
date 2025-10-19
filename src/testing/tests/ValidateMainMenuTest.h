@@ -1,18 +1,30 @@
 #pragma once
 
+#include "../../log.h"
 #include "../UITestHelpers.h"
 
 struct ValidateMainMenuTest {
   static void execute() {
-    // This test just validates that main menu elements exist
-    // It doesn't perform any actions, just checks UI state
+    // This test validates that main menu elements exist
+    // It uses assertions - if any element doesn't exist, the test fails
+    // immediately
 
-    bool play_exists = UITestHelpers::visible_ui_exists("Play");
-    bool settings_exists = UITestHelpers::visible_ui_exists("Settings");
-    bool dishes_exists = UITestHelpers::visible_ui_exists("Dishes");
-    bool quit_exists = UITestHelpers::visible_ui_exists("Quit");
+    log_info("TEST DEBUG: Starting ValidateMainMenuTest::execute()");
 
-    // In a real test framework, you'd assert these are true
-    // For now, we just validate they exist
+    // Assert that all main menu elements exist
+    UITestHelpers::assert_ui_exists("Play");
+    log_info("TEST DEBUG: Play button assertion passed");
+
+    UITestHelpers::assert_ui_exists("Settings");
+    log_info("TEST DEBUG: Settings button assertion passed");
+
+    UITestHelpers::assert_ui_exists("Dishes");
+    log_info("TEST DEBUG: Dishes button assertion passed");
+
+    UITestHelpers::assert_ui_exists("Quit");
+    log_info("TEST DEBUG: Quit button assertion passed");
+
+    log_info(
+        "TEST DEBUG: ValidateMainMenuTest::execute() completed successfully");
   }
 };

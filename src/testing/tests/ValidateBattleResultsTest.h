@@ -6,8 +6,8 @@
 struct ValidateBattleResultsTest {
   static void execute() {
     // Navigate to results screen
-    if (!UITestHelpers::visible_ui_exists("Results") &&
-        !UITestHelpers::visible_ui_exists("Battle Complete")) {
+    if (!UITestHelpers::check_ui_exists("Results") &&
+        !UITestHelpers::check_ui_exists("Battle Complete")) {
       return; // Not on results screen
     }
 
@@ -19,10 +19,10 @@ struct ValidateBattleResultsTest {
   static bool validate_results_screen() {
     // Test 1: Validate results screen elements exist
     bool results_elements_exist =
-        UITestHelpers::visible_ui_exists("Results") ||
-        UITestHelpers::visible_ui_exists("Battle Complete") ||
-        UITestHelpers::visible_ui_exists("Victory") ||
-        UITestHelpers::visible_ui_exists("Defeat");
+        UITestHelpers::check_ui_exists("Results") ||
+        UITestHelpers::check_ui_exists("Battle Complete") ||
+        UITestHelpers::check_ui_exists("Victory") ||
+        UITestHelpers::check_ui_exists("Defeat");
 
     // Test 2: Validate course outcomes display
     // TODO: Results should show per-course outcomes

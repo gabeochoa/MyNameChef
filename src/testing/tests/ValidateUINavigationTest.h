@@ -6,28 +6,28 @@
 struct ValidateUINavigationTest {
   static void execute() {
     // Test 1: Validate main menu navigation
-    if (UITestHelpers::visible_ui_exists("Play")) {
+    if (UITestHelpers::check_ui_exists("Play")) {
       // TODO: Validate main menu elements
       // Expected: Play, Settings, Dishes, Quit buttons
       // Bug: Some main menu buttons may not be visible
     }
 
     // Test 2: Validate shop navigation
-    if (UITestHelpers::visible_ui_exists("Next Round")) {
+    if (UITestHelpers::check_ui_exists("Next Round")) {
       // TODO: Validate shop screen elements
       // Expected: Shop slots, inventory slots, reroll button
       // Bug: Shop UI elements may not be rendering
     }
 
     // Test 3: Validate battle navigation
-    if (UITestHelpers::visible_ui_exists("Battle")) {
+    if (UITestHelpers::check_ui_exists("Battle")) {
       // TODO: Validate battle screen elements
       // Expected: Combat display, dish stats, progress indicators
       // Bug: Battle UI may not be complete
     }
 
     // Test 4: Validate results navigation
-    if (UITestHelpers::visible_ui_exists("Results")) {
+    if (UITestHelpers::check_ui_exists("Results")) {
       // TODO: Validate results screen elements
       // Expected: Match results, course outcomes, replay button
       // Bug: Results screen may not be implemented
@@ -60,14 +60,14 @@ struct ValidateUINavigationTest {
 
   static bool validate_ui_elements() {
     // Test 1: Validate main menu UI
-    bool main_menu_valid = UITestHelpers::visible_ui_exists("Play") &&
-                           UITestHelpers::visible_ui_exists("Settings") &&
-                           UITestHelpers::visible_ui_exists("Dishes") &&
-                           UITestHelpers::visible_ui_exists("Quit");
+    bool main_menu_valid = UITestHelpers::check_ui_exists("Play") &&
+                           UITestHelpers::check_ui_exists("Settings") &&
+                           UITestHelpers::check_ui_exists("Dishes") &&
+                           UITestHelpers::check_ui_exists("Quit");
 
     // Test 2: Validate shop UI
-    bool shop_ui_valid = UITestHelpers::visible_ui_exists("Next Round") &&
-                         UITestHelpers::visible_ui_exists("Reroll (5)");
+    bool shop_ui_valid = UITestHelpers::check_ui_exists("Next Round") &&
+                         UITestHelpers::check_ui_exists("Reroll (5)");
 
     // Test 3: Validate battle UI
     // TODO: Battle UI elements should be visible

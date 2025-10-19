@@ -48,6 +48,7 @@ struct TestSystem : afterhours::System<> {
           log_info("TEST VALIDATION PASSED: {} - Validation successful after "
                    "{} attempts",
                    test_name, validation_attempts);
+          exit(0); // Exit with success
         } else {
           // Log every 10 attempts to avoid spam
           if (validation_attempts % 10 == 0) {
@@ -61,6 +62,7 @@ struct TestSystem : afterhours::System<> {
         test_completed = true;
         log_info("TEST COMPLETED: {} - No validation function, test finished",
                  test_name);
+        exit(0); // Exit with success
       }
       return;
     }
@@ -69,18 +71,23 @@ struct TestSystem : afterhours::System<> {
     log_info("TEST EXECUTING: {} - Running test logic", test_name);
 
     if (test_function) {
+      log_info("TEST SYSTEM DEBUG: Calling test_function");
       test_function();
+      log_info("TEST SYSTEM DEBUG: test_function completed");
     }
 
-    // Debug: Check if validation function exists
+    // Check if validation function exists and mark completion
     if (!validation_function) {
-      log_info("DEBUG: No validation function for test: {}", test_name);
+      log_info("TEST SYSTEM DEBUG: No validation function for test: {}",
+               test_name);
       test_completed = true;
       log_info("TEST COMPLETED: {} - No validation function, test finished "
                "immediately",
                test_name);
+      exit(0); // Exit with success
     } else {
-      log_info("DEBUG: Validation function exists for test: {}", test_name);
+      log_info("TEST SYSTEM DEBUG: Validation function exists for test: {}",
+               test_name);
     }
   }
 
@@ -134,8 +141,8 @@ private:
       };
     }
 
-    test_registry["validate_main_menu"] = []() {
-      ValidateMainMenuTest::execute();
+    test_registry["validate_trigger_system"] = []() {
+      ValidateTriggerSystemTest::execute();
     };
 
     test_registry["validate_shop_functionality"] = []() {

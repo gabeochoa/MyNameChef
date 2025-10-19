@@ -8,14 +8,12 @@ struct ValidateFullGameFlowTest {
     // This test validates the complete game flow from start to finish
 
     // Step 1: Start from main menu
-    if (!UITestHelpers::visible_ui_exists("Play")) {
+    if (!UITestHelpers::check_ui_exists("Play")) {
       return; // Not on main menu
     }
 
     // Step 2: Navigate to shop
-    if (!UITestHelpers::click_ui("Play")) {
-      return; // Failed to click Play
-    }
+    UITestHelpers::assert_click_ui("Play");
 
     // Apply transition
     GameStateManager::get().start_game();
@@ -31,10 +29,8 @@ struct ValidateFullGameFlowTest {
     // Bug: Shop generation may not be working
 
     // Step 4: Navigate to battle
-    if (UITestHelpers::visible_ui_exists("Next Round")) {
-      if (!UITestHelpers::click_ui("Next Round")) {
-        return; // Failed to click Next Round
-      }
+    if (UITestHelpers::check_ui_exists("Next Round")) {
+      UITestHelpers::assert_click_ui("Next Round");
 
       // Apply transition
       GameStateManager::get().set_next_screen(GameStateManager::Screen::Battle);
@@ -72,8 +68,8 @@ struct ValidateFullGameFlowTest {
     // Expected: Match results and course outcomes
     // Bug: Results display may not be working
 
-    return UITestHelpers::visible_ui_exists("Results") ||
-           UITestHelpers::visible_ui_exists("Battle Complete");
+    return UITestHelpers::check_ui_exists("Results") ||
+           UITestHelpers::check_ui_exists("Battle Complete");
   }
 
   static bool validate_game_state_consistency() {

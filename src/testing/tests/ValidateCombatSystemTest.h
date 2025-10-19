@@ -7,11 +7,9 @@
 struct ValidateCombatSystemTest {
   static void execute() {
     // Step 1: Navigate to shop screen first
-    if (UITestHelpers::visible_ui_exists("Play")) {
+    if (UITestHelpers::check_ui_exists("Play")) {
       // We're on main menu, click Play to go to shop
-      if (!UITestHelpers::click_ui("Play")) {
-        return; // Failed to click Play
-      }
+      UITestHelpers::assert_click_ui("Play");
       
       // Apply the screen transition
       TestInteraction::start_game();
@@ -19,14 +17,12 @@ struct ValidateCombatSystemTest {
     }
 
     // Step 2: Navigate to battle screen from shop
-    if (!UITestHelpers::visible_ui_exists("Next Round")) {
+    if (!UITestHelpers::check_ui_exists("Next Round")) {
       return; // Not on shop screen, can't navigate to battle
     }
 
     // Click "Next Round" to start battle
-    if (!UITestHelpers::click_ui("Next Round")) {
-      return; // Failed to click Next Round
-    }
+    UITestHelpers::assert_click_ui("Next Round");
 
     // Apply screen transition to battle
     GameStateManager::get().to_battle();
@@ -37,9 +33,9 @@ struct ValidateCombatSystemTest {
 
   static bool validate_battle_screen() {
     // Test 1: Validate battle screen elements exist
-    bool battle_elements_exist = UITestHelpers::visible_ui_exists("Battle") ||
-                                 UITestHelpers::visible_ui_exists("Combat") ||
-                                 UITestHelpers::visible_ui_exists("Fight");
+    bool battle_elements_exist = UITestHelpers::check_ui_exists("Battle") ||
+                                 UITestHelpers::check_ui_exists("Combat") ||
+                                 UITestHelpers::check_ui_exists("Fight");
 
     // Test 2: Validate combat stats display (Zing/Body overlays)
     // TODO: Zing/Body overlays should be visible on dishes

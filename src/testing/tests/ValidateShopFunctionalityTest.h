@@ -7,24 +7,16 @@
 struct ValidateShopFunctionalityTest {
   static void execute() {
     // Step 1: Navigate to shop screen first
-    if (UITestHelpers::visible_ui_exists("Play")) {
-      // We're on main menu, click Play to go to shop
-      if (!UITestHelpers::click_ui("Play")) {
-        return; // Failed to click Play
-      }
-      
-      // Apply the screen transition
-      TestInteraction::start_game();
-      GameStateManager::get().update_screen();
-    }
+    UITestHelpers::assert_ui_exists("Play");
+    UITestHelpers::assert_click_ui("Play");
+    
+    // Apply the screen transition
+    TestInteraction::start_game();
+    GameStateManager::get().update_screen();
 
     // Test 1: Validate shop screen elements exist
-    bool shop_elements_exist = UITestHelpers::visible_ui_exists("Next Round") &&
-                               UITestHelpers::visible_ui_exists("Reroll (5)");
-
-    if (!shop_elements_exist) {
-      return; // Not on shop screen
-    }
+    UITestHelpers::assert_ui_exists("Next Round");
+    UITestHelpers::assert_ui_exists("Reroll (5)");
 
     // Test 2: Validate shop slots are present (should have 7 slots)
     // Note: Shop slots are IsDropSlot components, not UI elements with labels
@@ -71,8 +63,8 @@ struct ValidateShopFunctionalityTest {
 
   static bool validate_shop_complete() {
     // Check UI elements that actually exist
-    bool ui_elements_valid = UITestHelpers::visible_ui_exists("Next Round") &&
-                             UITestHelpers::visible_ui_exists("Reroll (5)");
+    bool ui_elements_valid = UITestHelpers::check_ui_exists("Next Round") &&
+                             UITestHelpers::check_ui_exists("Reroll (5)");
 
     // Check entity-based validations (visual elements)
     bool shop_slots_valid = UITestHelpers::shop_slots_exist();
@@ -80,7 +72,7 @@ struct ValidateShopFunctionalityTest {
     bool shop_items_valid = UITestHelpers::shop_items_exist();
     bool inventory_items_valid = UITestHelpers::inventory_items_exist();
 
-    return ui_elements_valid && shop_slots_valid && inventory_slots_valid && 
+    return ui_elements_valid && shop_slots_valid && inventory_slots_valid &&
            shop_items_valid && inventory_items_valid;
   }
 };
