@@ -234,6 +234,7 @@ int main(int argc, char *argv[]) {
   if (cmdl("--run-test") >> test_value) {
     if (!test_value.empty()) {
       run_test = test_value;
+      log_info("TEST FLAG PARSED: {} - Test flag detected", test_value);
     }
   }
 

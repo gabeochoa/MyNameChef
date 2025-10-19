@@ -30,6 +30,7 @@ struct TestSystem : afterhours::System<> {
   std::function<bool()> validation_function;
 
   explicit TestSystem(std::string name) : test_name(std::move(name)) {
+    log_info("TEST SYSTEM CREATED: {} - TestSystem instantiated", test_name);
     register_test_cases();
   }
 
@@ -44,12 +45,14 @@ struct TestSystem : afterhours::System<> {
         if (validation_result) {
           validation_completed = true;
           test_completed = true;
-          log_info("TEST VALIDATION PASSED: {} - Validation successful after {} attempts",
+          log_info("TEST VALIDATION PASSED: {} - Validation successful after "
+                   "{} attempts",
                    test_name, validation_attempts);
         } else {
           // Log every 10 attempts to avoid spam
           if (validation_attempts % 10 == 0) {
-            log_info("TEST VALIDATION CHECKING: {} - Attempt {} - Still waiting for validation...",
+            log_info("TEST VALIDATION CHECKING: {} - Attempt {} - Still "
+                     "waiting for validation...",
                      test_name, validation_attempts);
           }
         }
@@ -68,12 +71,13 @@ struct TestSystem : afterhours::System<> {
     if (test_function) {
       test_function();
     }
-    
+
     // Debug: Check if validation function exists
     if (!validation_function) {
       log_info("DEBUG: No validation function for test: {}", test_name);
       test_completed = true;
-      log_info("TEST COMPLETED: {} - No validation function, test finished immediately",
+      log_info("TEST COMPLETED: {} - No validation function, test finished "
+               "immediately",
                test_name);
     } else {
       log_info("DEBUG: Validation function exists for test: {}", test_name);
