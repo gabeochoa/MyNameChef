@@ -13,9 +13,64 @@
 #include "../components/is_drop_slot.h"
 #include "../components/is_inventory_item.h"
 #include "../components/is_shop_item.h"
+#include "../game_state_manager.h" // For screen transition checking
 #include "../log.h"
 
 struct UITestHelpers {
+  // Sleep/wait functionality for test validation
+  static bool sleep_for_transition(int frames_to_wait = 10) {
+    static int frames_waited = 0;
+    frames_waited++;
+
+    if (frames_waited >= frames_to_wait) {
+      frames_waited = 0; // Reset for next use
+      return true;       // Sleep complete
+    }
+    return false; // Still sleeping
+  }
+
+  // Wait for screen transition by checking actual screen value
+  static bool
+  wait_for_screen_transition(GameStateManager::Screen expected_screen,
+                             int max_frames = 30) {
+    static int frames_waited = 0;
+    frames_waited++;
+
+    auto &gsm = GameStateManager::get();
+    if (gsm.active_screen == expected_screen) {
+      log_info("DEBUG: Screen transition complete to {} after {} frames",
+               static_cast<int>(expected_screen), frames_waited);
+      frames_waited = 0; // Reset for next use
+      return true;       // Transition complete
+    }
+
+    if (frames_waited >= max_frames) {
+      log_info("DEBUG: Screen transition timeout after {} frames, still on "
+               "screen {}",
+               frames_waited, static_cast<int>(gsm.active_screen));
+      frames_waited = 0; // Reset for next use
+      return false;      // Timeout
+    }
+
+    return false; // Still waiting
+  }
+
+  // Debug function to list all UI elements with labels
+  static void debug_list_all_ui_elements() {
+    log_info("DEBUG: Listing all UI elements with labels:");
+    int count = 0;
+    for (auto &ref : afterhours::EntityQuery()
+                         .whereHasComponent<afterhours::ui::HasLabel>()
+                         .gen()) {
+      auto &entity = ref.get();
+      if (entity.has<afterhours::ui::HasLabel>()) {
+        auto &ui_label = entity.get<afterhours::ui::HasLabel>();
+        log_info("DEBUG: Found UI element #{}: '{}'", count++, ui_label.label);
+      }
+    }
+    log_info("DEBUG: Total UI elements found: {}", count);
+  }
+
   // Check if a UI element exists (returns bool, for validation functions)
   static bool check_ui_exists(const std::string &label, int max_attempts = 3) {
     for (int attempt = 1; attempt <= max_attempts; attempt++) {
@@ -30,7 +85,7 @@ struct UITestHelpers {
           }
         }
       }
-      
+
       // If not found and not the last attempt, wait before retrying
       if (attempt < max_attempts) {
         // Simple delay - just do some work to give time for UI to load
@@ -102,14 +157,24 @@ struct UITestHelpers {
       auto element = find_ui_element(label);
       if (element.has_value()) {
         auto &entity = *element.value();
+        log_info("DEBUG: Found UI element '{}', checking for click listener",
+                 label);
         if (entity.has<afterhours::ui::HasClickListener>()) {
           auto &click_listener = entity.get<afterhours::ui::HasClickListener>();
+          log_info("DEBUG: Calling click callback for '{}'", label);
           click_listener.cb(entity);
+          log_info("DEBUG: Click callback completed for '{}'", label);
           log_info(
               "TEST ASSERT: Successfully clicked UI element '{}' on attempt {}",
               label, attempt);
           return; // Click successful, assertion passes
+        } else {
+          log_info("DEBUG: UI element '{}' found but has no HasClickListener",
+                   label);
         }
+      } else {
+        log_info("DEBUG: UI element '{}' not found on attempt {}", label,
+                 attempt);
       }
 
       // If not found and not the last attempt, wait before retrying

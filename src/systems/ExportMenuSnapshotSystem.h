@@ -9,6 +9,7 @@
 #include <fmt/format.h>
 #include <fstream>    // For std::ofstream
 #include <functional> // For std::reference_wrapper
+#include <magic_enum/magic_enum.hpp>
 #include <nlohmann/json.hpp>
 #include <random>
 
@@ -122,7 +123,7 @@ public:
 
       return filename;
     } else {
-      log_error("Failed to write snapshot file: {}", filename);
+      log_error("Failed to write snapshot file: {}", filename.c_str());
       return "";
     }
   }
