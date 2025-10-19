@@ -140,6 +140,32 @@ Examples:
 - Use `EntityHelper::merge_entity_arrays()` when creating entities that other systems need to query
 - Ensure entity creation order matches rendering order (slots before items)
 
+## Testing Framework
+- Use `--run-test <test_name>` flag to execute individual tests
+- Tests run within the main game loop using `TestSystem`
+- Each test is a separate `.h` file in `src/testing/tests/`
+- Tests can validate UI elements, entities, and game state
+- Use `UITestHelpers` for UI interaction and validation
+- Use `TestInteraction` for safe game state mutations
+
+### Test Categories
+- **Navigation Tests**: Validate screen transitions (Main → Shop → Battle)
+- **System Tests**: Validate internal game systems (dish, combat, trigger)
+- **UI Tests**: Validate UI elements and interactions
+- **Integration Tests**: Validate complete game flows
+
+### Running Tests
+- Individual test: `./output/my_name_chef.exe --run-test <test_name>`
+- All tests: `./scripts/run_all_tests.sh`
+- Test timeout: 5 seconds per test (prevents infinite loops)
+
+### Test Development Guidelines
+- Tests should be self-contained and not depend on external state
+- Use `// TODO` comments to document expected behavior and bugs
+- Tests should identify bugs, not just validate working features
+- Prefer entity validation over UI validation when possible
+- Add `// TODO` comments in game code for UI label improvements
+
 ## Refactoring and Development Workflow
 - Extract helper functions to reduce code duplication
 - Use consistent patterns across similar systems
@@ -149,3 +175,4 @@ Examples:
 - Fix build errors immediately before continuing development
 - Include all necessary component headers in system files
 - Use early returns for error conditions in systems
+- Run tests after major changes to ensure no regressions
