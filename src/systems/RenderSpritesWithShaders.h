@@ -109,7 +109,7 @@ private:
 
     // Render each entity with its own shader state
     for (const auto &entity_data : entities) {
-      raylib::BeginShaderMode(shader);
+      render_backend::BeginShaderMode(shader);
 
       // Update common uniforms once per entity
       update_shader_uniforms(shader, shader_type);
@@ -117,7 +117,7 @@ private:
       // Render the entity with its specific uniforms
       render_single_entity(entity_data, sheet, shader, shader_type);
 
-      raylib::EndShaderMode();
+      render_backend::EndShaderMode();
     }
   }
 
@@ -201,7 +201,7 @@ private:
                       offset_y * cosf(transform.angle * M_PI / 180.f);
 
     // Render the sprite
-    raylib::DrawTexturePro(
+    render_backend::DrawTexturePro(
         sheet, hasSprite.frame,
         Rectangle{
             transform.position.x + transform.size.x / 2.f + rotated_x,

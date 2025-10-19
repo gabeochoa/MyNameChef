@@ -76,9 +76,9 @@ void TestContext::teardown_window() {
   if (!raylib::WindowShouldClose()) {
     // drain a couple frames
     for (int i = 0; i < 2; ++i) {
-      raylib::BeginDrawing();
-      raylib::ClearBackground(raylib::BLACK);
-      raylib::EndDrawing();
+      render_backend::BeginDrawing();
+      render_backend::ClearBackground(raylib::BLACK);
+      render_backend::EndDrawing();
     }
   }
   raylib::CloseWindow();
@@ -87,10 +87,10 @@ void TestContext::teardown_window() {
 void TestContext::pump_once(float dt) {
   systems.run(dt);
   if (currentMode == Mode::Interactive) {
-    raylib::BeginDrawing();
-    raylib::ClearBackground(raylib::RAYWHITE);
+    render_backend::BeginDrawing();
+    render_backend::ClearBackground(raylib::RAYWHITE);
     systems.render(afterhours::EntityHelper::get_entities(), dt);
-    raylib::EndDrawing();
+    render_backend::EndDrawing();
   }
 }
 

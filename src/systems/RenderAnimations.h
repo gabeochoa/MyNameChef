@@ -92,15 +92,16 @@ private:
 
     // Background circle
     raylib::Color bgColor = raylib::Color{255, 215, 0, (unsigned char)alpha};
-    raylib::DrawCircle(static_cast<int>(centerX), static_cast<int>(bounceY),
-                       static_cast<int>(overlaySize / 2.0f), bgColor);
+    render_backend::DrawCircle(static_cast<int>(centerX),
+                               static_cast<int>(bounceY),
+                               static_cast<int>(overlaySize / 2.0f), bgColor);
 
     // Border
     raylib::Color borderColor =
         raylib::Color{255, 165, 0, (unsigned char)alpha};
-    raylib::DrawCircleLines(static_cast<int>(centerX),
-                            static_cast<int>(bounceY),
-                            static_cast<int>(overlaySize / 2.0f), borderColor);
+    render_backend::DrawCircleLines(
+        static_cast<int>(centerX), static_cast<int>(bounceY),
+        static_cast<int>(overlaySize / 2.0f), borderColor);
 
     // +1 text
     std::string boostText = "+1";
@@ -108,7 +109,7 @@ private:
     int textWidth = raylib::MeasureText(boostText.c_str(), fontSize);
 
     raylib::Color textColor = raylib::Color{0, 0, 0, (unsigned char)alpha};
-    raylib::DrawText(
+    render_backend::DrawText(
         boostText.c_str(), static_cast<int>(centerX - textWidth / 2.0f),
         static_cast<int>(bounceY - fontSize / 2.0f), fontSize, textColor);
 
@@ -123,10 +124,10 @@ private:
     if (!statType.empty()) {
       int smallFontSize = static_cast<int>(overlaySize * 0.2f);
       int smallTextWidth = raylib::MeasureText(statType.c_str(), smallFontSize);
-      raylib::DrawText(statType.c_str(),
-                       static_cast<int>(centerX - smallTextWidth / 2.0f),
-                       static_cast<int>(bounceY + overlaySize / 2.0f + 5.0f),
-                       smallFontSize, textColor);
+      render_backend::DrawText(
+          statType.c_str(), static_cast<int>(centerX - smallTextWidth / 2.0f),
+          static_cast<int>(bounceY + overlaySize / 2.0f + 5.0f), smallFontSize,
+          textColor);
     }
   }
 
@@ -203,8 +204,9 @@ private:
           raylib::Color{100, 150, 255, (unsigned char)alpha};
       float glowSize = 60.0f * pulseScale;
 
-      raylib::DrawCircle(static_cast<int>(centerX), static_cast<int>(centerY),
-                         static_cast<int>(glowSize), glowColor);
+      render_backend::DrawCircle(static_cast<int>(centerX),
+                                 static_cast<int>(centerY),
+                                 static_cast<int>(glowSize), glowColor);
     } else {
       // Affected dishes get a green freshness boost indicator
       float scale = 0.3f + (animProgress * 0.7f);
@@ -216,14 +218,15 @@ private:
       float freshnessSize = 35.0f * scale;
 
       // Draw freshness symbol
-      raylib::DrawCircle(static_cast<int>(centerX), static_cast<int>(bounceY),
-                         static_cast<int>(freshnessSize), freshnessColor);
+      render_backend::DrawCircle(
+          static_cast<int>(centerX), static_cast<int>(bounceY),
+          static_cast<int>(freshnessSize), freshnessColor);
 
       // Draw "+1 Freshness" text
       raylib::Color textColor =
           raylib::Color{255, 255, 255, (unsigned char)alpha};
-      raylib::DrawText("+1", static_cast<int>(centerX - 10),
-                       static_cast<int>(bounceY - 5), 12, textColor);
+      render_backend::DrawText("+1", static_cast<int>(centerX - 10),
+                               static_cast<int>(bounceY - 5), 12, textColor);
     }
   }
 

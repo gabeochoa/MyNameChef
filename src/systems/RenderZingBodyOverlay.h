@@ -115,32 +115,32 @@ struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
     raylib::Color zingColor = raylib::Color{200, 40, 40, 245};
     // Draw as a rotated square to guarantee a full diamond
     Rectangle diamond{zx, zy, badgeSize, badgeSize};
-    raylib::DrawRectanglePro(diamond, vec2{badgeSize * 0.5f, badgeSize * 0.5f},
-                             45.0f, zingColor);
+    render_backend::DrawRectanglePro(
+        diamond, vec2{badgeSize * 0.5f, badgeSize * 0.5f}, 45.0f, zingColor);
 
     // Zing number (supports up to two digits)
     const int fontSize = static_cast<int>(badgeSize * 0.72f);
     const std::string zingText = std::to_string(zing);
     const int zw = raylib::MeasureText(zingText.c_str(), fontSize);
-    raylib::DrawText(zingText.c_str(), static_cast<int>(zx - zw / 2.0f),
-                     static_cast<int>(zy - fontSize / 2.0f), fontSize,
-                     raylib::BLACK);
+    render_backend::DrawText(zingText.c_str(), static_cast<int>(zx - zw / 2.0f),
+                             static_cast<int>(zy - fontSize / 2.0f), fontSize,
+                             raylib::BLACK);
 
     // Body: pale yellow square top-right
     const float bx = rect.x + rect.width - padding - badgeSize;
     const float by = rect.y + padding;
     // Body: green
     raylib::Color bodyColor = raylib::Color{30, 160, 70, 245};
-    raylib::DrawRectangle(static_cast<int>(bx), static_cast<int>(by),
-                          static_cast<int>(badgeSize),
-                          static_cast<int>(badgeSize), bodyColor);
+    render_backend::DrawRectangle(static_cast<int>(bx), static_cast<int>(by),
+                                  static_cast<int>(badgeSize),
+                                  static_cast<int>(badgeSize), bodyColor);
 
     const std::string bodyText = std::to_string(body);
     const int bw = raylib::MeasureText(bodyText.c_str(), fontSize);
     const int bh = fontSize;
-    raylib::DrawText(bodyText.c_str(),
-                     static_cast<int>(bx + (badgeSize - bw) * 0.5f),
-                     static_cast<int>(by + (badgeSize - bh) * 0.5f), fontSize,
-                     raylib::BLACK);
+    render_backend::DrawText(bodyText.c_str(),
+                             static_cast<int>(bx + (badgeSize - bw) * 0.5f),
+                             static_cast<int>(by + (badgeSize - bh) * 0.5f),
+                             fontSize, raylib::BLACK);
   }
 };

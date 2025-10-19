@@ -26,10 +26,10 @@ struct RenderAnimationsWithShaders
 
     // Apply shader
     const auto &shader = ShaderLibrary::get().get(primary_shader);
-    raylib::BeginShaderMode(shader);
+    render_backend::BeginShaderMode(shader);
 
     // Render animation entities as SKYBLUE for visual distinction
-    raylib::DrawRectanglePro(
+    render_backend::DrawRectanglePro(
         Rectangle{
             transform.center().x,
             transform.center().y,
@@ -40,6 +40,6 @@ struct RenderAnimationsWithShaders
         raylib::SKYBLUE);
 
     // End shader
-    raylib::EndShaderMode();
+    render_backend::EndShaderMode();
   }
 };

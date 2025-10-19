@@ -12,7 +12,7 @@ struct BeginPostProcessingShader : System<> {
     }
     const auto &shader =
         ShaderLibrary::get().get(ShaderType::post_processing_tag);
-    raylib::BeginShaderMode(shader);
+    render_backend::BeginShaderMode(shader);
     // Update common uniforms
     float t = static_cast<float>(raylib::GetTime());
     int timeLoc = raylib::GetShaderLocation(shader, "time");

@@ -18,6 +18,7 @@ TEST_TIMEOUT=5
 TOTAL_TESTS=0
 PASSED_TESTS=0
 FAILED_TESTS=0
+HEADLESS_MODE=true  # Default to headless mode
 
 # Test list - add new tests here
 TESTS=(
@@ -55,7 +56,12 @@ run_test() {
     
     # Run the test with timeout and capture output
     local output_file="/tmp/test_output_$$"
-    if timeout $TEST_TIMEOUT "$EXECUTABLE" --run-test "$test_name" > "$output_file" 2>&1; then
+    local headless_flag=""
+    if [ "$HEADLESS_MODE" = true ]; then
+        headless_flag="--headless"
+    fi
+    
+    if timeout $TEST_TIMEOUT "$EXECUTABLE" --run-test "$test_name" $headless_flag > "$output_file" 2>&1; then
         # Check if test completed successfully
         if grep -q "TEST COMPLETED:" "$output_file" || grep -q "TEST VALIDATION PASSED:" "$output_file"; then
             echo -e "  ${GREEN}✅ PASSED${NC} - Test completed successfully"
@@ -86,6 +92,11 @@ run_all_tests() {
     
     echo -e "${BLUE}Found $TOTAL_TESTS tests to run${NC}"
     echo -e "${BLUE}Timeout per test: ${TEST_TIMEOUT}s${NC}"
+    if [ "$HEADLESS_MODE" = true ]; then
+        echo -e "${BLUE}Mode: Headless (no visible windows)${NC}"
+    else
+        echo -e "${BLUE}Mode: Visible windows${NC}"
+    fi
     echo ""
     
     for i in "${!TESTS[@]}"; do
@@ -127,7 +138,7 @@ show_help() {
     echo ""
     echo "Options:"
     echo "  -h, --help     Show this help message"
-    echo "  -v, --verbose  Show detailed test output (not implemented yet)"
+    echo "  -v, --visible  Run tests with visible windows (disables headless mode)"
     echo "  -t, --timeout  Set timeout per test (default: 5s)"
     echo ""
     echo "Available tests:"
@@ -136,7 +147,8 @@ show_help() {
     done
     echo ""
     echo "Examples:"
-    echo "  $0                    # Run all tests"
+    echo "  $0                    # Run all tests in headless mode"
+    echo "  $0 -v                 # Run all tests with visible windows"
     echo "  $0 -t 10              # Run all tests with 10s timeout"
     echo "  $0 --help             # Show this help"
 }
@@ -152,9 +164,9 @@ while [[ $# -gt 0 ]]; do
             TEST_TIMEOUT="$2"
             shift 2
             ;;
-        -v|--verbose)
-            echo "Verbose mode not implemented yet"
-            exit 1
+        -v|--visible)
+            HEADLESS_MODE=false
+            shift
             ;;
         *)
             echo "Unknown option: $1"

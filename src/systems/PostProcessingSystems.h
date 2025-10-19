@@ -13,7 +13,7 @@ struct SetupPostProcessingShader : System<> {
         ShaderLibrary::get().contains(ShaderType::post_processing)) {
       const auto &shader =
           ShaderLibrary::get().get(ShaderType::post_processing);
-      raylib::BeginShaderMode(shader);
+      render_backend::BeginShaderMode(shader);
       float t = static_cast<float>(raylib::GetTime());
       int timeLoc = raylib::GetShaderLocation(shader, "time");
       if (timeLoc != -1) {
@@ -45,8 +45,8 @@ struct RenderScreenToWindow : System<> {
         compute_letterbox_layout(window_w, window_h, content_w, content_h);
     const raylib::Rectangle src{0.0f, 0.0f, (float)screenRT.texture.width,
                                 -(float)screenRT.texture.height};
-    raylib::DrawTexturePro(screenRT.texture, src, layout.dst, {0.0f, 0.0f},
-                           0.0f, raylib::WHITE);
+    render_backend::DrawTexturePro(screenRT.texture, src, layout.dst,
+                                   {0.0f, 0.0f}, 0.0f, raylib::WHITE);
   }
 };
 
@@ -54,7 +54,7 @@ struct EndPostProcessingShader : System<> {
   virtual void once(float) const override {
     if (Settings::get().get_post_processing_enabled() &&
         ShaderLibrary::get().contains(ShaderType::post_processing)) {
-      raylib::EndShaderMode();
+      render_backend::EndShaderMode();
     }
   }
 };

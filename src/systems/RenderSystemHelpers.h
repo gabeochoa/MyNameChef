@@ -5,20 +5,20 @@
 
 struct BeginWorldRender : System<> {
   virtual void once(float) const override {
-    raylib::BeginTextureMode(mainRT);
-    raylib::ClearBackground(raylib::DARKGRAY);
+    render_backend::BeginTextureMode(mainRT);
+    render_backend::ClearBackground(raylib::DARKGRAY);
   }
 };
 
 struct EndWorldRender : System<> {
-  virtual void once(float) const override { raylib::EndTextureMode(); }
+  virtual void once(float) const override { render_backend::EndTextureMode(); }
 };
 
 struct BeginCameraMode : System<HasCamera> {
   virtual void once(float) const override {
     auto *camera_entity = EntityHelper::get_singleton_cmp<HasCamera>();
     if (camera_entity) {
-      raylib::BeginMode2D(camera_entity->camera);
+      render_backend::BeginMode2D(camera_entity->camera);
     }
   }
 };
@@ -27,15 +27,15 @@ struct EndCameraMode : System<HasCamera> {
   virtual void once(float) const override {
     auto *camera_entity = EntityHelper::get_singleton_cmp<HasCamera>();
     if (camera_entity) {
-      raylib::EndMode2D();
+      render_backend::EndMode2D();
     }
   }
 };
 
 struct BeginPostProcessingRender : System<> {
-  virtual void once(float) const override { raylib::BeginDrawing(); }
+  virtual void once(float) const override { render_backend::BeginDrawing(); }
 };
 
 struct EndDrawing : System<> {
-  virtual void once(float) const override { raylib::EndDrawing(); }
+  virtual void once(float) const override { render_backend::EndDrawing(); }
 };

@@ -8,7 +8,7 @@
 
 struct BeginTagShaderRender : System<> {
   virtual void once(float) const override {
-    raylib::BeginTextureMode(screenRT);
+    render_backend::BeginTextureMode(screenRT);
 
     // First draw mainRT to screenRT as background
     const int window_w = raylib::GetScreenWidth();
@@ -19,15 +19,15 @@ struct BeginTagShaderRender : System<> {
         compute_letterbox_layout(window_w, window_h, content_w, content_h);
     const raylib::Rectangle src{0.0f, 0.0f, (float)mainRT.texture.width,
                                 -(float)mainRT.texture.height};
-    raylib::DrawTexturePro(mainRT.texture, src, layout.dst, {0.0f, 0.0f}, 0.0f,
-                           raylib::WHITE);
+    render_backend::DrawTexturePro(mainRT.texture, src, layout.dst,
+                                   {0.0f, 0.0f}, 0.0f, raylib::WHITE);
 
     bool useTagShader =
         ShaderLibrary::get().contains(ShaderType::post_processing_tag);
     if (useTagShader) {
       const auto &shader =
           ShaderLibrary::get().get(ShaderType::post_processing_tag);
-      raylib::BeginShaderMode(shader);
+      render_backend::BeginShaderMode(shader);
       float t = static_cast<float>(raylib::GetTime());
       int timeLoc = raylib::GetShaderLocation(shader, "time");
       if (timeLoc != -1) {
@@ -54,8 +54,8 @@ struct EndTagShaderRender : System<> {
     bool useTagShader =
         ShaderLibrary::get().contains(ShaderType::post_processing_tag);
     if (useTagShader) {
-      raylib::EndShaderMode();
+      render_backend::EndShaderMode();
     }
-    raylib::EndTextureMode();
+    render_backend::EndTextureMode();
   }
 };

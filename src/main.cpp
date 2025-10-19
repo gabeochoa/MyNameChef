@@ -69,6 +69,9 @@ bool running = true;
 raylib::RenderTexture2D mainRT;
 raylib::RenderTexture2D screenRT;
 
+// Global headless mode flag
+bool render_backend::is_headless_mode = false;
+
 using namespace afterhours;
 
 void game(const std::optional<std::string> &run_test) {
@@ -238,11 +241,19 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  // Parse headless mode flag
+  bool headless_mode = false;
+  if (cmdl["--headless"]) {
+    headless_mode = true;
+    render_backend::is_headless_mode = true;
+    log_info("HEADLESS MODE: Enabled - Rendering will be skipped");
+  }
+
   // Load savefile first
   Settings::get().load_save_file(screenWidth, screenHeight);
 
   Preload::get() //
-      .init("template")
+      .init("template", headless_mode)
       .make_singleton();
   Settings::get().refresh_settings();
 

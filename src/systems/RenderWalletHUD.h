@@ -19,11 +19,12 @@ struct RenderWalletHUD : System<> {
     std::string wallet_text = std::to_string(wallet.gold) + " gold";
     float text_size = 20.f;
 
-    // TODO: Convert wallet display to UI element with label for better testability
-    // Expected: Wallet should be a UI element with label "Gold: 100" or similar
-    // This would allow UITestHelpers::visible_ui_exists("Gold:") to work
-    raylib::DrawText(wallet_text.c_str(), 20, 80, static_cast<int>(text_size),
-                     raylib::GOLD);
+    // TODO: Convert wallet display to UI element with label for better
+    // testability Expected: Wallet should be a UI element with label "Gold:
+    // 100" or similar This would allow
+    // UITestHelpers::visible_ui_exists("Gold:") to work
+    render_backend::DrawText(wallet_text.c_str(), 20, 80,
+                             static_cast<int>(text_size), raylib::GOLD);
 
     auto health_entity = EntityHelper::get_singleton<Health>();
     if (!health_entity.get().has<Health>())
@@ -33,7 +34,7 @@ struct RenderWalletHUD : System<> {
     std::string health_text = std::to_string(health.current) + "/" +
                               std::to_string(health.max) + " health";
 
-    raylib::DrawText(health_text.c_str(), 20, 110, static_cast<int>(text_size),
-                     raylib::RED);
+    render_backend::DrawText(health_text.c_str(), 20, 110,
+                             static_cast<int>(text_size), raylib::RED);
   }
 };

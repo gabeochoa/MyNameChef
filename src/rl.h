@@ -199,6 +199,8 @@ using raylib::Rectangle;
 #include <afterhours/src/plugins/autolayout.h>
 #include <afterhours/src/plugins/ui.h>
 
+#include "render_backend.h"
+
 #ifdef __clang__
 #pragma clang diagnostic pop
 #elif defined(__GNUC__)

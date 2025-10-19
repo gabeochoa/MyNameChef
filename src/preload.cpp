@@ -55,14 +55,23 @@ static void load_gamepad_mappings() {
 
 Preload::Preload() {}
 
-Preload &Preload::init(const char *title) {
+Preload &Preload::init(const char *title) { return init(title, false); }
+
+Preload &Preload::init(const char *title, bool headless) {
 
   int width = Settings::get().get_screen_width();
   int height = Settings::get().get_screen_height();
 
   // raylib::SetConfigFlags(raylib::FLAG_WINDOW_HIGHDPI);
+  if (headless) {
+    raylib::SetConfigFlags(raylib::FLAG_WINDOW_HIDDEN);
+  }
   raylib::InitWindow(width, height, title);
   raylib::SetWindowSize(width, height);
+
+  if (headless) {
+    raylib::MinimizeWindow();
+  }
   // Back to warnings
   raylib::TraceLogLevel logLevel = raylib::LOG_ERROR;
   raylib::SetTraceLogLevel(logLevel);
