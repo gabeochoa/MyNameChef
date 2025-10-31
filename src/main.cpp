@@ -25,6 +25,7 @@ backward::SignalHandling sh;
 #include "systems/CleanupShopEntities.h"
 #include "systems/ComputeCombatStatsSystem.h"
 #include "systems/DropWhenNoLongerHeld.h"
+#include "systems/EffectResolutionSystem.h"
 #include "systems/GenerateDishesGallery.h"
 #include "systems/InitCombatState.h"
 #include "systems/InitialShopFill.h"
@@ -122,6 +123,7 @@ void game(const std::optional<std::string> &run_test) {
     systems.register_update_system(std::make_unique<BattleDebugSystem>());
     systems.register_update_system(std::make_unique<BattleProcessorSystem>());
     systems.register_update_system(std::make_unique<TriggerDispatchSystem>());
+    systems.register_update_system(std::make_unique<EffectResolutionSystem>());
     systems.register_update_system(
         std::make_unique<ApplyPendingCombatModsSystem>());
     // Legacy battle systems - can be removed once BattleProcessor is working
