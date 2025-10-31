@@ -7,6 +7,7 @@
 #include "../components/trigger_event.h"
 #include "../components/trigger_queue.h"
 #include "../game_state_manager.h"
+#include "../query.h"
 #include "../shop.h"
 #include <afterhours/ah.h>
 
@@ -69,28 +70,41 @@ struct SimplifiedOnServeSystem : afterhours::System<CombatQueue> {
       return;
     }
 
+    afterhours::RefEntities currentSlotDishes =
+        afterhours::EntityQuery()
+            .whereHasComponent<IsDish>()
+            .whereHasComponent<DishBattleState>()
+            .whereLambda([&state](const afterhours::Entity &e) {
+              const DishBattleState &dbs = e.get<DishBattleState>();
+              return dbs.phase == DishBattleState::Phase::InQueue &&
+                     !dbs.onserve_fired && dbs.queue_index == state.currentSlot;
+            })
+            .gen();
+
     bool firedThisSlot = false;
-    for (afterhours::Entity &dish : dishes) {
+    for (afterhours::Entity &dish : currentSlotDishes) {
       DishBattleState &dbs = dish.get<DishBattleState>();
-      if (dbs.queue_index == state.currentSlot && !dbs.onserve_fired) {
-        fire_onserve_trigger(dish, dbs);
-        dbs.onserve_fired = true;
-        firedThisSlot = true;
-        log_info("COMBAT: Fired OnServe for slot {} (left-to-right)",
-                 state.currentSlot);
-      }
+      fire_onserve_trigger(dish, dbs);
+      dbs.onserve_fired = true;
+      firedThisSlot = true;
+      log_info("COMBAT: Fired OnServe for slot {} (left-to-right)",
+               state.currentSlot);
     }
 
     if (firedThisSlot) {
-      int maxSlot = -1;
-      for (afterhours::Entity &dish : dishes) {
-        DishBattleState &dbs = dish.get<DishBattleState>();
-        if (dbs.queue_index > maxSlot) {
-          maxSlot = dbs.queue_index;
-        }
-      }
+      auto maxSlotOpt =
+          EQ().whereHasComponent<IsDish>()
+              .whereHasComponent<DishBattleState>()
+              .whereLambda([](const afterhours::Entity &e) {
+                const DishBattleState &dbs = e.get<DishBattleState>();
+                return dbs.phase == DishBattleState::Phase::InQueue &&
+                       !dbs.onserve_fired;
+              })
+              .gen_max_value<int>([](const afterhours::Entity &e) {
+                return e.get<DishBattleState>().queue_index;
+              });
 
-      if (state.currentSlot >= maxSlot) {
+      if (maxSlotOpt && state.currentSlot >= *maxSlotOpt) {
         state.allFired = true;
         log_info("COMBAT: All OnServe triggers fired");
       } else {
@@ -133,17 +147,13 @@ private:
   }
 
   bool slide_in_complete() {
-    for (afterhours::Entity &animEntity :
-         afterhours::EntityQuery()
-             .whereHasComponent<AnimationEvent>()
-             .whereHasComponent<AnimationTimer>()
-             .gen()) {
-      auto &ev = animEntity.get<AnimationEvent>();
-      if (ev.type == AnimationEventType::SlideIn) {
-        return false;
-      }
-    }
-
-    return true;
+    return !afterhours::EntityQuery()
+                .whereHasComponent<AnimationEvent>()
+                .whereHasComponent<AnimationTimer>()
+                .whereLambda([](const afterhours::Entity &e) {
+                  const AnimationEvent &ev = e.get<AnimationEvent>();
+                  return ev.type == AnimationEventType::SlideIn;
+                })
+                .has_values();
   }
 };
