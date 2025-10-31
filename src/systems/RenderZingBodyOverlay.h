@@ -1,8 +1,14 @@
 #pragma once
 
+#include "../components/battle_anim_keys.h"
+#include "../components/combat_stats.h"
+#include "../components/deferred_flavor_mods.h"
 #include "../components/dish_battle_state.h"
 #include "../components/dish_level.h"
 #include "../components/is_dish.h"
+#include "../components/is_inventory_item.h"
+#include "../components/is_shop_item.h"
+#include "../components/pre_battle_modifiers.h"
 #include "../components/render_order.h"
 #include "../components/transform.h"
 #include "../dish_types.h"
@@ -25,10 +31,13 @@ struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
     // Do not render overlays for entities marked for cleanup
     if (entity.cleanup)
       return;
-    // Only overlay on battle/result dishes; skip shop/inventory duplicates
-    if (!entity.has<DishBattleState>())
+
+    bool is_battle_dish = entity.has<DishBattleState>();
+    bool is_shop_item = entity.has<IsShopItem>();
+    bool is_inventory_item = entity.has<IsInventoryItem>();
+
+    if (!is_battle_dish && !is_shop_item && !is_inventory_item)
       return;
-    const DishBattleState &dbs_check = entity.get<DishBattleState>();
 
     // Respect screen render flags
     auto &gsm = GameStateManager::get();
@@ -38,8 +47,9 @@ struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
       return;
 
     // On battle screen, skip overlays for finished dishes
-    if (GameStateManager::get().active_screen ==
-        GameStateManager::Screen::Battle) {
+    if (is_battle_dish && GameStateManager::get().active_screen ==
+                              GameStateManager::Screen::Battle) {
+      const DishBattleState &dbs_check = entity.get<DishBattleState>();
       if (dbs_check.phase == DishBattleState::Phase::Finished)
         return;
     }
@@ -52,7 +62,7 @@ struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
     float offset_x = 0.0f;
     float offset_y = 0.0f;
 
-    if (entity.has<DishBattleState>()) {
+    if (is_battle_dish) {
       const auto &dbs = entity.get<DishBattleState>();
       bool isPlayer = dbs.team_side == DishBattleState::TeamSide::Player;
 
@@ -84,21 +94,52 @@ struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
       }
     }
 
-    // Compute Zing and Body from FlavorStats using per-point sums
-    const FlavorStats flavor = is_dish.flavor();
-    int zing = flavor.zing();
-    int body = flavor.body();
+    int zing = 0;
+    int body = 0;
+    bool has_deferred = entity.has<DeferredFlavorMods>();
+    bool has_pre_battle = entity.has<PreBattleModifiers>();
+    bool is_in_combat = is_battle_dish && entity.get<DishBattleState>().phase ==
+                                              DishBattleState::Phase::InCombat;
 
-    // Level scaling: if level > 1, multiply both by 2
-    if (entity.has<DishLevel>()) {
-      const auto &lvl = entity.get<DishLevel>();
-      if (lvl.level > 1) {
-        zing *= 2;
-        body *= 2;
+    if (is_in_combat && entity.has<CombatStats>()) {
+      const auto &cs = entity.get<CombatStats>();
+      zing = cs.currentZing;
+      body = cs.currentBody;
+    } else {
+      auto dish_info = get_dish_info(is_dish.type);
+      FlavorStats flavor = dish_info.flavor;
+      if (has_deferred) {
+        const auto &def = entity.get<DeferredFlavorMods>();
+        flavor.satiety += def.satiety;
+        flavor.sweetness += def.sweetness;
+        flavor.spice += def.spice;
+        flavor.acidity += def.acidity;
+        flavor.umami += def.umami;
+        flavor.richness += def.richness;
+        flavor.freshness += def.freshness;
       }
-    }
 
-    zing = std::max(1, zing);
+      zing = flavor.zing();
+      body = flavor.body();
+
+      if (entity.has<DishLevel>()) {
+        const auto &lvl = entity.get<DishLevel>();
+        if (lvl.level > 1) {
+          int level_multiplier = 1 << (lvl.level - 1);
+          zing *= level_multiplier;
+          body *= level_multiplier;
+        }
+      }
+
+      if (has_pre_battle) {
+        const auto &pre = entity.get<PreBattleModifiers>();
+        zing += pre.zingDelta;
+        body += pre.bodyDelta;
+      }
+
+      zing = std::max(1, zing);
+      body = std::max(0, body);
+    }
 
     // Badge sizes relative to sprite rect
     const Rectangle rect = Rectangle{transform.position.x + offset_x,
