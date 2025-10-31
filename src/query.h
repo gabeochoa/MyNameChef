@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include "components/dish_battle_state.h"
 #include "components/is_drop_slot.h"
 #include "components/transform.h"
 #include "math_util.h"
@@ -71,4 +72,84 @@ struct EQ : public EntityQuery<EQ> {
   };
 
   EQ &whereSlotID(int id) { return add_mod(new WhereSlotID(id)); }
+
+  struct WhereInSlotIndex : EntityQuery::Modification {
+    int slot_index;
+
+    explicit WhereInSlotIndex(int index) : slot_index(index) {}
+
+    bool operator()(const afterhours::Entity &entity) const override {
+      return entity.has<DishBattleState>() &&
+             entity.get<DishBattleState>().queue_index == slot_index;
+    }
+  };
+
+  EQ &whereInSlotIndex(int slot_index) {
+    return add_mod(new WhereInSlotIndex(slot_index));
+  }
+
+  struct WhereTeamSide : EntityQuery::Modification {
+    DishBattleState::TeamSide team_side;
+
+    explicit WhereTeamSide(DishBattleState::TeamSide side) : team_side(side) {}
+
+    bool operator()(const afterhours::Entity &entity) const override {
+      return entity.has<DishBattleState>() &&
+             entity.get<DishBattleState>().team_side == team_side;
+    }
+  };
+
+  EQ &whereTeamSide(DishBattleState::TeamSide side) {
+    return add_mod(new WhereTeamSide(side));
+  }
+
+  template <typename T>
+  afterhours::OptEntity
+  gen_max(std::function<T(const afterhours::Entity &)> extractor) const {
+    const auto results = gen();
+    if (results.empty()) {
+      return afterhours::OptEntity();
+    }
+
+    auto it = std::max_element(
+        results.begin(), results.end(),
+        [&extractor](const afterhours::Entity &a, const afterhours::Entity &b) {
+          return extractor(a) < extractor(b);
+        });
+    return afterhours::OptEntity(*it);
+  }
+
+  template <typename T>
+  afterhours::OptEntity
+  gen_min(std::function<T(const afterhours::Entity &)> extractor) const {
+    const auto results = gen();
+    if (results.empty()) {
+      return afterhours::OptEntity();
+    }
+
+    auto it = std::min_element(
+        results.begin(), results.end(),
+        [&extractor](const afterhours::Entity &a, const afterhours::Entity &b) {
+          return extractor(a) < extractor(b);
+        });
+    return afterhours::OptEntity(*it);
+  }
+
+  template <typename T>
+  std::optional<T>
+  gen_max_value(std::function<T(const afterhours::Entity &)> extractor) const {
+    const auto results = gen();
+    if (results.empty()) {
+      return std::nullopt;
+    }
+
+    T max_val = extractor(results[0].get());
+    for (const auto &ref : results) {
+      T val = extractor(ref.get());
+      if (val > max_val) {
+        max_val = val;
+      }
+    }
+    return max_val;
+  }
 };
