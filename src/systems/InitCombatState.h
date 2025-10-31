@@ -1,8 +1,10 @@
 #pragma once
 
+#include "../components/animation_event.h"
 #include "../components/combat_queue.h"
 #include "../components/dish_battle_state.h"
 #include "../game_state_manager.h"
+#include "../shop.h"
 #include <afterhours/ah.h>
 
 struct InitCombatState : afterhours::System<CombatQueue> {
@@ -46,5 +48,8 @@ struct InitCombatState : afterhours::System<CombatQueue> {
     log_info(
         "COMBAT: Initialized combat state - {} courses, {} dishes in queue",
         cq.total_courses, dish_count);
+
+    log_info("COMBAT: Creating SlideIn animation at battle start");
+    make_animation_event(AnimationEventType::SlideIn, true);
   }
 };

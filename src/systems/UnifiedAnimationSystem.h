@@ -1,11 +1,15 @@
 #pragma once
 
 #include "../components/animation_event.h"
+#include "../components/battle_anim_keys.h"
+#include "../components/dish_battle_state.h"
+#include "../components/is_dish.h"
 #include "../game_state_manager.h"
 #include <afterhours/ah.h>
+#include <afterhours/src/plugins/animation.h>
 
-// Unified system to handle all animation scheduling and timing
-struct UnifiedAnimationSystem
+// System to schedule animation events with timers
+struct AnimationSchedulerSystem
     : afterhours::System<AnimationEvent, IsBlockingAnimationEvent> {
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
@@ -85,6 +89,33 @@ struct AnimationTimerSystem : afterhours::System<AnimationTimer> {
         // AnimationEvent cleanup is handled by removing the AnimationEvent
         // component itself
       }
+    }
+  }
+};
+
+struct SlideInAnimationDriverSystem
+    : afterhours::System<AnimationEvent, AnimationTimer> {
+  virtual bool should_run(float) override {
+    auto &gsm = GameStateManager::get();
+    return gsm.active_screen == GameStateManager::Screen::Battle;
+  }
+
+  void for_each_with(afterhours::Entity &, AnimationEvent &ev,
+                     AnimationTimer &timer, float) override {
+    if (ev.type != AnimationEventType::SlideIn) {
+      return;
+    }
+
+    float progress = std::clamp(timer.elapsed / timer.duration, 0.0f, 1.0f);
+    float slideValue = progress;
+
+    for (afterhours::Entity &dish : afterhours::EntityQuery()
+                                        .whereHasComponent<IsDish>()
+                                        .whereHasComponent<DishBattleState>()
+                                        .gen()) {
+      auto animHandle =
+          afterhours::animation::anim(BattleAnimKey::SlideIn, (size_t)dish.id);
+      animHandle.from(slideValue);
     }
   }
 };

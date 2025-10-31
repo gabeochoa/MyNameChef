@@ -218,32 +218,6 @@ void BattleProcessor::processCourse(int courseIndex, float dt) {
     // Simple enter simulation - just move to combat after duration
     playerDish->phase = DishSimData::Phase::InCombat;
     opponentDish->phase = DishSimData::Phase::InCombat;
-
-    // Emit OnServe for both dishes when they enter combat
-    if (auto tq = afterhours::EntityHelper::get_singleton<TriggerQueue>();
-        tq.get().has<TriggerQueue>()) {
-      auto &queue = tq.get().get<TriggerQueue>();
-
-      // Find actual entity ids for the slot to set as sourceEntityId
-      int playerId = -1;
-      int opponentId = -1;
-      for (afterhours::Entity &e : afterhours::EntityQuery()
-                                       .whereHasComponent<DishBattleState>()
-                                       .gen()) {
-        auto &dbs = e.get<DishBattleState>();
-        if (dbs.queue_index == courseIndex) {
-          if (dbs.team_side == DishBattleState::TeamSide::Player)
-            playerId = e.id;
-          else if (dbs.team_side == DishBattleState::TeamSide::Opponent)
-            opponentId = e.id;
-        }
-      }
-
-      queue.add_event(TriggerHook::OnServe, playerId, playerDish->slot,
-                      DishBattleState::TeamSide::Player);
-      queue.add_event(TriggerHook::OnServe, opponentId, opponentDish->slot,
-                      DishBattleState::TeamSide::Opponent);
-    }
     return;
   }
 

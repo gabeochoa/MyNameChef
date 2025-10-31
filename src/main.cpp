@@ -142,8 +142,11 @@ void game(const std::optional<std::string> &run_test) {
     afterhours::animation::register_update_systems<
         afterhours::animation::CompositeKey>(systems);
     afterhours::animation::register_update_systems<BattleAnimKey>(systems);
-    systems.register_update_system(std::make_unique<UnifiedAnimationSystem>());
+    systems.register_update_system(
+        std::make_unique<AnimationSchedulerSystem>());
     systems.register_update_system(std::make_unique<AnimationTimerSystem>());
+    systems.register_update_system(
+        std::make_unique<SlideInAnimationDriverSystem>());
 
     register_sound_systems(systems);
     register_ui_systems(systems);
