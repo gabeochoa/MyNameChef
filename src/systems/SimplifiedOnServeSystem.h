@@ -7,9 +7,11 @@
 #include "../components/trigger_event.h"
 #include "../components/trigger_queue.h"
 #include "../game_state_manager.h"
+#include "../shop.h"
 #include <afterhours/ah.h>
 
 struct OnServeState : afterhours::BaseComponent {
+  int currentSlot = 0;
   bool allFired = false;
 };
 
@@ -40,21 +42,61 @@ struct SimplifiedOnServeSystem : afterhours::System<CombatQueue> {
       return;
     }
 
-    log_info("COMBAT: SlideIn complete, firing all OnServe triggers");
+    if (hasActiveAnimation()) {
+      return;
+    }
 
-    for (afterhours::Entity &dish : afterhours::EntityQuery()
-                                        .whereHasComponent<IsDish>()
-                                        .whereHasComponent<DishBattleState>()
-                                        .gen()) {
-      auto &dbs = dish.get<DishBattleState>();
-      if (dbs.phase == DishBattleState::Phase::InQueue && !dbs.onserve_fired) {
+    afterhours::RefEntities dishes =
+        afterhours::EntityQuery()
+            .whereHasComponent<IsDish>()
+            .whereHasComponent<DishBattleState>()
+            .whereLambda([](const afterhours::Entity &e) {
+              const DishBattleState &dbs = e.get<DishBattleState>();
+              return dbs.phase == DishBattleState::Phase::InQueue &&
+                     !dbs.onserve_fired;
+            })
+            .orderByLambda(
+                [](const afterhours::Entity &a, const afterhours::Entity &b) {
+                  const DishBattleState &dbs_a = a.get<DishBattleState>();
+                  const DishBattleState &dbs_b = b.get<DishBattleState>();
+                  return dbs_a.queue_index < dbs_b.queue_index;
+                })
+            .gen();
+
+    if (dishes.empty()) {
+      state.allFired = true;
+      log_info("COMBAT: All OnServe triggers fired");
+      return;
+    }
+
+    bool firedThisSlot = false;
+    for (afterhours::Entity &dish : dishes) {
+      DishBattleState &dbs = dish.get<DishBattleState>();
+      if (dbs.queue_index == state.currentSlot && !dbs.onserve_fired) {
         fire_onserve_trigger(dish, dbs);
         dbs.onserve_fired = true;
+        firedThisSlot = true;
+        log_info("COMBAT: Fired OnServe for slot {} (left-to-right)",
+                 state.currentSlot);
       }
     }
 
-    state.allFired = true;
-    log_info("COMBAT: All OnServe triggers fired");
+    if (firedThisSlot) {
+      int maxSlot = -1;
+      for (afterhours::Entity &dish : dishes) {
+        DishBattleState &dbs = dish.get<DishBattleState>();
+        if (dbs.queue_index > maxSlot) {
+          maxSlot = dbs.queue_index;
+        }
+      }
+
+      if (state.currentSlot >= maxSlot) {
+        state.allFired = true;
+        log_info("COMBAT: All OnServe triggers fired");
+      } else {
+        state.currentSlot++;
+      }
+    }
   }
 
 private:

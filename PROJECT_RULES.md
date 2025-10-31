@@ -98,11 +98,13 @@ Examples:
 - Handle singleton existence checks before accessing components
 
 ## Query and Filtering Patterns
-- Prefer `where` clauses over manual filtering in loops
+- Prefer `EntityQuery` when possible over manual entity iteration
 - Use `whereLambda` for complex filtering conditions
+- Use `orderByLambda` for sorting entities instead of `std::sort`
 - Chain multiple `where` clauses for better performance
 - Use `gen_first()` for finding single entities instead of loops
 - Extract complex query logic into helper functions for reusability
+- Use `RefEntities` (from query results) instead of manually creating vectors of references
 
 ## Component Design Principles
 - Prefer pure tag components over components with member variables
