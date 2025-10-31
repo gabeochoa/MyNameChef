@@ -32,9 +32,9 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
     }
 
     // Find player and opponent dishes for current slot
-    auto player_dish =
+    afterhours::OptEntity player_dish =
         find_dish_for_slot(cq.current_index, DishBattleState::TeamSide::Player);
-    auto opponent_dish = find_dish_for_slot(
+    afterhours::OptEntity opponent_dish = find_dish_for_slot(
         cq.current_index, DishBattleState::TeamSide::Opponent);
 
     // (quiet)
@@ -48,8 +48,8 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
       return;
     }
 
-    auto &player_dbs = player_dish.value()->get<DishBattleState>();
-    auto &opponent_dbs = opponent_dish.value()->get<DishBattleState>();
+    DishBattleState &player_dbs = player_dish->get<DishBattleState>();
+    DishBattleState &opponent_dbs = opponent_dish->get<DishBattleState>();
 
     // Check if both dishes for current course are finished
     if (player_dbs.phase == DishBattleState::Phase::InCombat &&
@@ -76,20 +76,19 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
   }
 
 private:
-  std::optional<afterhours::Entity *>
-  find_dish_for_slot(int slot_index, DishBattleState::TeamSide side) {
-    for (auto &ref :
-         afterhours::EntityQuery().whereHasComponent<DishBattleState>().gen()) {
-      auto &e = ref.get();
-      auto &dbs = e.get<DishBattleState>();
-      if (dbs.team_side == side && dbs.queue_index == slot_index &&
-          (dbs.phase == DishBattleState::Phase::InQueue ||
-           dbs.phase == DishBattleState::Phase::Entering ||
-           dbs.phase == DishBattleState::Phase::InCombat)) {
-        return &e;
-      }
-    }
-    return std::nullopt;
+  afterhours::OptEntity find_dish_for_slot(int slot_index,
+                                           DishBattleState::TeamSide side) {
+    return EQ()
+        .whereHasComponent<DishBattleState>()
+        .whereInSlotIndex(slot_index)
+        .whereTeamSide(side)
+        .whereLambda([](const afterhours::Entity &e) {
+          const DishBattleState &dbs = e.get<DishBattleState>();
+          return dbs.phase == DishBattleState::Phase::InQueue ||
+                 dbs.phase == DishBattleState::Phase::Entering ||
+                 dbs.phase == DishBattleState::Phase::InCombat;
+        })
+        .gen_first();
   }
 
   bool prerequisites_complete() {
@@ -99,7 +98,7 @@ private:
              .whereHasComponent<AnimationEvent>()
              .whereHasComponent<AnimationTimer>()
              .gen()) {
-      auto &ev = animEntity.get<AnimationEvent>();
+      AnimationEvent &ev = animEntity.get<AnimationEvent>();
       if (ev.type == AnimationEventType::SlideIn) {
         slideInComplete = false;
         break;
@@ -110,14 +109,18 @@ private:
       return false;
     }
 
-    for (afterhours::Entity &dish : afterhours::EntityQuery()
-                                        .whereHasComponent<IsDish>()
-                                        .whereHasComponent<DishBattleState>()
-                                        .gen()) {
-      auto &dbs = dish.get<DishBattleState>();
-      if (dbs.phase == DishBattleState::Phase::InQueue && !dbs.onserve_fired) {
-        return false;
-      }
+    afterhours::RefEntities unfinishedDishes =
+        afterhours::EntityQuery()
+            .whereHasComponent<IsDish>()
+            .whereHasComponent<DishBattleState>()
+            .whereLambda([](const afterhours::Entity &e) {
+              const DishBattleState &dbs = e.get<DishBattleState>();
+              return dbs.phase == DishBattleState::Phase::InQueue &&
+                     !dbs.onserve_fired;
+            })
+            .gen();
+    if (!unfinishedDishes.empty()) {
+      return false;
     }
 
     if (hasActiveAnimation()) {
