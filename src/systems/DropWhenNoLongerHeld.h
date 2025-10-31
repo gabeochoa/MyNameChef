@@ -15,7 +15,7 @@ private:
                      const IsDropSlot &drop_slot);
   int get_slot_id(const afterhours::Entity &entity);
   void set_slot_id(afterhours::Entity &entity, int slot_id);
-  afterhours::Entity *
+  afterhours::OptEntity
   find_item_in_slot(int slot_id, const afterhours::Entity &exclude_entity);
   void snap_back_to_original(afterhours::Entity &entity, const IsHeld &held);
   bool can_merge_dishes(const afterhours::Entity &entity,

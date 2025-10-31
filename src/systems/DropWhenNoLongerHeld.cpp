@@ -36,24 +36,19 @@ void DropWhenNoLongerHeld::set_slot_id(Entity &entity, int slot_id) {
   }
 }
 
-Entity *DropWhenNoLongerHeld::find_item_in_slot(int slot_id,
-                                                const Entity &exclude_entity) {
-  for (auto &ref : EntityQuery().whereHasComponent<IsInventoryItem>().gen()) {
-    auto &other_entity = ref.get();
-    if (other_entity.get<IsInventoryItem>().slot == slot_id &&
-        &other_entity != &exclude_entity) {
-      return &other_entity;
-    }
-  }
-
-  for (auto &ref : EntityQuery().whereHasComponent<IsShopItem>().gen()) {
-    auto &other_entity = ref.get();
-    if (other_entity.get<IsShopItem>().slot == slot_id &&
-        &other_entity != &exclude_entity) {
-      return &other_entity;
-    }
-  }
-  return nullptr;
+afterhours::OptEntity
+DropWhenNoLongerHeld::find_item_in_slot(int slot_id,
+                                        const Entity &exclude_entity) {
+  afterhours::OptEntity inventoryItem =
+      EQ().whereHasComponent<IsInventoryItem>()
+          .whereSlotID(slot_id)
+          .whereNotID(exclude_entity.id)
+          .gen_first();
+  return inventoryItem.has_value() ? inventoryItem
+                                   : EQ().whereHasComponent<IsShopItem>()
+                                         .whereSlotID(slot_id)
+                                         .whereNotID(exclude_entity.id)
+                                         .gen_first();
 }
 
 void DropWhenNoLongerHeld::snap_back_to_original(Entity &entity,
@@ -185,21 +180,23 @@ void DropWhenNoLongerHeld::drop_into_empty_slot(Entity &entity,
 void DropWhenNoLongerHeld::swap_items(Entity &entity, Entity *occupied_slot,
                                       const Transform &transform,
                                       const IsHeld &held) {
-  Entity *item_in_slot =
+  afterhours::OptEntity item_in_slot =
       find_item_in_slot(occupied_slot->get<IsDropSlot>().slot_id, entity);
-  if (!item_in_slot)
+  if (!item_in_slot.has_value())
     return;
 
+  Entity &item = *item_in_slot.value();
+
   // Check if we can merge instead of swap
-  if (can_merge_dishes(entity, *item_in_slot)) {
-    merge_dishes(entity, item_in_slot, occupied_slot, transform, held);
+  if (can_merge_dishes(entity, item)) {
+    merge_dishes(entity, &item, occupied_slot, transform, held);
     return;
   }
 
   // Only prevent swapping if one is shop item and one is inventory item
   // Allow shop-to-shop and inventory-to-inventory swaps
-  if ((entity.has<IsShopItem>() && item_in_slot->has<IsInventoryItem>()) ||
-      (entity.has<IsInventoryItem>() && item_in_slot->has<IsShopItem>())) {
+  if ((entity.has<IsShopItem>() && item.has<IsInventoryItem>()) ||
+      (entity.has<IsInventoryItem>() && item.has<IsShopItem>())) {
     snap_back_to_original(entity, held);
     return;
   }
@@ -209,10 +206,10 @@ void DropWhenNoLongerHeld::swap_items(Entity &entity, Entity *occupied_slot,
 
   vec2 slot_center = occupied_slot->get<Transform>().center();
   entity.get<Transform>().position = slot_center - transform.size * 0.5f;
-  item_in_slot->get<Transform>().position = held.original_position;
+  item.get<Transform>().position = held.original_position;
 
   set_slot_id(entity, target_slot_id);
-  set_slot_id(*item_in_slot, original_slot_id);
+  set_slot_id(item, original_slot_id);
 
   occupied_slot->get<IsDropSlot>().occupied = true;
   if (original_slot_id >= 0) {
