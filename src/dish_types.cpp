@@ -1,6 +1,7 @@
 #include "dish_types.h"
 #include "components/deferred_flavor_mods.h"
 #include "components/dish_battle_state.h"
+#include "components/dish_effect.h"
 #include "components/is_dish.h"
 #include "components/pending_combat_mods.h"
 #include "query.h"
@@ -13,14 +14,16 @@ static constexpr int kUnifiedDishPrice = 3;
 
 static DishInfo make_dish(const char *name, FlavorStats flavor,
                           SpriteLocation sprite, int tier = 2,
-                          OnServeHandler onServe = nullptr) {
+                          OnServeHandler onServe = nullptr,
+                          std::vector<DishEffect> effects = {}) {
   DishInfo result;
   result.name = name;
-  result.price = kUnifiedDishPrice; // Always 3
+  result.price = kUnifiedDishPrice;
   result.tier = tier;
   result.flavor = flavor;
   result.sprite = sprite;
   result.onServe = onServe;
+  result.effects = std::move(effects);
   return result;
 }
 
@@ -126,36 +129,16 @@ static DishInfo make_salmon() {
 }
 
 static DishInfo make_french_fries() {
-  return make_dish(
-      "French Fries", FlavorStats{.satiety = 1, .richness = 1},
-      SpriteLocation{1, 9}, 1,
-      /*onServe=*/[](int sourceEntityId) {
-        auto src = EQ().whereID(sourceEntityId)
-                       .whereHasComponent<DishBattleState>()
-                       .gen_first();
-        if (!src) {
-          return;
-        }
-        auto &src_dbs = src->get<DishBattleState>();
-        auto allyDishes =
-            afterhours::EntityQuery()
-                .whereHasComponent<IsDish>()
-                .whereHasComponent<DishBattleState>()
-                .whereNotID(sourceEntityId)
-                .whereLambda([&src_dbs](const afterhours::Entity &e) {
-                  const DishBattleState &dbs = e.get<DishBattleState>();
-                  return dbs.team_side == src_dbs.team_side &&
-                         dbs.phase == DishBattleState::Phase::InQueue;
-                })
-                .gen();
-        for (afterhours::Entity &e : allyDishes) {
-          auto &pending = e.addComponentIfMissing<PendingCombatMods>();
-          pending.zingDelta += 1;
+  std::vector<DishEffect> effects;
+  DishEffect friesEffect;
+  friesEffect.triggerHook = TriggerHook::OnServe;
+  friesEffect.operation = EffectOperation::AddCombatZing;
+  friesEffect.targetScope = TargetScope::FutureAllies;
+  friesEffect.amount = 1;
+  effects.push_back(friesEffect);
 
-          log_info("TRIGGER french fries handler: dish={} (id={})",
-                   e.get<IsDish>().name(), e.id);
-        }
-      });
+  return make_dish("French Fries", FlavorStats{.satiety = 1, .richness = 1},
+                   SpriteLocation{1, 9}, 1, nullptr, effects);
 }
 
 DishInfo get_dish_info(DishType type) {
@@ -166,21 +149,52 @@ DishInfo get_dish_info(DishType type) {
                      1); // potato.png x=416,y=96 - Tier 1
   case DishType::Salmon:
     return make_salmon();
-  case DishType::Bagel:
+  case DishType::Bagel: {
+    std::vector<DishEffect> effects;
+    DishEffect bagelEffect;
+    bagelEffect.triggerHook = TriggerHook::OnServe;
+    bagelEffect.operation = EffectOperation::AddFlavorStat;
+    bagelEffect.targetScope = TargetScope::DishesAfterSelf;
+    bagelEffect.amount = 1;
+    bagelEffect.flavorStatType = FlavorStatType::Richness;
+    effects.push_back(bagelEffect);
     return make_dish("Bagel", FlavorStats{.satiety = 1}, SpriteLocation{13, 0},
-                     1); // 20_bagel.png x=416,y=0 - Tier 1
-  case DishType::Baguette:
+                     1, nullptr, effects);
+  }
+  case DishType::Baguette: {
+    std::vector<DishEffect> effects;
+    DishEffect baguetteEffect;
+    baguetteEffect.triggerHook = TriggerHook::OnServe;
+    baguetteEffect.operation = EffectOperation::AddCombatZing;
+    baguetteEffect.targetScope = TargetScope::Opponent;
+    baguetteEffect.amount = -1;
+    effects.push_back(baguetteEffect);
     return make_dish("Baguette", FlavorStats{.satiety = 1},
-                     SpriteLocation{1, 0},
-                     1); // 09_baguette.png x=32,y=0 - Tier 1
-  case DishType::GarlicBread:
+                     SpriteLocation{1, 0}, 1, nullptr, effects);
+  }
+  case DishType::GarlicBread: {
+    std::vector<DishEffect> effects;
+    DishEffect garlicBreadEffect;
+    garlicBreadEffect.triggerHook = TriggerHook::OnServe;
+    garlicBreadEffect.operation = EffectOperation::AddFlavorStat;
+    garlicBreadEffect.targetScope = TargetScope::FutureAllies;
+    garlicBreadEffect.amount = 1;
+    garlicBreadEffect.flavorStatType = FlavorStatType::Spice;
+    effects.push_back(garlicBreadEffect);
     return make_dish("Garlic Bread", FlavorStats{.satiety = 1, .richness = 1},
-                     SpriteLocation{0, 9},
-                     1); // 07_bread.png x=0,y=288 - Tier 1
-  case DishType::FriedEgg:
+                     SpriteLocation{0, 9}, 1, nullptr, effects);
+  }
+  case DishType::FriedEgg: {
+    std::vector<DishEffect> effects;
+    DishEffect friedEggEffect;
+    friedEggEffect.triggerHook = TriggerHook::OnDishFinished;
+    friedEggEffect.operation = EffectOperation::AddCombatBody;
+    friedEggEffect.targetScope = TargetScope::AllAllies;
+    friedEggEffect.amount = 2;
+    effects.push_back(friedEggEffect);
     return make_dish("Fried Egg", FlavorStats{.richness = 1},
-                     SpriteLocation{2, 7},
-                     1); // 38_friedegg.png x=64,y=224 - Tier 1
+                     SpriteLocation{2, 7}, 1, nullptr, effects);
+  }
   case DishType::FrenchFries:
     return make_french_fries();
 
