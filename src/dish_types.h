@@ -1,7 +1,9 @@
 #pragma once
 
-#include <string>
+#include "components/dish_effect.h"
 #include <functional>
+#include <string>
+#include <vector>
 
 enum struct DishType {
   Potato = 0,
@@ -73,6 +75,7 @@ struct DishInfo {
   FlavorStats flavor;
   SpriteLocation sprite;
   OnServeHandler onServe = nullptr;
+  std::vector<DishEffect> effects;
 };
 
 DishInfo get_dish_info(DishType type);
