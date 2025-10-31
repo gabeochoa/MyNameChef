@@ -3,6 +3,7 @@
 #include "../components/combat_queue.h"
 #include "../components/dish_battle_state.h"
 #include "../game_state_manager.h"
+#include "../query.h"
 #include <afterhours/ah.h>
 
 struct AdvanceCourseSystem : afterhours::System<CombatQueue> {
@@ -35,24 +36,25 @@ struct AdvanceCourseSystem : afterhours::System<CombatQueue> {
 
 private:
   bool both_dishes_finished(int slot_index) {
-    bool player_finished = false;
-    bool opponent_finished = false;
+    afterhours::OptEntity player_dish =
+        EQ().whereHasComponent<DishBattleState>()
+            .whereInSlotIndex(slot_index)
+            .whereTeamSide(DishBattleState::TeamSide::Player)
+            .gen_first();
 
-    for (auto &ref :
-         afterhours::EntityQuery().whereHasComponent<DishBattleState>().gen()) {
-      auto &e = ref.get();
-      auto &dbs = e.get<DishBattleState>();
+    afterhours::OptEntity opponent_dish =
+        EQ().whereHasComponent<DishBattleState>()
+            .whereInSlotIndex(slot_index)
+            .whereTeamSide(DishBattleState::TeamSide::Opponent)
+            .gen_first();
 
-      if (dbs.queue_index == slot_index) {
-        if (dbs.team_side == DishBattleState::TeamSide::Player) {
-          player_finished = (dbs.phase == DishBattleState::Phase::Finished);
-        } else {
-          opponent_finished = (dbs.phase == DishBattleState::Phase::Finished);
-        }
-      }
-    }
-
-    // (quiet)
+    bool player_finished = player_dish.has_value() &&
+                           player_dish.value()->get<DishBattleState>().phase ==
+                               DishBattleState::Phase::Finished;
+    bool opponent_finished =
+        opponent_dish.has_value() &&
+        opponent_dish.value()->get<DishBattleState>().phase ==
+            DishBattleState::Phase::Finished;
 
     return player_finished && opponent_finished;
   }
