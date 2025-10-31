@@ -24,31 +24,68 @@ static DishInfo make_dish(const char *name, FlavorStats flavor,
   return result;
 }
 
-DishInfo get_dish_info(DishType type) {
-  switch (type) {
-  // Tier 1: Raw/Single Ingredient
-  case DishType::Potato:
-    return make_dish("Potato", FlavorStats{.satiety = 1}, SpriteLocation{13, 3},
-                     1); // potato.png x=416,y=96 - Tier 1
-  case DishType::Salmon:
-    return make_dish(
-        "Salmon", FlavorStats{.umami = 3, .freshness = 2}, SpriteLocation{6, 7},
-        1,
-        /*onServe=*/[](int sourceEntityId) {
-          // Find the source dish to get its queue position
-          auto src_opt = EQ().whereID(sourceEntityId).gen_first();
-          if (!src_opt || !src_opt->has<DishBattleState>()) {
-            return;
+static DishInfo make_salmon() {
+  return make_dish(
+      "Salmon", FlavorStats{.umami = 3, .freshness = 2}, SpriteLocation{6, 7},
+      1,
+      /*onServe=*/[](int sourceEntityId) {
+        auto src_opt = EQ().whereID(sourceEntityId).gen_first();
+        if (!src_opt || !src_opt->has<DishBattleState>()) {
+          return;
+        }
+
+        auto &src_dbs = src_opt->get<DishBattleState>();
+        int src_queue_index = src_dbs.queue_index;
+
+        bool has_freshness_adjacent = false;
+
+        auto prevDish =
+            EQ().whereHasComponent<IsDish>()
+                .whereHasComponent<DishBattleState>()
+                .whereLambda(
+                    [&src_dbs, src_queue_index](const afterhours::Entity &e) {
+                      const DishBattleState &dbs = e.get<DishBattleState>();
+                      return dbs.team_side == src_dbs.team_side &&
+                             dbs.queue_index == src_queue_index - 1;
+                    })
+                .gen_first();
+        if (prevDish.has_value()) {
+          auto &dish = prevDish.value()->get<IsDish>();
+          auto dish_info = get_dish_info(dish.type);
+          if (dish_info.flavor.freshness > 0) {
+            has_freshness_adjacent = true;
           }
+        }
 
-          auto &src_dbs = src_opt->get<DishBattleState>();
-          int src_queue_index = src_dbs.queue_index;
+        if (!has_freshness_adjacent) {
+          auto nextDish =
+              EQ().whereHasComponent<IsDish>()
+                  .whereHasComponent<DishBattleState>()
+                  .whereLambda(
+                      [&src_dbs, src_queue_index](const afterhours::Entity &e) {
+                        const DishBattleState &dbs = e.get<DishBattleState>();
+                        return dbs.team_side == src_dbs.team_side &&
+                               dbs.queue_index == src_queue_index + 1;
+                      })
+                  .gen_first();
+          if (nextDish.has_value()) {
+            auto &dish = nextDish.value()->get<IsDish>();
+            auto dish_info = get_dish_info(dish.type);
+            if (dish_info.flavor.freshness > 0) {
+              has_freshness_adjacent = true;
+            }
+          }
+        }
 
-          // Check if previous or next dish has freshness
-          bool has_freshness_adjacent = false;
+        if (has_freshness_adjacent) {
+          int previousEntityId = -1;
+          int nextEntityId = -1;
 
-          // Check previous dish
-          auto prevDish =
+          auto &src_deferred =
+              src_opt->addComponentIfMissing<DeferredFlavorMods>();
+          src_deferred.freshness += 1;
+
+          afterhours::OptEntity prevDishBoost =
               EQ().whereHasComponent<IsDish>()
                   .whereHasComponent<DishBattleState>()
                   .whereLambda(
@@ -58,89 +95,77 @@ DishInfo get_dish_info(DishType type) {
                                dbs.queue_index == src_queue_index - 1;
                       })
                   .gen_first();
-          if (prevDish.has_value()) {
-            auto &dish = prevDish.value()->get<IsDish>();
-            auto dish_info = get_dish_info(dish.type);
-            if (dish_info.flavor.freshness > 0) {
-              has_freshness_adjacent = true;
-            }
+          if (prevDishBoost.has_value()) {
+            auto &deferred = prevDishBoost.value()
+                                 ->addComponentIfMissing<DeferredFlavorMods>();
+            deferred.freshness += 1;
+            previousEntityId = prevDishBoost.value()->id;
           }
 
-          // Check next dish if previous didn't have freshness
-          if (!has_freshness_adjacent) {
-            auto nextDish = EQ().whereHasComponent<IsDish>()
-                                .whereHasComponent<DishBattleState>()
-                                .whereLambda([&src_dbs, src_queue_index](
-                                                 const afterhours::Entity &e) {
-                                  const DishBattleState &dbs =
-                                      e.get<DishBattleState>();
-                                  return dbs.team_side == src_dbs.team_side &&
-                                         dbs.queue_index == src_queue_index + 1;
-                                })
-                                .gen_first();
-            if (nextDish.has_value()) {
-              auto &dish = nextDish.value()->get<IsDish>();
-              auto dish_info = get_dish_info(dish.type);
-              if (dish_info.flavor.freshness > 0) {
-                has_freshness_adjacent = true;
-              }
-            }
+          auto nextDish =
+              EQ().whereHasComponent<IsDish>()
+                  .whereHasComponent<DishBattleState>()
+                  .whereLambda(
+                      [&src_dbs, src_queue_index](const afterhours::Entity &e) {
+                        const DishBattleState &dbs = e.get<DishBattleState>();
+                        return dbs.team_side == src_dbs.team_side &&
+                               dbs.queue_index == src_queue_index + 1;
+                      })
+                  .gen_first();
+          if (nextDish.has_value()) {
+            auto &deferred =
+                nextDish.value()->addComponentIfMissing<DeferredFlavorMods>();
+            deferred.freshness += 1;
+            nextEntityId = nextDish.value()->id;
           }
 
-          // If adjacent dish has freshness, boost freshness of self, previous,
-          // and next
-          if (has_freshness_adjacent) {
-            // Track which dishes will be affected for animation
-            int previousEntityId = -1;
-            int nextEntityId = -1;
+          make_freshness_chain_animation(sourceEntityId, previousEntityId,
+                                         nextEntityId);
+        }
+      });
+}
 
-            // Boost self
-            auto &src_deferred =
-                src_opt->addComponentIfMissing<DeferredFlavorMods>();
-            src_deferred.freshness += 1;
+static DishInfo make_french_fries() {
+  return make_dish(
+      "French Fries", FlavorStats{.satiety = 1, .richness = 1},
+      SpriteLocation{1, 9}, 1,
+      /*onServe=*/[](int sourceEntityId) {
+        auto src = EQ().whereID(sourceEntityId)
+                       .whereHasComponent<DishBattleState>()
+                       .gen_first();
+        if (!src) {
+          return;
+        }
+        auto &src_dbs = src->get<DishBattleState>();
+        auto allyDishes =
+            afterhours::EntityQuery()
+                .whereHasComponent<IsDish>()
+                .whereHasComponent<DishBattleState>()
+                .whereNotID(sourceEntityId)
+                .whereLambda([&src_dbs](const afterhours::Entity &e) {
+                  const DishBattleState &dbs = e.get<DishBattleState>();
+                  return dbs.team_side == src_dbs.team_side &&
+                         dbs.phase == DishBattleState::Phase::InQueue;
+                })
+                .gen();
+        for (afterhours::Entity &e : allyDishes) {
+          auto &pending = e.addComponentIfMissing<PendingCombatMods>();
+          pending.zingDelta += 1;
 
-            // Boost previous dish
-            afterhours::OptEntity prevDishBoost =
-                EQ().whereHasComponent<IsDish>()
-                    .whereHasComponent<DishBattleState>()
-                    .whereLambda([&src_dbs, src_queue_index](
-                                     const afterhours::Entity &e) {
-                      const DishBattleState &dbs = e.get<DishBattleState>();
-                      return dbs.team_side == src_dbs.team_side &&
-                             dbs.queue_index == src_queue_index - 1;
-                    })
-                    .gen_first();
-            if (prevDishBoost.has_value()) {
-              auto &deferred =
-                  prevDishBoost.value()
-                      ->addComponentIfMissing<DeferredFlavorMods>();
-              deferred.freshness += 1;
-              previousEntityId = prevDishBoost.value()->id;
-            }
+          log_info("TRIGGER french fries handler: dish={} (id={})",
+                   e.get<IsDish>().name(), e.id);
+        }
+      });
+}
 
-            // Boost next dish
-            auto nextDish = EQ().whereHasComponent<IsDish>()
-                                .whereHasComponent<DishBattleState>()
-                                .whereLambda([&src_dbs, src_queue_index](
-                                                 const afterhours::Entity &e) {
-                                  const DishBattleState &dbs =
-                                      e.get<DishBattleState>();
-                                  return dbs.team_side == src_dbs.team_side &&
-                                         dbs.queue_index == src_queue_index + 1;
-                                })
-                                .gen_first();
-            if (nextDish.has_value()) {
-              auto &deferred =
-                  nextDish.value()->addComponentIfMissing<DeferredFlavorMods>();
-              deferred.freshness += 1;
-              nextEntityId = nextDish.value()->id;
-            }
-
-            // Create freshness chain animation
-            make_freshness_chain_animation(sourceEntityId, previousEntityId,
-                                           nextEntityId);
-          }
-        }); // 88_salmon.png x=192,y=224 - Tier 1
+DishInfo get_dish_info(DishType type) {
+  switch (type) {
+  // Tier 1: Raw/Single Ingredient
+  case DishType::Potato:
+    return make_dish("Potato", FlavorStats{.satiety = 1}, SpriteLocation{13, 3},
+                     1); // potato.png x=416,y=96 - Tier 1
+  case DishType::Salmon:
+    return make_salmon();
   case DishType::Bagel:
     return make_dish("Bagel", FlavorStats{.satiety = 1}, SpriteLocation{13, 0},
                      1); // 20_bagel.png x=416,y=0 - Tier 1
@@ -157,37 +182,7 @@ DishInfo get_dish_info(DishType type) {
                      SpriteLocation{2, 7},
                      1); // 38_friedegg.png x=64,y=224 - Tier 1
   case DishType::FrenchFries:
-    return make_dish(
-        "French Fries", FlavorStats{.satiety = 1, .richness = 1},
-        SpriteLocation{1, 9}, 1,
-        /*onServe=*/[](int sourceEntityId) {
-          // Grant +1 Zing to other ally dishes that have not served yet
-          auto src = EQ().whereID(sourceEntityId)
-                         .whereHasComponent<DishBattleState>()
-                         .gen_first();
-          if (!src) {
-            return;
-          }
-          auto &src_dbs = src->get<DishBattleState>();
-          auto allyDishes =
-              afterhours::EntityQuery()
-                  .whereHasComponent<IsDish>()
-                  .whereHasComponent<DishBattleState>()
-                  .whereNotID(sourceEntityId)
-                  .whereLambda([&src_dbs](const afterhours::Entity &e) {
-                    const DishBattleState &dbs = e.get<DishBattleState>();
-                    return dbs.team_side == src_dbs.team_side &&
-                           dbs.phase == DishBattleState::Phase::InQueue;
-                  })
-                  .gen();
-          for (afterhours::Entity &e : allyDishes) {
-            auto &pending = e.addComponentIfMissing<PendingCombatMods>();
-            pending.zingDelta += 1;
-
-            log_info("TRIGGER french fries handler: dish={} (id={})",
-                     e.get<IsDish>().name(), e.id);
-          }
-        }); // 44_frenchfries.png x=32,y=288 - Tier 1
+    return make_french_fries();
 
   // Tier 2: Simple 2-ingredient items
   case DishType::Pancakes:
