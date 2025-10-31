@@ -452,9 +452,13 @@ Phase 2c — Client replay foundation
 - Acceptance:
   - Can load a JSON report and play with Pause/Play and Speed; basic seek to course.
 
-Phase 3 — Minimal pairings/clashes (pre-battle global)
+Phase 3 — Minimal pairings/clashes (pre-battle global) ✅ COMPLETED
 - Deliverables:
-  - `ApplyPairingsAndClashesSystem` applies +Body/-Zing team-wide based on simple rules before combat.
+  - ✅ `ApplyPairingsAndClashesSystem` applies +Body/-Zing team-wide based on simple rules before combat.
+- Implementation:
+  - ✅ Pairing bonus: +1 Body per unique flavor category (max +3) for diverse teams
+  - ✅ Clash penalty: -1 Zing per duplicate dish type (max -3) for redundant teams
+  - ✅ Runs before `ComputeCombatStatsSystem` to apply modifiers during stat calculation
 - Pseudocode:
 ```cpp
 struct ApplyPairingsAndClashesSystem : System<IsDish, PreBattleModifiers> {
