@@ -1,5 +1,6 @@
 #pragma once
 
+#include "components/deferred_flavor_mods.h"
 #include "components/dish_effect.h"
 #include <functional>
 #include <string>
@@ -58,6 +59,15 @@ struct FlavorStats {
     total += sweetness;
     total += freshness;
     return total;
+  }
+  void applyMod(const DeferredFlavorMods &mod) {
+    satiety += mod.satiety;
+    sweetness += mod.sweetness;
+    spice += mod.spice;
+    acidity += mod.acidity;
+    umami += mod.umami;
+    richness += mod.richness;
+    freshness += mod.freshness;
   }
 };
 

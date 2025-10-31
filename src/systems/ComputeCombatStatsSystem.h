@@ -29,13 +29,7 @@ struct ComputeCombatStatsSystem : afterhours::System<IsDish, DishLevel> {
     // Apply deferred flavor modifications if present
     if (e.has<DeferredFlavorMods>()) {
       const auto &def = e.get<DeferredFlavorMods>();
-      flavor.satiety += def.satiety;
-      flavor.sweetness += def.sweetness;
-      flavor.spice += def.spice;
-      flavor.acidity += def.acidity;
-      flavor.umami += def.umami;
-      flavor.richness += def.richness;
-      flavor.freshness += def.freshness;
+      flavor.applyMod(def);
 
       // Clear consumed modifiers (only when entering combat)
       if (e.has<DishBattleState>()) {
