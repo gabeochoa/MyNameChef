@@ -3,7 +3,6 @@
 #include "components/dish_battle_state.h"
 #include "components/dish_effect.h"
 #include "components/is_dish.h"
-#include "components/pending_combat_mods.h"
 #include "query.h"
 #include "shop.h"
 #include <afterhours/ah.h>

@@ -1,8 +1,9 @@
 #include "TestSystem.h"
 
 // Include rl.h first to ensure Vector2Type is defined as raylib::Vector2
-// before any afterhours UI headers are included
-#include "../rl.h"
+// before any afterhours UI headers are included (fixes Vector2Type conversion
+// issues)
+#include "../rl.h" // NOLINT - required for Vector2Type fix
 
 #include "../testing/tests/GotoBattleTest.h"
 #include "../testing/tests/PlayNavigatesToShopTest.h"
@@ -11,7 +12,6 @@
 #include "../testing/tests/ValidateDishSystemTest.h"
 #include "../testing/tests/ValidateEffectSystemTest.h"
 #include "../testing/tests/ValidateFullGameFlowTest.h"
-#include "../testing/tests/ValidateMainMenuTest.h"
 #include "../testing/tests/ValidateShopFunctionalityTest.h"
 #include "../testing/tests/ValidateShopNavigationTest.h"
 #include "../testing/tests/ValidateTriggerSystemTest.h"

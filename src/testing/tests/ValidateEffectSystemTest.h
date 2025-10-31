@@ -351,8 +351,9 @@ struct ValidateEffectSystemTest {
     return add_dish_to_menu(type, side, queue_index, phase, false);
   }
 
-  static void test_targeting_scope(afterhours::Entity &source,
-                                   TargetScope scope, int expected_count) {
+  static void test_targeting_scope(afterhours::Entity & /*source*/,
+                                   TargetScope /*scope*/,
+                                   int /*expected_count*/) {
     // Get TriggerQueue singleton
     auto &tq_entity = get_or_create_trigger_queue();
     (void)tq_entity.get<TriggerQueue>();
