@@ -65,13 +65,9 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
         opponent_dbs.phase == DishBattleState::Phase::InQueue) {
       player_dbs.phase = DishBattleState::Phase::Entering;
       player_dbs.enter_progress = -enter_start_delay;
-      log_info("COMBAT: Starting course {} - player dish entering first",
-               cq.current_index);
-    } else if (player_dbs.phase == DishBattleState::Phase::InCombat &&
-               opponent_dbs.phase == DishBattleState::Phase::InQueue) {
       opponent_dbs.phase = DishBattleState::Phase::Entering;
       opponent_dbs.enter_progress = -enter_start_delay;
-      log_info("COMBAT: Starting course {} - opponent dish entering second",
+      log_info("COMBAT: Starting course {} - both dishes entering head to head",
                cq.current_index);
     }
   }
