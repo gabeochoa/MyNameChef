@@ -25,6 +25,7 @@ TESTS=(
     "validate_main_menu"
     "validate_dish_system"
     "validate_trigger_system"
+    "validate_effect_system"
     "play_navigates_to_shop"
     "goto_battle"
     "validate_shop_navigation"
