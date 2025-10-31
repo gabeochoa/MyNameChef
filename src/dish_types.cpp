@@ -1,5 +1,4 @@
 #include "dish_types.h"
-#include "components/animation_event.h"
 #include "components/deferred_flavor_mods.h"
 #include "components/dish_battle_state.h"
 #include "components/is_dish.h"

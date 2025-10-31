@@ -81,7 +81,9 @@ TranslationManager::get_translations_for_language(Language language) const {
   switch (language) {
   case Language::English:
     return english_translations;
-  default:
+  case Language::Korean:
+    return english_translations;
+  case Language::Japanese:
     return english_translations;
   }
 }
@@ -140,7 +142,7 @@ void TranslationManager::set_language(Language language) {
 
 // Load CJK fonts for all the strings this manager needs
 void TranslationManager::load_cjk_fonts(
-    afterhours::ui::FontManager &font_manager,
+    afterhours::ui::FontManager & /* font_manager */,
     const std::string & /* font_file */) const {
 
   // Collect all unique codepoints from all CJK languages

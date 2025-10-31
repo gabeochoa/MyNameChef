@@ -252,10 +252,9 @@ struct UITestHelpers {
   // Check if entities with specific components exist (for visual elements)
   static bool entities_exist_with_component(const std::string &component_name) {
     if (component_name == "IsDropSlot") {
-      for (auto &ref :
-           afterhours::EntityQuery().whereHasComponent<IsDropSlot>().gen()) {
-        return true; // Found at least one IsDropSlot entity
-      }
+      return afterhours::EntityQuery()
+          .whereHasComponent<IsDropSlot>()
+          .has_values();
     }
     // Add more component checks as needed
     return false;
@@ -263,15 +262,13 @@ struct UITestHelpers {
 
   // Count entities with specific components
   static int count_entities_with_component(const std::string &component_name) {
-    int count = 0;
     if (component_name == "IsDropSlot") {
-      for (auto &ref :
-           afterhours::EntityQuery().whereHasComponent<IsDropSlot>().gen()) {
-        count++;
-      }
+      return static_cast<int>(afterhours::EntityQuery()
+                                  .whereHasComponent<IsDropSlot>()
+                                  .gen_count());
     }
     // Add more component checks as needed
-    return count;
+    return 0;
   }
 
   // Check if shop slots exist (visual elements, not UI elements) with retry
@@ -327,21 +324,15 @@ struct UITestHelpers {
 
   // Check if shop items exist (dishes in shop slots)
   static bool shop_items_exist() {
-    int shop_item_count = 0;
-    for (auto &ref :
-         afterhours::EntityQuery().whereHasComponent<IsShopItem>().gen()) {
-      shop_item_count++;
-    }
-    return shop_item_count > 0; // At least one shop item should exist
+    return afterhours::EntityQuery()
+               .whereHasComponent<IsShopItem>()
+               .gen_count() > 0;
   }
 
   // Check if inventory items exist (dishes in inventory slots)
   static bool inventory_items_exist() {
-    int inventory_item_count = 0;
-    for (auto &ref :
-         afterhours::EntityQuery().whereHasComponent<IsInventoryItem>().gen()) {
-      inventory_item_count++;
-    }
-    return inventory_item_count > 0; // At least one inventory item should exist
+    return afterhours::EntityQuery()
+               .whereHasComponent<IsInventoryItem>()
+               .gen_count() > 0;
   }
 };

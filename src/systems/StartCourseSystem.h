@@ -5,6 +5,7 @@
 #include "../components/dish_battle_state.h"
 #include "../components/is_dish.h"
 #include "../game_state_manager.h"
+#include "../query.h"
 #include "../shop.h"
 #include <afterhours/ah.h>
 
