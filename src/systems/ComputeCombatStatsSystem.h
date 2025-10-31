@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../components/combat_stats.h"
+#include "../components/deferred_flavor_mods.h"
 #include "../components/dish_battle_state.h"
 #include "../components/dish_level.h"
 #include "../components/is_dish.h"
@@ -23,7 +24,28 @@ struct ComputeCombatStatsSystem : afterhours::System<IsDish, DishLevel> {
 
     // Get base flavor stats
     auto dish_info = get_dish_info(dish.type);
-    const FlavorStats &flavor = dish_info.flavor;
+    FlavorStats flavor = dish_info.flavor;
+
+    // Apply deferred flavor modifications if present
+    if (e.has<DeferredFlavorMods>()) {
+      const auto &def = e.get<DeferredFlavorMods>();
+      flavor.satiety += def.satiety;
+      flavor.sweetness += def.sweetness;
+      flavor.spice += def.spice;
+      flavor.acidity += def.acidity;
+      flavor.umami += def.umami;
+      flavor.richness += def.richness;
+      flavor.freshness += def.freshness;
+
+      // Clear consumed modifiers (only when entering combat)
+      if (e.has<DishBattleState>()) {
+        const auto &dbs = e.get<DishBattleState>();
+        if (dbs.phase == DishBattleState::Phase::Entering ||
+            dbs.phase == DishBattleState::Phase::InCombat) {
+          e.removeComponent<DeferredFlavorMods>();
+        }
+      }
+    }
 
     // Calculate Zing and Body using FlavorStats methods
     int zing = flavor.zing();
