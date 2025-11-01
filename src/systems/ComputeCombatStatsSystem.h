@@ -105,9 +105,18 @@ struct ComputeCombatStatsSystem : afterhours::System<IsDish, DishLevel> {
 
     // Apply pre-battle modifiers
     // Check if dish is entering combat (was not in combat before, now is)
-    bool in_combat =
-        e.has<DishBattleState>() &&
-        e.get<DishBattleState>().phase == DishBattleState::Phase::InCombat;
+    bool is_finished = false;
+    bool in_combat = false;
+    if (e.has<DishBattleState>()) {
+      const auto &dbs = e.get<DishBattleState>();
+      is_finished = dbs.phase == DishBattleState::Phase::Finished;
+      in_combat = dbs.phase == DishBattleState::Phase::InCombat;
+    }
+
+    // Skip recalculation for finished dishes - their stats are locked
+    if (is_finished) {
+      return;
+    }
 
     // Track if we just entered combat this frame by tracking previous phase
     // This is more reliable than a static map which can get stale
