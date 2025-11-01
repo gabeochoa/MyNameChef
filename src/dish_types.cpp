@@ -119,9 +119,6 @@ static DishInfo make_salmon() {
                 nextDish.value()->addComponentIfMissing<DeferredFlavorMods>();
             deferred.freshness += 1;
             nextEntityId = nextDish.value()->id;
-            log_info("ONSERVE:SALMON next neighbor {} gained +1 freshness "
-                     "(DeferredFlavorMods now freshness={})",
-                     nextEntityId, deferred.freshness);
           }
 
           make_freshness_chain_animation(sourceEntityId, previousEntityId,
