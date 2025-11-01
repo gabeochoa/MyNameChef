@@ -241,24 +241,19 @@ void BattleProcessor::resolveCombatTick(DishSimData &player,
 
   player.biteTimer = 0.0f;
 
-  // Determine first attacker if not decided
+  // Mark first bite as decided (for initialization tracking)
   if (!player.firstBiteDecided) {
-    player.playersTurn = determineFirstAttacker(player, opponent);
     player.firstBiteDecided = true;
   }
 
-  // Process bite
-  if (player.playersTurn) {
-    // Player bites opponent
-    int damage = std::max(1, player.currentZing);
-    opponent.currentBody -= damage;
-  } else {
-    // Opponent bites player
-    int damage = std::max(1, opponent.currentZing);
-    player.currentBody -= damage;
-  }
+  // Both dishes attack simultaneously
+  // Player dish attacks opponent
+  int player_damage = std::max(1, player.currentZing);
+  opponent.currentBody -= player_damage;
 
-  player.playersTurn = !player.playersTurn; // Alternate turns
+  // Opponent dish attacks player
+  int opponent_damage = std::max(1, opponent.currentZing);
+  player.currentBody -= opponent_damage;
 
   // Check if either dish is defeated
   if (player.currentBody <= 0 || opponent.currentBody <= 0) {

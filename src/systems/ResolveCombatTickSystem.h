@@ -19,31 +19,6 @@ struct ResolveCombatTickSystem
   static constexpr float kPostPauseMs = 0.35f;       // pause after damage
 
 private:
-  // Determine who goes first based on dish stats
-  // Tiebreakers: 1) Highest Zing, 2) Highest Body, 3) Deterministic fallback
-  bool determine_first_attacker(const CombatStats &player_cs,
-                                const CombatStats &opponent_cs) {
-    // Use base stats for tiebreakers (initial values, not current combat
-    // values) Tiebreaker 1: Highest Zing
-    if (player_cs.baseZing > opponent_cs.baseZing) {
-      return true; // Player goes first
-    } else if (opponent_cs.baseZing > player_cs.baseZing) {
-      return false; // Opponent goes first
-    }
-
-    // Tiebreaker 2: Highest Body (if Zing is tied)
-    if (player_cs.baseBody > opponent_cs.baseBody) {
-      return true; // Player goes first
-    } else if (opponent_cs.baseBody > player_cs.baseBody) {
-      return false; // Opponent goes first
-    }
-
-    // Tiebreaker 3: Deterministic fallback (if both Zing and Body are tied)
-    // Since we don't have separate health, use a deterministic rule
-    // Player goes first as a consistent fallback
-    return true;
-  }
-
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
     bool should_run = gsm.active_screen == GameStateManager::Screen::Battle &&
@@ -79,8 +54,7 @@ private:
       return; // do not progress combat until slide-in visually completes
     }
 
-    // On entering InCombat for the first time, decide turn and start with a
-    // pre-pause
+    // On entering InCombat for the first time, start with a pre-pause
     if (!dbs.first_bite_decided) {
       // Do not start cadence until movement animation has fully finished
       if (dbs.enter_progress < 1.0f ||
@@ -88,9 +62,6 @@ private:
         return;
       }
 
-      CombatStats &opponent_cs = opponent.get<CombatStats>();
-      bool player_goes_first = determine_first_attacker(cs, opponent_cs);
-      dbs.players_turn = player_goes_first;
       dbs.first_bite_decided = true;
       dbs.bite_cadence = DishBattleState::BiteCadence::PrePause;
       dbs.bite_cadence_timer = 0.0f;
@@ -107,46 +78,47 @@ private:
       if (dbs.bite_cadence_timer < kPrePauseMs)
         return;
 
-      // Time to apply damage and trigger animation
+      // Time to apply damage - both dishes attack simultaneously
       dbs.bite_cadence_timer = 0.0f;
 
-      bool player_turn = dbs.players_turn;
-      int damage = 0;
-      int target_id = -1;
-      DishBattleState::TeamSide attacker_side =
-          DishBattleState::TeamSide::Player;
-      if (player_turn) {
-        damage = cs.currentZing;
-        if (damage <= 0)
-          damage = 1;
-        opponent_cs.currentBody -= damage;
-        target_id = opponent.id;
-        attacker_side = DishBattleState::TeamSide::Player;
-      } else {
-        damage = opponent_cs.currentZing;
-        if (damage <= 0)
-          damage = 1;
-        cs.currentBody -= damage;
-        target_id = e.id;
-        attacker_side = DishBattleState::TeamSide::Opponent;
-      }
+      // Player dish attacks opponent
+      int player_damage = cs.currentZing;
+      if (player_damage <= 0)
+        player_damage = 1;
+      opponent_cs.currentBody -= player_damage;
 
+      // Opponent dish attacks player
+      int opponent_damage = opponent_cs.currentZing;
+      if (opponent_damage <= 0)
+        opponent_damage = 1;
+      cs.currentBody -= opponent_damage;
+
+      // Fire OnBiteTaken events for both attacks
       if (auto tq = afterhours::EntityHelper::get_singleton<TriggerQueue>();
           tq.get().has<TriggerQueue>()) {
         auto &queue = tq.get().get<TriggerQueue>();
-        int attacker_id = player_turn ? e.id : opponent.id;
-        queue.add_event(TriggerHook::OnBiteTaken, attacker_id, dbs.queue_index,
-                        attacker_side);
-        queue.events.back().payloadInt = damage;
+        // Player's attack on opponent
+        queue.add_event(TriggerHook::OnBiteTaken, e.id, dbs.queue_index,
+                        DishBattleState::TeamSide::Player);
+        queue.events.back().payloadInt = player_damage;
+        // Opponent's attack on player
+        queue.add_event(TriggerHook::OnBiteTaken, opponent.id, dbs.queue_index,
+                        DishBattleState::TeamSide::Opponent);
+        queue.events.back().payloadInt = opponent_damage;
       }
 
-      // Emit a blocking animation event to visualize damage (negative
-      // bodyDelta)
-      auto &anim = make_animation_event(AnimationEventType::StatBoost, true);
-      auto &animData = anim.get<AnimationEvent>();
-      animData.data = StatBoostData{target_id, 0, -damage};
+      // Emit animation events for both attacks
+      // Player's attack visualization on opponent
+      auto &anim_player = make_animation_event(AnimationEventType::StatBoost, true);
+      auto &animPlayerData = anim_player.get<AnimationEvent>();
+      animPlayerData.data = StatBoostData{opponent.id, 0, -player_damage};
 
-      // Next state: post-pause, then flip turn
+      // Opponent's attack visualization on player
+      auto &anim_opponent = make_animation_event(AnimationEventType::StatBoost, true);
+      auto &animOpponentData = anim_opponent.get<AnimationEvent>();
+      animOpponentData.data = StatBoostData{e.id, 0, -opponent_damage};
+
+      // Next state: post-pause
       dbs.bite_cadence = DishBattleState::BiteCadence::PostPause;
       return;
     }
@@ -155,9 +127,8 @@ private:
       if (dbs.bite_cadence_timer < kPostPauseMs)
         return;
 
-      // Advance turn and go back to pre-pause
+      // Advance to next simultaneous attack
       dbs.bite_cadence_timer = 0.0f;
-      dbs.players_turn = !dbs.players_turn;
       dbs.bite_cadence = DishBattleState::BiteCadence::PrePause;
     }
 
