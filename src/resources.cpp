@@ -3,7 +3,14 @@
 #include "log.h"
 
 #ifdef __APPLE__
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-parameter"
+#endif
 #include <sago/platform_folders.h>
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 #else
 namespace sago {
 std::string getSaveGamesFolder1() { return ""; }

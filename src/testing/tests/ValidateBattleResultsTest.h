@@ -166,13 +166,13 @@ struct ValidateBattleResultsTest {
       // Debug: Check if battle teams exist
       int playerTeamCount = 0;
       int opponentTeamCount = 0;
-      for (auto &ref : afterhours::EntityQuery()
+      for ([[maybe_unused]] auto &ref : afterhours::EntityQuery()
                            .template whereHasComponent<IsPlayerTeamItem>()
                            .template whereHasComponent<IsDish>()
                            .gen()) {
         playerTeamCount++;
       }
-      for (auto &ref : afterhours::EntityQuery()
+      for ([[maybe_unused]] auto &ref : afterhours::EntityQuery()
                            .template whereHasComponent<IsOpponentTeamItem>()
                            .template whereHasComponent<IsDish>()
                            .gen()) {

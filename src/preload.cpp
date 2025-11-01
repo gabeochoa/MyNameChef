@@ -95,8 +95,8 @@ Preload &Preload::init(const char *title, bool headless) {
   // TODO add load folder for shaders
 
   auto load_shader = [](const char *file, const char *name) {
-    const char *path =
-        Files::get().fetch_resource_path("shaders", file).c_str();
+    std::string path_owned = Files::get().fetch_resource_path("shaders", file);
+    const char *path = path_owned.c_str();
     ShaderLibrary::get().load(path, name);
   };
   load_shader("post_processing.fs", "post_processing");

@@ -1,5 +1,12 @@
 #include <afterhours/ah.h>
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wswitch-enum"
+#endif
 #include <fmt/format.h>
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 
 #include <afterhours/src/developer.h>
 #include <afterhours/src/logging.h>
