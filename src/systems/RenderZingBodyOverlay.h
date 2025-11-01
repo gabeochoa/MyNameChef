@@ -92,6 +92,12 @@ struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
         float judge_center_y = 360.0f;
         offset_y += (judge_center_y - transform.position.y) * present_v;
       }
+
+      // In head-to-head, avoid overlap by separating slightly on the Y axis
+      if (dbs.phase == DishBattleState::Phase::InCombat) {
+        const float headToHeadYSeparation = std::max(24.0f, transform.size.y * 0.12f);
+        offset_y += isPlayer ? -headToHeadYSeparation : headToHeadYSeparation;
+      }
     }
 
     int zing = 0;
@@ -101,10 +107,41 @@ struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
     bool is_in_combat = is_battle_dish && entity.get<DishBattleState>().phase ==
                                               DishBattleState::Phase::InCombat;
 
-    if (is_in_combat && entity.has<CombatStats>()) {
+    // Use CombatStats if available (whether in combat or not) to ensure consistency
+    // with ComputeCombatStatsSystem calculations
+    if (is_battle_dish && entity.has<CombatStats>()) {
       const auto &cs = entity.get<CombatStats>();
-      zing = cs.currentZing;
-      body = cs.currentBody;
+      // Gate "current" view on animation completion to avoid premature drop
+      bool slide_done = true;
+      if (auto v = afterhours::animation::get_value(BattleAnimKey::SlideIn,
+                                                    (size_t)entity.id);
+          v.has_value()) {
+        slide_done = v.value() >= 1.0f;
+      }
+      bool enter_done = true;
+      if (is_battle_dish) {
+        const auto &dbsGate = entity.get<DishBattleState>();
+        enter_done = dbsGate.enter_progress >= 1.0f;
+      }
+      if (is_in_combat && slide_done && enter_done) {
+        zing = cs.currentZing;
+        body = cs.currentBody;
+        log_info("RENDER_GATE: Entity {} using CURRENT (slide_done={}, enter_done={})", entity.id, slide_done, enter_done);
+      } else {
+        // Not yet fully presented or not in combat: show base
+        zing = cs.baseZing;
+        body = cs.baseBody;
+        log_info("RENDER_GATE: Entity {} using BASE (slide_done={}, enter_done={}, in_combat={})", entity.id, slide_done, enter_done, is_in_combat);
+      }
+      
+      if (is_battle_dish) {
+        const auto &dbs = entity.get<DishBattleState>();
+        std::string phase_str = dbs.phase == DishBattleState::Phase::InQueue ? "InQueue" :
+                               dbs.phase == DishBattleState::Phase::Entering ? "Entering" :
+                               dbs.phase == DishBattleState::Phase::InCombat ? "InCombat" : "Other";
+        log_info("RENDER_BODY: Entity {} - body={} (from CombatStats), phase={}",
+                 entity.id, body, phase_str);
+      }
     } else {
       auto dish_info = get_dish_info(is_dish.type);
       FlavorStats flavor = dish_info.flavor;
@@ -139,6 +176,22 @@ struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
 
       zing = std::max(1, zing);
       body = std::max(0, body);
+      
+      if (is_battle_dish) {
+        const auto &dbs = entity.get<DishBattleState>();
+        std::string phase_str = dbs.phase == DishBattleState::Phase::InQueue ? "InQueue" :
+                               dbs.phase == DishBattleState::Phase::Entering ? "Entering" :
+                               dbs.phase == DishBattleState::Phase::InCombat ? "InCombat" : "Other";
+        
+        if (has_pre_battle) {
+          const auto &pre = entity.get<PreBattleModifiers>();
+          log_info("RENDER_BODY: Entity {} - body={}, preMod bodyDelta={}, phase={}",
+                   entity.id, body, pre.bodyDelta, phase_str);
+        } else {
+          log_info("RENDER_BODY: Entity {} - body={}, no PreBattleModifiers, phase={}",
+                   entity.id, body, phase_str);
+        }
+      }
     }
 
     // Badge sizes relative to sprite rect

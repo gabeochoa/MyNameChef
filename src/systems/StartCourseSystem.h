@@ -4,6 +4,9 @@
 #include "../components/combat_queue.h"
 #include "../components/dish_battle_state.h"
 #include "../components/is_dish.h"
+#include "../components/pairing_clash_modifiers.h"
+#include "../components/persistent_combat_modifiers.h"
+#include "../components/pre_battle_modifiers.h"
 #include "../game_state_manager.h"
 #include "../query.h"
 #include "../shop.h"
@@ -40,6 +43,43 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
 
     // (quiet)
 
+    // Survivor carryover: if exactly one side is still in combat and the other
+    // has finished for this course, bring in the next dish for the defeated side
+    if (player_dish && opponent_dish) {
+      DishBattleState &player_dbs = player_dish->get<DishBattleState>();
+      DishBattleState &opponent_dbs = opponent_dish->get<DishBattleState>();
+      bool player_survived = player_dbs.phase == DishBattleState::Phase::InCombat &&
+                             opponent_dbs.phase == DishBattleState::Phase::Finished;
+      bool opponent_survived = opponent_dbs.phase == DishBattleState::Phase::InCombat &&
+                               player_dbs.phase == DishBattleState::Phase::Finished;
+
+      if (player_survived || opponent_survived) {
+        int next_index = cq.current_index + 1;
+        DishBattleState::TeamSide defeated_side = player_survived
+                                                      ? DishBattleState::TeamSide::Opponent
+                                                      : DishBattleState::TeamSide::Player;
+        auto next_dish = find_dish_for_slot(next_index, defeated_side);
+        if (next_dish) {
+          // Keep the same course index; retarget next dish into the current slot
+          DishBattleState &next_dbs = next_dish->get<DishBattleState>();
+          next_dbs.queue_index = cq.current_index;
+          next_dbs.phase = DishBattleState::Phase::Entering;
+          next_dbs.enter_progress = -0.25f;
+          log_info(
+              "COMBAT: Survivor carryover - retargeting {} side dish {} from slot {} to current slot {}",
+              defeated_side == DishBattleState::TeamSide::Opponent ? "Opponent"
+                                                                   : "Player",
+              next_dish->id, next_index, cq.current_index);
+          return;
+        } else {
+          // No next dish available for the defeated side; battle concludes
+          cq.complete = true;
+          GameStateManager::get().to_results();
+          return;
+        }
+      }
+    }
+
     if (!player_dish || !opponent_dish) {
       // No more dishes, mark combat complete and transition to results
       cq.complete = true;
@@ -63,6 +103,52 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
 
     if (player_dbs.phase == DishBattleState::Phase::InQueue &&
         opponent_dbs.phase == DishBattleState::Phase::InQueue) {
+      // Log modifier state before phase transition
+      if (player_dish->has<PreBattleModifiers>()) {
+        auto &playerPre = player_dish->get<PreBattleModifiers>();
+        log_info("PHASE_TRANSITION: Player dish {} InQueue->Entering - PreBattleModifiers: bodyDelta={}, zingDelta={}",
+                 player_dish->id, playerPre.bodyDelta, playerPre.zingDelta);
+      }
+      if (player_dish->has<DeferredFlavorMods>()) {
+        const auto &def = player_dish->get<DeferredFlavorMods>();
+        log_info("PHASE_TRANSITION: Player dish {} InQueue->Entering - DeferredFlavorMods: satiety={}, sweetness={}, spice={}, acidity={}, umami={}, richness={}, freshness={}",
+                 player_dish->id, def.satiety, def.sweetness, def.spice, def.acidity, def.umami, def.richness, def.freshness);
+      } else {
+        log_info("PHASE_TRANSITION: Player dish {} InQueue->Entering - DeferredFlavorMods: none", player_dish->id);
+      }
+      if (player_dish->has<PairingClashModifiers>()) {
+        auto &pcm = player_dish->get<PairingClashModifiers>();
+        log_info("PHASE_TRANSITION: Player dish {} InQueue->Entering - PairingClash: bodyDelta={}, zingDelta={}",
+                 player_dish->id, pcm.bodyDelta, pcm.zingDelta);
+      }
+      if (player_dish->has<PersistentCombatModifiers>()) {
+        auto &pm = player_dish->get<PersistentCombatModifiers>();
+        log_info("PHASE_TRANSITION: Player dish {} InQueue->Entering - Persistent: bodyDelta={}, zingDelta={}",
+                 player_dish->id, pm.bodyDelta, pm.zingDelta);
+      }
+      if (opponent_dish->has<PreBattleModifiers>()) {
+        auto &opponentPre = opponent_dish->get<PreBattleModifiers>();
+        log_info("PHASE_TRANSITION: Opponent dish {} InQueue->Entering - PreBattleModifiers: bodyDelta={}, zingDelta={}",
+                 opponent_dish->id, opponentPre.bodyDelta, opponentPre.zingDelta);
+      }
+      if (opponent_dish->has<PairingClashModifiers>()) {
+        auto &pcm = opponent_dish->get<PairingClashModifiers>();
+        log_info("PHASE_TRANSITION: Opponent dish {} InQueue->Entering - PairingClash: bodyDelta={}, zingDelta={}",
+                 opponent_dish->id, pcm.bodyDelta, pcm.zingDelta);
+      }
+      if (opponent_dish->has<PersistentCombatModifiers>()) {
+        auto &pm = opponent_dish->get<PersistentCombatModifiers>();
+        log_info("PHASE_TRANSITION: Opponent dish {} InQueue->Entering - Persistent: bodyDelta={}, zingDelta={}",
+                 opponent_dish->id, pm.bodyDelta, pm.zingDelta);
+      }
+      if (opponent_dish->has<DeferredFlavorMods>()) {
+        const auto &def = opponent_dish->get<DeferredFlavorMods>();
+        log_info("PHASE_TRANSITION: Opponent dish {} InQueue->Entering - DeferredFlavorMods: satiety={}, sweetness={}, spice={}, acidity={}, umami={}, richness={}, freshness={}",
+                 opponent_dish->id, def.satiety, def.sweetness, def.spice, def.acidity, def.umami, def.richness, def.freshness);
+      } else {
+        log_info("PHASE_TRANSITION: Opponent dish {} InQueue->Entering - DeferredFlavorMods: none", opponent_dish->id);
+      }
+      
       player_dbs.phase = DishBattleState::Phase::Entering;
       player_dbs.enter_progress = -enter_start_delay;
       opponent_dbs.phase = DishBattleState::Phase::Entering;
