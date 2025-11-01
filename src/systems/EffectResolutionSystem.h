@@ -236,22 +236,22 @@ private:
     }
 
     case EffectOperation::AddCombatZing: {
-      if (target.has<CombatStats>()) {
-        auto &pending = target.addComponentIfMissing<PendingCombatMods>();
-        pending.zingDelta += effect.amount;
-        log_info("EFFECT: Added {} Zing (combat) to entity {}", effect.amount,
-                 target.id);
-      }
+      // Always add PendingCombatMods - CombatStats will be created by
+      // ComputeCombatStatsSystem if needed
+      auto &pending = target.addComponentIfMissing<PendingCombatMods>();
+      pending.zingDelta += effect.amount;
+      log_info("EFFECT: Added {} Zing (combat) to entity {}", effect.amount,
+               target.id);
       break;
     }
 
     case EffectOperation::AddCombatBody: {
-      if (target.has<CombatStats>()) {
-        auto &pending = target.addComponentIfMissing<PendingCombatMods>();
-        pending.bodyDelta += effect.amount;
-        log_info("EFFECT: Added {} Body (combat) to entity {}", effect.amount,
-                 target.id);
-      }
+      // Always add PendingCombatMods - CombatStats will be created by
+      // ComputeCombatStatsSystem if needed
+      auto &pending = target.addComponentIfMissing<PendingCombatMods>();
+      pending.bodyDelta += effect.amount;
+      log_info("EFFECT: Added {} Body (combat) to entity {}", effect.amount,
+               target.id);
       break;
     }
     }

@@ -1,15 +1,19 @@
 #pragma once
 
+#include "../components/battle_anim_keys.h"
 #include "../components/battle_result.h"
 #include "../components/combat_stats.h"
 #include "../components/dish_battle_state.h"
 #include "../game_state_manager.h"
 #include "../shop.h"
 #include <afterhours/ah.h>
+#include <afterhours/src/plugins/animation.h>
 
 struct ResolveCombatTickSystem
     : afterhours::System<DishBattleState, CombatStats> {
   static constexpr float kTickMs = 150.0f / 1000.0f; // 150ms bite cadence
+  static constexpr float kPrePauseMs = 0.35f;        // pause before damage
+  static constexpr float kPostPauseMs = 0.35f;       // pause after damage
 
 private:
   // Determine who goes first based on dish stats
@@ -48,16 +52,10 @@ private:
                      CombatStats &cs, float dt) override {
     if (dbs.phase != DishBattleState::Phase::InCombat)
       return;
-    // Drive the bite cadence from the Player-side entity only to avoid
-    // double progression and turn desync.
+    // Drive cadence from the Player-side entity only to avoid double
+    // progression
     if (dbs.team_side != DishBattleState::TeamSide::Player)
       return;
-
-    dbs.bite_timer += dt;
-    if (dbs.bite_timer < kTickMs)
-      return;
-
-    dbs.bite_timer = 0.0f; // Reset timer
 
     // Find opponent dish for this slot
     afterhours::OptEntity opt_opponent = find_opponent_dish(dbs);
@@ -65,46 +63,102 @@ private:
       return;
     afterhours::Entity &opponent = opt_opponent.asE();
 
+    // Hard gate: ensure the SlideIn animation has fully finished for both
+    // entities
+    auto sv_player =
+        afterhours::animation::get_value(BattleAnimKey::SlideIn, (size_t)e.id);
+    auto sv_opponent = afterhours::animation::get_value(BattleAnimKey::SlideIn,
+                                                        (size_t)opponent.id);
+    const float slide_player = sv_player.has_value() ? sv_player.value() : 1.0f;
+    const float slide_opponent =
+        sv_opponent.has_value() ? sv_opponent.value() : 1.0f;
+    if (slide_player < 1.0f || slide_opponent < 1.0f) {
+      return; // do not progress combat until slide-in visually completes
+    }
+
+    // On entering InCombat for the first time, decide turn and start with a
+    // pre-pause
+    if (!dbs.first_bite_decided) {
+      // Do not start cadence until movement animation has fully finished
+      if (dbs.enter_progress < 1.0f ||
+          opponent.get<DishBattleState>().enter_progress < 1.0f) {
+        return;
+      }
+
+      CombatStats &opponent_cs = opponent.get<CombatStats>();
+      bool player_goes_first = determine_first_attacker(cs, opponent_cs);
+      dbs.players_turn = player_goes_first;
+      dbs.first_bite_decided = true;
+      dbs.bite_cadence = DishBattleState::BiteCadence::PrePause;
+      dbs.bite_cadence_timer = 0.0f;
+      return; // do not deal damage immediately
+    }
+
+    dbs.bite_cadence_timer += dt;
+
     DishBattleState &opponent_dbs = opponent.get<DishBattleState>();
     CombatStats &opponent_cs = opponent.get<CombatStats>();
 
-    // Determine who goes first based on dish stats, then alternate turns
-    // Tiebreakers: 1) Highest Zing, 2) Highest Body, 3) Deterministic fallback
-    bool player_goes_first = determine_first_attacker(cs, opponent_cs);
+    // Handle cadence state machine
+    if (dbs.bite_cadence == DishBattleState::BiteCadence::PrePause) {
+      if (dbs.bite_cadence_timer < kPrePauseMs)
+        return;
 
-    // Simple alternating turns: track turn on player-side state
+      // Time to apply damage and trigger animation
+      dbs.bite_cadence_timer = 0.0f;
 
-    // For the very first bite of this pairing, use stat-based determination
-    if (!dbs.first_bite_decided) {
-      dbs.players_turn = player_goes_first;
-      dbs.first_bite_decided = true;
+      bool player_turn = dbs.players_turn;
+      int damage = 0;
+      int target_id = -1;
+      if (player_turn) {
+        damage = cs.currentZing;
+        if (damage <= 0)
+          damage = 1;
+        opponent_cs.currentBody -= damage;
+        target_id = opponent.id;
+      } else {
+        damage = opponent_cs.currentZing;
+        if (damage <= 0)
+          damage = 1;
+        cs.currentBody -= damage;
+        target_id = e.id;
+      }
+
+      // Emit a blocking animation event to visualize damage (negative
+      // bodyDelta)
+      auto &anim = make_animation_event(AnimationEventType::StatBoost, true);
+      auto &animData = anim.get<AnimationEvent>();
+      animData.data = StatBoostData{target_id, 0, -damage};
+
+      // Next state: post-pause, then flip turn
+      dbs.bite_cadence = DishBattleState::BiteCadence::PostPause;
+      return;
     }
 
-    bool did_bite = false;
-    bool player_turn = dbs.players_turn;
-    if (player_turn) {
-      // Player bites opponent
-      int damage = cs.currentZing;
-      if (damage <= 0)
-        damage = 1; // minimal damage fallback to avoid stalemates
-      opponent_cs.currentBody -= damage;
-      did_bite = true;
-    } else {
-      // Opponent bites player
-      int damage = opponent_cs.currentZing;
-      if (damage <= 0)
-        damage = 1; // minimal damage fallback to avoid stalemates
-      cs.currentBody -= damage;
-      did_bite = true;
+    if (dbs.bite_cadence == DishBattleState::BiteCadence::PostPause) {
+      if (dbs.bite_cadence_timer < kPostPauseMs)
+        return;
+
+      // Advance turn and go back to pre-pause
+      dbs.bite_cadence_timer = 0.0f;
+      dbs.players_turn = !dbs.players_turn;
+      dbs.bite_cadence = DishBattleState::BiteCadence::PrePause;
     }
 
-    if (did_bite) {
-      dbs.players_turn = !dbs.players_turn; // Alternate turns
-    }
-
-    // Check if either dish is defeated
-    if (cs.currentBody <= 0 || opponent_cs.currentBody <= 0) {
-      finish_course(e, opponent, dbs, opponent_dbs);
+    // Check if either dish is defeated; only mark the defeated dish finished
+    if (cs.currentBody <= 0 && opponent_cs.currentBody <= 0) {
+      dbs.phase = DishBattleState::Phase::Finished;
+      opponent_dbs.phase = DishBattleState::Phase::Finished;
+      log_info("COMBAT: Both dishes defeated at slot {} (tie)",
+               dbs.queue_index);
+    } else if (cs.currentBody <= 0) {
+      dbs.phase = DishBattleState::Phase::Finished;
+      log_info("COMBAT: Player-side dish {} defeated at slot {}", e.id,
+               dbs.queue_index);
+    } else if (opponent_cs.currentBody <= 0) {
+      opponent_dbs.phase = DishBattleState::Phase::Finished;
+      log_info("COMBAT: Opponent-side dish {} defeated at slot {}", opponent.id,
+               dbs.queue_index);
     }
   }
 
@@ -149,6 +203,20 @@ private:
     // Set both dishes to finished
     player_dbs.phase = DishBattleState::Phase::Finished;
     opponent_dbs.phase = DishBattleState::Phase::Finished;
+
+    // Log modifier state when dishes finish
+    if (player.has<PreBattleModifiers>()) {
+      auto &playerPre = player.get<PreBattleModifiers>();
+      log_info("COMBAT_FINISH: Player dish {} finished - PreBattleModifiers: "
+               "zingDelta={}, bodyDelta={}",
+               player.id, playerPre.zingDelta, playerPre.bodyDelta);
+    }
+    if (opponent.has<PreBattleModifiers>()) {
+      auto &opponentPre = opponent.get<PreBattleModifiers>();
+      log_info("COMBAT_FINISH: Opponent dish {} finished - PreBattleModifiers: "
+               "zingDelta={}, bodyDelta={}",
+               opponent.id, opponentPre.zingDelta, opponentPre.bodyDelta);
+    }
 
     log_info(
         "COMBAT: Course {} finished - Winner: {}", player_dbs.queue_index + 1,

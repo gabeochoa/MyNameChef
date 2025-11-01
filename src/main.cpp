@@ -131,11 +131,13 @@ void game(const std::optional<std::string> &run_test) {
     systems.register_update_system(std::make_unique<InitCombatState>());
     systems.register_update_system(
         std::make_unique<ApplyPairingsAndClashesSystem>());
-    systems.register_update_system(
-        std::make_unique<ComputeCombatStatsSystem>());
     systems.register_update_system(std::make_unique<StartCourseSystem>());
     systems.register_update_system(
         std::make_unique<BattleEnterAnimationSystem>());
+    // Compute after phase transitions to ensure current/base sync reflects
+    // latest phase
+    systems.register_update_system(
+        std::make_unique<ComputeCombatStatsSystem>());
     systems.register_update_system(std::make_unique<SimplifiedOnServeSystem>());
     systems.register_update_system(std::make_unique<ResolveCombatTickSystem>());
     systems.register_update_system(std::make_unique<AdvanceCourseSystem>());

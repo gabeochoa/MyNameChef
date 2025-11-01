@@ -126,21 +126,10 @@ struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
       if (is_in_combat && slide_done && enter_done) {
         zing = cs.currentZing;
         body = cs.currentBody;
-        log_info("RENDER_GATE: Entity {} using CURRENT (slide_done={}, enter_done={})", entity.id, slide_done, enter_done);
       } else {
         // Not yet fully presented or not in combat: show base
         zing = cs.baseZing;
         body = cs.baseBody;
-        log_info("RENDER_GATE: Entity {} using BASE (slide_done={}, enter_done={}, in_combat={})", entity.id, slide_done, enter_done, is_in_combat);
-      }
-      
-      if (is_battle_dish) {
-        const auto &dbs = entity.get<DishBattleState>();
-        std::string phase_str = dbs.phase == DishBattleState::Phase::InQueue ? "InQueue" :
-                               dbs.phase == DishBattleState::Phase::Entering ? "Entering" :
-                               dbs.phase == DishBattleState::Phase::InCombat ? "InCombat" : "Other";
-        log_info("RENDER_BODY: Entity {} - body={} (from CombatStats), phase={}",
-                 entity.id, body, phase_str);
       }
     } else {
       auto dish_info = get_dish_info(is_dish.type);
@@ -176,22 +165,6 @@ struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
 
       zing = std::max(1, zing);
       body = std::max(0, body);
-      
-      if (is_battle_dish) {
-        const auto &dbs = entity.get<DishBattleState>();
-        std::string phase_str = dbs.phase == DishBattleState::Phase::InQueue ? "InQueue" :
-                               dbs.phase == DishBattleState::Phase::Entering ? "Entering" :
-                               dbs.phase == DishBattleState::Phase::InCombat ? "InCombat" : "Other";
-        
-        if (has_pre_battle) {
-          const auto &pre = entity.get<PreBattleModifiers>();
-          log_info("RENDER_BODY: Entity {} - body={}, preMod bodyDelta={}, phase={}",
-                   entity.id, body, pre.bodyDelta, phase_str);
-        } else {
-          log_info("RENDER_BODY: Entity {} - body={}, no PreBattleModifiers, phase={}",
-                   entity.id, body, phase_str);
-        }
-      }
     }
 
     // Badge sizes relative to sprite rect

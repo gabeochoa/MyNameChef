@@ -86,9 +86,6 @@ static DishInfo make_salmon() {
           auto &src_deferred =
               src_opt->addComponentIfMissing<DeferredFlavorMods>();
           src_deferred.freshness += 1;
-          log_info("ONSERVE:SALMON source {} gained +1 freshness "
-                   "(DeferredFlavorMods now freshness={})",
-                   sourceEntityId, src_deferred.freshness);
 
           afterhours::OptEntity prevDishBoost =
               EQ().whereHasComponent<IsDish>()
@@ -105,9 +102,6 @@ static DishInfo make_salmon() {
                                  ->addComponentIfMissing<DeferredFlavorMods>();
             deferred.freshness += 1;
             previousEntityId = prevDishBoost.value()->id;
-            log_info("ONSERVE:SALMON prev neighbor {} gained +1 freshness "
-                     "(DeferredFlavorMods now freshness={})",
-                     previousEntityId, deferred.freshness);
           }
 
           auto nextDish =

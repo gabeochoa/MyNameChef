@@ -76,26 +76,9 @@ struct ComputeCombatStatsSystem : afterhours::System<IsDish, DishLevel> {
         int persistBDelta = bodyWithDef - bodyNoDef;
         if (persistZDelta != 0 || persistBDelta != 0) {
           auto &persist = e.addComponentIfMissing<PersistentCombatModifiers>();
-          int oldZ = persist.zingDelta;
-          int oldB = persist.bodyDelta;
           persist.zingDelta += persistZDelta;
           persist.bodyDelta += persistBDelta;
-          log_info("DEF_TO_PERSIST: Entity {} converted DeferredFlavorMods to "
-                   "Persistent - add (z={}, b={}) -> persist (z: {} -> {}, b: "
-                   "{} -> {})",
-                   e.id, persistZDelta, persistBDelta, oldZ, persist.zingDelta,
-                   oldB, persist.bodyDelta);
         }
-        log_info("DEF_CONSUME: Entity {} removing DeferredFlavorMods in phase "
-                 "{} (satiety={}, sweetness={}, spice={}, acidity={}, "
-                 "umami={}, richness={}, freshness={})",
-                 e.id,
-                 e.get<DishBattleState>().phase ==
-                         DishBattleState::Phase::Entering
-                     ? "Entering"
-                     : "InCombat",
-                 def.satiety, def.sweetness, def.spice, def.acidity, def.umami,
-                 def.richness, def.freshness);
         e.removeComponent<DeferredFlavorMods>();
         // Keep flavor as base (without deferred); persistent modifiers will
         // carry the effect

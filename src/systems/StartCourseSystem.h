@@ -109,13 +109,6 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
         log_info("PHASE_TRANSITION: Player dish {} InQueue->Entering - PreBattleModifiers: bodyDelta={}, zingDelta={}",
                  player_dish->id, playerPre.bodyDelta, playerPre.zingDelta);
       }
-      if (player_dish->has<DeferredFlavorMods>()) {
-        const auto &def = player_dish->get<DeferredFlavorMods>();
-        log_info("PHASE_TRANSITION: Player dish {} InQueue->Entering - DeferredFlavorMods: satiety={}, sweetness={}, spice={}, acidity={}, umami={}, richness={}, freshness={}",
-                 player_dish->id, def.satiety, def.sweetness, def.spice, def.acidity, def.umami, def.richness, def.freshness);
-      } else {
-        log_info("PHASE_TRANSITION: Player dish {} InQueue->Entering - DeferredFlavorMods: none", player_dish->id);
-      }
       if (player_dish->has<PairingClashModifiers>()) {
         auto &pcm = player_dish->get<PairingClashModifiers>();
         log_info("PHASE_TRANSITION: Player dish {} InQueue->Entering - PairingClash: bodyDelta={}, zingDelta={}",
@@ -140,13 +133,6 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
         auto &pm = opponent_dish->get<PersistentCombatModifiers>();
         log_info("PHASE_TRANSITION: Opponent dish {} InQueue->Entering - Persistent: bodyDelta={}, zingDelta={}",
                  opponent_dish->id, pm.bodyDelta, pm.zingDelta);
-      }
-      if (opponent_dish->has<DeferredFlavorMods>()) {
-        const auto &def = opponent_dish->get<DeferredFlavorMods>();
-        log_info("PHASE_TRANSITION: Opponent dish {} InQueue->Entering - DeferredFlavorMods: satiety={}, sweetness={}, spice={}, acidity={}, umami={}, richness={}, freshness={}",
-                 opponent_dish->id, def.satiety, def.sweetness, def.spice, def.acidity, def.umami, def.richness, def.freshness);
-      } else {
-        log_info("PHASE_TRANSITION: Opponent dish {} InQueue->Entering - DeferredFlavorMods: none", opponent_dish->id);
       }
       
       player_dbs.phase = DishBattleState::Phase::Entering;
