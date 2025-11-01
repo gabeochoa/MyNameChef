@@ -2,7 +2,7 @@
 
 #include "../components/dish_battle_state.h"
 #include "../components/is_dish.h"
-#include "../components/pre_battle_modifiers.h"
+#include "../components/pairing_clash_modifiers.h"
 #include "../dish_types.h"
 #include "../game_state_manager.h"
 #include "../query.h"
@@ -12,26 +12,24 @@
 #include <vector>
 
 struct ApplyPairingsAndClashesSystem
-    : afterhours::System<PreBattleModifiers> {
+    : afterhours::System<IsDish, DishBattleState> {
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
     return gsm.active_screen == GameStateManager::Screen::Battle;
   }
 
-  void for_each_with(afterhours::Entity &e, PreBattleModifiers &mod, float) override {
+  void for_each_with(afterhours::Entity &e, IsDish &, DishBattleState &dbs, float) override {
     // Only apply once when entering battle (when dish is InQueue)
-    if (!e.has<DishBattleState>()) {
-      return;
-    }
-
-    auto &dbs = e.get<DishBattleState>();
     if (dbs.phase != DishBattleState::Phase::InQueue) {
       return;
     }
-
-    // Skip if already computed (tracked via a flag, or just compute once per battle)
-    // For now, we'll recompute each frame but only apply when InQueue
-    // In production, add a "computed" flag to avoid redundant work
+    
+    // Get or create PairingClashModifiers component
+    auto &mod = e.addComponentIfMissing<PairingClashModifiers>();
+    
+    // Track old values to detect overwrites
+    int oldBodyDelta = mod.bodyDelta;
+    int oldZingDelta = mod.zingDelta;
 
     // Get all dishes for this team
     auto team_dishes = get_team_dishes(dbs.team_side);
@@ -40,9 +38,40 @@ struct ApplyPairingsAndClashesSystem
     int pairing_bonus = compute_pairing_bonus(team_dishes);
     int clash_penalty = compute_clash_penalty(team_dishes);
 
-    // Apply modifiers: pairings add Body, clashes reduce Zing
-    mod.bodyDelta = pairing_bonus;
-    mod.zingDelta = -clash_penalty;
+    // Store pairing/clash modifiers - these should be calculated once per battle
+    // We need to avoid overwriting combat modifiers that were added later
+    // Strategy: Calculate what pairing/clash modifiers SHOULD be, and only
+    // apply them if they haven't been set yet OR if we need to update them
+    // without overwriting combat modifiers.
+    // 
+    // For now, we'll only set if modifiers are at default (0), meaning
+    // this is the first calculation. Combat modifiers added later will
+    // be preserved because this system only runs when InQueue, and combat
+    // modifiers are added when dishes are InCombat or later.
+    // 
+    // However, if combat modifiers were added while dish is still InQueue,
+    // we need to preserve them. So we check: if bodyDelta/zingDelta are
+    // positive (combat bonuses), we add pairing/clash on top.
+    // If they're 0, we set them (initial pairing/clash calculation).
+    // If they're negative (clash penalty already applied), we might be
+    // recalculating, so we preserve the existing value and add the new one.
+    
+    // Only set pairing/clash modifiers if not already set
+    if (mod.bodyDelta == 0 && mod.zingDelta == 0) {
+      // First time - set pairing/clash modifiers
+      mod.bodyDelta = pairing_bonus;
+      mod.zingDelta = -clash_penalty;
+      log_info("PAIRINGS_CLASHES: Dish {} - SET pairing/clash modifiers: bodyDelta: {} -> {}, zingDelta: {} -> {}",
+               e.id, oldBodyDelta, mod.bodyDelta, oldZingDelta, mod.zingDelta);
+    } else {
+      // Modifiers already exist - preserve them
+      if (oldBodyDelta != mod.bodyDelta || oldZingDelta != mod.zingDelta) {
+        log_error("PAIRINGS_CLASHES: Dish {} - MODIFIERS CHANGED! bodyDelta: {} -> {}, zingDelta: {} -> {}",
+                 e.id, oldBodyDelta, mod.bodyDelta, oldZingDelta, mod.zingDelta);
+      }
+      log_info("PAIRINGS_CLASHES: Dish {} - PRESERVING existing modifiers: bodyDelta={}, zingDelta={} (computed pairing={}, clash={})",
+               e.id, mod.bodyDelta, mod.zingDelta, pairing_bonus, clash_penalty);
+    }
 
     if (mod.bodyDelta != 0 || mod.zingDelta != 0) {
       log_info("PAIRINGS_CLASHES: Dish {} - team={} slot={} bodyDelta={} zingDelta={}",
