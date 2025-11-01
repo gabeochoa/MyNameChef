@@ -726,6 +726,11 @@ struct ValidateEffectSystemTest {
     ApplyPendingCombatModsSystem applyModsSystem;
     applyModsSystem.for_each_with(target, pending, 1.0f / 60.0f);
 
+    // Run ComputeCombatStatsSystem again to mirror the updated modifiers into PreBattleModifiers
+    log_info("EFFECT_TEST: Running ComputeCombatStatsSystem after applying modifiers");
+    computeSystem.for_each_with(target, target.get<IsDish>(),
+                                target.get<DishLevel>(), 1.0f / 60.0f);
+
     // Verify the modifiers were applied
     if (target.has<PreBattleModifiers>()) {
       auto &preModAfterApply = target.get<PreBattleModifiers>();
@@ -947,6 +952,8 @@ struct ValidateEffectSystemTest {
     afterhours::EntityHelper::merge_entity_arrays();
 
     // Fire OnServe for both Salmon via TriggerQueue → TriggerDispatchSystem
+    // Note: Salmon effect uses legacy onServe callback (not DishEffect), so
+    // TriggerDispatchSystem calls it directly
     auto &tq_entity = get_or_create_trigger_queue();
     auto &queue = tq_entity.get<TriggerQueue>();
     queue.add_event(TriggerHook::OnServe, salmon1.id, 1,
