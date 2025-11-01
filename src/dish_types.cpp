@@ -1,12 +1,14 @@
 #include "dish_types.h"
+#include <vector>
+
 #include "components/deferred_flavor_mods.h"
 #include "components/dish_battle_state.h"
 #include "components/dish_effect.h"
 #include "components/is_dish.h"
+#include "log.h"
 #include "query.h"
 #include "shop.h"
 #include <afterhours/ah.h>
-#include <vector>
 
 // All dishes now have the same price
 static constexpr int kUnifiedDishPrice = 3;
@@ -138,6 +140,103 @@ static DishInfo make_french_fries() {
 
   return make_dish("French Fries", FlavorStats{.satiety = 1, .richness = 1},
                    SpriteLocation{1, 9}, 1, nullptr, effects);
+}
+
+static DishInfo make_debug_dish() {
+  std::vector<DishEffect> effects;
+
+  auto add_effect = [&effects](TriggerHook hook, EffectOperation op,
+                               TargetScope scope, int amount,
+                               FlavorStatType statType =
+                                   FlavorStatType::Satiety) {
+    DishEffect effect;
+    effect.triggerHook = hook;
+    effect.operation = op;
+    effect.targetScope = scope;
+    effect.amount = amount;
+    if (op == EffectOperation::AddFlavorStat) {
+      effect.flavorStatType = statType;
+    }
+    effects.push_back(effect);
+  };
+
+  add_effect(TriggerHook::OnStartBattle, EffectOperation::AddCombatZing,
+             TargetScope::Self, 1);
+  add_effect(TriggerHook::OnStartBattle, EffectOperation::AddCombatBody,
+             TargetScope::AllAllies, 1);
+
+  add_effect(TriggerHook::OnServe, EffectOperation::AddFlavorStat,
+             TargetScope::Self, 1, FlavorStatType::Satiety);
+  add_effect(TriggerHook::OnServe, EffectOperation::AddFlavorStat,
+             TargetScope::Self, 1, FlavorStatType::Sweetness);
+  add_effect(TriggerHook::OnServe, EffectOperation::AddFlavorStat,
+             TargetScope::Self, 1, FlavorStatType::Spice);
+  add_effect(TriggerHook::OnServe, EffectOperation::AddFlavorStat,
+             TargetScope::Self, 1, FlavorStatType::Acidity);
+  add_effect(TriggerHook::OnServe, EffectOperation::AddFlavorStat,
+             TargetScope::Self, 1, FlavorStatType::Umami);
+  add_effect(TriggerHook::OnServe, EffectOperation::AddFlavorStat,
+             TargetScope::Self, 1, FlavorStatType::Richness);
+  add_effect(TriggerHook::OnServe, EffectOperation::AddFlavorStat,
+             TargetScope::Self, 1, FlavorStatType::Freshness);
+  add_effect(TriggerHook::OnServe, EffectOperation::AddCombatZing,
+             TargetScope::Opponent, -1);
+  add_effect(TriggerHook::OnServe, EffectOperation::AddCombatZing,
+             TargetScope::AllAllies, 1);
+  add_effect(TriggerHook::OnServe, EffectOperation::AddCombatZing,
+             TargetScope::AllOpponents, -1);
+  add_effect(TriggerHook::OnServe, EffectOperation::AddCombatZing,
+             TargetScope::DishesAfterSelf, 1);
+  add_effect(TriggerHook::OnServe, EffectOperation::AddCombatZing,
+             TargetScope::FutureAllies, 1);
+  add_effect(TriggerHook::OnServe, EffectOperation::AddCombatZing,
+             TargetScope::FutureOpponents, -1);
+  add_effect(TriggerHook::OnServe, EffectOperation::AddCombatZing,
+             TargetScope::Previous, 1);
+  add_effect(TriggerHook::OnServe, EffectOperation::AddCombatZing,
+             TargetScope::Next, 1);
+  add_effect(TriggerHook::OnServe, EffectOperation::AddCombatBody,
+             TargetScope::Self, 2);
+  add_effect(TriggerHook::OnServe, EffectOperation::AddCombatBody,
+             TargetScope::Opponent, -1);
+  add_effect(TriggerHook::OnServe, EffectOperation::AddCombatBody,
+             TargetScope::AllAllies, 1);
+
+  add_effect(TriggerHook::OnCourseStart, EffectOperation::AddCombatZing,
+             TargetScope::Self, 1);
+  add_effect(TriggerHook::OnCourseStart, EffectOperation::AddCombatBody,
+             TargetScope::AllAllies, 1);
+
+  add_effect(TriggerHook::OnBiteTaken, EffectOperation::AddCombatZing,
+             TargetScope::Self, 1);
+  add_effect(TriggerHook::OnBiteTaken, EffectOperation::AddCombatBody,
+             TargetScope::AllAllies, 1);
+
+  add_effect(TriggerHook::OnDishFinished, EffectOperation::AddCombatZing,
+             TargetScope::AllAllies, 1);
+  add_effect(TriggerHook::OnDishFinished, EffectOperation::AddCombatBody,
+             TargetScope::AllAllies, 2);
+
+  add_effect(TriggerHook::OnCourseComplete, EffectOperation::AddCombatZing,
+             TargetScope::AllAllies, 1);
+  add_effect(TriggerHook::OnCourseComplete, EffectOperation::AddCombatBody,
+             TargetScope::AllAllies, 1);
+
+  return make_dish(
+      "Debug Dish",
+      FlavorStats{.satiety = 1,
+                  .sweetness = 1,
+                  .spice = 1,
+                  .acidity = 1,
+                  .umami = 1,
+                  .richness = 1,
+                  .freshness = 1},
+      SpriteLocation{0, 0}, 1,
+      [](int sourceEntityId) {
+        log_info("DEBUG_DISH: OnServe handler triggered for entity {}",
+                 sourceEntityId);
+      },
+      effects);
 }
 
 DishInfo get_dish_info(DishType type) {
@@ -284,6 +383,8 @@ DishInfo get_dish_info(DishType type) {
     return make_dish("Meatball", FlavorStats{.umami = 2, .satiety = 1},
                      SpriteLocation{27, 0},
                      5); // 69_meatball.png x=864,y=0 - Tier 5
+  case DishType::DebugDish:
+    return make_debug_dish();
   }
   return DishInfo{};
 }

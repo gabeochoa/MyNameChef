@@ -24,6 +24,7 @@ HEADLESS_MODE=true  # Default to headless mode
 TESTS=(
     "validate_main_menu"
     "validate_dish_system"
+    "validate_debug_dish"
     "validate_trigger_system"
     "validate_effect_system"
     "play_navigates_to_shop"

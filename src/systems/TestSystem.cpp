@@ -9,6 +9,7 @@
 #include "../testing/tests/PlayNavigatesToShopTest.h"
 #include "../testing/tests/ValidateBattleResultsTest.h"
 #include "../testing/tests/ValidateCombatSystemTest.h"
+#include "../testing/tests/ValidateDebugDishTest.h"
 #include "../testing/tests/ValidateDishSystemTest.h"
 #include "../testing/tests/ValidateEffectSystemTest.h"
 #include "../testing/tests/ValidateFullGameFlowTest.h"
@@ -77,6 +78,10 @@ void TestSystem::register_test_cases() {
 
   test_registry["validate_dish_system"] = []() {
     ValidateDishSystemTest::execute();
+  };
+
+  test_registry["validate_debug_dish"] = []() {
+    ValidateDebugDishTest::execute();
   };
 
   test_registry["validate_battle_results"] = []() {

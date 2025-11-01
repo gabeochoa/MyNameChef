@@ -11,6 +11,8 @@
 using namespace afterhours;
 
 struct EQ : public EntityQuery<EQ> {
+  using EntityQuery<EQ>::EntityQuery;
+
   struct WhereInRange : EntityQuery::Modification {
     vec2 position;
     float range;

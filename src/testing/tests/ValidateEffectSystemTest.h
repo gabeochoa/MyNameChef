@@ -726,8 +726,10 @@ struct ValidateEffectSystemTest {
     ApplyPendingCombatModsSystem applyModsSystem;
     applyModsSystem.for_each_with(target, pending, 1.0f / 60.0f);
 
-    // Run ComputeCombatStatsSystem again to mirror the updated modifiers into PreBattleModifiers
-    log_info("EFFECT_TEST: Running ComputeCombatStatsSystem after applying modifiers");
+    // Run ComputeCombatStatsSystem again to mirror the updated modifiers into
+    // PreBattleModifiers
+    log_info("EFFECT_TEST: Running ComputeCombatStatsSystem after applying "
+             "modifiers");
     computeSystem.for_each_with(target, target.get<IsDish>(),
                                 target.get<DishLevel>(), 1.0f / 60.0f);
 
@@ -961,18 +963,38 @@ struct ValidateEffectSystemTest {
     queue.add_event(TriggerHook::OnServe, salmon2.id, 2,
                     DishBattleState::TeamSide::Player);
 
+    // Merge again after creating trigger queue (in case it created new
+    // entities)
+    afterhours::EntityHelper::merge_entity_arrays();
+
+    // Merge one more time right before dispatch to ensure all entities are
+    // accessible to queries within the handler
+    afterhours::EntityHelper::merge_entity_arrays();
+
     TriggerDispatchSystem dispatch;
     if (dispatch.should_run(1.0f / 60.0f)) {
       dispatch.for_each_with(tq_entity, queue, 1.0f / 60.0f);
     }
 
+    // Merge after dispatch in case handler created new entities
+    afterhours::EntityHelper::merge_entity_arrays();
+
+    // Re-query bagel0 after merge to ensure we have the correct reference
+    auto bagel0_ref = EQ().whereID(bagel0.id).gen_first();
+    if (!bagel0_ref.has_value()) {
+      log_error(
+          "EFFECT_TEST: FAILED - Could not find Bagel(0) entity after merge");
+      return;
+    }
+    afterhours::Entity &bagel0_entity = *bagel0_ref.value();
+
     // Verify left Bagel received +1 Freshness via DeferredFlavorMods
-    if (!bagel0.has<DeferredFlavorMods>()) {
+    if (!bagel0_entity.has<DeferredFlavorMods>()) {
       log_error("EFFECT_TEST: FAILED - Bagel(0) missing DeferredFlavorMods "
                 "after Salmon OnServe");
       return;
     }
-    auto &def = bagel0.get<DeferredFlavorMods>();
+    auto &def = bagel0_entity.get<DeferredFlavorMods>();
     log_info(
         "EFFECT_TEST: Bagel(0) DeferredFlavorMods freshness={} (expect >=1)",
         def.freshness);
@@ -984,10 +1006,10 @@ struct ValidateEffectSystemTest {
 
     // Compute stats while InQueue
     ComputeCombatStatsSystem compute;
-    compute.for_each_with(bagel0, bagel0.get<IsDish>(), bagel0.get<DishLevel>(),
-                          1.0f / 60.0f);
+    compute.for_each_with(bagel0_entity, bagel0_entity.get<IsDish>(),
+                          bagel0_entity.get<DishLevel>(), 1.0f / 60.0f);
     int baseFlavorBody = get_dish_info(DishType::Bagel).flavor.body();
-    int bodyInQueue = bagel0.get<CombatStats>().baseBody;
+    int bodyInQueue = bagel0_entity.get<CombatStats>().baseBody;
     log_info("EFFECT_TEST: Bagel(0) InQueue baseBody={} (baseFlavorBody={})",
              bodyInQueue, baseFlavorBody);
     if (bodyInQueue <= baseFlavorBody) {
@@ -997,17 +1019,17 @@ struct ValidateEffectSystemTest {
     }
 
     // Transition to Entering, then InCombat; recompute each time
-    auto &dbs = bagel0.get<DishBattleState>();
+    auto &dbs = bagel0_entity.get<DishBattleState>();
     dbs.phase = DishBattleState::Phase::Entering;
-    compute.for_each_with(bagel0, bagel0.get<IsDish>(), bagel0.get<DishLevel>(),
-                          1.0f / 60.0f);
-    int bodyEntering = bagel0.get<CombatStats>().baseBody;
+    compute.for_each_with(bagel0_entity, bagel0_entity.get<IsDish>(),
+                          bagel0_entity.get<DishLevel>(), 1.0f / 60.0f);
+    int bodyEntering = bagel0_entity.get<CombatStats>().baseBody;
     log_info("EFFECT_TEST: Bagel(0) Entering baseBody={}", bodyEntering);
 
     dbs.phase = DishBattleState::Phase::InCombat;
-    compute.for_each_with(bagel0, bagel0.get<IsDish>(), bagel0.get<DishLevel>(),
-                          1.0f / 60.0f);
-    int bodyInCombat = bagel0.get<CombatStats>().baseBody;
+    compute.for_each_with(bagel0_entity, bagel0_entity.get<IsDish>(),
+                          bagel0_entity.get<DishLevel>(), 1.0f / 60.0f);
+    int bodyInCombat = bagel0_entity.get<CombatStats>().baseBody;
     log_info("EFFECT_TEST: Bagel(0) InCombat baseBody={}", bodyInCombat);
 
     // Expectation: body should remain boosted across transitions
