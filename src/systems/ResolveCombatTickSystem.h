@@ -4,7 +4,10 @@
 #include "../components/battle_result.h"
 #include "../components/combat_stats.h"
 #include "../components/dish_battle_state.h"
+#include "../components/trigger_event.h"
+#include "../components/trigger_queue.h"
 #include "../game_state_manager.h"
+#include "../query.h"
 #include "../shop.h"
 #include <afterhours/ah.h>
 #include <afterhours/src/plugins/animation.h>
@@ -110,18 +113,31 @@ private:
       bool player_turn = dbs.players_turn;
       int damage = 0;
       int target_id = -1;
+      DishBattleState::TeamSide attacker_side =
+          DishBattleState::TeamSide::Player;
       if (player_turn) {
         damage = cs.currentZing;
         if (damage <= 0)
           damage = 1;
         opponent_cs.currentBody -= damage;
         target_id = opponent.id;
+        attacker_side = DishBattleState::TeamSide::Player;
       } else {
         damage = opponent_cs.currentZing;
         if (damage <= 0)
           damage = 1;
         cs.currentBody -= damage;
         target_id = e.id;
+        attacker_side = DishBattleState::TeamSide::Opponent;
+      }
+
+      if (auto tq = afterhours::EntityHelper::get_singleton<TriggerQueue>();
+          tq.get().has<TriggerQueue>()) {
+        auto &queue = tq.get().get<TriggerQueue>();
+        int attacker_id = player_turn ? e.id : opponent.id;
+        queue.add_event(TriggerHook::OnBiteTaken, attacker_id, dbs.queue_index,
+                        attacker_side);
+        queue.events.back().payloadInt = damage;
       }
 
       // Emit a blocking animation event to visualize damage (negative
@@ -149,14 +165,40 @@ private:
     if (cs.currentBody <= 0 && opponent_cs.currentBody <= 0) {
       dbs.phase = DishBattleState::Phase::Finished;
       opponent_dbs.phase = DishBattleState::Phase::Finished;
+
+      if (auto tq = afterhours::EntityHelper::get_singleton<TriggerQueue>();
+          tq.get().has<TriggerQueue>()) {
+        auto &queue = tq.get().get<TriggerQueue>();
+        queue.add_event(TriggerHook::OnDishFinished, e.id, dbs.queue_index,
+                        DishBattleState::TeamSide::Player);
+        queue.add_event(TriggerHook::OnDishFinished, opponent.id,
+                        dbs.queue_index, DishBattleState::TeamSide::Opponent);
+      }
+
       log_info("COMBAT: Both dishes defeated at slot {} (tie)",
                dbs.queue_index);
     } else if (cs.currentBody <= 0) {
       dbs.phase = DishBattleState::Phase::Finished;
+
+      if (auto tq = afterhours::EntityHelper::get_singleton<TriggerQueue>();
+          tq.get().has<TriggerQueue>()) {
+        auto &queue = tq.get().get<TriggerQueue>();
+        queue.add_event(TriggerHook::OnDishFinished, e.id, dbs.queue_index,
+                        DishBattleState::TeamSide::Player);
+      }
+
       log_info("COMBAT: Player-side dish {} defeated at slot {}", e.id,
                dbs.queue_index);
     } else if (opponent_cs.currentBody <= 0) {
       opponent_dbs.phase = DishBattleState::Phase::Finished;
+
+      if (auto tq = afterhours::EntityHelper::get_singleton<TriggerQueue>();
+          tq.get().has<TriggerQueue>()) {
+        auto &queue = tq.get().get<TriggerQueue>();
+        queue.add_event(TriggerHook::OnDishFinished, opponent.id,
+                        dbs.queue_index, DishBattleState::TeamSide::Opponent);
+      }
+
       log_info("COMBAT: Opponent-side dish {} defeated at slot {}", opponent.id,
                dbs.queue_index);
     }
