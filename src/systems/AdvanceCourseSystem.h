@@ -2,6 +2,8 @@
 
 #include "../components/combat_queue.h"
 #include "../components/dish_battle_state.h"
+#include "../components/trigger_event.h"
+#include "../components/trigger_queue.h"
 #include "../game_state_manager.h"
 #include "../query.h"
 #include <afterhours/ah.h>
@@ -23,6 +25,15 @@ struct AdvanceCourseSystem : afterhours::System<CombatQueue> {
     // Check if both dishes for current course are finished
     if (both_dishes_finished(cq.current_index)) {
       log_info("COMBAT: Course {} finished", cq.current_index);
+
+      if (auto tq = afterhours::EntityHelper::get_singleton<TriggerQueue>();
+          tq.get().has<TriggerQueue>()) {
+        auto &queue = tq.get().get<TriggerQueue>();
+        queue.add_event(TriggerHook::OnCourseComplete, 0, cq.current_index,
+                        DishBattleState::TeamSide::Player);
+        log_info("COMBAT: Fired OnCourseComplete trigger for slot {}",
+                 cq.current_index);
+      }
 
       cq.current_index++;
 
