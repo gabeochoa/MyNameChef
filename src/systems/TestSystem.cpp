@@ -99,6 +99,11 @@ void TestSystem::register_test_cases() {
     ValidateEffectSystemTest::execute();
   };
 
+  // Focused single test to isolate salmon persistence investigation
+  test_registry["validate_salmon_persistence"] = []() {
+    ValidateEffectSystemTest::execute_salmon_persistence_only();
+  };
+
   // Look up the test function
   auto it = test_registry.find(test_name);
   if (it != test_registry.end()) {
