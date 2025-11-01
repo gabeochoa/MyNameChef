@@ -43,6 +43,8 @@ static DishInfo make_salmon() {
 
         bool has_freshness_adjacent = false;
 
+        // Query for previous dish - filter by phase to avoid conflicts with entities
+        // from other tests, and order by ID (newest first) to get the most recent match
         auto prevDish =
             EQ().whereHasComponent<IsDish>()
                 .whereHasComponent<DishBattleState>()
@@ -50,8 +52,12 @@ static DishInfo make_salmon() {
                     [&src_dbs, src_queue_index](const afterhours::Entity &e) {
                       const DishBattleState &dbs = e.get<DishBattleState>();
                       return dbs.team_side == src_dbs.team_side &&
-                             dbs.queue_index == src_queue_index - 1;
+                             dbs.queue_index == src_queue_index - 1 &&
+                             dbs.phase == DishBattleState::Phase::InQueue;
                     })
+                .orderByLambda([](const afterhours::Entity &a, const afterhours::Entity &b) {
+                  return a.id > b.id; // Descending by ID (newest first)
+                })
                 .gen_first();
         if (prevDish.has_value()) {
           auto &dish = prevDish.value()->get<IsDish>();
@@ -62,6 +68,7 @@ static DishInfo make_salmon() {
         }
 
         if (!has_freshness_adjacent) {
+          // Query for next dish - same filtering approach
           auto nextDish =
               EQ().whereHasComponent<IsDish>()
                   .whereHasComponent<DishBattleState>()
@@ -69,8 +76,12 @@ static DishInfo make_salmon() {
                       [&src_dbs, src_queue_index](const afterhours::Entity &e) {
                         const DishBattleState &dbs = e.get<DishBattleState>();
                         return dbs.team_side == src_dbs.team_side &&
-                               dbs.queue_index == src_queue_index + 1;
+                               dbs.queue_index == src_queue_index + 1 &&
+                               dbs.phase == DishBattleState::Phase::InQueue;
                       })
+                  .orderByLambda([](const afterhours::Entity &a, const afterhours::Entity &b) {
+                    return a.id > b.id; // Descending by ID (newest first)
+                  })
                   .gen_first();
           if (nextDish.has_value()) {
             auto &dish = nextDish.value()->get<IsDish>();
@@ -89,6 +100,7 @@ static DishInfo make_salmon() {
               src_opt->addComponentIfMissing<DeferredFlavorMods>();
           src_deferred.freshness += 1;
 
+          // Re-query for previous dish to apply boost
           afterhours::OptEntity prevDishBoost =
               EQ().whereHasComponent<IsDish>()
                   .whereHasComponent<DishBattleState>()
@@ -96,8 +108,12 @@ static DishInfo make_salmon() {
                       [&src_dbs, src_queue_index](const afterhours::Entity &e) {
                         const DishBattleState &dbs = e.get<DishBattleState>();
                         return dbs.team_side == src_dbs.team_side &&
-                               dbs.queue_index == src_queue_index - 1;
+                               dbs.queue_index == src_queue_index - 1 &&
+                               dbs.phase == DishBattleState::Phase::InQueue;
                       })
+                  .orderByLambda([](const afterhours::Entity &a, const afterhours::Entity &b) {
+                    return a.id > b.id; // Descending by ID (newest first)
+                  })
                   .gen_first();
           if (prevDishBoost.has_value()) {
             auto &deferred = prevDishBoost.value()
@@ -106,6 +122,7 @@ static DishInfo make_salmon() {
             previousEntityId = prevDishBoost.value()->id;
           }
 
+          // Re-query for next dish to apply boost
           auto nextDish =
               EQ().whereHasComponent<IsDish>()
                   .whereHasComponent<DishBattleState>()
@@ -113,8 +130,12 @@ static DishInfo make_salmon() {
                       [&src_dbs, src_queue_index](const afterhours::Entity &e) {
                         const DishBattleState &dbs = e.get<DishBattleState>();
                         return dbs.team_side == src_dbs.team_side &&
-                               dbs.queue_index == src_queue_index + 1;
+                               dbs.queue_index == src_queue_index + 1 &&
+                               dbs.phase == DishBattleState::Phase::InQueue;
                       })
+                  .orderByLambda([](const afterhours::Entity &a, const afterhours::Entity &b) {
+                    return a.id > b.id; // Descending by ID (newest first)
+                  })
                   .gen_first();
           if (nextDish.has_value()) {
             auto &deferred =

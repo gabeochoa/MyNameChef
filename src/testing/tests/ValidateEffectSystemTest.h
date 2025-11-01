@@ -931,6 +931,13 @@ struct ValidateEffectSystemTest {
     log_info("EFFECT_TEST: Testing Salmon neighbor Freshness persists into "
              "combat (Bagel,Salmon,Salmon,Bagel)");
 
+    // Clean up any leftover entities from previous tests to avoid query
+    // conflicts This ensures queries only find entities created in this test
+    for (auto &ref : EQ().whereHasComponent<IsDish>().gen()) {
+      ref.get().cleanup = true;
+    }
+    afterhours::EntityHelper::merge_entity_arrays();
+
     GameStateManager::get().to_battle();
     GameStateManager::get().update_screen();
 
@@ -967,16 +974,35 @@ struct ValidateEffectSystemTest {
     // entities)
     afterhours::EntityHelper::merge_entity_arrays();
 
-    // Merge one more time right before dispatch to ensure all entities are
-    // accessible to queries within the handler
+    // CRITICAL: In production, the game loop calls merge_entity_arrays() after
+    // each system. We need to simulate this by merging right before dispatch so
+    // that when the handler's EQ() queries are constructed, they capture a
+    // complete entity list.
     afterhours::EntityHelper::merge_entity_arrays();
+
+    // Verify entities are accessible before dispatch (they should be after
+    // merge)
+    auto pre_check =
+        EQ().whereHasComponent<IsDish>()
+            .whereHasComponent<DishBattleState>()
+            .whereLambda([](const afterhours::Entity &e) {
+              const DishBattleState &dbs = e.get<DishBattleState>();
+              return dbs.team_side == DishBattleState::TeamSide::Player &&
+                     dbs.queue_index == 0;
+            })
+            .gen_first();
+    if (!pre_check.has_value()) {
+      log_error("EFFECT_TEST: Bagel(0) not found by query before dispatch!");
+      return;
+    }
 
     TriggerDispatchSystem dispatch;
     if (dispatch.should_run(1.0f / 60.0f)) {
       dispatch.for_each_with(tq_entity, queue, 1.0f / 60.0f);
     }
 
-    // Merge after dispatch in case handler created new entities
+    // Merge after dispatch in case handler created new entities or components
+    // (matching production behavior where merge happens after each system)
     afterhours::EntityHelper::merge_entity_arrays();
 
     // Re-query bagel0 after merge to ensure we have the correct reference
