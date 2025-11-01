@@ -86,8 +86,14 @@ struct TriggerDispatchSystem : afterhours::System<TriggerQueue> {
 private:
   void handle_event(const TriggerEvent &ev) {
     switch (ev.hook) {
+    case TriggerHook::OnStartBattle:
+      on_start_battle(ev);
+      break;
     case TriggerHook::OnServe:
       on_serve(ev);
+      break;
+    case TriggerHook::OnCourseStart:
+      on_course_start(ev);
       break;
     case TriggerHook::OnBiteTaken:
       on_bite_taken(ev);
@@ -95,13 +101,14 @@ private:
     case TriggerHook::OnDishFinished:
       on_dish_finished(ev);
       break;
-    case TriggerHook::OnCourseStart:
-      on_course_start(ev);
-      break;
     case TriggerHook::OnCourseComplete:
       on_course_complete(ev);
       break;
     }
+  }
+
+  void on_start_battle(const TriggerEvent &) {
+    log_info("TRIGGER OnStartBattle - battle initialized");
   }
 
   void on_serve(const TriggerEvent &ev) {
