@@ -3,7 +3,10 @@
 #include "../components/animation_event.h"
 #include "../components/combat_queue.h"
 #include "../components/dish_battle_state.h"
+#include "../components/trigger_event.h"
+#include "../components/trigger_queue.h"
 #include "../game_state_manager.h"
+#include "../query.h"
 #include "../shop.h"
 #include <afterhours/ah.h>
 
@@ -51,5 +54,13 @@ struct InitCombatState : afterhours::System<CombatQueue> {
 
     log_info("COMBAT: Creating SlideIn animation at battle start");
     make_animation_event(AnimationEventType::SlideIn, true);
+
+    if (auto tq = afterhours::EntityHelper::get_singleton<TriggerQueue>();
+        tq.get().has<TriggerQueue>()) {
+      auto &queue = tq.get().get<TriggerQueue>();
+      queue.add_event(TriggerHook::OnStartBattle, 0, 0,
+                      DishBattleState::TeamSide::Player);
+      log_info("COMBAT: Fired OnStartBattle trigger");
+    }
   }
 };
