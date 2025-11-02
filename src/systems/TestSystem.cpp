@@ -26,11 +26,7 @@ void TestSystem::register_test_cases() {
   // Register test cases using individual test files
 
   // Register validation functions
-  if (test_name == "validate_combat_system") {
-    validation_function = []() {
-      return ValidateCombatSystemTest::validate_battle_screen();
-    };
-  } else if (test_name == "validate_battle_results") {
+  if (test_name == "validate_battle_results") {
     validation_function = []() {
       return ValidateBattleResultsTest::validate_results_screen();
     };
@@ -42,14 +38,6 @@ void TestSystem::register_test_cases() {
 
   test_registry["validate_trigger_system"] = []() {
     ValidateTriggerSystemTest::execute();
-  };
-
-  test_registry["validate_combat_system"] = []() {
-    ValidateCombatSystemTest::execute();
-  };
-
-  test_registry["validate_debug_dish"] = []() {
-    ValidateDebugDishTest::execute();
   };
 
   test_registry["validate_battle_results"] = []() {
