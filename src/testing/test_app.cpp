@@ -4,9 +4,16 @@
 #include "../components/dish_battle_state.h"
 #include "../components/dish_level.h"
 #include "../components/is_dish.h"
+#include "../components/is_draggable.h"
+#include "../components/is_drop_slot.h"
+#include "../components/is_held.h"
+#include "../components/is_inventory_item.h"
+#include "../components/is_shop_item.h"
 #include "../components/transform.h"
+#include "../dish_types.h"
 #include "../game_state_manager.h"
 #include "../log.h"
+#include "../query.h"
 #include "../render_backend.h"
 #include "../shop.h"
 #include <afterhours/ah.h>
@@ -164,6 +171,79 @@ int TestApp::read_wallet_gold() {
   }
   fail("Wallet singleton not found");
   return 0; // Unreachable
+}
+
+TestApp &TestApp::set_wallet_gold(int gold, const std::string &location) {
+  // Manually set wallet gold, bypassing normal game logic
+  // Used for testing scenarios (e.g., testing purchase failures with insufficient funds)
+  afterhours::RefEntity wallet_ref =
+      afterhours::EntityHelper::get_singleton<Wallet>();
+  if (!wallet_ref.get().has<Wallet>()) {
+    fail("Wallet singleton not found", location);
+  }
+  wallet_ref.get().get<Wallet>().gold = gold;
+  return *this;
+}
+
+TestApp &TestApp::create_inventory_item(DishType type, int slot) {
+  // Manually create an item in a specific inventory slot
+  // Bypasses normal purchase logic - used for testing scenarios
+  // If slot is already occupied, this will overwrite/replace it
+  
+  // Find the inventory slot
+  int slot_id = INVENTORY_SLOT_OFFSET + slot;
+  
+  afterhours::Entity *target_slot = nullptr;
+  for (afterhours::Entity &entity :
+       afterhours::EntityQuery().whereHasComponent<IsDropSlot>().gen()) {
+    const IsDropSlot &drop_slot = entity.get<IsDropSlot>();
+    if (drop_slot.slot_id == slot_id && drop_slot.accepts_inventory_items) {
+      target_slot = &entity;
+      break;
+    }
+  }
+  
+  if (!target_slot) {
+    fail("Inventory slot " + std::to_string(slot) + " not found");
+  }
+  
+  // If slot is already occupied, remove the existing item
+  if (target_slot->get<IsDropSlot>().occupied) {
+    // Find and remove the existing item in this slot
+    for (afterhours::Entity &entity :
+         afterhours::EntityQuery().whereHasComponent<IsInventoryItem>().gen()) {
+      if (entity.get<IsInventoryItem>().slot == slot_id) {
+        entity.cleanup = true;
+        break;
+      }
+    }
+    // Merge to ensure cleanup happens
+    afterhours::EntityHelper::merge_entity_arrays();
+  }
+  
+  // Create the dish entity
+  // Calculate position manually (same as calculate_inventory_position)
+  float x = INVENTORY_START_X + slot * (SLOT_SIZE + SLOT_GAP);
+  vec2 position{x, static_cast<float>(INVENTORY_START_Y)};
+  
+  afterhours::Entity &dish = afterhours::EntityHelper::createEntity();
+  
+  dish.addComponent<Transform>(position, vec2{80.0f, 80.0f});
+  dish.addComponent<IsDish>(type);
+  dish.addComponent<DishLevel>(1);
+  IsInventoryItem &inv_item = dish.addComponent<IsInventoryItem>();
+  inv_item.slot = slot_id;
+  
+  // Add components needed for inventory items (matching GenerateInventorySlots)
+  dish.addComponent<IsDraggable>(true);
+  
+  // Mark slot as occupied BEFORE merging (important!)
+  target_slot->get<IsDropSlot>().occupied = true;
+  
+  // Merge entity arrays
+  afterhours::EntityHelper::merge_entity_arrays();
+  
+  return *this;
 }
 
 int TestApp::read_player_health() {
@@ -613,4 +693,252 @@ bool TestApp::step_delay() {
     return true;
   }
   return false; // No delay needed
+}
+
+bool TestApp::can_afford_purchase(DishType type) {
+  const int price = get_dish_info(type).price;
+  const int current_gold = read_wallet_gold();
+  return current_gold >= price;
+}
+
+bool TestApp::try_purchase_item(DishType type, int inventory_slot,
+                                 const std::string & /*location*/) {
+  // Attempt to purchase without throwing exceptions
+  // Returns true if purchase succeeded, false if it failed (e.g., insufficient funds)
+  
+  // Ensure we're on the shop screen
+  GameStateManager::Screen current = GameStateManager::get().active_screen;
+  if (current != GameStateManager::Screen::Shop) {
+    return false;
+  }
+
+  // Find a shop item of the specified type
+  afterhours::Entity *shop_item = nullptr;
+  for (afterhours::Entity &entity :
+       afterhours::EntityQuery().whereHasComponent<IsShopItem>().gen()) {
+    if (entity.has<IsDish>()) {
+      const IsDish &dish = entity.get<IsDish>();
+      if (dish.type == type) {
+        shop_item = &entity;
+        break;
+      }
+    }
+  }
+
+  if (!shop_item) {
+    return false;
+  }
+
+  // Get the price
+  const int price = get_dish_info(type).price;
+  const int initial_gold = read_wallet_gold();
+
+  // Check if player can afford it
+  if (initial_gold < price) {
+    return false; // Can't afford it
+  }
+
+  // Perform the purchase (same logic as purchase_item but without throwing)
+  // Find an empty inventory slot
+  afterhours::Entity *target_slot = nullptr;
+  if (inventory_slot >= 0) {
+    // Use specified slot
+    for (afterhours::Entity &entity :
+         afterhours::EntityQuery().whereHasComponent<IsDropSlot>().gen()) {
+      const IsDropSlot &slot = entity.get<IsDropSlot>();
+      if (slot.slot_id == inventory_slot &&
+          slot.accepts_inventory_items && !slot.occupied) {
+        target_slot = &entity;
+        break;
+      }
+    }
+    if (!target_slot) {
+      return false;
+    }
+  } else {
+    // Find any empty inventory slot (exclude sell slot)
+    for (afterhours::Entity &entity :
+         afterhours::EntityQuery({.force_merge = true}).whereHasComponent<IsDropSlot>().gen()) {
+      const IsDropSlot &slot = entity.get<IsDropSlot>();
+      if (slot.accepts_inventory_items && !slot.occupied && slot.slot_id != SELL_SLOT_ID) {
+        target_slot = &entity;
+        break;
+      }
+    }
+    if (!target_slot) {
+      return false;
+    }
+  }
+
+  // Get original slot ID before removing IsShopItem
+  int original_slot = -1;
+  if (shop_item->has<IsShopItem>()) {
+    original_slot = shop_item->get<IsShopItem>().slot;
+  }
+
+  // Charge for purchase
+  if (!charge_for_shop_purchase(type)) {
+    return false; // Failed to charge
+  }
+
+  // Remove IsShopItem and add IsInventoryItem
+  shop_item->removeComponent<IsShopItem>();
+  IsInventoryItem &inv_item = shop_item->addComponent<IsInventoryItem>();
+  inv_item.slot = target_slot->get<IsDropSlot>().slot_id;
+
+  // Mark slot as occupied
+  target_slot->get<IsDropSlot>().occupied = true;
+
+  // Free the original shop slot
+  if (original_slot >= 0) {
+    for (afterhours::Entity &entity :
+         afterhours::EntityQuery().whereHasComponent<IsDropSlot>().gen()) {
+      if (entity.get<IsDropSlot>().slot_id == original_slot) {
+        entity.get<IsDropSlot>().occupied = false;
+        break;
+      }
+    }
+  }
+
+  // Merge entity arrays to ensure changes are visible
+  afterhours::EntityHelper::merge_entity_arrays();
+
+  return true; // Purchase succeeded
+}
+
+TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
+                                 const std::string &location) {
+  // Ensure we're on the shop screen
+  expect_screen_is(GameStateManager::Screen::Shop, location);
+
+  // Find a shop item of the specified type
+  afterhours::Entity *shop_item = nullptr;
+  for (afterhours::Entity &entity :
+       afterhours::EntityQuery().whereHasComponent<IsShopItem>().gen()) {
+    if (entity.has<IsDish>()) {
+      const IsDish &dish = entity.get<IsDish>();
+      if (dish.type == type) {
+        shop_item = &entity;
+        break;
+      }
+    }
+  }
+
+  if (!shop_item) {
+    fail("Shop item of type " + std::to_string(static_cast<int>(type)) +
+             " not found in shop",
+         location);
+  }
+
+  // Get the price
+  const int price = get_dish_info(type).price;
+  const int initial_gold = read_wallet_gold();
+
+  // Check if player can afford it
+  if (initial_gold < price) {
+    fail("Cannot purchase: insufficient gold (have " +
+             std::to_string(initial_gold) + ", need " + std::to_string(price) +
+             ")",
+         location);
+  }
+
+  // Find an empty inventory slot
+  afterhours::Entity *target_slot = nullptr;
+  if (inventory_slot >= 0) {
+    // Use specified slot
+    for (afterhours::Entity &entity :
+         afterhours::EntityQuery().whereHasComponent<IsDropSlot>().gen()) {
+      const IsDropSlot &slot = entity.get<IsDropSlot>();
+      if (slot.slot_id == inventory_slot &&
+          slot.accepts_inventory_items && !slot.occupied) {
+        target_slot = &entity;
+        break;
+      }
+    }
+    if (!target_slot) {
+      fail("Inventory slot " + std::to_string(inventory_slot) +
+               " not found or is occupied",
+           location);
+    }
+  } else {
+    // Find any empty inventory slot
+    for (afterhours::Entity &entity :
+         afterhours::EntityQuery().whereHasComponent<IsDropSlot>().gen()) {
+      const IsDropSlot &slot = entity.get<IsDropSlot>();
+      if (slot.accepts_inventory_items && !slot.occupied) {
+        target_slot = &entity;
+        break;
+      }
+    }
+    if (!target_slot) {
+      fail("No empty inventory slots available", location);
+    }
+  }
+
+  // Simulate drag-and-drop: add IsHeld component, then let system process
+  // We'll simulate what DropWhenNoLongerHeld does for purchasing
+  vec2 slot_center = target_slot->get<Transform>().center();
+  vec2 item_size = shop_item->has<Transform>()
+                       ? shop_item->get<Transform>().size
+                       : vec2{80.0f, 80.0f};
+
+  // Add IsHeld component to simulate dragging
+  if (!shop_item->has<Transform>()) {
+    shop_item->addComponent<Transform>(vec2{0, 0}, item_size);
+  }
+  Transform &item_transform = shop_item->get<Transform>();
+  IsHeld held_component{vec2{0, 0}, item_transform.position};
+
+  // Position item over the target slot
+  item_transform.position = slot_center - item_size * 0.5f;
+
+  // Get original slot ID before removing IsShopItem
+  int original_slot = -1;
+  if (shop_item->has<IsShopItem>()) {
+    original_slot = shop_item->get<IsShopItem>().slot;
+  }
+
+  // Charge for purchase (same logic as DropWhenNoLongerHeld::try_purchase_shop_item)
+  if (!charge_for_shop_purchase(type)) {
+    // Failed to charge - restore position
+    item_transform.position = held_component.original_position;
+    fail("Failed to charge wallet for purchase", location);
+  }
+
+  // Remove IsShopItem and add IsInventoryItem
+  shop_item->removeComponent<IsShopItem>();
+  IsInventoryItem &inv_item = shop_item->addComponent<IsInventoryItem>();
+  inv_item.slot = target_slot->get<IsDropSlot>().slot_id;
+
+  // Mark slot as occupied
+  target_slot->get<IsDropSlot>().occupied = true;
+
+  // Free the original shop slot
+  if (original_slot >= 0) {
+    for (afterhours::Entity &entity :
+         afterhours::EntityQuery().whereHasComponent<IsDropSlot>().gen()) {
+      if (entity.get<IsDropSlot>().slot_id == original_slot) {
+        entity.get<IsDropSlot>().occupied = false;
+        break;
+      }
+    }
+  }
+
+  // Merge entity arrays to ensure changes are visible
+  afterhours::EntityHelper::merge_entity_arrays();
+
+  // Verify purchase succeeded
+  const int new_gold = read_wallet_gold();
+  if (new_gold != initial_gold - price) {
+    fail("Gold not deducted correctly: expected " +
+             std::to_string(initial_gold - price) + ", got " +
+             std::to_string(new_gold),
+         location);
+  }
+
+  if (step_delay()) {
+    throw std::runtime_error("WAIT_FOR_FRAME_DELAY_CONTINUE");
+  }
+
+  return *this;
 }

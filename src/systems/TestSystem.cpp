@@ -18,6 +18,13 @@
 #include "../testing/tests/ValidateMainMenuTest.h"
 #include "../testing/tests/ValidateShopFunctionalityTest.h"
 #include "../testing/tests/ValidateShopNavigationTest.h"
+#include "../testing/tests/ValidateShopPurchaseTest.h"
+#include "../testing/tests/ValidateShopPurchaseNoGoldTest.h"
+#include "../testing/tests/ValidateShopPurchaseInsufficientFundsTest.h"
+#include "../testing/tests/ValidateShopPurchaseFullInventoryTest.h"
+#include "../testing/tests/ValidateShopPurchaseExactGoldTest.h"
+#include "../testing/tests/ValidateShopPurchaseNonexistentItemTest.h"
+#include "../testing/tests/ValidateShopPurchaseWrongScreenTest.h"
 #include "../testing/tests/ValidateTriggerSystemTest.h"
 #include "../testing/tests/ValidateUINavigationTest.h"
 

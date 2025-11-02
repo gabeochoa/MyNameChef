@@ -115,6 +115,11 @@ struct TestApp {
   std::vector<TestShopItemInfo> read_store_options();
   int read_wallet_gold();
   int read_player_health();
+  
+  // Functions to manually manipulate game state for testing
+  // These bypass normal game logic to set up specific test scenarios
+  TestApp &set_wallet_gold(int gold, const std::string &location = "");
+  TestApp &create_inventory_item(DishType type, int slot);
   GameStateManager::Screen read_current_screen();
 
   TestApp &wait_for_ui_exists(const std::string &label,
@@ -125,6 +130,11 @@ struct TestApp {
   TestApp &expect_inventory_contains(DishType type,
                                      const std::string &location = "");
   TestApp &expect_wallet_has(int gold, const std::string &location = "");
+  bool can_afford_purchase(DishType type);
+  bool try_purchase_item(DishType type, int inventory_slot = -1,
+                         const std::string &location = "");
+  TestApp &purchase_item(DishType type, int inventory_slot = -1,
+                         const std::string &location = "");
 
   TestApp &wait_for_screen(GameStateManager::Screen screen,
                            float timeout_sec = 5.0f);
