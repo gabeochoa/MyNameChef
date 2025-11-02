@@ -115,6 +115,8 @@ struct TestApp {
   std::vector<TestShopItemInfo> read_store_options();
   int read_wallet_gold();
   int read_player_health();
+  int count_active_player_dishes();
+  int count_active_opponent_dishes();
   
   // Functions to manually manipulate game state for testing
   // These bypass normal game logic to set up specific test scenarios
