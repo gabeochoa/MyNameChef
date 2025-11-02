@@ -9,13 +9,9 @@ TEST(validate_shop_purchase_exact_gold) {
   app.launch_game();
   app.navigate_to_shop();
 
-  // Get shop items
   const auto shop_items = app.read_store_options();
-  if (shop_items.empty()) {
-    app.fail("No items available in shop to purchase");
-  }
+  app.expect_not_empty(shop_items, "shop items");
 
-  // Find the cheapest item
   const TestShopItemInfo *cheapest = &shop_items[0];
   for (const auto &item : shop_items) {
     if (item.price < cheapest->price) {
@@ -23,36 +19,17 @@ TEST(validate_shop_purchase_exact_gold) {
     }
   }
 
-  // Set gold to exactly the price
   app.set_wallet_gold(cheapest->price);
   app.expect_wallet_has(cheapest->price);
 
-  // Verify we can afford it
-  if (!app.can_afford_purchase(cheapest->type)) {
-    app.fail(
-        "Test setup failed: should be able to afford item with exact gold");
-  }
+  app.expect_true(app.can_afford_purchase(cheapest->type),
+                  "ability to afford item with exact gold");
 
-  // Purchase should succeed
   bool purchase_succeeded = app.try_purchase_item(cheapest->type);
-  if (!purchase_succeeded) {
-    app.fail("Purchase should have succeeded with exact gold amount");
-  }
+  app.expect_true(purchase_succeeded,
+                  "purchase success with exact gold amount");
 
-  // Verify gold was deducted to 0
   app.expect_wallet_has(0);
 
-  // Verify item is in inventory
-  const auto inventory = app.read_player_inventory();
-  bool found = false;
-  for (const auto &item : inventory) {
-    if (item.type == cheapest->type) {
-      found = true;
-      break;
-    }
-  }
-  if (!found) {
-    app.fail("Purchased item should be in inventory");
-  }
+  app.expect_inventory_contains(cheapest->type);
 }
-

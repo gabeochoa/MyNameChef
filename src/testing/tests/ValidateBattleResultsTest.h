@@ -88,18 +88,13 @@ TEST(validate_battle_results) {
   // Step 1: Create mock opponent JSON file
   create_mock_opponent_json();
 
-  // Check if we're already on Results screen (from a previous test iteration)
   GameStateManager::get().update_screen();
   auto &gsm = GameStateManager::get();
   if (gsm.active_screen == GameStateManager::Screen::Results) {
     app.wait_for_ui_exists("Back to Shop", 5.0f);
-    
-    // Validate BattleResult component exists
     auto resultEntity = afterhours::EntityHelper::get_singleton<BattleResult>();
-    if (!resultEntity.get().has<BattleResult>()) {
-      return; // Will fail if result not found
-    }
-    return; // Test is done!
+    app.expect_singleton_has_component<BattleResult>(resultEntity, "BattleResult");
+    return;
   }
 
   // Step 2: Navigate to shop screen
@@ -127,11 +122,8 @@ TEST(validate_battle_results) {
   app.wait_for_screen(GameStateManager::Screen::Results, 10.0f);
   app.wait_for_ui_exists("Back to Shop", 5.0f);
 
-  // Step 5: Validate results
   auto resultEntity = afterhours::EntityHelper::get_singleton<BattleResult>();
-  if (!resultEntity.get().has<BattleResult>()) {
-    return; // Will fail
-  }
+  app.expect_singleton_has_component<BattleResult>(resultEntity, "BattleResult");
 
   auto &result = resultEntity.get().get<BattleResult>();
   log_info("TEST: BattleResult found - Player wins: {}, Opponent wins: {}, "
@@ -139,9 +131,7 @@ TEST(validate_battle_results) {
            result.playerWins, result.opponentWins, result.ties,
            static_cast<int>(result.outcome));
 
-  if (result.outcomes.empty()) {
-    return; // Will fail - no course outcomes
-  }
+  app.expect_not_empty(result.outcomes, "course outcomes");
 
   log_info("TEST: Found {} course outcomes", result.outcomes.size());
 

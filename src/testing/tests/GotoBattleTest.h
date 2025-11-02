@@ -4,13 +4,11 @@
 #include "../test_macros.h"
 
 TEST(goto_battle) {
-  // Check if we're already on Battle screen (from a previous test iteration
-  // after click)
   GameStateManager::get().update_screen();
   auto &gsm = GameStateManager::get();
   if (gsm.active_screen == GameStateManager::Screen::Battle) {
     app.wait_for_ui_exists("Skip to Results", 5.0f);
-    return; // Test is done!
+    return;
   }
 
   app.launch_game();

@@ -14,40 +14,29 @@ TEST(validate_shop_functionality) {
   app.wait_for_ui_exists("Next Round");
   app.wait_for_ui_exists("Reroll (5)");
 
-  // Verify shop slots exist
   int shop_slot_count = 0;
   for (afterhours::Entity &entity :
        afterhours::EntityQuery().whereHasComponent<IsDropSlot>().gen()) {
     const IsDropSlot &slot = entity.get<IsDropSlot>();
-    // Shop slots accept shop items but not inventory items initially
     if (slot.accepts_shop_items && !slot.accepts_inventory_items) {
       shop_slot_count++;
     }
   }
-  if (shop_slot_count == 0) {
-    app.fail("No shop slots found");
-  }
+  app.expect_count_gt(shop_slot_count, 0, "shop slots");
 
-  // Verify inventory slots exist
   int inventory_slot_count = 0;
   for (afterhours::Entity &entity :
        afterhours::EntityQuery().whereHasComponent<IsDropSlot>().gen()) {
     const IsDropSlot &slot = entity.get<IsDropSlot>();
-    // Inventory slots accept inventory items
     if (slot.accepts_inventory_items) {
       inventory_slot_count++;
     }
   }
-  if (inventory_slot_count == 0) {
-    app.fail("No inventory slots found");
-  }
+  app.expect_count_gt(inventory_slot_count, 0, "inventory slots");
 
-  // Verify shop items exist
-  int shop_item_count =
-      afterhours::EntityQuery().whereHasComponent<IsShopItem>().gen_count();
-  if (shop_item_count == 0) {
-    app.fail("No shop items found");
-  }
+  int shop_item_count = static_cast<int>(
+      afterhours::EntityQuery().whereHasComponent<IsShopItem>().gen_count());
+  app.expect_count_gt(shop_item_count, 0, "shop items");
 
   // Verify inventory items can exist (may be 0 initially)
   // We just check that the query works, not that items exist

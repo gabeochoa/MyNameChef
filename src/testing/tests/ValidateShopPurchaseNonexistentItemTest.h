@@ -10,22 +10,17 @@ TEST(validate_shop_purchase_nonexistent_item) {
   app.launch_game();
   app.navigate_to_shop();
 
-  // Get all shop items
   const auto shop_items = app.read_store_options();
-  if (shop_items.empty()) {
-    app.fail("No items in shop to test with");
-  }
+  app.expect_not_empty(shop_items, "shop items");
 
-  // Find a dish type that's NOT in the shop
   std::set<DishType> shop_dish_types;
   for (const auto &item : shop_items) {
     shop_dish_types.insert(item.type);
   }
 
-  // Try some dish types until we find one not in shop
   DishType nonexistent_type = DishType::Bagel;
   bool found_nonexistent = false;
-  for (int i = 0; i < 50; ++i) { // Try up to 50 dish types
+  for (int i = 0; i < 50; ++i) {
     DishType test_type = static_cast<DishType>(i);
     if (shop_dish_types.find(test_type) == shop_dish_types.end()) {
       nonexistent_type = test_type;
@@ -35,14 +30,10 @@ TEST(validate_shop_purchase_nonexistent_item) {
   }
 
   if (!found_nonexistent) {
-    // Skip test if we can't find a nonexistent type (shop might be very full)
     return;
   }
 
-  // Attempt purchase - should fail because item doesn't exist
   bool purchase_succeeded = app.try_purchase_item(nonexistent_type);
-  if (purchase_succeeded) {
-    app.fail("Purchase should have failed for nonexistent item");
-  }
+  app.expect_false(purchase_succeeded, "purchase success for nonexistent item");
 }
 

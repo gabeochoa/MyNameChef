@@ -9,51 +9,23 @@ TEST(validate_shop_purchase) {
   app.launch_game();
   app.navigate_to_shop();
 
-  // Get initial state
   const int initial_gold = app.read_wallet_gold();
   const auto initial_inventory = app.read_player_inventory();
   const auto shop_items = app.read_store_options();
 
-  if (shop_items.empty()) {
-    app.fail("No items available in shop to purchase");
-  }
+  app.expect_not_empty(shop_items, "shop items");
 
-  // Find the first available shop item
   const TestShopItemInfo &item_to_buy = shop_items[0];
   const DishType item_type = item_to_buy.type;
   const int item_price = item_to_buy.price;
 
-  // Verify we have enough gold
-  if (initial_gold < item_price) {
-    app.fail("Not enough gold to purchase test item (have " +
-             std::to_string(initial_gold) + ", need " +
-             std::to_string(item_price) + ")");
-  }
+  app.expect_wallet_at_least(item_price);
 
-  // Purchase the item
   app.purchase_item(item_type);
 
-  // Verify gold was deducted
-  const int new_gold = app.read_wallet_gold();
-  if (new_gold != initial_gold - item_price) {
-    app.fail("Gold not deducted correctly after purchase: expected " +
-             std::to_string(initial_gold - item_price) + ", got " +
-             std::to_string(new_gold));
-  }
+  app.expect_wallet_has(initial_gold - item_price);
 
-  // Verify item is now in inventory
-  const auto new_inventory = app.read_player_inventory();
-  bool found_in_inventory = false;
-  for (const auto &inv_item : new_inventory) {
-    if (inv_item.type == item_type) {
-      found_in_inventory = true;
-      break;
-    }
-  }
-
-  if (!found_in_inventory) {
-    app.fail("Purchased item not found in inventory");
-  }
+  app.expect_inventory_contains(item_type);
 
   // TODO: Verify purchased item is added to the end of inventory
   // Currently inventory may have pre-existing items, so we just verify the item
@@ -61,17 +33,12 @@ TEST(validate_shop_purchase) {
   // Expected: Purchased items should be added to the next available slot
   // Bug: Item positioning logic may not place items at the end
 
-  // Verify item is no longer in shop (shop item should be removed)
   const auto updated_shop_items = app.read_store_options();
-  bool still_in_shop = false;
+  int matching_items = 0;
   for (const auto &shop_item : updated_shop_items) {
     if (shop_item.id == item_to_buy.id) {
-      still_in_shop = true;
-      break;
+      matching_items++;
     }
   }
-
-  if (still_in_shop) {
-    app.fail("Purchased item still appears in shop after purchase");
-  }
+  app.expect_count_eq(matching_items, 0, "items with purchased ID in shop");
 }

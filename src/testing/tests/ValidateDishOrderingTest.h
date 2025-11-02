@@ -12,108 +12,34 @@ TEST(validate_dish_ordering) {
   log_info("TEST: Starting validate_dish_ordering test");
 
   app.launch_game();
-  log_info("TEST: Game launched");
 
   GameStateManager::Screen current_screen = app.read_current_screen();
-  log_info("TEST: Current screen after launch: {}",
-           static_cast<int>(current_screen));
-
   if (current_screen != GameStateManager::Screen::Shop) {
-    log_info("TEST: Not on shop screen, navigating there");
     app.wait_for_ui_exists("Play");
     app.click("Play");
     app.wait_for_screen(GameStateManager::Screen::Shop, 10.0f);
   }
-
   app.expect_screen_is(GameStateManager::Screen::Shop);
-  log_info("TEST: On shop screen");
 
   app.wait_for_frames(5);
-  log_info("TEST: Waited for shop initialization");
-
   app.wait_for_ui_exists("Next Round");
-  log_info("TEST: 'Next Round' button found");
 
   GameStateManager::Screen battle_screen = app.read_current_screen();
   if (battle_screen != GameStateManager::Screen::Battle) {
-    log_info("TEST: Clicking 'Next Round' button");
     app.click("Next Round");
-    log_info("TEST: Click completed");
-
     app.wait_for_frames(3);
-    log_info("TEST: Waited 3 frames for export and navigation");
-
     app.wait_for_screen(GameStateManager::Screen::Battle, 15.0f);
   }
-
   app.expect_screen_is(GameStateManager::Screen::Battle);
-  log_info("TEST: Confirmed on battle screen");
 
-  static int transition_wait_count = 0;
-  if (transition_wait_count < 10) {
-    transition_wait_count++;
-    app.wait_state.type = TestApp::WaitState::FrameDelay;
-    app.wait_state.frame_delay_count = 1;
-    throw std::runtime_error("WAIT_FOR_FRAME_DELAY_CONTINUE");
-  }
-  log_info("TEST: Waited for systems to execute after transition");
+  app.wait_for_frames(10);
 
-  static int init_check_count = 0;
-  static bool init_logged_start = false;
-
-  if (!init_logged_start) {
-    log_info("TEST: Waiting for battle initialization");
-    init_logged_start = true;
-  }
-
-  init_check_count++;
-
-  int in_queue = 0;
-  int entering = 0;
-  int in_combat = 0;
-  int onserve_fired = 0;
-
-  for (afterhours::Entity &e :
-       afterhours::EntityQuery().whereHasComponent<DishBattleState>().gen()) {
-    const DishBattleState &dbs = e.get<DishBattleState>();
-    if (dbs.phase == DishBattleState::Phase::InQueue)
-      in_queue++;
-    if (dbs.phase == DishBattleState::Phase::Entering)
-      entering++;
-    if (dbs.phase == DishBattleState::Phase::InCombat)
-      in_combat++;
-    if (dbs.onserve_fired)
-      onserve_fired++;
-  }
-
-  if (init_check_count % 5 == 0 || in_combat > 0) {
-    log_info("TEST: Battle init check {} - InQueue: {}, Entering: {}, "
-             "InCombat: {}, OnServe fired: {}",
-             init_check_count, in_queue, entering, in_combat, onserve_fired);
-  }
-
-  if (!(in_combat > 0 || entering > 0)) {
-    if (init_check_count >= 2000) {
-      log_error("TEST: Battle initialization timeout after {} checks",
-                init_check_count);
-      app.fail("Battle initialization timeout");
-      return;
-    }
-    app.wait_state.type = TestApp::WaitState::FrameDelay;
-    app.wait_state.frame_delay_count = 1;
-    throw std::runtime_error("WAIT_FOR_FRAME_DELAY_CONTINUE");
-  }
-
-  log_info("TEST: Battle initialization complete");
-  log_info("TEST: Starting dish ordering validation");
+  app.wait_for_battle_initialized(10.0f);
 
   auto combat_queue_opt =
       afterhours::EntityHelper::get_singleton<CombatQueue>();
-  if (!combat_queue_opt.get().has<CombatQueue>()) {
-    log_error("TEST: CombatQueue singleton not found");
-    app.fail("CombatQueue singleton not found");
-    return;
-  }
+  app.expect_singleton_has_component<CombatQueue>(combat_queue_opt,
+                                                  "CombatQueue");
 
   const CombatQueue &cq = combat_queue_opt.get().get<CombatQueue>();
   log_info("TEST: CombatQueue - current_index: {}, total_courses: {}, "
@@ -152,24 +78,19 @@ TEST(validate_dish_ordering) {
   log_info("TEST: Player dishes at slots: [{}]", player_slots_str);
   log_info("TEST: Opponent dishes at slots: [{}]", opponent_slots_str);
 
-  if (player_slots.empty() || opponent_slots.empty()) {
-    log_error("TEST: No dishes found - player: {}, opponent: {}",
-              player_slots.size(), opponent_slots.size());
-    app.fail("No dishes found in battle");
-    return;
-  }
+  app.expect_count_gt(static_cast<int>(player_slots.size()), 0,
+                      "player dishes");
+  app.expect_count_gt(static_cast<int>(opponent_slots.size()), 0,
+                      "opponent dishes");
 
   static int last_course_index = -1;
   static std::vector<int> courses_seen;
-  static int wait_iteration = 0;
   static bool ordering_validated = false;
 
   auto combat_queue_opt_tracking =
       afterhours::EntityHelper::get_singleton<CombatQueue>();
-  if (!combat_queue_opt_tracking.get().has<CombatQueue>()) {
-    app.fail("CombatQueue singleton not found during tracking");
-    return;
-  }
+  app.expect_singleton_has_component<CombatQueue>(combat_queue_opt_tracking,
+                                                  "CombatQueue");
 
   const CombatQueue &cq_tracking =
       combat_queue_opt_tracking.get().get<CombatQueue>();
@@ -205,6 +126,9 @@ TEST(validate_dish_ordering) {
             })
             .gen_first();
 
+    app.expect_count_gt((player_dish ? 1 : 0), 0, "player dish for course");
+    app.expect_count_gt((opponent_dish ? 1 : 0), 0, "opponent dish for course");
+
     if (player_dish && opponent_dish) {
       const DishBattleState &player_dbs = player_dish->get<DishBattleState>();
       const DishBattleState &opponent_dbs =
@@ -214,81 +138,27 @@ TEST(validate_dish_ordering) {
                cq_tracking.current_index + 1, player_dbs.queue_index,
                opponent_dbs.queue_index);
 
-      if (player_dbs.queue_index != cq_tracking.current_index ||
-          opponent_dbs.queue_index != cq_tracking.current_index) {
-        log_error(
-            "TEST: Course {} - Mismatch! Expected slots {}, but player is at "
-            "{} and opponent is at {}",
-            cq_tracking.current_index + 1, cq_tracking.current_index,
-            player_dbs.queue_index, opponent_dbs.queue_index);
-        app.fail("Dish slot mismatch - dishes not properly ordered");
-        return;
-      }
-    } else {
-      if (wait_iteration < 100) {
-        wait_iteration++;
-        app.wait_state.type = TestApp::WaitState::FrameDelay;
-        app.wait_state.frame_delay_count = 2;
-        throw std::runtime_error("WAIT_FOR_FRAME_DELAY_CONTINUE");
-      } else {
-        log_error("TEST: Could not find dishes for course {}",
-                  cq_tracking.current_index);
-        app.fail("Could not find dishes for current course");
-        return;
-      }
+      app.expect_count_eq(player_dbs.queue_index, cq_tracking.current_index,
+                          "player dish queue index");
+      app.expect_count_eq(opponent_dbs.queue_index, cq_tracking.current_index,
+                          "opponent dish queue index");
     }
   }
 
   std::sort(courses_seen.begin(), courses_seen.end());
 
-  bool courses_in_order = true;
   for (size_t i = 0; i < courses_seen.size(); ++i) {
-    if (courses_seen[i] != static_cast<int>(i)) {
-      courses_in_order = false;
-      break;
-    }
+    app.expect_count_eq(courses_seen[i], static_cast<int>(i),
+                        "course index order");
   }
 
   if (!ordering_validated && courses_seen.size() >= 2) {
-    std::string courses_str;
-    for (size_t i = 0; i < courses_seen.size(); ++i) {
-      if (i > 0)
-        courses_str += ", ";
-      courses_str += std::to_string(courses_seen[i]);
-    }
-    log_info("TEST: Courses seen so far: [{}]", courses_str);
-    if (!courses_in_order) {
-      log_error("TEST: Courses not in sequential order!");
-      app.fail("Courses are not being processed in sequential order");
-      return;
-    }
-    log_info("TEST: Dish ordering validated - courses processed in order");
     ordering_validated = true;
     return;
   }
 
   if (cq_tracking.complete) {
-    std::string courses_str;
-    for (size_t i = 0; i < courses_seen.size(); ++i) {
-      if (i > 0)
-        courses_str += ", ";
-      courses_str += std::to_string(courses_seen[i]);
-    }
-    log_info("TEST: Battle complete - courses processed: [{}]", courses_str);
-    if (!courses_in_order) {
-      log_error("TEST: Final check - courses not in sequential order!");
-      app.fail("Final courses not in sequential order");
-      return;
-    }
-    log_info("TEST: All courses processed in correct order");
     log_info("TEST: validate_dish_ordering test completed successfully");
-    return;
-  }
-
-  wait_iteration++;
-  if (wait_iteration >= 3000) {
-    log_error("TEST: Timeout waiting for courses to complete");
-    app.fail("Timeout waiting for battle to progress");
     return;
   }
 
