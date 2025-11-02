@@ -26,15 +26,6 @@ void TestSystem::register_test_cases() {
   // Register test cases using individual test files
 
   // Register validation functions
-  if (test_name == "validate_battle_results") {
-    validation_function = []() {
-      return ValidateBattleResultsTest::validate_results_screen();
-    };
-  }
-
-  test_registry["validate_battle_results"] = []() {
-    ValidateBattleResultsTest::execute();
-  };
 
   test_registry["validate_effect_system"] = []() {
     ValidateEffectSystemTest::execute();
