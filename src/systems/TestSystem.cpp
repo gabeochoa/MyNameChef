@@ -18,6 +18,7 @@
 #include "../testing/tests/ValidateFullBattleFlowTest.h"
 #include "../testing/tests/ValidateFullGameFlowTest.h"
 #include "../testing/tests/ValidateMainMenuTest.h"
+#include "../testing/tests/ValidateReplayPausePlayTest.h"
 #include "../testing/tests/ValidateShopFunctionalityTest.h"
 #include "../testing/tests/ValidateShopNavigationTest.h"
 #include "../testing/tests/ValidateShopPurchaseExactGoldTest.h"
@@ -27,10 +28,9 @@
 #include "../testing/tests/ValidateShopPurchaseNonexistentItemTest.h"
 #include "../testing/tests/ValidateShopPurchaseTest.h"
 #include "../testing/tests/ValidateShopPurchaseWrongScreenTest.h"
+#include "../testing/tests/ValidateTriggerSystemComponentsTest.h"
 #include "../testing/tests/ValidateTriggerSystemTest.h"
 #include "../testing/tests/ValidateUINavigationTest.h"
-#include "../testing/tests/ValidateTriggerSystemComponentsTest.h"
-#include "../testing/tests/ValidateReplayPausePlayTest.h"
 
 void TestSystem::register_test_cases() {
   // First check if test is registered via new TEST() macro
@@ -109,7 +109,35 @@ void TestSystem::register_test_cases() {
         return false; // Still waiting
       }
 
-      return false;
+      // No wait state - test should have completed. Try running it one more
+      // time to see if it's done
+      try {
+        bool test_complete =
+            TestRegistry::get().run_test(test_name_copy, *test_app_ptr);
+        if (test_complete) {
+          log_info("TEST PASSED: {}", test_name_copy);
+          delete test_app_ptr;
+          test_app_ptr = nullptr;
+          return true;
+        }
+        // Test not complete but no wait state - might be stuck, return false to
+        // keep checking
+        return false;
+      } catch (const std::exception &e) {
+        // Check if this is a "continue" exception (non-blocking wait)
+        std::string error_msg = e.what();
+        if (error_msg == "WAIT_FOR_UI_CONTINUE" ||
+            error_msg == "WAIT_FOR_SCREEN_CONTINUE" ||
+            error_msg == "WAIT_FOR_FRAME_DELAY_CONTINUE") {
+          // Wait was set up, return false to continue checking
+          return false;
+        }
+        // Real error, fail the test
+        log_error("TEST FAILED: {} - {}", test_name_copy, e.what());
+        delete test_app_ptr;
+        test_app_ptr = nullptr;
+        exit(1);
+      }
     };
 
     return;
