@@ -17,12 +17,15 @@ template <typename InputAction>
 inline ElementResult
 button_labeled(afterhours::ui::UIContext<InputAction> &context, Entity &parent,
                const std::string &label, std::function<void()> on_click,
-               int index = 0) {
+               int index = 0, const std::string &debug_name_override = "") {
+  std::string debug_name = debug_name_override.empty() ? label : debug_name_override;
   auto result = button(context, mk(parent, index),
-                       ComponentConfig{}.with_debug_name(label).with_label(label));
+                       ComponentConfig{}.with_debug_name(debug_name).with_label(label));
   
-  // Store the callback in HasClickListener so it can be called programmatically
-  // (e.g., from tests). Also call it immediately if button was clicked this frame.
+  // Store the callback in HasClickListener so it can be called by HandleClicks system
+  // and programmatically (e.g., from tests).
+  // Note: We don't call it immediately here because HandleClicks will process the click
+  // and call the callback, avoiding double-firing issues (especially important for toggles).
   Entity &button_entity = result.ent();
   if (button_entity.has<afterhours::ui::HasClickListener>()) {
     // Replace the empty callback with our actual callback
@@ -30,11 +33,7 @@ button_labeled(afterhours::ui::UIContext<InputAction> &context, Entity &parent,
         [on_click](Entity &) { on_click(); };
   }
   
-  if (result) {
-    on_click();
-    return {true, parent};
-  }
-  return {false, parent};
+  return result;
 }
 
 template <typename InputAction>
