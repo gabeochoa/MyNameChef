@@ -164,11 +164,14 @@ Examples:
 - Test timeout: 5 seconds per test (prevents infinite loops)
 
 ### Pre-Commit Test Requirements
-- **All tests must pass in BOTH headless and non-headless modes before committing**
-- Run headless tests: `./scripts/run_all_tests.sh` (default headless mode)
-- Run visible tests: `./scripts/run_all_tests.sh -v` (non-headless mode with visible windows)
-- Both test runs must show "🎉 All tests passed!" before committing
+- **CRITICAL: All tests must pass in BOTH headless and non-headless modes before committing**
+- **Step 1**: Run headless tests: `./scripts/run_all_tests.sh` (default headless mode)
+  - Must see "🎉 All tests passed!" before proceeding
+- **Step 2**: Run visible tests: `./scripts/run_all_tests.sh -v` (non-headless mode with visible windows)
+  - Must see "🎉 All tests passed!" before committing
+- **Both test runs must pass completely - do not commit if either mode fails**
 - If tests fail in one mode but pass in the other, fix the issues before committing
+- Common issues: timing differences, first-frame delta time spikes, rendering dependencies
 
 ### Test Development Guidelines
 - Tests should be self-contained and not depend on external state
