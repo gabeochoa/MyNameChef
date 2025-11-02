@@ -1,13 +1,16 @@
 #pragma once
 
 #include "../components/animation_event.h"
+#include "../components/battle_load_request.h"
 #include "../components/combat_queue.h"
 #include "../components/dish_battle_state.h"
+#include "../components/replay_state.h"
 #include "../components/trigger_event.h"
 #include "../components/trigger_queue.h"
 #include "../game_state_manager.h"
 #include "../query.h"
 #include "../shop.h"
+#include "../utils/battle_fingerprint.h"
 #include <afterhours/ah.h>
 
 struct InitCombatState : afterhours::System<CombatQueue> {
@@ -61,6 +64,46 @@ struct InitCombatState : afterhours::System<CombatQueue> {
       queue.add_event(TriggerHook::OnStartBattle, 0, 0,
                       DishBattleState::TeamSide::Player);
       log_info("COMBAT: Fired OnStartBattle trigger");
+    }
+
+    capture_replay_snapshot();
+
+    uint64_t fp = BattleFingerprint::compute();
+    log_info("AUDIT_FP checkpoint=start hash={}", fp);
+  }
+
+private:
+  void capture_replay_snapshot() {
+    auto replayState = afterhours::EntityHelper::get_singleton<ReplayState>();
+    if (!replayState.get().has<ReplayState>()) {
+      return;
+    }
+
+    ReplayState &rs = replayState.get().get<ReplayState>();
+
+    auto battleRequest =
+        afterhours::EntityHelper::get_singleton<BattleLoadRequest>();
+    if (battleRequest.get().has<BattleLoadRequest>()) {
+      const BattleLoadRequest &request =
+          battleRequest.get().get<BattleLoadRequest>();
+      rs.playerJsonPath = request.playerJsonPath;
+      rs.opponentJsonPath = request.opponentJsonPath;
+      // TODO: Replay state will come from the server simulation results
+      // Server runs faster than client, so we need to capture:
+      // - seed (already deterministic)
+      // - totalFrames (from server simulation completion)
+      // - Any other state needed for accurate replay
+      rs.seed = 1234567890;
+      rs.active = true;
+      rs.paused = false;
+      rs.timeScale = 1.0f;
+      rs.clockMs = 0;
+      rs.targetMs = 0;
+      rs.currentFrame = 0;
+      rs.totalFrames = 0; // Will be set from server simulation results
+
+      log_info("REPLAY_INIT seed={} playerJson={} opponentJson={}", rs.seed,
+               rs.playerJsonPath, rs.opponentJsonPath);
     }
   }
 };
