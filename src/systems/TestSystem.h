@@ -17,6 +17,7 @@ struct TestSystem : afterhours::System<> {
   int validation_attempts = 0;
   float validation_start_time = 0.0f;
   float validation_elapsed_time = 0.0f;
+  bool first_validation_frame = true;
   const float kValidationTimeout = 1.0f;
   std::function<void()> test_function;
   std::function<bool()> validation_function;
@@ -33,7 +34,16 @@ struct TestSystem : afterhours::System<> {
       // Run validation on subsequent frames
       if (!validation_completed && validation_function) {
         validation_attempts++;
-        validation_elapsed_time += dt;
+        // Skip accumulating time on first validation frame (dt may be huge due
+        // to initialization)
+        if (first_validation_frame) {
+          first_validation_frame = false;
+        } else {
+          // Cap dt to reasonable frame time (16ms at 60fps) to avoid huge
+          // spikes
+          float clamped_dt = std::min(dt, 0.1f);
+          validation_elapsed_time += clamped_dt;
+        }
 
         if (validation_elapsed_time >= kValidationTimeout) {
           log_error("TEST VALIDATION TIMEOUT: {} - Validation exceeded {}s "

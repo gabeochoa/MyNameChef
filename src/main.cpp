@@ -84,10 +84,12 @@ bool audit_strict = false;
 using namespace afterhours;
 
 void game(const std::optional<std::string> &run_test) {
-  mainRT = raylib::LoadRenderTexture(Settings::get().get_screen_width(),
-                                     Settings::get().get_screen_height());
-  screenRT = raylib::LoadRenderTexture(Settings::get().get_screen_width(),
+  if (!render_backend::is_headless_mode) {
+    mainRT = raylib::LoadRenderTexture(Settings::get().get_screen_width(),
                                        Settings::get().get_screen_height());
+    screenRT = raylib::LoadRenderTexture(Settings::get().get_screen_width(),
+                                         Settings::get().get_screen_height());
+  }
 
   SystemManager systems;
   auto &sophie = EntityHelper::createEntity();
@@ -194,7 +196,7 @@ void game(const std::optional<std::string> &run_test) {
     systems.register_update_system(std::make_unique<MarkEntitiesWithShaders>());
 
     // renders
-    {
+    if (!render_backend::is_headless_mode) {
       systems.register_render_system(std::make_unique<BeginWorldRender>());
       register_shop_render_systems(systems);
 
@@ -248,8 +250,15 @@ void game(const std::optional<std::string> &run_test) {
       //
     }
 
-    while (running && !raylib::WindowShouldClose()) {
-      systems.run(raylib::GetFrameTime());
+    if (!render_backend::is_headless_mode) {
+      while (running && !raylib::WindowShouldClose()) {
+        systems.run(raylib::GetFrameTime());
+      }
+    } else {
+      // Headless loop: run with fixed timestep; tests will exit the process
+      while (running) {
+        systems.run(1.0f / 60.0f);
+      }
     }
   }
 }

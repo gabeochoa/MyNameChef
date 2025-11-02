@@ -617,11 +617,31 @@ TestApp &TestApp::wait_for_frames(int frames, const std::source_location &loc) {
   if (completed_operations.count(op_id) > 0) {
     return *this;
   }
-  for (int i = 0; i < frames; ++i) {
-    pump_frame();
+
+  // Use non-blocking wait state so game loop continues
+  if (wait_state.type == WaitState::FrameDelay && wait_state.operation_id == op_id) {
+    if (check_wait_conditions()) {
+      completed_operations.insert(op_id);
+      return *this;
+    }
+    throw std::runtime_error("WAIT_FOR_FRAME_DELAY_CONTINUE");
   }
+
+  if (wait_state.type != WaitState::None && wait_state.operation_id != op_id) {
+    throw std::runtime_error("WAIT_FOR_FRAME_DELAY_CONTINUE");
+  }
+
+  setup_wait_state(WaitState::FrameDelay, 60.0f); // 60 second timeout
+  wait_state.frame_delay_count = frames;
+  wait_state.operation_id = op_id;
+
+  if (check_wait_conditions()) {
   completed_operations.insert(op_id);
+    wait_state.type = WaitState::None;
   return *this;
+  }
+
+  throw std::runtime_error("WAIT_FOR_FRAME_DELAY_CONTINUE");
 }
 
 TestApp &TestApp::pump_frame() {

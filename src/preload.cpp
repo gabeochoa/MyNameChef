@@ -62,35 +62,35 @@ Preload &Preload::init(const char *title, bool headless) {
   int width = Settings::get().get_screen_width();
   int height = Settings::get().get_screen_height();
 
-  // raylib::SetConfigFlags(raylib::FLAG_WINDOW_HIGHDPI);
-  if (headless) {
-    raylib::SetConfigFlags(raylib::FLAG_WINDOW_HIDDEN);
-  }
-  raylib::InitWindow(width, height, title);
-  raylib::SetWindowSize(width, height);
-
-  if (headless) {
-    raylib::MinimizeWindow();
+  // In headless mode, skip window creation entirely to avoid GL init
+  if (!headless) {
+    // raylib::SetConfigFlags(raylib::FLAG_WINDOW_HIGHDPI);
+    raylib::InitWindow(width, height, title);
+    raylib::SetWindowSize(width, height);
+    raylib::SetWindowState(raylib::FLAG_WINDOW_RESIZABLE);
   }
   // Back to warnings
   raylib::TraceLogLevel logLevel = raylib::LOG_ERROR;
   raylib::SetTraceLogLevel(logLevel);
   raylib::SetTargetFPS(200);
-  raylib::SetWindowState(raylib::FLAG_WINDOW_RESIZABLE);
 
   // Enlarge stream buffer to reduce dropouts on macOS/miniaudio
   raylib::SetAudioStreamBufferSizeDefault(4096);
-  raylib::InitAudioDevice();
-  if (!raylib::IsAudioDeviceReady()) {
-    log_warn("audio device not ready; continuing without audio");
+  if (!headless) {
+    raylib::InitAudioDevice();
+    if (!raylib::IsAudioDeviceReady()) {
+      log_warn("audio device not ready; continuing without audio");
+    }
+    raylib::SetMasterVolume(1.f);
   }
-  raylib::SetMasterVolume(1.f);
 
   // Disable default escape key exit behavior so we can handle it manually
   raylib::SetExitKey(0);
 
-  load_gamepad_mappings();
-  load_sounds();
+  if (!headless) {
+    load_gamepad_mappings();
+    load_sounds();
+  }
 
   // TODO add load folder for shaders
 
@@ -99,31 +99,35 @@ Preload &Preload::init(const char *title, bool headless) {
     const char *path = path_owned.c_str();
     ShaderLibrary::get().load(path, name);
   };
-  load_shader("post_processing.fs", "post_processing");
-  load_shader("post_processing_tag.fs", "post_processing_tag");
-  load_shader("text_mask.fs", "text_mask");
+  if (!headless) {
+    load_shader("post_processing.fs", "post_processing");
+    load_shader("post_processing_tag.fs", "post_processing_tag");
+    load_shader("text_mask.fs", "text_mask");
+  }
 
   // TODO how safe is the path combination here esp for mac vs windows
-  Files::get().for_resources_in_folder(
+  if (!headless) Files::get().for_resources_in_folder(
       "images", "controls/keyboard_default",
       [](const std::string &name, const std::string &filename) {
         TextureLibrary::get().load(filename.c_str(), name.c_str());
       });
 
   // TODO how safe is the path combination here esp for mac vs windows
-  Files::get().for_resources_in_folder(
+  if (!headless) Files::get().for_resources_in_folder(
       "images", "controls/xbox_default",
       [](const std::string &name, const std::string &filename) {
         TextureLibrary::get().load(filename.c_str(), name.c_str());
       });
 
   // TODO add to spritesheet
-  TextureLibrary::get().load(
-      Files::get().fetch_resource_path("images", "dollar_sign.png").c_str(),
-      "dollar_sign");
-  TextureLibrary::get().load(
-      Files::get().fetch_resource_path("images", "trashcan.png").c_str(),
-      "trashcan");
+  if (!headless) {
+    TextureLibrary::get().load(
+        Files::get().fetch_resource_path("images", "dollar_sign.png").c_str(),
+        "dollar_sign");
+    TextureLibrary::get().load(
+        Files::get().fetch_resource_path("images", "trashcan.png").c_str(),
+        "trashcan");
+  }
 
   return *this;
 }
@@ -163,13 +167,17 @@ Preload &Preload::make_singleton() {
     auto &settings = Settings::get();
     translation_manager::set_language(settings.get_language());
 
-    texture_manager::add_singleton_components(
-        sophie, raylib::LoadTexture(
-                    Files::get()
-                        .fetch_resource_path("images", "spritesheet.png")
-                        .c_str()));
-
-    setup_fonts(sophie);
+    if (!render_backend::is_headless_mode) {
+      texture_manager::add_singleton_components(
+          sophie, raylib::LoadTexture(
+                      Files::get()
+                          .fetch_resource_path("images", "spritesheet.png")
+                          .c_str()));
+      setup_fonts(sophie);
+    } else {
+      // In headless mode, register texture manager without GPU textures
+      texture_manager::add_singleton_components(sophie, {});
+    }
     // making a root component to attach the UI to
     sophie.addComponent<ui::AutoLayoutRoot>();
     sophie.addComponent<ui::UIComponentDebug>("sophie");
@@ -201,7 +209,9 @@ Preload &Preload::make_singleton() {
 Preload::~Preload() {
   if (raylib::IsAudioDeviceReady()) {
     // nothing to stop currently
+    raylib::CloseAudioDevice();
   }
-  raylib::CloseAudioDevice();
-  raylib::CloseWindow();
+  if (raylib::IsWindowReady()) {
+    raylib::CloseWindow();
+  }
 }

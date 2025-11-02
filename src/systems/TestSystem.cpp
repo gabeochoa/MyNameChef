@@ -69,8 +69,18 @@ void TestSystem::register_test_cases() {
           test_app_ptr = nullptr;
           exit(0);
         }
-        // Test not completed yet - will continue on next frame
+        // Test not completed yet - will continue on next frame via validation
+        // function
       } catch (const std::exception &e) {
+        // Check if this is a "continue" exception (non-blocking wait)
+        std::string error_msg = e.what();
+        if (error_msg == "WAIT_FOR_UI_CONTINUE" ||
+            error_msg == "WAIT_FOR_SCREEN_CONTINUE" ||
+            error_msg == "WAIT_FOR_FRAME_DELAY_CONTINUE") {
+          // Wait was set up, validation function will handle continuation
+          // Don't delete test_app_ptr here - it's needed for validation
+          return;
+        }
         log_error("TEST FAILED: {} - {}", test_name_copy, e.what());
         delete test_app_ptr;
         test_app_ptr = nullptr;
@@ -100,6 +110,14 @@ void TestSystem::register_test_cases() {
               return true;
             }
           } catch (const std::exception &e) {
+            // Check if this is a "continue" exception (non-blocking wait)
+            std::string error_msg = e.what();
+            if (error_msg == "WAIT_FOR_UI_CONTINUE" ||
+                error_msg == "WAIT_FOR_SCREEN_CONTINUE" ||
+                error_msg == "WAIT_FOR_FRAME_DELAY_CONTINUE") {
+              // Wait was set up again, continue checking
+              return false;
+            }
             log_error("TEST FAILED: {} - {}", test_name_copy, e.what());
             delete test_app_ptr;
             test_app_ptr = nullptr;
@@ -120,8 +138,15 @@ void TestSystem::register_test_cases() {
           test_app_ptr = nullptr;
           return true;
         }
-        // Test not complete but no wait state - might be stuck, return false to
-        // keep checking
+        // Test not complete - check if wait state was set up by run_test()
+        // (e.g., by wait_for_frames() throwing WAIT_FOR_FRAME_DELAY_CONTINUE)
+        if (test_app_ptr->wait_state.type != TestApp::WaitState::None) {
+          // Wait state was set up, return false and let wait handling logic
+          // deal with it on the next validation check
+          return false;
+        }
+        // No wait state and test not complete - might be stuck, return false to
+        // keep checking (will retry on next frame)
         return false;
       } catch (const std::exception &e) {
         // Check if this is a "continue" exception (non-blocking wait)

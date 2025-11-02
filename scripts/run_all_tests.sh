@@ -19,6 +19,7 @@ TOTAL_TESTS=0
 PASSED_TESTS=0
 FAILED_TESTS=0
 HEADLESS_MODE=true  # Default to headless mode
+STREAM_OUTPUT=false # Default to capture output
 
 # Test list - add new tests here
 TESTS=(
@@ -73,35 +74,54 @@ run_test() {
     
     echo -e "${BLUE}[$test_number/$total]${NC} Running test: ${YELLOW}$test_name${NC}"
     
-    # Run the test with timeout and capture output
-    local output_file="/tmp/test_output_$$"
+    # Build headless flag
     local headless_flag=""
     if [ "$HEADLESS_MODE" = true ]; then
         headless_flag="--headless"
     fi
-    
-    if timeout $TEST_TIMEOUT "$EXECUTABLE" --run-test "$test_name" $headless_flag > "$output_file" 2>&1; then
-        # Check if test completed successfully
-        if grep -q "TEST COMPLETED:" "$output_file" || grep -q "TEST VALIDATION PASSED:" "$output_file" || grep -q "TEST PASSED:" "$output_file"; then
+
+    if [ "$STREAM_OUTPUT" = true ]; then
+        # Stream output directly
+        if timeout $TEST_TIMEOUT "$EXECUTABLE" --run-test "$test_name" $headless_flag; then
             echo -e "  ${GREEN}✅ PASSED${NC} - Test completed successfully"
-            rm -f "$output_file"
             return 0
         else
-            echo -e "  ${RED}❌ INCOMPLETE${NC} - Test ran but didn't complete properly"
-            rm -f "$output_file"
+            local exit_code=$?
+            if [ $exit_code -eq 124 ]; then
+                echo -e "  ${RED}❌ TIMEOUT${NC} - Test exceeded ${TEST_TIMEOUT}s timeout"
+            elif [ $exit_code -eq 139 ]; then
+                echo -e "  ${RED}❌ SEGFAULT${NC} - Test caused segmentation fault"
+            else
+                echo -e "  ${RED}❌ FAILED${NC} - Test failed with exit code $exit_code"
+            fi
             return 1
         fi
     else
-        local exit_code=$?
-        if [ $exit_code -eq 124 ]; then
-            echo -e "  ${RED}❌ TIMEOUT${NC} - Test exceeded ${TEST_TIMEOUT}s timeout"
-        elif [ $exit_code -eq 139 ]; then
-            echo -e "  ${RED}❌ SEGFAULT${NC} - Test caused segmentation fault"
+        # Capture output to file (default)
+        local output_file="/tmp/test_output_$$"
+        if timeout $TEST_TIMEOUT "$EXECUTABLE" --run-test "$test_name" $headless_flag > "$output_file" 2>&1; then
+            # Check if test completed successfully
+            if grep -q "TEST COMPLETED:" "$output_file" || grep -q "TEST VALIDATION PASSED:" "$output_file" || grep -q "TEST PASSED:" "$output_file"; then
+                echo -e "  ${GREEN}✅ PASSED${NC} - Test completed successfully"
+                rm -f "$output_file"
+                return 0
+            else
+                echo -e "  ${RED}❌ INCOMPLETE${NC} - Test ran but didn't complete properly"
+                rm -f "$output_file"
+                return 1
+            fi
         else
-            echo -e "  ${RED}❌ FAILED${NC} - Test failed with exit code $exit_code"
+            local exit_code=$?
+            if [ $exit_code -eq 124 ]; then
+                echo -e "  ${RED}❌ TIMEOUT${NC} - Test exceeded ${TEST_TIMEOUT}s timeout"
+            elif [ $exit_code -eq 139 ]; then
+                echo -e "  ${RED}❌ SEGFAULT${NC} - Test caused segmentation fault"
+            else
+                echo -e "  ${RED}❌ FAILED${NC} - Test failed with exit code $exit_code"
+            fi
+            rm -f "$output_file"
+            return 1
         fi
-        rm -f "$output_file"
-        return 1
     fi
 }
 
@@ -159,6 +179,7 @@ show_help() {
     echo "  -h, --help     Show this help message"
     echo "  -v, --visible  Run tests with visible windows (disables headless mode)"
     echo "  -t, --timeout  Set timeout per test (default: 5s)"
+    echo "  --stream       Stream test output directly (do not capture)"
     echo ""
     echo "Available tests:"
     for test in "${TESTS[@]}"; do
@@ -185,6 +206,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -v|--visible)
             HEADLESS_MODE=false
+            shift
+            ;;
+        --stream)
+            STREAM_OUTPUT=true
             shift
             ;;
         *)
