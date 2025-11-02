@@ -43,10 +43,8 @@ struct SimplifiedOnServeSystem : afterhours::System<CombatQueue> {
       return;
     }
 
-    // TODO: Replace headless mode bypass with --disable-animation flag that
-    // calls into vendor library (afterhours::animation) to properly disable
-    // animations at the framework level instead of bypassing checks here
-    if (!render_backend::is_headless_mode && hasActiveAnimation()) {
+    // Check for blocking animations - in headless mode hasActiveAnimation() returns false
+    if (hasActiveAnimation()) {
       return;
     }
 
@@ -131,12 +129,8 @@ private:
   }
 
   bool slide_in_complete() {
-    // TODO: Replace headless mode bypass with --disable-animation flag that
-    // calls into vendor library (afterhours::animation) to properly disable
-    // animations at the framework level instead of bypassing checks here
-    if (render_backend::is_headless_mode) {
-      return true;
-    }
+    // Check if any slide-in animations are still active
+    // In headless mode, animations complete instantly so this will always return true
     return !afterhours::EntityQuery({.ignore_temp_warning = true})
                 .whereHasComponent<AnimationEvent>()
                 .whereHasComponent<AnimationTimer>()

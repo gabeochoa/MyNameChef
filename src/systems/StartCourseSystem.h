@@ -25,12 +25,8 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
     if (isReplayPaused()) {
       return false;
     }
-    // TODO: Replace headless mode bypass with --disable-animation flag that
-    // calls into vendor library (afterhours::animation) to properly disable
-    // animations at the framework level instead of bypassing checks here
-    bool animation_blocking =
-        !render_backend::is_headless_mode && hasActiveAnimation();
-    return !animation_blocking;
+    // Check for blocking animations - in headless mode hasActiveAnimation() returns false
+    return !hasActiveAnimation();
   }
 
   void for_each_with(afterhours::Entity &, CombatQueue &cq, float) override {
@@ -130,25 +126,7 @@ private:
   }
 
   bool prerequisites_complete() {
-    // TODO: Replace headless mode bypass with --disable-animation flag that
-    // calls into vendor library (afterhours::animation) to properly disable
-    // animations at the framework level instead of bypassing checks here
-    if (render_backend::is_headless_mode) {
-      // In headless mode, skip animation checks and only check if OnServe fired
-      // for all dishes
-      afterhours::RefEntities unfinishedDishes =
-          afterhours::EntityQuery()
-              .whereHasComponent<IsDish>()
-              .whereHasComponent<DishBattleState>()
-              .whereLambda([](const afterhours::Entity &e) {
-                const DishBattleState &dbs = e.get<DishBattleState>();
-                return dbs.phase == DishBattleState::Phase::InQueue &&
-                       !dbs.onserve_fired;
-              })
-              .gen();
-      return unfinishedDishes.empty();
-    }
-
+    // Check if slide-in animations are complete
     bool slideInComplete = true;
     for (afterhours::Entity &animEntity :
          afterhours::EntityQuery()
@@ -166,6 +144,7 @@ private:
       return false;
     }
 
+    // Check if all dishes have fired OnServe
     afterhours::RefEntities unfinishedDishes =
         afterhours::EntityQuery()
             .whereHasComponent<IsDish>()
@@ -180,8 +159,8 @@ private:
       return false;
     }
 
-    bool hasActive = hasActiveAnimation();
-    if (hasActive) {
+    // Check for blocking animations - in headless mode hasActiveAnimation() returns false
+    if (hasActiveAnimation()) {
       return false;
     }
 

@@ -17,6 +17,7 @@
 #include "components/trigger_queue.h"
 #include "dish_types.h"
 #include "game_state_manager.h"
+#include "render_backend.h"
 #include "render_constants.h"
 #include "systems/GenerateInventorySlots.h"
 #include "systems/GenerateShopSlots.h"
@@ -194,6 +195,10 @@ bool charge_for_shop_purchase(DishType type) {
 }
 
 bool hasActiveAnimation() {
+  // In headless mode, animations complete instantly, so there are never any blocking animations
+  if (render_backend::is_headless_mode) {
+    return false;
+  }
   return EntityQuery()
       .whereHasComponent<IsBlockingAnimationEvent>()
       .has_values();
