@@ -141,6 +141,7 @@ struct TestApp {
   int read_player_health();
   int count_active_player_dishes();
   int count_active_opponent_dishes();
+  bool read_replay_paused();
   
   // Functions to manually manipulate game state for testing
   // These bypass normal game logic to set up specific test scenarios

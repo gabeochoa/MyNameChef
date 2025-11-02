@@ -10,6 +10,7 @@
 #include "../components/is_held.h"
 #include "../components/is_inventory_item.h"
 #include "../components/is_shop_item.h"
+#include "../components/replay_state.h"
 #include "../components/transform.h"
 #include "../dish_types.h"
 #include "../game_state_manager.h"
@@ -48,8 +49,7 @@ TestApp &TestApp::launch_game(const std::source_location &loc) {
 
 TestApp &TestApp::click(const std::string &button_label,
                         const std::source_location &loc) {
-  TestOperationID op_id =
-      generate_operation_id(loc, "click:" + button_label);
+  TestOperationID op_id = generate_operation_id(loc, "click:" + button_label);
   if (completed_operations.count(op_id) > 0) {
     return *this;
   }
@@ -83,23 +83,68 @@ TestApp &TestApp::click(const std::string &button_label,
 }
 
 afterhours::Entity *TestApp::find_clickable_with(const std::string &label) {
+  // Try to find button in replay bar first (if on battle screen)
+  // This helps distinguish between main menu "Play" and replay "Play/Pause"
+  GameStateManager::Screen current_screen =
+      GameStateManager::get().active_screen;
+  bool on_battle_screen = (current_screen == GameStateManager::Screen::Battle);
+
+  std::vector<afterhours::Entity *> candidates;
+  afterhours::Entity *replay_button = nullptr;
+
   for (const std::shared_ptr<afterhours::Entity> &ep :
        afterhours::EntityHelper::get_entities()) {
     afterhours::Entity &e = *ep;
     if (e.has<afterhours::ui::UIComponent>() &&
         e.has<afterhours::ui::HasClickListener>()) {
-      std::string name;
+      std::string button_label;
+      std::string debug_name;
+
       if (e.has<afterhours::ui::HasLabel>()) {
-        name = e.get<afterhours::ui::HasLabel>().label;
+        button_label = e.get<afterhours::ui::HasLabel>().label;
       }
-      if (name.empty() && e.has<afterhours::ui::UIComponentDebug>()) {
-        name = e.get<afterhours::ui::UIComponentDebug>().name();
+      if (e.has<afterhours::ui::UIComponentDebug>()) {
+        debug_name = e.get<afterhours::ui::UIComponentDebug>().name();
       }
-      if (name == label) {
-        return &e;
+
+      // On battle screen, check debug name first for replay button
+      // The debug name should always be "replay_play_pause_button" regardless
+      // of label Since this button toggles between "Play" and "Pause", if we're
+      // searching for either and we find the replay button, we should use it
+      if (on_battle_screen && debug_name == "replay_play_pause_button") {
+        // If searching for "Play" or "Pause" (or the debug name itself), use
+        // this button
+        if (label == "Play" || label == "Pause" ||
+            label == "replay_play_pause_button" || button_label == label) {
+          replay_button = &e;
+          // Don't break yet - continue to check if there's a better match
+        }
+      }
+
+      // Check if label matches (but only add to candidates if not already found
+      // as replay button)
+      if (button_label == label &&
+          (debug_name != "replay_play_pause_button" || !on_battle_screen)) {
+        candidates.push_back(&e);
+      }
+      // Also check if debug name matches (in case someone searches by debug
+      // name)
+      else if (!debug_name.empty() && debug_name == label) {
+        candidates.push_back(&e);
       }
     }
   }
+
+  // On battle screen, prefer the replay button if found
+  if (on_battle_screen && replay_button != nullptr) {
+    return replay_button;
+  }
+
+  // Otherwise return first candidate
+  if (!candidates.empty()) {
+    return candidates[0];
+  }
+
   return nullptr;
 }
 
@@ -217,6 +262,16 @@ int TestApp::read_wallet_gold() {
   }
   fail("Wallet singleton not found");
   return 0; // Unreachable
+}
+
+bool TestApp::read_replay_paused() {
+  afterhours::RefEntity replay_ref =
+      afterhours::EntityHelper::get_singleton<ReplayState>();
+  if (replay_ref.get().has<ReplayState>()) {
+    return replay_ref.get().get<ReplayState>().paused;
+  }
+  fail("ReplayState singleton not found");
+  return false; // Unreachable
 }
 
 TestApp &TestApp::set_wallet_gold(int gold, const std::string &location) {
@@ -528,8 +583,7 @@ TestApp &TestApp::wait_for_screen(GameStateManager::Screen screen,
   }
 
   if (wait_state.type == WaitState::Screen &&
-      wait_state.target_screen == screen &&
-      wait_state.operation_id == op_id) {
+      wait_state.target_screen == screen && wait_state.operation_id == op_id) {
     GameStateManager::get().update_screen();
     if (check_wait_conditions()) {
       completed_operations.insert(op_id);
@@ -557,8 +611,7 @@ TestApp &TestApp::wait_for_screen(GameStateManager::Screen screen,
   throw std::runtime_error("WAIT_FOR_SCREEN_CONTINUE");
 }
 
-TestApp &TestApp::wait_for_frames(int frames,
-                                  const std::source_location &loc) {
+TestApp &TestApp::wait_for_frames(int frames, const std::source_location &loc) {
   TestOperationID op_id =
       generate_operation_id(loc, "wait_for_frames:" + std::to_string(frames));
   if (completed_operations.count(op_id) > 0) {
@@ -785,42 +838,64 @@ bool TestApp::can_afford_purchase(DishType type) {
   return current_gold >= price;
 }
 
-TestApp &TestApp::expect_count_eq(int actual, int expected, const std::string &description, const std::string &location) {
+TestApp &TestApp::expect_count_eq(int actual, int expected,
+                                  const std::string &description,
+                                  const std::string &location) {
   if (actual != expected) {
-    fail("Expected " + description + " count to be " + std::to_string(expected) + " but got " + std::to_string(actual), location);
+    fail("Expected " + description + " count to be " +
+             std::to_string(expected) + " but got " + std::to_string(actual),
+         location);
   }
   return *this;
 }
 
-TestApp &TestApp::expect_count_gt(int actual, int min, const std::string &description, const std::string &location) {
+TestApp &TestApp::expect_count_gt(int actual, int min,
+                                  const std::string &description,
+                                  const std::string &location) {
   if (actual <= min) {
-    fail("Expected " + description + " count to be greater than " + std::to_string(min) + " but got " + std::to_string(actual), location);
+    fail("Expected " + description + " count to be greater than " +
+             std::to_string(min) + " but got " + std::to_string(actual),
+         location);
   }
   return *this;
 }
 
-TestApp &TestApp::expect_count_lt(int actual, int max, const std::string &description, const std::string &location) {
+TestApp &TestApp::expect_count_lt(int actual, int max,
+                                  const std::string &description,
+                                  const std::string &location) {
   if (actual >= max) {
-    fail("Expected " + description + " count to be less than " + std::to_string(max) + " but got " + std::to_string(actual), location);
+    fail("Expected " + description + " count to be less than " +
+             std::to_string(max) + " but got " + std::to_string(actual),
+         location);
   }
   return *this;
 }
 
-TestApp &TestApp::expect_count_gte(int actual, int min, const std::string &description, const std::string &location) {
+TestApp &TestApp::expect_count_gte(int actual, int min,
+                                   const std::string &description,
+                                   const std::string &location) {
   if (actual < min) {
-    fail("Expected " + description + " count to be at least " + std::to_string(min) + " but got " + std::to_string(actual), location);
+    fail("Expected " + description + " count to be at least " +
+             std::to_string(min) + " but got " + std::to_string(actual),
+         location);
   }
   return *this;
 }
 
-TestApp &TestApp::expect_count_lte(int actual, int max, const std::string &description, const std::string &location) {
+TestApp &TestApp::expect_count_lte(int actual, int max,
+                                   const std::string &description,
+                                   const std::string &location) {
   if (actual > max) {
-    fail("Expected " + description + " count to be at most " + std::to_string(max) + " but got " + std::to_string(actual), location);
+    fail("Expected " + description + " count to be at most " +
+             std::to_string(max) + " but got " + std::to_string(actual),
+         location);
   }
   return *this;
 }
 
-TestApp &TestApp::expect_dish_phase(afterhours::EntityID dish_id, DishBattleState::Phase expected_phase, const std::string &location) {
+TestApp &TestApp::expect_dish_phase(afterhours::EntityID dish_id,
+                                    DishBattleState::Phase expected_phase,
+                                    const std::string &location) {
   auto *entity = find_entity_by_id(dish_id);
   if (!entity) {
     fail("Dish entity not found: " + std::to_string(dish_id), location);
@@ -830,67 +905,94 @@ TestApp &TestApp::expect_dish_phase(afterhours::EntityID dish_id, DishBattleStat
   }
   const DishBattleState &dbs = entity->get<DishBattleState>();
   if (dbs.phase != expected_phase) {
-    fail("Expected dish phase " + std::to_string(static_cast<int>(expected_phase)) + " but got " + std::to_string(static_cast<int>(dbs.phase)), location);
+    fail("Expected dish phase " +
+             std::to_string(static_cast<int>(expected_phase)) + " but got " +
+             std::to_string(static_cast<int>(dbs.phase)),
+         location);
   }
   return *this;
 }
 
-TestApp &TestApp::expect_dish_count(int expected_player, int expected_opponent, const std::string &location) {
+TestApp &TestApp::expect_dish_count(int expected_player, int expected_opponent,
+                                    const std::string &location) {
   int player_count = count_active_player_dishes();
   int opponent_count = count_active_opponent_dishes();
   if (player_count != expected_player || opponent_count != expected_opponent) {
-    fail("Expected dish counts - player: " + std::to_string(expected_player) + ", opponent: " + std::to_string(expected_opponent) + 
-         " but got - player: " + std::to_string(player_count) + ", opponent: " + std::to_string(opponent_count), location);
+    fail("Expected dish counts - player: " + std::to_string(expected_player) +
+             ", opponent: " + std::to_string(expected_opponent) +
+             " but got - player: " + std::to_string(player_count) +
+             ", opponent: " + std::to_string(opponent_count),
+         location);
   }
   return *this;
 }
 
-TestApp &TestApp::expect_player_dish_count(int expected, const std::string &location) {
+TestApp &TestApp::expect_player_dish_count(int expected,
+                                           const std::string &location) {
   int actual = count_active_player_dishes();
   if (actual != expected) {
-    fail("Expected player dish count to be " + std::to_string(expected) + " but got " + std::to_string(actual), location);
+    fail("Expected player dish count to be " + std::to_string(expected) +
+             " but got " + std::to_string(actual),
+         location);
   }
   return *this;
 }
 
-TestApp &TestApp::expect_opponent_dish_count(int expected, const std::string &location) {
+TestApp &TestApp::expect_opponent_dish_count(int expected,
+                                             const std::string &location) {
   int actual = count_active_opponent_dishes();
   if (actual != expected) {
-    fail("Expected opponent dish count to be " + std::to_string(expected) + " but got " + std::to_string(actual), location);
+    fail("Expected opponent dish count to be " + std::to_string(expected) +
+             " but got " + std::to_string(actual),
+         location);
   }
   return *this;
 }
 
-TestApp &TestApp::expect_dish_count_at_least(int min_player, int min_opponent, const std::string &location) {
+TestApp &TestApp::expect_dish_count_at_least(int min_player, int min_opponent,
+                                             const std::string &location) {
   int player_count = count_active_player_dishes();
   int opponent_count = count_active_opponent_dishes();
   if (player_count < min_player || opponent_count < min_opponent) {
-    fail("Expected dish counts at least - player: " + std::to_string(min_player) + ", opponent: " + std::to_string(min_opponent) + 
-         " but got - player: " + std::to_string(player_count) + ", opponent: " + std::to_string(opponent_count), location);
+    fail("Expected dish counts at least - player: " +
+             std::to_string(min_player) +
+             ", opponent: " + std::to_string(min_opponent) +
+             " but got - player: " + std::to_string(player_count) +
+             ", opponent: " + std::to_string(opponent_count),
+         location);
   }
   return *this;
 }
 
-TestApp &TestApp::expect_wallet_at_least(int min_gold, const std::string &location) {
+TestApp &TestApp::expect_wallet_at_least(int min_gold,
+                                         const std::string &location) {
   int current = read_wallet_gold();
   if (current < min_gold) {
-    fail("Expected wallet to have at least " + std::to_string(min_gold) + " gold but got " + std::to_string(current), location);
+    fail("Expected wallet to have at least " + std::to_string(min_gold) +
+             " gold but got " + std::to_string(current),
+         location);
   }
   return *this;
 }
 
-TestApp &TestApp::expect_wallet_between(int min_gold, int max_gold, const std::string &location) {
+TestApp &TestApp::expect_wallet_between(int min_gold, int max_gold,
+                                        const std::string &location) {
   int current = read_wallet_gold();
   if (current < min_gold || current > max_gold) {
-    fail("Expected wallet to have between " + std::to_string(min_gold) + " and " + std::to_string(max_gold) + " gold but got " + std::to_string(current), location);
+    fail("Expected wallet to have between " + std::to_string(min_gold) +
+             " and " + std::to_string(max_gold) + " gold but got " +
+             std::to_string(current),
+         location);
   }
   return *this;
 }
 
-TestApp &TestApp::wait_for_battle_initialized(float timeout_sec, const std::string &location) {
+TestApp &TestApp::wait_for_battle_initialized(float timeout_sec,
+                                              const std::string &location) {
   static TestOperationID op_id = 0;
   if (op_id == 0) {
-    op_id = generate_operation_id(std::source_location::current(), "wait_for_battle_initialized");
+    op_id = generate_operation_id(std::source_location::current(),
+                                  "wait_for_battle_initialized");
   }
 
   if (completed_operations.count(op_id) > 0) {
@@ -903,10 +1005,13 @@ TestApp &TestApp::wait_for_battle_initialized(float timeout_sec, const std::stri
   int in_combat = 0;
   int entering = 0;
 
-  for (afterhours::Entity &e : afterhours::EntityQuery().whereHasComponent<DishBattleState>().gen()) {
+  for (afterhours::Entity &e :
+       afterhours::EntityQuery().whereHasComponent<DishBattleState>().gen()) {
     const DishBattleState &dbs = e.get<DishBattleState>();
-    if (dbs.phase == DishBattleState::Phase::Entering) entering++;
-    if (dbs.phase == DishBattleState::Phase::InCombat) in_combat++;
+    if (dbs.phase == DishBattleState::Phase::Entering)
+      entering++;
+    if (dbs.phase == DishBattleState::Phase::InCombat)
+      in_combat++;
   }
 
   if (in_combat > 0 || entering > 0) {
@@ -925,16 +1030,21 @@ TestApp &TestApp::wait_for_battle_initialized(float timeout_sec, const std::stri
   throw std::runtime_error("WAIT_FOR_FRAME_DELAY_CONTINUE");
 }
 
-TestApp &TestApp::wait_for_dishes_in_combat(int min_count, float timeout_sec, const std::string &location) {
-  TestOperationID op_id = generate_operation_id(std::source_location::current(), "wait_for_dishes_in_combat:" + std::to_string(min_count));
+TestApp &TestApp::wait_for_dishes_in_combat(int min_count, float timeout_sec,
+                                            const std::string &location) {
+  TestOperationID op_id = generate_operation_id(std::source_location::current(),
+                                                "wait_for_dishes_in_combat:" +
+                                                    std::to_string(min_count));
   if (completed_operations.count(op_id) > 0) {
     return *this;
   }
 
   int in_combat = 0;
-  for (afterhours::Entity &e : afterhours::EntityQuery().whereHasComponent<DishBattleState>().gen()) {
+  for (afterhours::Entity &e :
+       afterhours::EntityQuery().whereHasComponent<DishBattleState>().gen()) {
     const DishBattleState &dbs = e.get<DishBattleState>();
-    if (dbs.phase == DishBattleState::Phase::InCombat) in_combat++;
+    if (dbs.phase == DishBattleState::Phase::InCombat)
+      in_combat++;
   }
 
   if (in_combat >= min_count) {
@@ -948,9 +1058,11 @@ TestApp &TestApp::wait_for_dishes_in_combat(int min_count, float timeout_sec, co
   throw std::runtime_error("WAIT_FOR_FRAME_DELAY_CONTINUE");
 }
 
-TestApp &TestApp::wait_for_battle_complete(float timeout_sec, const std::string &location) {
-  TestOperationID op_id = generate_operation_id(std::source_location::current(), "wait_for_battle_complete");
-  
+TestApp &TestApp::wait_for_battle_complete(float timeout_sec,
+                                           const std::string &location) {
+  TestOperationID op_id = generate_operation_id(std::source_location::current(),
+                                                "wait_for_battle_complete");
+
   static std::chrono::steady_clock::time_point start_time;
   static bool started = false;
   if (!started) {
@@ -965,7 +1077,7 @@ TestApp &TestApp::wait_for_battle_complete(float timeout_sec, const std::string 
 
   GameStateManager::get().update_screen();
   GameStateManager::Screen current = GameStateManager::get().active_screen;
-  
+
   if (current == GameStateManager::Screen::Results) {
     completed_operations.insert(op_id);
     started = false;
@@ -981,9 +1093,13 @@ TestApp &TestApp::wait_for_battle_complete(float timeout_sec, const std::string 
   }
 
   std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-  std::chrono::milliseconds ms = std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time);
+  std::chrono::milliseconds ms =
+      std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time);
   if (ms.count() > static_cast<int>(timeout_sec * 1000.0f)) {
-    fail("Timeout waiting for battle to complete - player: " + std::to_string(player_count) + ", opponent: " + std::to_string(opponent_count), location);
+    fail("Timeout waiting for battle to complete - player: " +
+             std::to_string(player_count) +
+             ", opponent: " + std::to_string(opponent_count),
+         location);
   }
 
   wait_state.type = WaitState::FrameDelay;
@@ -992,8 +1108,10 @@ TestApp &TestApp::wait_for_battle_complete(float timeout_sec, const std::string 
   throw std::runtime_error("WAIT_FOR_FRAME_DELAY_CONTINUE");
 }
 
-TestApp &TestApp::wait_for_results_screen(float timeout_sec, const std::string &location) {
-  return wait_for_screen(GameStateManager::Screen::Results, timeout_sec, std::source_location::current());
+TestApp &TestApp::wait_for_results_screen(float timeout_sec,
+                                          const std::string &location) {
+  return wait_for_screen(GameStateManager::Screen::Results, timeout_sec,
+                         std::source_location::current());
 }
 
 TestApp &TestApp::expect_battle_not_tie(const std::string &location) {
@@ -1015,19 +1133,22 @@ TestApp &TestApp::expect_battle_has_outcomes(const std::string &location) {
   }
   const BattleResult &result = result_entity.get().get<BattleResult>();
   if (result.playerWins == 0 && result.opponentWins == 0 && result.ties == 0) {
-    fail("Battle has no wins or ties - battle may have ended prematurely", location);
+    fail("Battle has no wins or ties - battle may have ended prematurely",
+         location);
   }
   return *this;
 }
 
-TestApp &TestApp::expect_true(bool value, const std::string &description, const std::string &location) {
+TestApp &TestApp::expect_true(bool value, const std::string &description,
+                              const std::string &location) {
   if (!value) {
     fail("Expected " + description + " to be true but got false", location);
   }
   return *this;
 }
 
-TestApp &TestApp::expect_false(bool value, const std::string &description, const std::string &location) {
+TestApp &TestApp::expect_false(bool value, const std::string &description,
+                               const std::string &location) {
   if (value) {
     fail("Expected " + description + " to be false but got true", location);
   }
