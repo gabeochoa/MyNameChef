@@ -65,7 +65,7 @@ run_test() {
     
     if timeout $TEST_TIMEOUT "$EXECUTABLE" --run-test "$test_name" $headless_flag > "$output_file" 2>&1; then
         # Check if test completed successfully
-        if grep -q "TEST COMPLETED:" "$output_file" || grep -q "TEST VALIDATION PASSED:" "$output_file"; then
+        if grep -q "TEST COMPLETED:" "$output_file" || grep -q "TEST VALIDATION PASSED:" "$output_file" || grep -q "TEST PASSED:" "$output_file"; then
             echo -e "  ${GREEN}✅ PASSED${NC} - Test completed successfully"
             rm -f "$output_file"
             return 0
