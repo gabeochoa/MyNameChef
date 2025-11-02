@@ -23,7 +23,7 @@ struct AdvanceCourseSystem : afterhours::System<CombatQueue> {
     // (quiet)
 
     // Check if both dishes at index 0 are finished (queues are reorganized when dishes finish)
-    if (both_dishes_finished(0)) {
+    if (both_dishes_finished()) {
       log_info("COMBAT: Course {} finished (both dishes at index 0)", cq.current_index);
 
       if (auto tq = afterhours::EntityHelper::get_singleton<TriggerQueue>();
@@ -37,16 +37,16 @@ struct AdvanceCourseSystem : afterhours::System<CombatQueue> {
   }
 
 private:
-  bool both_dishes_finished(int slot_index) {
+  bool both_dishes_finished() {
     afterhours::OptEntity player_dish =
         EQ().whereHasComponent<DishBattleState>()
-            .whereInSlotIndex(slot_index)
+            .whereInSlotIndex(0)
             .whereTeamSide(DishBattleState::TeamSide::Player)
             .gen_first();
 
     afterhours::OptEntity opponent_dish =
         EQ().whereHasComponent<DishBattleState>()
-            .whereInSlotIndex(slot_index)
+            .whereInSlotIndex(0)
             .whereTeamSide(DishBattleState::TeamSide::Opponent)
             .gen_first();
 

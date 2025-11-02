@@ -42,9 +42,9 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
     // Always fight dishes at index 0 (queues are reorganized when dishes
     // finish)
     afterhours::OptEntity player_dish =
-        find_dish_for_slot(0, DishBattleState::TeamSide::Player);
+        find_dish_at_index_zero(DishBattleState::TeamSide::Player);
     afterhours::OptEntity opponent_dish =
-        find_dish_for_slot(0, DishBattleState::TeamSide::Opponent);
+        find_dish_at_index_zero(DishBattleState::TeamSide::Opponent);
 
     // Check if battle should end (one team has no remaining dishes)
     if (!player_dish || !opponent_dish) {
@@ -140,11 +140,11 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
   }
 
 private:
-  afterhours::OptEntity find_dish_for_slot(int slot_index,
-                                           DishBattleState::TeamSide side) {
+  afterhours::OptEntity
+  find_dish_at_index_zero(DishBattleState::TeamSide side) {
     return EQ()
         .whereHasComponent<DishBattleState>()
-        .whereInSlotIndex(slot_index)
+        .whereInSlotIndex(0)
         .whereTeamSide(side)
         .whereLambda([](const afterhours::Entity &e) {
           const DishBattleState &dbs = e.get<DishBattleState>();
