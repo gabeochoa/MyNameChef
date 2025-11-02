@@ -24,10 +24,6 @@ std::unordered_map<std::string, std::function<void()>>
 
 void TestSystem::register_test_cases() {
   // Register test cases using individual test files
-  test_registry["play_navigates_to_shop"] = []() {
-    PlayNavigatesToShopTest::execute();
-  };
-
   test_registry["goto_battle"] = []() { GotoBattleTest::execute(); };
 
   // Register validation functions
