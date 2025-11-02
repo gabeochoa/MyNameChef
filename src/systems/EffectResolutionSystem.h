@@ -19,7 +19,13 @@
 struct EffectResolutionSystem : afterhours::System<TriggerQueue> {
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
-    return gsm.active_screen == GameStateManager::Screen::Battle;
+    if (gsm.active_screen != GameStateManager::Screen::Battle) {
+      return false;
+    }
+    if (isReplayPaused()) {
+      return false;
+    }
+    return true;
   }
 
   void for_each_with(afterhours::Entity &, TriggerQueue &queue,
@@ -32,6 +38,8 @@ struct EffectResolutionSystem : afterhours::System<TriggerQueue> {
       process_trigger_event(ev);
     }
 
+    // Clear queue after processing to prevent duplicate processing
+    // TriggerDispatchSystem will need to be updated to work with cleared queue
     queue.clear();
   }
 

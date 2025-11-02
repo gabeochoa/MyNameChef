@@ -13,18 +13,24 @@
 #include "../query.h"
 #include "../render_backend.h"
 #include "../shop.h"
+#include "../utils/battle_fingerprint.h"
 #include <afterhours/ah.h>
 
 struct StartCourseSystem : afterhours::System<CombatQueue> {
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
+    if (gsm.active_screen != GameStateManager::Screen::Battle) {
+      return false;
+    }
+    if (isReplayPaused()) {
+      return false;
+    }
     // TODO: Replace headless mode bypass with --disable-animation flag that
     // calls into vendor library (afterhours::animation) to properly disable
     // animations at the framework level instead of bypassing checks here
     bool animation_blocking =
         !render_backend::is_headless_mode && hasActiveAnimation();
-    return gsm.active_screen == GameStateManager::Screen::Battle &&
-           !animation_blocking;
+    return !animation_blocking;
   }
 
   void for_each_with(afterhours::Entity &, CombatQueue &cq, float) override {
@@ -33,9 +39,8 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
       return;
     }
 
-    // (quiet)
-
-    if (!prerequisites_complete()) {
+    bool prereqs = prerequisites_complete();
+    if (!prereqs) {
       return;
     }
 
@@ -55,10 +60,10 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
 
       if (!player_has_remaining || !opponent_has_remaining) {
         cq.complete = true;
-        log_info("COMBAT: One team exhausted - Player: {}, Opponent: {}, "
-                 "transitioning to results",
-                 player_has_remaining ? "active" : "exhausted",
-                 opponent_has_remaining ? "active" : "exhausted");
+
+        uint64_t fp = BattleFingerprint::compute();
+        log_info("AUDIT_FP checkpoint=end hash={}", fp);
+
         GameStateManager::get().to_results();
         return;
       }
@@ -81,60 +86,17 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
 
     if (player_dbs.phase == DishBattleState::Phase::InQueue &&
         opponent_dbs.phase == DishBattleState::Phase::InQueue) {
-      // Log modifier state before phase transition
-      if (player_dish->has<PreBattleModifiers>()) {
-        auto &playerPre = player_dish->get<PreBattleModifiers>();
-        log_info("PHASE_TRANSITION: Player dish {} InQueue->Entering - "
-                 "PreBattleModifiers: bodyDelta={}, zingDelta={}",
-                 player_dish->id, playerPre.bodyDelta, playerPre.zingDelta);
-      }
-      if (player_dish->has<PairingClashModifiers>()) {
-        auto &pcm = player_dish->get<PairingClashModifiers>();
-        log_info("PHASE_TRANSITION: Player dish {} InQueue->Entering - "
-                 "PairingClash: bodyDelta={}, zingDelta={}",
-                 player_dish->id, pcm.bodyDelta, pcm.zingDelta);
-      }
-      if (player_dish->has<PersistentCombatModifiers>()) {
-        auto &pm = player_dish->get<PersistentCombatModifiers>();
-        log_info("PHASE_TRANSITION: Player dish {} InQueue->Entering - "
-                 "Persistent: bodyDelta={}, zingDelta={}",
-                 player_dish->id, pm.bodyDelta, pm.zingDelta);
-      }
-      if (opponent_dish->has<PreBattleModifiers>()) {
-        auto &opponentPre = opponent_dish->get<PreBattleModifiers>();
-        log_info("PHASE_TRANSITION: Opponent dish {} InQueue->Entering - "
-                 "PreBattleModifiers: bodyDelta={}, zingDelta={}",
-                 opponent_dish->id, opponentPre.bodyDelta,
-                 opponentPre.zingDelta);
-      }
-      if (opponent_dish->has<PairingClashModifiers>()) {
-        auto &pcm = opponent_dish->get<PairingClashModifiers>();
-        log_info("PHASE_TRANSITION: Opponent dish {} InQueue->Entering - "
-                 "PairingClash: bodyDelta={}, zingDelta={}",
-                 opponent_dish->id, pcm.bodyDelta, pcm.zingDelta);
-      }
-      if (opponent_dish->has<PersistentCombatModifiers>()) {
-        auto &pm = opponent_dish->get<PersistentCombatModifiers>();
-        log_info("PHASE_TRANSITION: Opponent dish {} InQueue->Entering - "
-                 "Persistent: bodyDelta={}, zingDelta={}",
-                 opponent_dish->id, pm.bodyDelta, pm.zingDelta);
-      }
-
       player_dbs.phase = DishBattleState::Phase::Entering;
       player_dbs.enter_progress = -enter_start_delay;
       opponent_dbs.phase = DishBattleState::Phase::Entering;
       opponent_dbs.enter_progress = -enter_start_delay;
       cq.current_index++;
-      log_info("COMBAT: Starting course {} - both dishes at index 0 entering "
-               "head to head",
-               cq.current_index);
 
       if (auto tq = afterhours::EntityHelper::get_singleton<TriggerQueue>();
           tq.get().has<TriggerQueue>()) {
         auto &queue = tq.get().get<TriggerQueue>();
         queue.add_event(TriggerHook::OnCourseStart, 0, 0,
                         DishBattleState::TeamSide::Player);
-        log_info("COMBAT: Fired OnCourseStart trigger for index 0");
       }
     }
   }
@@ -156,7 +118,7 @@ private:
   }
 
   bool has_remaining_active_dishes(DishBattleState::TeamSide side) {
-    return EQ({.ignore_temp_warning = true}).whereHasComponent<DishBattleState>()
+    return EQ().whereHasComponent<DishBattleState>()
                .whereTeamSide(side)
                .whereLambda([](const afterhours::Entity &e) {
                  const DishBattleState &dbs = e.get<DishBattleState>();
@@ -173,8 +135,9 @@ private:
     // animations at the framework level instead of bypassing checks here
     if (render_backend::is_headless_mode) {
       // In headless mode, skip animation checks and only check if OnServe fired
+      // for all dishes
       afterhours::RefEntities unfinishedDishes =
-          afterhours::EntityQuery({.ignore_temp_warning = true})
+          afterhours::EntityQuery()
               .whereHasComponent<IsDish>()
               .whereHasComponent<DishBattleState>()
               .whereLambda([](const afterhours::Entity &e) {
@@ -188,7 +151,7 @@ private:
 
     bool slideInComplete = true;
     for (afterhours::Entity &animEntity :
-         afterhours::EntityQuery({.ignore_temp_warning = true})
+         afterhours::EntityQuery()
              .whereHasComponent<AnimationEvent>()
              .whereHasComponent<AnimationTimer>()
              .gen()) {
@@ -204,7 +167,7 @@ private:
     }
 
     afterhours::RefEntities unfinishedDishes =
-        afterhours::EntityQuery({.ignore_temp_warning = true})
+        afterhours::EntityQuery()
             .whereHasComponent<IsDish>()
             .whereHasComponent<DishBattleState>()
             .whereLambda([](const afterhours::Entity &e) {
@@ -217,7 +180,8 @@ private:
       return false;
     }
 
-    if (hasActiveAnimation()) {
+    bool hasActive = hasActiveAnimation();
+    if (hasActive) {
       return false;
     }
 

@@ -22,12 +22,18 @@ struct ResolveCombatTickSystem
 private:
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
-    // TODO: Replace headless mode bypass with --disable-animation flag that calls
-    // into vendor library (afterhours::animation) to properly disable animations
-    // at the framework level instead of bypassing checks here
-    bool animation_blocking = !render_backend::is_headless_mode && hasActiveAnimation();
-    return gsm.active_screen == GameStateManager::Screen::Battle &&
-           !animation_blocking;
+    if (gsm.active_screen != GameStateManager::Screen::Battle) {
+      return false;
+    }
+    if (isReplayPaused()) {
+      return false;
+    }
+    // TODO: Replace headless mode bypass with --disable-animation flag that
+    // calls into vendor library (afterhours::animation) to properly disable
+    // animations at the framework level instead of bypassing checks here
+    bool animation_blocking =
+        !render_backend::is_headless_mode && hasActiveAnimation();
+    return !animation_blocking;
   }
 
   void for_each_with(afterhours::Entity &e, DishBattleState &dbs,
@@ -47,15 +53,16 @@ private:
 
     // Hard gate: ensure the SlideIn animation has fully finished for both
     // entities
-    // TODO: Replace headless mode bypass with --disable-animation flag that calls
-    // into vendor library (afterhours::animation) to properly disable animations
-    // at the framework level instead of bypassing checks here
+    // TODO: Replace headless mode bypass with --disable-animation flag that
+    // calls into vendor library (afterhours::animation) to properly disable
+    // animations at the framework level instead of bypassing checks here
     if (!render_backend::is_headless_mode) {
-      auto sv_player =
-          afterhours::animation::get_value(BattleAnimKey::SlideIn, (size_t)e.id);
-      auto sv_opponent = afterhours::animation::get_value(BattleAnimKey::SlideIn,
-                                                          (size_t)opponent.id);
-      const float slide_player = sv_player.has_value() ? sv_player.value() : 1.0f;
+      auto sv_player = afterhours::animation::get_value(BattleAnimKey::SlideIn,
+                                                        (size_t)e.id);
+      auto sv_opponent = afterhours::animation::get_value(
+          BattleAnimKey::SlideIn, (size_t)opponent.id);
+      const float slide_player =
+          sv_player.has_value() ? sv_player.value() : 1.0f;
       const float slide_opponent =
           sv_opponent.has_value() ? sv_opponent.value() : 1.0f;
       if (slide_player < 1.0f || slide_opponent < 1.0f) {
@@ -65,9 +72,9 @@ private:
 
     // On entering InCombat for the first time, start with a pre-pause
     if (!dbs.first_bite_decided) {
-      // TODO: Replace headless mode bypass with --disable-animation flag that calls
-      // into vendor library (afterhours::animation) to properly disable animations
-      // at the framework level instead of bypassing checks here
+      // TODO: Replace headless mode bypass with --disable-animation flag that
+      // calls into vendor library (afterhours::animation) to properly disable
+      // animations at the framework level instead of bypassing checks here
       if (!render_backend::is_headless_mode) {
         // Do not start cadence until movement animation has fully finished
         if (dbs.enter_progress < 1.0f ||
@@ -82,7 +89,8 @@ private:
       return; // do not deal damage immediately
     }
 
-    // Ensure forward progress even if dt is zero due to timing anomalies in headless mode
+    // Ensure forward progress even if dt is zero due to timing anomalies in
+    // headless mode
     const float kFallbackDt = 1.0f / 60.0f;
     float effective_dt = dt > 0.0f ? dt : kFallbackDt;
     dbs.bite_cadence_timer += effective_dt;
@@ -126,12 +134,14 @@ private:
 
       // Emit animation events for both attacks
       // Player's attack visualization on opponent
-      auto &anim_player = make_animation_event(AnimationEventType::StatBoost, true);
+      auto &anim_player =
+          make_animation_event(AnimationEventType::StatBoost, true);
       auto &animPlayerData = anim_player.get<AnimationEvent>();
       animPlayerData.data = StatBoostData{opponent.id, 0, -player_damage};
 
       // Opponent's attack visualization on player
-      auto &anim_opponent = make_animation_event(AnimationEventType::StatBoost, true);
+      auto &anim_opponent =
+          make_animation_event(AnimationEventType::StatBoost, true);
       auto &animOpponentData = anim_opponent.get<AnimationEvent>();
       animOpponentData.data = StatBoostData{e.id, 0, -opponent_damage};
 
@@ -165,7 +175,7 @@ private:
 
       log_info("COMBAT: Both dishes defeated at slot {} (tie)",
                dbs.queue_index);
-      
+
       reorganize_queues();
     } else if (cs.currentBody <= 0) {
       dbs.phase = DishBattleState::Phase::Finished;
@@ -179,7 +189,7 @@ private:
 
       log_info("COMBAT: Player-side dish {} defeated at slot {}", e.id,
                dbs.queue_index);
-      
+
       reorganize_queues();
     } else if (opponent_cs.currentBody <= 0) {
       opponent_dbs.phase = DishBattleState::Phase::Finished;
@@ -193,7 +203,7 @@ private:
 
       log_info("COMBAT: Opponent-side dish {} defeated at slot {}", opponent.id,
                dbs.queue_index);
-      
+
       reorganize_queues();
     }
   }
@@ -205,12 +215,12 @@ private:
             ? DishBattleState::TeamSide::Opponent
             : DishBattleState::TeamSide::Player;
 
-    // Always look for opponent at index 0 (queues are reorganized when dishes finish)
+    // Always look for opponent at index 0 (queues are reorganized when dishes
+    // finish)
     for (afterhours::Entity &e :
          afterhours::EntityQuery().whereHasComponent<DishBattleState>().gen()) {
       DishBattleState &other_dbs = e.get<DishBattleState>();
-      if (other_dbs.team_side == opponent_side &&
-          other_dbs.queue_index == 0 &&
+      if (other_dbs.team_side == opponent_side && other_dbs.queue_index == 0 &&
           other_dbs.phase == DishBattleState::Phase::InCombat) {
         return afterhours::OptEntity(e);
       }
@@ -219,10 +229,12 @@ private:
   }
 
   void reorganize_queues() {
-    for (DishBattleState::TeamSide side : {DishBattleState::TeamSide::Player,
-                                           DishBattleState::TeamSide::Opponent}) {
+    for (DishBattleState::TeamSide side :
+         {DishBattleState::TeamSide::Player,
+          DishBattleState::TeamSide::Opponent}) {
       afterhours::RefEntities active_dishes =
-          EQ({.ignore_temp_warning = true}).whereHasComponent<DishBattleState>()
+          EQ({.ignore_temp_warning = true})
+              .whereHasComponent<DishBattleState>()
               .whereTeamSide(side)
               .whereLambda([](const afterhours::Entity &e) {
                 const DishBattleState &dbs = e.get<DishBattleState>();
@@ -230,11 +242,11 @@ private:
                        dbs.phase == DishBattleState::Phase::Entering ||
                        dbs.phase == DishBattleState::Phase::InCombat;
               })
-              .orderByLambda([](const afterhours::Entity &a,
-                                const afterhours::Entity &b) {
-                return a.get<DishBattleState>().queue_index <
-                       b.get<DishBattleState>().queue_index;
-              })
+              .orderByLambda(
+                  [](const afterhours::Entity &a, const afterhours::Entity &b) {
+                    return a.get<DishBattleState>().queue_index <
+                           b.get<DishBattleState>().queue_index;
+                  })
               .gen();
 
       int new_index = 0;
@@ -248,22 +260,27 @@ private:
                    dish.id, dbs.queue_index, new_index);
           dbs.queue_index = new_index;
         }
-        
-        // Reset dishes that were InCombat or Entering to InQueue so they can start new fights
-        // (survivors from previous combat need to reset combat state)
+
+        // Reset dishes that were InCombat or Entering to InQueue so they can
+        // start new fights (survivors from previous combat need to reset combat
+        // state)
         if (dbs.phase == DishBattleState::Phase::InCombat ||
             dbs.phase == DishBattleState::Phase::Entering) {
-          const char *old_phase = (dbs.phase == DishBattleState::Phase::InCombat) ? "InCombat" : "Entering";
+          const char *old_phase =
+              (dbs.phase == DishBattleState::Phase::InCombat) ? "InCombat"
+                                                              : "Entering";
           dbs.phase = DishBattleState::Phase::InQueue;
           dbs.enter_progress = 0.0f;
           dbs.first_bite_decided = false;
           dbs.bite_cadence = DishBattleState::BiteCadence::PrePause;
           dbs.bite_cadence_timer = 0.0f;
-          log_info("COMBAT: Resetting {} side dish {} from {} to InQueue after reorganization",
-                   side == DishBattleState::TeamSide::Player ? "Player" : "Opponent",
+          log_info("COMBAT: Resetting {} side dish {} from {} to InQueue after "
+                   "reorganization",
+                   side == DishBattleState::TeamSide::Player ? "Player"
+                                                             : "Opponent",
                    dish.id, old_phase);
         }
-        
+
         new_index++;
       }
     }

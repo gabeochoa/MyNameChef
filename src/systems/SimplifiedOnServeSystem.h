@@ -50,31 +50,35 @@ struct SimplifiedOnServeSystem : afterhours::System<CombatQueue> {
       return;
     }
 
-    // Fire OnServe for all dishes at index 0 that haven't fired yet
-    // (queues are reorganized when dishes finish, so always check index 0)
-    afterhours::RefEntities indexZeroDishes =
+    // Fire OnServe for all dishes at InQueue that haven't fired yet
+    afterhours::RefEntities unfiredDishes =
         afterhours::EntityQuery({.ignore_temp_warning = true})
             .whereHasComponent<IsDish>()
             .whereHasComponent<DishBattleState>()
             .whereLambda([](const afterhours::Entity &e) {
               const DishBattleState &dbs = e.get<DishBattleState>();
               return dbs.phase == DishBattleState::Phase::InQueue &&
-                     !dbs.onserve_fired && dbs.queue_index == 0;
+                     !dbs.onserve_fired;
             })
             .gen();
 
-    if (!indexZeroDishes.empty()) {
-      for (afterhours::Entity &dish : indexZeroDishes) {
+    if (!unfiredDishes.empty()) {
+      for (afterhours::Entity &dish : unfiredDishes) {
         DishBattleState &dbs = dish.get<DishBattleState>();
         fire_onserve_trigger(dish, dbs);
         dbs.onserve_fired = true;
-        log_info("COMBAT: Fired OnServe for dish {} at index 0", dish.id);
+        log_info("COMBAT: Fired OnServe for dish {} (slot {}, team {})",
+                 dish.id, dbs.queue_index,
+                 (dbs.team_side == DishBattleState::TeamSide::Player)
+                     ? "Player"
+                     : "Opponent");
       }
     }
 
     // Check if all dishes have fired OnServe
     bool hasUnfiredDishes =
-        EQ({.ignore_temp_warning = true}).whereHasComponent<IsDish>()
+        EQ({.ignore_temp_warning = true})
+            .whereHasComponent<IsDish>()
             .whereHasComponent<DishBattleState>()
             .whereLambda([](const afterhours::Entity &e) {
               const DishBattleState &dbs = e.get<DishBattleState>();
@@ -106,7 +110,9 @@ private:
 
   afterhours::Entity *get_or_create_onserve_state() {
     for (afterhours::Entity &e :
-         afterhours::EntityQuery({.ignore_temp_warning = true}).whereHasComponent<OnServeState>().gen()) {
+         afterhours::EntityQuery({.ignore_temp_warning = true})
+             .whereHasComponent<OnServeState>()
+             .gen()) {
       return &e;
     }
 
@@ -117,7 +123,9 @@ private:
 
   void clear_onserve_state() {
     for (afterhours::Entity &e :
-         afterhours::EntityQuery({.ignore_temp_warning = true}).whereHasComponent<OnServeState>().gen()) {
+         afterhours::EntityQuery({.ignore_temp_warning = true})
+             .whereHasComponent<OnServeState>()
+             .gen()) {
       e.removeComponent<OnServeState>();
     }
   }
