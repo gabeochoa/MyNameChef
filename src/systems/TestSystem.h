@@ -81,6 +81,4 @@ struct TestSystem : afterhours::System<> {
 
 private:
   void register_test_cases();
-
-  static std::unordered_map<std::string, std::function<void()>> test_registry;
 };

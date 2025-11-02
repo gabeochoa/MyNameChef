@@ -6,6 +6,7 @@
 #include "../rl.h" // NOLINT - required for Vector2Type fix
 
 #include "../testing/test_macros.h"
+// Include all test files so TEST() macro registrations run
 #include "../testing/tests/GotoBattleTest.h"
 #include "../testing/tests/PlayNavigatesToShopTest.h"
 #include "../testing/tests/ValidateBattleResultsTest.h"
@@ -19,15 +20,7 @@
 #include "../testing/tests/ValidateTriggerSystemTest.h"
 #include "../testing/tests/ValidateUINavigationTest.h"
 
-std::unordered_map<std::string, std::function<void()>>
-    TestSystem::test_registry;
-
 void TestSystem::register_test_cases() {
-  // Register test cases using individual test files
-
-  // Register validation functions
-
-
   // First check if test is registered via new TEST() macro
   auto &registry = TestRegistry::get();
   auto test_list = registry.list_tests();
@@ -110,9 +103,7 @@ void TestSystem::register_test_cases() {
     return;
   }
 
-  // Look up the test function in old registry
-  auto it = test_registry.find(test_name);
-  if (it != test_registry.end()) {
-    test_function = it->second;
-  }
+  // If we get here, the test is not registered via the new TEST() macro
+  // This should not happen if all tests have been migrated
+  log_error("Test not found: {}", test_name);
 }
