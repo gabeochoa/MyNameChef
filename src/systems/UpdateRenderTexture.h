@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../game.h"
+#include "../render_backend.h"
 #include "../query.h"
 #include <afterhours/ah.h>
 
@@ -8,6 +10,10 @@ struct UpdateRenderTexture : System<> {
   window_manager::Resolution resolution;
 
   virtual ~UpdateRenderTexture() {}
+
+  virtual bool should_run(float) override {
+    return !render_backend::is_headless_mode;
+  }
 
   void once(float) {
     const window_manager::ProvidesCurrentResolution *pcr =
