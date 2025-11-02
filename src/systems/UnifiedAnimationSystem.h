@@ -6,6 +6,7 @@
 #include "../components/is_dish.h"
 #include "../game_state_manager.h"
 #include "../render_backend.h"
+#include "../shop.h"
 #include <afterhours/ah.h>
 #include <afterhours/src/plugins/animation.h>
 
@@ -69,14 +70,20 @@ struct AnimationSchedulerSystem
 struct AnimationTimerSystem : afterhours::System<AnimationTimer> {
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
-    return gsm.active_screen == GameStateManager::Screen::Battle;
+    if (gsm.active_screen != GameStateManager::Screen::Battle) {
+      return false;
+    }
+    if (isReplayPaused()) {
+      return false;
+    }
+    return true;
   }
 
   void for_each_with(afterhours::Entity &e, AnimationTimer &timer,
                      float dt) override {
-    // TODO: Replace headless mode bypass with --disable-animation flag that calls
-    // into vendor library (afterhours::animation) to properly disable animations
-    // at the framework level instead of bypassing timers here
+    // TODO: Replace headless mode bypass with --disable-animation flag that
+    // calls into vendor library (afterhours::animation) to properly disable
+    // animations at the framework level instead of bypassing timers here
     if (render_backend::is_headless_mode) {
       timer.elapsed = timer.duration;
     } else {
@@ -105,7 +112,13 @@ struct SlideInAnimationDriverSystem
     : afterhours::System<AnimationEvent, AnimationTimer> {
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
-    return gsm.active_screen == GameStateManager::Screen::Battle;
+    if (gsm.active_screen != GameStateManager::Screen::Battle) {
+      return false;
+    }
+    if (isReplayPaused()) {
+      return false;
+    }
+    return true;
   }
 
   void for_each_with(afterhours::Entity &, AnimationEvent &ev,
