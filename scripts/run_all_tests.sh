@@ -64,6 +64,8 @@ if [ ! -f "$EXECUTABLE" ]; then
 fi
 
 # Function to run a single test
+# NOTE: Tests that fail will exit immediately - they are NEVER retried.
+# Each test run is a fresh game process to avoid side effects.
 run_test() {
     local test_name="$1"
     local test_number="$2"

@@ -17,6 +17,9 @@
 #include <afterhours/ah.h>
 #include <chrono>
 #include <optional>
+#include <set>
+#include <source_location>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -79,11 +82,23 @@ public:
   afterhours::EntityID commit();
 };
 
+using TestOperationID = size_t;
+
 struct TestApp {
   std::string current_test_name;
   std::string failure_message;
   std::string failure_location;
-  bool game_launched = false; // Track if launch_game() has been called
+  bool game_launched = false;
+  std::set<TestOperationID> completed_operations;
+
+  static TestOperationID generate_operation_id(
+      const std::source_location &loc, const std::string &context = "") {
+    std::stringstream pre_hash;
+    pre_hash << "file: " << loc.file_name() << '(' << loc.line() << ':'
+             << loc.column() << ") `" << loc.function_name() << "`: " << context
+             << '\n';
+    return std::hash<std::string>{}(pre_hash.str());
+  }
 
   // State for non-blocking waits in main game loop
   struct WaitState {
@@ -94,22 +109,31 @@ struct TestApp {
     float timeout_sec = 5.0f;
     std::chrono::steady_clock::time_point start_time;
     std::string location;
-    int frame_delay_count = 0; // For frame-based delays
+    int frame_delay_count = 0;
+    TestOperationID operation_id = 0;
   } wait_state;
 
   TestApp() = default;
 
-  void set_test_name(const std::string &name) { current_test_name = name; }
+  void set_test_name(const std::string &name) {
+    current_test_name = name;
+    completed_operations.clear();
+  }
 
   void fail(const std::string &message, const std::string &location = "");
 
   // Check wait conditions (call this from TestSystem each frame)
   bool check_wait_conditions();
 
-  TestApp &launch_game();
-  TestApp &click(const std::string &button_label);
-  TestApp &navigate_to_shop();
-  TestApp &navigate_to_battle();
+  TestApp &launch_game(
+      const std::source_location &loc = std::source_location::current());
+  TestApp &click(const std::string &button_label,
+                 const std::source_location &loc =
+                     std::source_location::current());
+  TestApp &navigate_to_shop(
+      const std::source_location &loc = std::source_location::current());
+  TestApp &navigate_to_battle(
+      const std::source_location &loc = std::source_location::current());
 
   std::vector<TestDishInfo> read_player_inventory();
   std::vector<TestShopItemInfo> read_store_options();
@@ -124,9 +148,10 @@ struct TestApp {
   TestApp &create_inventory_item(DishType type, int slot);
   GameStateManager::Screen read_current_screen();
 
-  TestApp &wait_for_ui_exists(const std::string &label,
-                              float timeout_sec = 5.0f,
-                              const std::string &location = "");
+  TestApp &wait_for_ui_exists(
+      const std::string &label, float timeout_sec = 5.0f,
+      const std::string &location = "",
+      const std::source_location &loc = std::source_location::current());
   TestApp &expect_screen_is(GameStateManager::Screen screen,
                             const std::string &location = "");
   TestApp &expect_inventory_contains(DishType type,
@@ -138,9 +163,12 @@ struct TestApp {
   TestApp &purchase_item(DishType type, int inventory_slot = -1,
                          const std::string &location = "");
 
-  TestApp &wait_for_screen(GameStateManager::Screen screen,
-                           float timeout_sec = 5.0f);
-  TestApp &wait_for_frames(int frames);
+  TestApp &wait_for_screen(
+      GameStateManager::Screen screen, float timeout_sec = 5.0f,
+      const std::source_location &loc = std::source_location::current());
+  TestApp &wait_for_frames(
+      int frames,
+      const std::source_location &loc = std::source_location::current());
   TestApp &pump_frame();
 
   TestApp &setup_battle();

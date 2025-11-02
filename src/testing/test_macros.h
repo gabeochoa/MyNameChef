@@ -71,7 +71,7 @@ public:
       if (!app.failure_location.empty()) {
         log_error("  Failure at: {}", app.failure_location);
       }
-      throw; // Re-throw to let TestSystem handle it
+      throw; // Re-throw to let TestSystem handle it - will exit(1), never retry
     }
   }
 

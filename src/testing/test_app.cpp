@@ -19,6 +19,7 @@
 #include <afterhours/ah.h>
 #include <chrono>
 #include <raylib/raylib.h>
+#include <source_location>
 #include <thread>
 
 void TestApp::fail(const std::string &message, const std::string &location) {
@@ -29,49 +30,51 @@ void TestApp::fail(const std::string &message, const std::string &location) {
   throw std::runtime_error(message);
 }
 
-TestApp &TestApp::launch_game() {
-  // Only launch once per test to avoid resetting state on test re-runs
-  if (game_launched) {
+TestApp &TestApp::launch_game(const std::source_location &loc) {
+  TestOperationID op_id = generate_operation_id(loc, "launch_game");
+  if (completed_operations.count(op_id) > 0) {
     return *this;
   }
-  // Reset to main menu for test isolation
   GameStateManager::get().set_next_screen(GameStateManager::Screen::Main);
   GameStateManager::get().update_screen();
   game_launched = true;
+  completed_operations.insert(op_id);
   if (step_delay()) {
     throw std::runtime_error("WAIT_FOR_FRAME_DELAY_CONTINUE");
   }
   return *this;
 }
 
-TestApp &TestApp::click(const std::string &button_label) {
+TestApp &TestApp::click(const std::string &button_label,
+                        const std::source_location &loc) {
+  TestOperationID op_id =
+      generate_operation_id(loc, "click:" + button_label);
+  if (completed_operations.count(op_id) > 0) {
+    return *this;
+  }
   afterhours::Entity *entity = find_clickable_with(button_label);
   if (!entity) {
     fail("Button not found: " + button_label);
   }
 
-  // Check if clicking this button would transition to a screen we're already on
-  // or transitioning to. We need to check this after finding the entity to
-  // ensure the button exists, but before clicking to avoid duplicate clicks.
   GameStateManager &gsm = GameStateManager::get();
   GameStateManager::Screen current_screen = gsm.active_screen;
   std::optional<GameStateManager::Screen> next_screen = gsm.next_screen;
 
-  // If we're already on Shop screen, don't click "Play" again
   if (button_label == "Play" &&
       current_screen == GameStateManager::Screen::Shop) {
+    completed_operations.insert(op_id);
     return *this;
   }
-  // If we're transitioning to Shop, don't click "Play" again
   if (button_label == "Play" && next_screen.has_value() &&
       next_screen.value() == GameStateManager::Screen::Shop) {
+    completed_operations.insert(op_id);
     return *this;
   }
 
   click_clickable(*entity);
+  completed_operations.insert(op_id);
 
-  // Don't call update_screen() here - let the normal game loop handle it
-  // The screen transition will happen on the next frame naturally
   if (step_delay()) {
     throw std::runtime_error("WAIT_FOR_FRAME_DELAY_CONTINUE");
   }
@@ -108,23 +111,33 @@ void TestApp::click_clickable(afterhours::Entity &entity) {
   }
 }
 
-TestApp &TestApp::navigate_to_shop() {
+TestApp &TestApp::navigate_to_shop(const std::source_location &loc) {
+  TestOperationID op_id = generate_operation_id(loc, "navigate_to_shop");
+  if (completed_operations.count(op_id) > 0) {
+    return *this;
+  }
   wait_for_ui_exists("Play");
   click("Play");
   wait_for_screen(GameStateManager::Screen::Shop);
+  completed_operations.insert(op_id);
   if (step_delay()) {
     throw std::runtime_error("WAIT_FOR_FRAME_DELAY_CONTINUE");
   }
   return *this;
 }
 
-TestApp &TestApp::navigate_to_battle() {
+TestApp &TestApp::navigate_to_battle(const std::source_location &loc) {
+  TestOperationID op_id = generate_operation_id(loc, "navigate_to_battle");
+  if (completed_operations.count(op_id) > 0) {
+    return *this;
+  }
   GameStateManager &gsm = GameStateManager::get();
   if (gsm.active_screen != GameStateManager::Screen::Shop) {
     fail("Must be on Shop screen to navigate to battle");
   }
   click("Next Round");
   wait_for_screen(GameStateManager::Screen::Battle);
+  completed_operations.insert(op_id);
   if (step_delay()) {
     throw std::runtime_error("WAIT_FOR_FRAME_DELAY_CONTINUE");
   }
@@ -295,31 +308,38 @@ GameStateManager::Screen TestApp::read_current_screen() {
 
 TestApp &TestApp::wait_for_ui_exists(const std::string &label,
                                      float timeout_sec,
-                                     const std::string &location) {
-  // If we're already waiting for this UI element, don't restart the wait
-  if (wait_state.type == WaitState::UI && wait_state.target_ui_label == label) {
-    // Already waiting for this element, just check if it's ready
+                                     const std::string &location,
+                                     const std::source_location &loc) {
+  TestOperationID op_id =
+      generate_operation_id(loc, "wait_for_ui_exists:" + label);
+  if (completed_operations.count(op_id) > 0) {
+    return *this;
+  }
+
+  if (wait_state.type == WaitState::UI && wait_state.target_ui_label == label &&
+      wait_state.operation_id == op_id) {
     if (check_wait_conditions()) {
+      completed_operations.insert(op_id);
       wait_state.type = WaitState::None;
-      // Don't delay after wait completes - frames already processed during wait
       return *this;
     }
-    // Still waiting, throw continue exception
+    throw std::runtime_error("WAIT_FOR_UI_CONTINUE");
+  }
+
+  if (wait_state.type != WaitState::None && wait_state.operation_id != op_id) {
     throw std::runtime_error("WAIT_FOR_UI_CONTINUE");
   }
 
   setup_wait_state(WaitState::UI, timeout_sec, location);
   wait_state.target_ui_label = label;
+  wait_state.operation_id = op_id;
 
-  // Check immediately - if found, clear wait state
   if (check_wait_conditions()) {
+    completed_operations.insert(op_id);
     wait_state.type = WaitState::None;
-    // Don't delay after wait completes - frames already processed during wait
     return *this;
   }
 
-  // Not ready yet - will be checked on next frame
-  // Throw special exception to indicate we need to continue
   throw std::runtime_error("WAIT_FOR_UI_CONTINUE");
 }
 
@@ -331,10 +351,14 @@ bool TestApp::check_wait_conditions() {
   if (wait_state.type == WaitState::FrameDelay) {
     wait_state.frame_delay_count--;
     if (wait_state.frame_delay_count <= 0) {
+      TestOperationID op_id = wait_state.operation_id;
       wait_state.type = WaitState::None;
-      return true; // Frame delay complete
+      if (op_id != 0) {
+        completed_operations.insert(op_id);
+      }
+      return true;
     }
-    return false; // Still waiting for frames
+    return false;
   }
 
   if (wait_state.type == WaitState::UI) {
@@ -349,8 +373,12 @@ bool TestApp::check_wait_conditions() {
       const afterhours::ui::HasLabel &label =
           entity.get<afterhours::ui::HasLabel>();
       if (label.label == wait_state.target_ui_label) {
+        TestOperationID op_id = wait_state.operation_id;
         wait_state.type = WaitState::None;
-        return true; // Found it!
+        if (op_id != 0) {
+          completed_operations.insert(op_id);
+        }
+        return true;
       }
     }
 
@@ -368,8 +396,12 @@ bool TestApp::check_wait_conditions() {
         name = entity.get<afterhours::ui::UIComponentDebug>().name();
       }
       if (name == wait_state.target_ui_label) {
+        TestOperationID op_id = wait_state.operation_id;
         wait_state.type = WaitState::None;
-        return true; // Found it!
+        if (op_id != 0) {
+          completed_operations.insert(op_id);
+        }
+        return true;
       }
     }
 
@@ -419,8 +451,12 @@ bool TestApp::check_wait_conditions() {
         }
       }
 
+      TestOperationID op_id = wait_state.operation_id;
       wait_state.type = WaitState::None;
-      return true; // Screen transition complete
+      if (op_id != 0) {
+        completed_operations.insert(op_id);
+      }
+      return true;
     }
 
     // Check timeout
@@ -482,41 +518,55 @@ TestApp &TestApp::expect_wallet_has(int gold, const std::string &location) {
 }
 
 TestApp &TestApp::wait_for_screen(GameStateManager::Screen screen,
-                                  float timeout_sec) {
-  // If we're already waiting for this screen, don't restart the wait
+                                  float timeout_sec,
+                                  const std::source_location &loc) {
+  TestOperationID op_id = generate_operation_id(
+      loc, "wait_for_screen:" + std::to_string(static_cast<int>(screen)));
+  if (completed_operations.count(op_id) > 0) {
+    return *this;
+  }
+
   if (wait_state.type == WaitState::Screen &&
-      wait_state.target_screen == screen) {
-    // Already waiting for this screen, just check if it's ready
+      wait_state.target_screen == screen &&
+      wait_state.operation_id == op_id) {
     GameStateManager::get().update_screen();
     if (check_wait_conditions()) {
+      completed_operations.insert(op_id);
       wait_state.type = WaitState::None;
-      // Don't delay after wait completes - frames already processed during wait
       return *this;
     }
-    // Still waiting, throw continue exception
+    throw std::runtime_error("WAIT_FOR_SCREEN_CONTINUE");
+  }
+
+  if (wait_state.type != WaitState::None && wait_state.operation_id != op_id) {
     throw std::runtime_error("WAIT_FOR_SCREEN_CONTINUE");
   }
 
   setup_wait_state(WaitState::Screen, timeout_sec);
   wait_state.target_screen = screen;
+  wait_state.operation_id = op_id;
 
-  // Check immediately - if on target screen, clear wait state
   GameStateManager::get().update_screen();
   if (check_wait_conditions()) {
+    completed_operations.insert(op_id);
     wait_state.type = WaitState::None;
-    // Don't delay after wait completes - frames already processed during wait
     return *this;
   }
 
-  // Not ready yet - will be checked on next frame
-  // Throw special exception to indicate we need to continue
   throw std::runtime_error("WAIT_FOR_SCREEN_CONTINUE");
 }
 
-TestApp &TestApp::wait_for_frames(int frames) {
+TestApp &TestApp::wait_for_frames(int frames,
+                                  const std::source_location &loc) {
+  TestOperationID op_id =
+      generate_operation_id(loc, "wait_for_frames:" + std::to_string(frames));
+  if (completed_operations.count(op_id) > 0) {
+    return *this;
+  }
   for (int i = 0; i < frames; ++i) {
     pump_frame();
   }
+  completed_operations.insert(op_id);
   return *this;
 }
 

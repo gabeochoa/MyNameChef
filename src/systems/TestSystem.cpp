@@ -101,7 +101,7 @@ void TestSystem::register_test_cases() {
             log_error("TEST FAILED: {} - {}", test_name_copy, e.what());
             delete test_app_ptr;
             test_app_ptr = nullptr;
-            return true; // Mark as complete (failed)
+            exit(1);
           }
         }
         return false; // Still waiting
