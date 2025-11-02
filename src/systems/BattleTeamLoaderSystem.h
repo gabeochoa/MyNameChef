@@ -1,6 +1,8 @@
 #pragma once
 
 #include "../components/battle_load_request.h"
+#include "../components/battle_session_registry.h"
+#include "../components/battle_session_tag.h"
 #include "../components/battle_team_tags.h"
 #include "../components/dish_battle_state.h"
 #include "../components/dish_generation_ability.h"
@@ -9,6 +11,7 @@
 #include "../components/is_dish.h"
 #include "../components/render_order.h"
 #include "../components/transform.h"
+#include "../components/trigger_queue.h"
 #include "../dish_types.h"
 #include "../game_state_manager.h"
 #include "../render_constants.h"
@@ -17,7 +20,7 @@
 #include <afterhours/src/plugins/texture_manager.h>
 #include <filesystem>
 #include <fstream>
-#include <magic_enum/magic_enum.hpp> // For enum string conversion
+#include <magic_enum/magic_enum.hpp>
 #include <nlohmann/json.hpp>
 
 struct BattleTeamLoaderSystem : afterhours::System<> {
@@ -60,6 +63,8 @@ struct BattleTeamLoaderSystem : afterhours::System<> {
 
     request.loaded = true;
     loaded = true;
+
+    tag_battle_entities();
 
     // Merge entities so they can be found by rendering systems
     afterhours::EntityHelper::merge_entity_arrays();
@@ -131,16 +136,47 @@ private:
     }
   }
 
+  void tag_battle_entities() {
+    auto registry =
+        afterhours::EntityHelper::get_singleton<BattleSessionRegistry>();
+    if (!registry.get().has<BattleSessionRegistry>()) {
+      return;
+    }
+
+    BattleSessionRegistry &reg = registry.get().get<BattleSessionRegistry>();
+    reg.sessionId++;
+
+    for (afterhours::Entity &e : afterhours::EntityQuery()
+                                     .whereHasComponent<IsPlayerTeamItem>()
+                                     .gen()) {
+      e.addComponent<BattleSessionTag>(reg.sessionId);
+      reg.ownedEntityIds.push_back(e.id);
+    }
+
+    for (afterhours::Entity &e : afterhours::EntityQuery()
+                                     .whereHasComponent<IsOpponentTeamItem>()
+                                     .gen()) {
+      e.addComponent<BattleSessionTag>(reg.sessionId);
+      reg.ownedEntityIds.push_back(e.id);
+    }
+
+    auto tq = afterhours::EntityHelper::get_singleton<TriggerQueue>();
+    if (tq.get().has<TriggerQueue>()) {
+      tq.get().addComponent<BattleSessionTag>(reg.sessionId);
+      reg.ownedEntityIds.push_back(tq.get().id);
+    }
+  }
+
   void create_battle_dish_entity(DishType dishType, int slot, bool isPlayer) {
     auto &entity = afterhours::EntityHelper::createEntity();
 
     // Calculate position based on team and slot
     float x, y;
     if (isPlayer) {
-      x = 120.0f + slot * 100.0f; // Left side, spaced 100px apart
+      x = 120.0f + slot * 100.0f;
       y = 150.0f;
     } else {
-      x = 120.0f + slot * 100.0f; // Left side, spaced 100px apart
+      x = 120.0f + slot * 100.0f;
       y = 500.0f;
     }
 
