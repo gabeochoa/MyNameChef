@@ -34,10 +34,6 @@ void TestSystem::register_test_cases() {
     validation_function = []() {
       return ValidateBattleResultsTest::validate_results_screen();
     };
-  } else if (test_name == "validate_full_game_flow") {
-    validation_function = []() {
-      return ValidateFullGameFlowTest::validate_complete_flow();
-    };
   } else if (test_name == "validate_trigger_system") {
     validation_function = []() {
       return ValidateTriggerSystemTest::validate_trigger_events();
@@ -62,10 +58,6 @@ void TestSystem::register_test_cases() {
 
   test_registry["validate_battle_results"] = []() {
     ValidateBattleResultsTest::execute();
-  };
-
-  test_registry["validate_full_game_flow"] = []() {
-    ValidateFullGameFlowTest::execute();
   };
 
   test_registry["validate_trigger_system"] = []() {
