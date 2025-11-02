@@ -18,8 +18,19 @@ inline ElementResult
 button_labeled(afterhours::ui::UIContext<InputAction> &context, Entity &parent,
                const std::string &label, std::function<void()> on_click,
                int index = 0) {
-  if (button(context, mk(parent, index),
-             ComponentConfig{}.with_debug_name(label).with_label(label))) {
+  auto result = button(context, mk(parent, index),
+                       ComponentConfig{}.with_debug_name(label).with_label(label));
+  
+  // Store the callback in HasClickListener so it can be called programmatically
+  // (e.g., from tests). Also call it immediately if button was clicked this frame.
+  Entity &button_entity = result.ent();
+  if (button_entity.has<afterhours::ui::HasClickListener>()) {
+    // Replace the empty callback with our actual callback
+    button_entity.get<afterhours::ui::HasClickListener>().cb = 
+        [on_click](Entity &) { on_click(); };
+  }
+  
+  if (result) {
     on_click();
     return {true, parent};
   }

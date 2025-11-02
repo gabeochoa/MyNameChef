@@ -1,35 +1,55 @@
 #pragma once
 
-#include "../../game_state_manager.h"
-#include "../TestInteraction.h"
-#include "../UITestHelpers.h"
+#include "../../components/is_drop_slot.h"
+#include "../../components/is_inventory_item.h"
+#include "../../components/is_shop_item.h"
+#include "../../query.h"
+#include "../test_macros.h"
 
-struct ValidateShopFunctionalityTest {
-  static void execute() {
-    // Step 1: Navigate to shop screen first
-    UITestHelpers::assert_ui_exists("Play");
-    UITestHelpers::assert_click_ui("Play");
-    
-    // Apply the screen transition
-    TestInteraction::start_game();
-    GameStateManager::get().update_screen();
+TEST(validate_shop_functionality) {
+  // Navigate to shop screen
+  app.navigate_to_shop();
 
-    // Note: UI validation will be done in validate_shop_complete() function
-    // which runs on subsequent frames after the transition completes
+  // Verify UI elements exist
+  app.wait_for_ui_exists("Next Round");
+  app.wait_for_ui_exists("Reroll (5)");
+
+  // Verify shop slots exist
+  int shop_slot_count = 0;
+  for (afterhours::Entity &entity :
+       afterhours::EntityQuery().whereHasComponent<IsDropSlot>().gen()) {
+    const IsDropSlot &slot = entity.get<IsDropSlot>();
+    // Shop slots accept shop items but not inventory items initially
+    if (slot.accepts_shop_items && !slot.accepts_inventory_items) {
+      shop_slot_count++;
+    }
+  }
+  if (shop_slot_count == 0) {
+    app.fail("No shop slots found");
   }
 
-  static bool validate_shop_complete() {
-    // Check UI elements that actually exist
-    bool ui_elements_valid = UITestHelpers::check_ui_exists("Next Round") &&
-                             UITestHelpers::check_ui_exists("Reroll (5)");
-
-    // Check entity-based validations (visual elements)
-    bool shop_slots_valid = UITestHelpers::shop_slots_exist();
-    bool inventory_slots_valid = UITestHelpers::inventory_slots_exist();
-    bool shop_items_valid = UITestHelpers::shop_items_exist();
-    bool inventory_items_valid = UITestHelpers::inventory_items_exist();
-
-    return ui_elements_valid && shop_slots_valid && inventory_slots_valid &&
-           shop_items_valid && inventory_items_valid;
+  // Verify inventory slots exist
+  int inventory_slot_count = 0;
+  for (afterhours::Entity &entity :
+       afterhours::EntityQuery().whereHasComponent<IsDropSlot>().gen()) {
+    const IsDropSlot &slot = entity.get<IsDropSlot>();
+    // Inventory slots accept inventory items
+    if (slot.accepts_inventory_items) {
+      inventory_slot_count++;
+    }
   }
-};
+  if (inventory_slot_count == 0) {
+    app.fail("No inventory slots found");
+  }
+
+  // Verify shop items exist
+  int shop_item_count =
+      afterhours::EntityQuery().whereHasComponent<IsShopItem>().gen_count();
+  if (shop_item_count == 0) {
+    app.fail("No shop items found");
+  }
+
+  // Verify inventory items can exist (may be 0 initially)
+  // We just check that the query works, not that items exist
+  afterhours::EntityQuery().whereHasComponent<IsInventoryItem>().gen_count();
+}

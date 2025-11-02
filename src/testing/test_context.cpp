@@ -1,14 +1,16 @@
 #include "test_context.h"
 #include "../game.h"
+#include "../input_mapping.h"
+#include "../settings.h"
 #include "../shop.h"
 #include "../ui/ui_systems.h"
 #include <raylib/raylib.h>
 
-// Provide definitions for globals expected by game code when not linking
-// main.cpp
-bool running = true;
-raylib::RenderTexture2D mainRT = {};
-raylib::RenderTexture2D screenRT = {};
+// These globals are defined in main.cpp or game.h
+// Declare them here if we need them, but don't redefine
+extern bool running;
+extern raylib::RenderTexture2D mainRT;
+extern raylib::RenderTexture2D screenRT;
 
 TestContext::TestContext() {}
 TestContext::~TestContext() { shutdown(); }

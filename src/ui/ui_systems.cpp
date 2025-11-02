@@ -188,7 +188,7 @@ ElementResult create_volume_slider(UIContext<InputAction> &context,
   if (auto result = slider(context, mk(parent, index), volume,
                            ComponentConfig{}.with_label(label),
                            SliderHandleValueLabelPosition::OnHandle)) {
-    volume = result.as<float>();
+    volume = result.template as<float>();
     on_change(volume);
     return {true, parent};
   }
@@ -357,25 +357,15 @@ Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
   button_labeled<InputAction>(
       context, top_right.ent(), "Next Round",
       []() {
-        log_info("DEBUG: Next Round button clicked!");
         // Export menu snapshot
         ExportMenuSnapshotSystem export_system;
         std::string filename = export_system.export_menu_snapshot();
-        log_info("DEBUG: Export filename: {}", filename);
 
         if (!filename.empty()) {
-          log_info("DEBUG: Calling to_battle()");
           // Navigate to battle screen
           GameStateManager::get().to_battle();
-          log_info("DEBUG: After to_battle(), next_screen: {}", 
-                   GameStateManager::get().next_screen.has_value() ? 
-                   static_cast<int>(GameStateManager::get().next_screen.value()) : -1);
           // Apply screen transition immediately
           GameStateManager::get().update_screen();
-          log_info("DEBUG: After update_screen(), active_screen: {}", 
-                   static_cast<int>(GameStateManager::get().active_screen));
-        } else {
-          log_info("DEBUG: Export failed, not transitioning to battle");
         }
       },
       1);

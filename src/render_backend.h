@@ -2,6 +2,7 @@
 
 namespace render_backend {
 extern bool is_headless_mode;
+extern int step_delay_ms; // Delay between test steps in non-headless mode (milliseconds)
 
 // Drawing context management
 inline void BeginDrawing() {

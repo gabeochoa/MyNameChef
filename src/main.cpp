@@ -73,6 +73,8 @@ raylib::RenderTexture2D screenRT;
 
 // Global headless mode flag
 bool render_backend::is_headless_mode = false;
+// Step delay for non-headless test mode (milliseconds)
+int render_backend::step_delay_ms = 500;
 
 using namespace afterhours;
 
@@ -257,6 +259,14 @@ int main(int argc, char *argv[]) {
     headless_mode = true;
     render_backend::is_headless_mode = true;
     log_info("HEADLESS MODE: Enabled - Rendering will be skipped");
+  }
+
+  // Parse step delay flag (only used in non-headless mode)
+  int step_delay = 500; // Default 500ms
+  cmdl({"--step-delay"}, 500) >> step_delay;
+  render_backend::step_delay_ms = step_delay;
+  if (!headless_mode && step_delay > 0) {
+    log_info("STEP DELAY: {}ms between test steps", step_delay);
   }
 
   // Load savefile first

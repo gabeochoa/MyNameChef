@@ -22,6 +22,8 @@ Examples:
 - Prefer early returns to reduce nesting
 - Dont add any comments unless explicitly asked 
 - use a function instead of a line with multiple ternary expressions
+- Avoid using `auto` for non-template types - use explicit types instead
+- Use `for (Entity &entity : EntityQuery().gen())` instead of `for (auto &ref : ...)` with `ref.get()` - the range-for will auto-extract the entity from the reference wrapper
 
 ## Project Structure
 - `src/` contains main game code
