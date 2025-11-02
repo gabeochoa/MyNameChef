@@ -30,6 +30,7 @@
 #include "../testing/tests/ValidateTriggerSystemTest.h"
 #include "../testing/tests/ValidateUINavigationTest.h"
 #include "../testing/tests/ValidateTriggerSystemComponentsTest.h"
+#include "../testing/tests/ValidateReplayPausePlayTest.h"
 
 void TestSystem::register_test_cases() {
   // First check if test is registered via new TEST() macro
