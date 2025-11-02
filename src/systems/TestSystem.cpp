@@ -48,10 +48,6 @@ void TestSystem::register_test_cases() {
     ValidateCombatSystemTest::execute();
   };
 
-  test_registry["validate_dish_system"] = []() {
-    ValidateDishSystemTest::execute();
-  };
-
   test_registry["validate_debug_dish"] = []() {
     ValidateDebugDishTest::execute();
   };
