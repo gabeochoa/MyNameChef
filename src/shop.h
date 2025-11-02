@@ -65,6 +65,7 @@ bool charge_for_shop_purchase(DishType type);
 
 // Battle animation utils
 bool hasActiveAnimation();
+bool isReplayPaused();
 
 // Animation event creation
 afterhours::Entity &make_animation_event(AnimationEventType type,

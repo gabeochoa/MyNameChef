@@ -1,6 +1,7 @@
 #include "shop.h"
 #include "components/animation_event.h"
 #include "components/battle_processor.h"
+#include "components/battle_session_registry.h"
 #include "components/can_drop_onto.h"
 #include "components/combat_queue.h"
 #include "components/dish_level.h"
@@ -10,6 +11,8 @@
 #include "components/is_drop_slot.h"
 #include "components/is_shop_item.h"
 #include "components/render_order.h"
+#include "components/replay_state.h"
+#include "components/side_effect_tracker.h"
 #include "components/transform.h"
 #include "components/trigger_queue.h"
 #include "dish_types.h"
@@ -106,6 +109,12 @@ Entity &make_battle_processor_manager(Entity &sophie) {
   EntityHelper::registerSingleton<BattleProcessor>(sophie);
   sophie.addComponentIfMissing<TriggerQueue>();
   EntityHelper::registerSingleton<TriggerQueue>(sophie);
+  sophie.addComponentIfMissing<BattleSessionRegistry>();
+  EntityHelper::registerSingleton<BattleSessionRegistry>(sophie);
+  sophie.addComponentIfMissing<ReplayState>();
+  EntityHelper::registerSingleton<ReplayState>(sophie);
+  sophie.addComponentIfMissing<SideEffectTracker>();
+  EntityHelper::registerSingleton<SideEffectTracker>(sophie);
   return sophie;
 }
 
@@ -190,6 +199,15 @@ bool hasActiveAnimation() {
       .has_values();
 }
 
+bool isReplayPaused() {
+  auto replayState = EntityHelper::get_singleton<ReplayState>();
+  if (!replayState.get().has<ReplayState>()) {
+    return false;
+  }
+  const ReplayState &rs = replayState.get().get<ReplayState>();
+  return rs.active && rs.paused;
+}
+
 afterhours::Entity &make_animation_event(AnimationEventType type,
                                          bool blocking) {
   auto &e = EntityHelper::createEntity();
@@ -206,6 +224,7 @@ afterhours::Entity &make_freshness_chain_animation(int sourceEntityId,
                                                    int nextEntityId) {
   auto &e = make_animation_event(AnimationEventType::FreshnessChain, true);
   auto &animEvent = e.get<AnimationEvent>();
-  animEvent.data = FreshnessChainData{sourceEntityId, previousEntityId, nextEntityId};
+  animEvent.data =
+      FreshnessChainData{sourceEntityId, previousEntityId, nextEntityId};
   return e;
 }
