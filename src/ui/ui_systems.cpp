@@ -13,6 +13,7 @@
 
 #include "../components/is_gallery_item.h"
 #include "../components/is_shop_item.h"
+#include "../components/replay_state.h"
 #include "../game.h"
 #include "../game_state_manager.h"
 #include "../input_mapping.h"
@@ -429,6 +430,82 @@ Screen ScheduleMainMenuUI::battle_screen(Entity &entity,
   button_labeled<InputAction>(
       context, top_left.ent(), "Skip to Results",
       []() { GameStateManager::get().to_results(); }, 0);
+
+  // Create replay controls at bottom if replay is active
+  auto replayState = afterhours::EntityHelper::get_singleton<ReplayState>();
+  if (replayState.get().has<ReplayState>()) {
+    const ReplayState &rs = replayState.get().get<ReplayState>();
+    if (rs.active) {
+      // Bottom bar container - position at bottom using margin
+      float bar_height = 80.f;
+      auto replay_bar = imm::div(
+          context, mk(elem.ent()),
+          ComponentConfig{}
+              .with_size(ComponentSize{
+                  screen_pct(1.f), afterhours::ui::metrics::h720(bar_height)})
+              .with_absolute_position()
+              .with_margin(Margin{.top = screen_pct(1.f - bar_height / 720.f),
+                                  .left = pixels(0.f),
+                                  .bottom = pixels(0.f),
+                                  .right = pixels(0.f)})
+              .with_color_usage(Theme::Usage::Background)
+              .with_padding(Padding{.top = pixels(10.f),
+                                    .left = pixels(20.f),
+                                    .bottom = pixels(10.f),
+                                    .right = pixels(20.f)})
+              .with_flex_direction(FlexDirection::Row)
+              .with_debug_name("replay_bar"));
+
+      // Play/Pause button
+      // TODO: Replace with proper play/pause icons once icon support is added
+      std::string play_pause_label = rs.paused ? "Play" : "Pause";
+      // Use a unique debug name to distinguish from other Play/Pause buttons
+      // This helps tests identify the replay button vs main menu button
+      button_labeled<InputAction>(
+          context, replay_bar.ent(), play_pause_label,
+          []() {
+            // Re-fetch singleton each time to avoid stale references
+            auto replayState = afterhours::EntityHelper::get_singleton<ReplayState>();
+            if (replayState.get().has<ReplayState>()) {
+              ReplayState &rs_mut = replayState.get().get<ReplayState>();
+              bool old_paused = rs_mut.paused;
+              rs_mut.paused = !rs_mut.paused;
+              log_info("REPLAY_PAUSE (from UI button) {} -> {}", old_paused, rs_mut.paused);
+            } else {
+              log_error("REPLAY_PAUSE: ReplayState singleton not found!");
+            }
+          },
+          0, "replay_play_pause_button"); // Unique debug name for test identification
+
+      // Progress slider (read-only for now - calculate progress from frames)
+      // totalFrames is captured from the server simulation when it completes
+      float progress = rs.totalFrames > 0
+                           ? std::clamp(static_cast<float>(rs.currentFrame) /
+                                            static_cast<float>(rs.totalFrames),
+                                        0.0f, 1.0f)
+                           : 0.0f;
+
+      // Use a local variable for the slider value (non-modifiable)
+      float progress_display = progress;
+      // Create slider but don't handle changes (makes it read-only)
+      slider(context, mk(replay_bar.ent(), 1), progress_display,
+             ComponentConfig{}
+                 .with_debug_name("replay_progress")
+                 .with_disabled(true),
+             SliderHandleValueLabelPosition::OnHandle);
+      // Slider is disabled to prevent dragging
+
+      // Speed indicator (text label)
+      std::string speed_text = fmt::format("×{:.1f}", rs.timeScale);
+      imm::div(
+          context, mk(replay_bar.ent(), 2),
+          ComponentConfig{}
+              .with_size(ComponentSize{afterhours::ui::metrics::w1280(80.f),
+                                       afterhours::ui::metrics::h720(30.f)})
+              .with_debug_name("speed_label")
+              .with_label(speed_text));
+    }
+  }
 
   return GameStateManager::get().next_screen.value_or(
       GameStateManager::get().active_screen);
