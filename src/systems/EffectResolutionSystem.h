@@ -37,7 +37,9 @@ struct EffectResolutionSystem : afterhours::System<TriggerQueue> {
 
 private:
   void process_trigger_event(const TriggerEvent &ev) {
-    auto src_opt = EQ({.ignore_temp_warning = true}).whereID(ev.sourceEntityId).gen_first();
+    auto src_opt = EQ({.ignore_temp_warning = true})
+                       .whereID(ev.sourceEntityId)
+                       .gen_first();
     if (!src_opt || !src_opt->has<IsDish>()) {
       return;
     }
