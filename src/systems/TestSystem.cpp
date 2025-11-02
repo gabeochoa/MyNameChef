@@ -30,22 +30,10 @@ void TestSystem::register_test_cases() {
     validation_function = []() {
       return ValidateBattleResultsTest::validate_results_screen();
     };
-  } else if (test_name == "validate_trigger_system") {
-    validation_function = []() {
-      return ValidateTriggerSystemTest::validate_trigger_events();
-    };
   }
-
-  test_registry["validate_trigger_system"] = []() {
-    ValidateTriggerSystemTest::execute();
-  };
 
   test_registry["validate_battle_results"] = []() {
     ValidateBattleResultsTest::execute();
-  };
-
-  test_registry["validate_trigger_system"] = []() {
-    ValidateTriggerSystemTest::execute();
   };
 
   test_registry["validate_effect_system"] = []() {
