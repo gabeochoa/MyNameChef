@@ -405,7 +405,9 @@ bool TestApp::check_wait_conditions() {
   }
 
   if (wait_state.type == WaitState::FrameDelay) {
-    wait_state.frame_delay_count--;
+    if (wait_state.frame_delay_count > 0) {
+      wait_state.frame_delay_count--;
+    }
     if (wait_state.frame_delay_count <= 0) {
       TestOperationID op_id = wait_state.operation_id;
       wait_state.type = WaitState::None;
@@ -636,9 +638,9 @@ TestApp &TestApp::wait_for_frames(int frames, const std::source_location &loc) {
   wait_state.operation_id = op_id;
 
   if (check_wait_conditions()) {
-  completed_operations.insert(op_id);
+    completed_operations.insert(op_id);
     wait_state.type = WaitState::None;
-  return *this;
+    return *this;
   }
 
   throw std::runtime_error("WAIT_FOR_FRAME_DELAY_CONTINUE");

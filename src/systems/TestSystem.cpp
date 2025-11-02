@@ -91,18 +91,28 @@ void TestSystem::register_test_cases() {
     // Validation function checks wait conditions each frame
     validation_function = [test_name_copy]() {
       if (test_app_ptr == nullptr) {
+        log_info("TEST_DEBUG: validation_function - test_app_ptr is null");
         return false;
       }
 
       // Check if we're waiting for something
       if (test_app_ptr->wait_state.type != TestApp::WaitState::None) {
+        log_info("TEST_DEBUG: validation_function - active wait state: "
+                 "type={}, frame_delay_count={}, op_id={}",
+                 static_cast<int>(test_app_ptr->wait_state.type),
+                 test_app_ptr->wait_state.frame_delay_count,
+                 test_app_ptr->wait_state.operation_id);
         bool wait_complete = test_app_ptr->check_wait_conditions();
         if (wait_complete &&
             test_app_ptr->wait_state.type == TestApp::WaitState::None) {
+          log_info("TEST_DEBUG: validation_function - wait completed, "
+                   "continuing test");
           // Wait completed, try to continue test
           try {
             bool test_complete =
                 TestRegistry::get().run_test(test_name_copy, *test_app_ptr);
+            log_info("TEST_DEBUG: validation_function - run_test returned: {}",
+                     test_complete);
             if (test_complete) {
               log_info("TEST PASSED: {}", test_name_copy);
               delete test_app_ptr;
@@ -112,6 +122,9 @@ void TestSystem::register_test_cases() {
           } catch (const std::exception &e) {
             // Check if this is a "continue" exception (non-blocking wait)
             std::string error_msg = e.what();
+            log_info("TEST_DEBUG: validation_function - exception after wait "
+                     "complete: {}",
+                     error_msg);
             if (error_msg == "WAIT_FOR_UI_CONTINUE" ||
                 error_msg == "WAIT_FOR_SCREEN_CONTINUE" ||
                 error_msg == "WAIT_FOR_FRAME_DELAY_CONTINUE") {
@@ -124,14 +137,24 @@ void TestSystem::register_test_cases() {
             exit(1);
           }
         }
+        log_info("TEST_DEBUG: validation_function - still waiting "
+                 "(wait_complete={}, wait_state.type={})",
+                 wait_complete,
+                 static_cast<int>(test_app_ptr->wait_state.type));
         return false; // Still waiting
       }
 
       // No wait state - test should have completed. Try running it one more
       // time to see if it's done
+      log_info("TEST_DEBUG: validation_function - no wait state, checking if "
+               "test complete");
       try {
         bool test_complete =
             TestRegistry::get().run_test(test_name_copy, *test_app_ptr);
+        log_info("TEST_DEBUG: validation_function - run_test (no wait) "
+                 "returned: {}, wait_state.type={}",
+                 test_complete,
+                 static_cast<int>(test_app_ptr->wait_state.type));
         if (test_complete) {
           log_info("TEST PASSED: {}", test_name_copy);
           delete test_app_ptr;
@@ -141,12 +164,17 @@ void TestSystem::register_test_cases() {
         // Test not complete - check if wait state was set up by run_test()
         // (e.g., by wait_for_frames() throwing WAIT_FOR_FRAME_DELAY_CONTINUE)
         if (test_app_ptr->wait_state.type != TestApp::WaitState::None) {
+          log_info("TEST_DEBUG: validation_function - wait state set up by "
+                   "run_test: type={}",
+                   static_cast<int>(test_app_ptr->wait_state.type));
           // Wait state was set up, return false and let wait handling logic
           // deal with it on the next validation check
           return false;
         }
         // No wait state and test not complete - might be stuck, return false to
         // keep checking (will retry on next frame)
+        log_info("TEST_DEBUG: validation_function - no wait state and test not "
+                 "complete, retrying");
         return false;
       } catch (const std::exception &e) {
         // Check if this is a "continue" exception (non-blocking wait)

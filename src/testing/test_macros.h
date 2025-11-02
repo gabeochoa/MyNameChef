@@ -47,11 +47,18 @@ public:
     app.set_test_name(name);
 
     try {
+      log_info("TEST_DEBUG: run_test({}) - calling test function, wait_state.type={}", 
+               name, static_cast<int>(app.wait_state.type));
       it->second.test_fn(app);
+
+      log_info("TEST_DEBUG: run_test({}) - test function returned, wait_state.type={}", 
+               name, static_cast<int>(app.wait_state.type));
 
       // If test completed but we're still waiting for something, return false
       // to indicate test needs to continue on next frame
       if (app.wait_state.type != TestApp::WaitState::None) {
+        log_info("TEST_DEBUG: run_test({}) - returning false (wait_state.type={})", 
+                 name, static_cast<int>(app.wait_state.type));
         return false; // Need to continue waiting
       }
 
@@ -60,9 +67,11 @@ public:
     } catch (const std::exception &e) {
       // Check if this is a "continue" exception (non-blocking wait)
       std::string error_msg = e.what();
+      log_info("TEST_DEBUG: run_test({}) - exception: {}", name, error_msg);
       if (error_msg == "WAIT_FOR_UI_CONTINUE" ||
           error_msg == "WAIT_FOR_SCREEN_CONTINUE" ||
           error_msg == "WAIT_FOR_FRAME_DELAY_CONTINUE") {
+        log_info("TEST_DEBUG: run_test({}) - continue exception, returning false", name);
         return false; // Test needs to continue on next frame
       }
 

@@ -117,8 +117,12 @@ struct TestApp {
   TestApp() = default;
 
   void set_test_name(const std::string &name) {
-    current_test_name = name;
-    completed_operations.clear();
+    // Only clear completed operations if test name actually changed
+    // This prevents clearing completed waits when re-running the same test
+    if (current_test_name != name) {
+      current_test_name = name;
+      completed_operations.clear();
+    }
   }
 
   void fail(const std::string &message, const std::string &location = "");

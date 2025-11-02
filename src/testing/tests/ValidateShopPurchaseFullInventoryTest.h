@@ -13,7 +13,7 @@ TEST(validate_shop_purchase_full_inventory) {
   const auto shop_items = app.read_store_options();
   app.expect_not_empty(shop_items, "shop items");
 
-  app.wait_for_frames(2);
+  app.wait_for_frames(5);
 
   const int MAX_INVENTORY_SLOTS = 7;
 
@@ -21,7 +21,7 @@ TEST(validate_shop_purchase_full_inventory) {
     app.create_inventory_item(DishType::Potato, i);
   }
 
-  app.wait_for_frames(2);
+  app.wait_for_frames(5);
 
   const auto inventory = app.read_player_inventory();
   const int inventory_count = static_cast<int>(inventory.size());
@@ -31,10 +31,11 @@ TEST(validate_shop_purchase_full_inventory) {
   const int item_price = shop_items[0].price;
   int current_gold = app.read_wallet_gold();
 
-  if (current_gold < item_price) {
-    app.set_wallet_gold(item_price);
-    current_gold = item_price;
-  }
+  // Ensure we have enough gold - use assert instead of branching
+  app.expect_true(current_gold >= 0, "gold should be non-negative");
+  app.set_wallet_gold(item_price);
+  current_gold = item_price;
+  app.expect_wallet_has(current_gold);
 
   bool purchase_succeeded = app.try_purchase_item(item_type);
   app.expect_false(purchase_succeeded, "purchase success with full inventory");
