@@ -14,6 +14,7 @@
 #include "../testing/tests/ValidateDishSystemTest.h"
 #include "../testing/tests/ValidateEffectSystemTest.h"
 #include "../testing/tests/ValidateFullGameFlowTest.h"
+#include "../testing/tests/ValidateMainMenuTest.h"
 #include "../testing/tests/ValidateShopNavigationTest.h"
 #include "../testing/tests/ValidateTriggerSystemTest.h"
 #include "../testing/tests/ValidateUINavigationTest.h"
