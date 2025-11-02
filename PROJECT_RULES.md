@@ -33,8 +33,7 @@ Examples:
 - `output/` contains build artifacts
 
 ## Build System
-- Use `xmake` for building
-- Use `make` as alternative
+- Use `xmake` to build project
 - Game executable is `my_name_chef.exe`
 
 ## Debugging
@@ -170,6 +169,13 @@ Examples:
 - Tests should identify bugs, not just validate working features
 - Prefer entity validation over UI validation when possible
 - Add `// TODO` comments in game code for UI label improvements
+- **Never use `GameStateManager::get().update_screen()` or directly manipulate game state in tests**
+- **Always use UI interactions (clicks, waits) to navigate between screens - click buttons to change screens, never directly set screen state**
+- **Avoid branching logic in tests - use `wait_for_ui_exists()` and `click()` to navigate, let waits handle timing**
+- **Avoid if/else branches in tests - use assertions (`expect_true`, `expect_false`, `expect_count_eq`, etc.) to validate conditions**
+- **For cases that seem to require branching, create separate test functions with different assertions and fail conditions to improve coverage**
+- Tests will timeout after 1 second if waiting for a condition that never completes
+- Use `create_inventory_item()` or similar helper functions to set up test state rather than checking if conditions exist and branching
 
 ## Refactoring and Development Workflow
 - Extract helper functions to reduce code duplication

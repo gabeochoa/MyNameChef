@@ -15,6 +15,9 @@ struct TestSystem : afterhours::System<> {
   bool validation_completed = false;
   bool test_completed = false;
   int validation_attempts = 0;
+  float validation_start_time = 0.0f;
+  float validation_elapsed_time = 0.0f;
+  const float kValidationTimeout = 1.0f;
   std::function<void()> test_function;
   std::function<bool()> validation_function;
 
@@ -25,51 +28,59 @@ struct TestSystem : afterhours::System<> {
 
   virtual bool should_run(float) override { return true; }
 
-  virtual void once(float) override {
+  virtual void once(float dt) override {
     if (initialized) {
       // Run validation on subsequent frames
       if (!validation_completed && validation_function) {
         validation_attempts++;
+        validation_elapsed_time += dt;
+
+        if (validation_elapsed_time >= kValidationTimeout) {
+          log_error("TEST VALIDATION TIMEOUT: {} - Validation exceeded {}s "
+                    "timeout ({} attempts)",
+                    test_name, kValidationTimeout, validation_attempts);
+          exit(1);
+        }
+
         bool validation_result = validation_function();
         if (validation_result) {
           validation_completed = true;
           test_completed = true;
           log_info("TEST VALIDATION PASSED: {} - Validation successful after "
-                   "{} attempts",
-                   test_name, validation_attempts);
-          exit(0); // Exit with success
+                   "{} attempts ({}s)",
+                   test_name, validation_attempts, validation_elapsed_time);
+          exit(0);
         } else {
-          // Log every 10 attempts to avoid spam
-          if (validation_attempts % 10 == 0) {
-            log_info("TEST VALIDATION CHECKING: {} - Attempt {} - Still "
+          if (validation_attempts % 100 == 0) {
+            log_info("TEST VALIDATION CHECKING: {} - Attempt {} ({}s) - Still "
                      "waiting for validation...",
-                     test_name, validation_attempts);
+                     test_name, validation_attempts, validation_elapsed_time);
           }
         }
       } else if (!test_completed) {
-        // Test has no validation function, mark as completed
         test_completed = true;
         log_info("TEST COMPLETED: {} - No validation function, test finished",
                  test_name);
-        exit(0); // Exit with success
+        exit(0);
       }
       return;
     }
 
     initialized = true;
+    validation_start_time = 0.0f;
+    validation_elapsed_time = 0.0f;
     log_info("TEST EXECUTING: {} - Running test logic", test_name);
 
     if (test_function) {
       test_function();
     }
 
-    // Check if validation function exists and mark completion
     if (!validation_function) {
       test_completed = true;
       log_info("TEST COMPLETED: {} - No validation function, test finished "
                "immediately",
                test_name);
-      exit(0); // Exit with success
+      exit(0);
     }
   }
 
