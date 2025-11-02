@@ -10,6 +10,7 @@ backward::SignalHandling sh;
 //
 #include "argh.h"
 #include "components/battle_anim_keys.h"
+#include "components/side_effect_tracker.h"
 #include "preload.h"
 #include "settings.h"
 #include "shop.h"
@@ -17,6 +18,7 @@ backward::SignalHandling sh;
 #include "systems/AdvanceCourseSystem.h"
 #include "systems/ApplyPairingsAndClashesSystem.h"
 #include "systems/ApplyPendingCombatModsSystem.h"
+#include "systems/AuditSystem.h"
 #include "systems/BattleDebugSystem.h"
 #include "systems/BattleEnterAnimationSystem.h"
 #include "systems/BattleProcessorSystem.h"
@@ -50,6 +52,7 @@ backward::SignalHandling sh;
 #include "systems/RenderSystemHelpers.h"
 #include "systems/RenderWalletHUD.h"
 #include "systems/RenderZingBodyOverlay.h"
+#include "systems/ReplayControllerSystem.h"
 #include "systems/ResolveCombatTickSystem.h"
 #include "systems/SimplifiedOnServeSystem.h"
 #include "systems/StartCourseSystem.h"
@@ -75,6 +78,8 @@ raylib::RenderTexture2D screenRT;
 bool render_backend::is_headless_mode = false;
 // Step delay for non-headless test mode (milliseconds)
 int render_backend::step_delay_ms = 500;
+// Global audit strict mode flag
+bool audit_strict = false;
 
 using namespace afterhours;
 
@@ -97,6 +102,14 @@ void game(const std::optional<std::string> &run_test) {
     make_shop_manager(sophie);
     make_combat_manager(sophie);
     make_battle_processor_manager(sophie);
+
+    if (audit_strict) {
+      auto tracker = EntityHelper::get_singleton<SideEffectTracker>();
+      if (tracker.get().has<SideEffectTracker>()) {
+        tracker.get().get<SideEffectTracker>().enabled = true;
+        log_info("AUDIT: Side effect tracking enabled");
+      }
+    }
   }
 
   // external plugins
@@ -125,8 +138,11 @@ void game(const std::optional<std::string> &run_test) {
     systems.register_update_system(std::make_unique<BattleTeamLoaderSystem>());
     systems.register_update_system(std::make_unique<BattleDebugSystem>());
     systems.register_update_system(std::make_unique<BattleProcessorSystem>());
-    systems.register_update_system(std::make_unique<TriggerDispatchSystem>());
-    systems.register_update_system(std::make_unique<EffectResolutionSystem>());
+    systems.register_update_system(
+        std::make_unique<EffectResolutionSystem>()); // Process effects first
+    systems.register_update_system(
+        std::make_unique<TriggerDispatchSystem>()); // Then handle callbacks and
+                                                    // clear
     systems.register_update_system(
         std::make_unique<ApplyPendingCombatModsSystem>());
     // Legacy battle systems - can be removed once BattleProcessor is working
@@ -143,6 +159,8 @@ void game(const std::optional<std::string> &run_test) {
     systems.register_update_system(std::make_unique<SimplifiedOnServeSystem>());
     systems.register_update_system(std::make_unique<ResolveCombatTickSystem>());
     systems.register_update_system(std::make_unique<AdvanceCourseSystem>());
+    systems.register_update_system(std::make_unique<ReplayControllerSystem>());
+    systems.register_update_system(std::make_unique<AuditSystem>());
     systems.register_update_system(std::make_unique<CleanupBattleEntities>());
     systems.register_update_system(std::make_unique<CleanupShopEntities>());
     systems.register_update_system(std::make_unique<CleanupDishesEntities>());
@@ -222,6 +240,7 @@ void game(const std::optional<std::string> &run_test) {
       systems.register_render_system(std::make_unique<RenderLetterboxBars>());
       systems.register_render_system(std::make_unique<RenderSellSlot>());
       systems.register_render_system(std::make_unique<RenderBattleResults>());
+      // ReplayUISystem is now integrated into ScheduleMainMenuUI::battle_screen
       systems.register_render_system(std::make_unique<RenderTooltipSystem>());
       systems.register_render_system(std::make_unique<RenderFPS>());
       systems.register_render_system(std::make_unique<RenderDebugWindowInfo>());
@@ -259,6 +278,12 @@ int main(int argc, char *argv[]) {
     headless_mode = true;
     render_backend::is_headless_mode = true;
     log_info("HEADLESS MODE: Enabled - Rendering will be skipped");
+  }
+
+  // Parse audit-strict mode flag
+  if (cmdl["--audit-strict"]) {
+    audit_strict = true;
+    log_info("AUDIT STRICT: Enabled - Side effect violations will be logged");
   }
 
   // Parse step delay flag (only used in non-headless mode)
