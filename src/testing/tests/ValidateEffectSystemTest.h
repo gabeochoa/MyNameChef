@@ -17,37 +17,70 @@
 #include "../../systems/ComputeCombatStatsSystem.h"
 #include "../../systems/EffectResolutionSystem.h"
 #include "../../systems/TriggerDispatchSystem.h"
+#include "../test_macros.h"
 
-struct ValidateEffectSystemTest {
-  static void execute() {
-    log_info("EFFECT_TEST: Starting effect system validation");
+namespace ValidateEffectSystemTestHelpers {
 
-    test_french_fries_effect();
-    test_bagel_effect();
-    test_baguette_effect();
-    test_garlic_bread_effect();
-    test_fried_egg_effect();
-    test_targeting_scopes();
-    test_deferred_flavor_mods_consumption();
-    test_modifier_persistence_after_dish_finishes();
-    test_modifier_persistence_when_entering_combat();
-    test_salmon_neighbor_freshness_persists_to_combat();
+static afterhours::Entity &add_dish_to_menu(
+    DishType type, DishBattleState::TeamSide team_side, int queue_index = -1,
+    DishBattleState::Phase phase = DishBattleState::Phase::InQueue,
+    bool has_combat_stats = false) {
+  auto &dish = afterhours::EntityHelper::createEntity();
+  dish.addComponent<IsDish>(type);
+  dish.addComponent<DishLevel>(1);
 
-    log_info("EFFECT_TEST: All tests completed");
+  auto &dbs = dish.addComponent<DishBattleState>();
+  dbs.queue_index = (queue_index >= 0) ? queue_index : 0;
+  dbs.team_side = team_side;
+  dbs.phase = phase;
+
+  if (has_combat_stats) {
+    dish.addComponent<CombatStats>();
   }
 
-  // Focused entry to run only the Salmon neighbor persistence test
-  static void execute_salmon_persistence_only() {
-    log_info("EFFECT_TEST: Running salmon persistence test only");
-    test_salmon_neighbor_freshness_persists_to_combat();
+  return dish;
+}
+
+static afterhours::Entity &get_or_create_trigger_queue() {
+  afterhours::RefEntity tq_ref =
+      afterhours::EntityHelper::get_singleton<TriggerQueue>();
+  afterhours::Entity &tq_entity = tq_ref.get();
+  if (!tq_entity.has<TriggerQueue>()) {
+    tq_entity.addComponent<TriggerQueue>();
+    afterhours::EntityHelper::registerSingleton<TriggerQueue>(tq_entity);
   }
+  return tq_entity;
+}
 
-  static void test_french_fries_effect() {
-    log_info("EFFECT_TEST: Testing French Fries effect (FutureAllies +1 Zing)");
+static bool validate_pending_mod(afterhours::Entity &entity, int expectedZing,
+                                 int expectedBody) {
+  if (!entity.has<PendingCombatMods>()) {
+    log_error("EFFECT_TEST: Missing PendingCombatMods on entity {}",
+              entity.id);
+    return false;
+  }
+  auto &mod = entity.get<PendingCombatMods>();
+  if (mod.zingDelta != expectedZing || mod.bodyDelta != expectedBody) {
+    log_error("EFFECT_TEST: Wrong mod values - expected zing={} body={}, got "
+              "zing={} body={}",
+              expectedZing, expectedBody, mod.zingDelta, mod.bodyDelta);
+    return false;
+  }
+  return true;
+}
 
-    // Setup: Create battle state
-    GameStateManager::get().to_battle();
-    GameStateManager::get().update_screen();
+static afterhours::Entity &create_test_dish(DishType type, int queue_index,
+                                            DishBattleState::TeamSide side,
+                                            DishBattleState::Phase phase) {
+  return add_dish_to_menu(type, side, queue_index, phase, false);
+}
+
+static void test_french_fries_effect() {
+  log_info("EFFECT_TEST: Testing French Fries effect (FutureAllies +1 Zing)");
+
+  // Setup: Create battle state - use direct to_battle for ECS tests
+  GameStateManager::get().to_battle();
+  GameStateManager::get().update_screen();
 
     // Create source dish (French Fries)
     auto &source = add_dish_to_menu(DishType::FrenchFries,
@@ -87,11 +120,11 @@ struct ValidateEffectSystemTest {
     }
   }
 
-  static void test_bagel_effect() {
-    log_info("EFFECT_TEST: Testing Bagel effect (DishesAfterSelf +1 Richness)");
+static void test_bagel_effect() {
+  log_info("EFFECT_TEST: Testing Bagel effect (DishesAfterSelf +1 Richness)");
 
-    GameStateManager::get().to_battle();
-    GameStateManager::get().update_screen();
+  GameStateManager::get().to_battle();
+  GameStateManager::get().update_screen();
 
     // Create Bagel at slot 1
     auto &bagel =
@@ -139,7 +172,7 @@ struct ValidateEffectSystemTest {
     }
   }
 
-  static void test_baguette_effect() {
+static void test_baguette_effect() {
     log_info("EFFECT_TEST: Testing Baguette effect (Opponent -1 Zing)");
 
     GameStateManager::get().to_battle();
@@ -179,7 +212,7 @@ struct ValidateEffectSystemTest {
     }
   }
 
-  static void test_garlic_bread_effect() {
+static void test_garlic_bread_effect() {
     log_info(
         "EFFECT_TEST: Testing Garlic Bread effect (FutureAllies +1 Spice)");
 
@@ -225,7 +258,7 @@ struct ValidateEffectSystemTest {
     }
   }
 
-  static void test_fried_egg_effect() {
+static void test_fried_egg_effect() {
     log_info("EFFECT_TEST: Testing Fried Egg effect (OnDishFinished → "
              "AllAllies +2 Body)");
 
@@ -269,7 +302,20 @@ struct ValidateEffectSystemTest {
     }
   }
 
-  static void test_targeting_scopes() {
+static void test_targeting_scope(afterhours::Entity & /*source*/,
+                                   TargetScope /*scope*/,
+                                   int /*expected_count*/) {
+    // Get TriggerQueue singleton
+    auto &tq_entity = get_or_create_trigger_queue();
+    (void)tq_entity.get<TriggerQueue>();
+
+    // Note: Targeting scope test would need actual dish effects to test
+    // properly For now, we'll skip detailed testing and just verify the system
+    // runs
+    log_info("EFFECT_TEST: Targeting scope test - system structure validated");
+  }
+
+static void test_targeting_scopes() {
     log_info("EFFECT_TEST: Testing targeting scopes");
 
     GameStateManager::get().to_battle();
@@ -311,74 +357,7 @@ struct ValidateEffectSystemTest {
     log_info("EFFECT_TEST: Targeting scopes test completed");
   }
 
-  static afterhours::Entity &add_dish_to_menu(
-      DishType type, DishBattleState::TeamSide team_side, int queue_index = -1,
-      DishBattleState::Phase phase = DishBattleState::Phase::InQueue,
-      bool has_combat_stats = false) {
-    auto &dish = afterhours::EntityHelper::createEntity();
-    dish.addComponent<IsDish>(type);
-    dish.addComponent<DishLevel>(1);
-
-    auto &dbs = dish.addComponent<DishBattleState>();
-    dbs.queue_index = (queue_index >= 0) ? queue_index : 0;
-    dbs.team_side = team_side;
-    dbs.phase = phase;
-
-    if (has_combat_stats) {
-      dish.addComponent<CombatStats>();
-    }
-
-    return dish;
-  }
-
-  static afterhours::Entity &get_or_create_trigger_queue() {
-    afterhours::RefEntity tq_ref =
-        afterhours::EntityHelper::get_singleton<TriggerQueue>();
-    afterhours::Entity &tq_entity = tq_ref.get();
-    if (!tq_entity.has<TriggerQueue>()) {
-      tq_entity.addComponent<TriggerQueue>();
-      afterhours::EntityHelper::registerSingleton<TriggerQueue>(tq_entity);
-    }
-    return tq_entity;
-  }
-
-  static bool validate_pending_mod(afterhours::Entity &entity, int expectedZing,
-                                   int expectedBody) {
-    if (!entity.has<PendingCombatMods>()) {
-      log_error("EFFECT_TEST: Missing PendingCombatMods on entity {}",
-                entity.id);
-      return false;
-    }
-    auto &mod = entity.get<PendingCombatMods>();
-    if (mod.zingDelta != expectedZing || mod.bodyDelta != expectedBody) {
-      log_error("EFFECT_TEST: Wrong mod values - expected zing={} body={}, got "
-                "zing={} body={}",
-                expectedZing, expectedBody, mod.zingDelta, mod.bodyDelta);
-      return false;
-    }
-    return true;
-  }
-
-  static afterhours::Entity &create_test_dish(DishType type, int queue_index,
-                                              DishBattleState::TeamSide side,
-                                              DishBattleState::Phase phase) {
-    return add_dish_to_menu(type, side, queue_index, phase, false);
-  }
-
-  static void test_targeting_scope(afterhours::Entity & /*source*/,
-                                   TargetScope /*scope*/,
-                                   int /*expected_count*/) {
-    // Get TriggerQueue singleton
-    auto &tq_entity = get_or_create_trigger_queue();
-    (void)tq_entity.get<TriggerQueue>();
-
-    // Note: Targeting scope test would need actual dish effects to test
-    // properly For now, we'll skip detailed testing and just verify the system
-    // runs
-    log_info("EFFECT_TEST: Targeting scope test - system structure validated");
-  }
-
-  static void test_deferred_flavor_mods_consumption() {
+static void test_deferred_flavor_mods_consumption() {
     log_info("EFFECT_TEST: Testing DeferredFlavorMods consumption");
 
     GameStateManager::get().to_battle();
@@ -411,7 +390,7 @@ struct ValidateEffectSystemTest {
     log_info("EFFECT_TEST: DeferredFlavorMods consumption test completed");
   }
 
-  static void test_modifier_persistence_after_dish_finishes() {
+static void test_modifier_persistence_after_dish_finishes() {
     log_info(
         "EFFECT_TEST: Testing modifier persistence after source dish finishes");
 
@@ -629,7 +608,7 @@ struct ValidateEffectSystemTest {
     log_info("EFFECT_TEST: Modifier persistence test PASSED");
   }
 
-  static void test_modifier_persistence_when_entering_combat() {
+static void test_modifier_persistence_when_entering_combat() {
     log_info("EFFECT_TEST: Testing modifier persistence when entering combat");
     log_info(
         "EFFECT_TEST: This test validates that body/zing modifiers persist "
@@ -927,7 +906,7 @@ struct ValidateEffectSystemTest {
         expectedBodyInCombat);
   }
 
-  static void test_salmon_neighbor_freshness_persists_to_combat() {
+static void test_salmon_neighbor_freshness_persists_to_combat() {
     log_info("EFFECT_TEST: Testing Salmon neighbor Freshness persists into "
              "combat (Bagel,Salmon,Salmon,Bagel)");
 
@@ -1070,4 +1049,35 @@ struct ValidateEffectSystemTest {
              "Bagel(0) baseBody remained at {}",
              bodyInCombat);
   }
-};
+} // namespace ValidateEffectSystemTestHelpers
+
+TEST(validate_effect_system) {
+  using namespace ValidateEffectSystemTestHelpers;
+  
+  log_info("EFFECT_TEST: Starting effect system validation");
+
+  // Initialize game context (ECS tests use direct to_battle() calls)
+  app.launch_game();
+
+  test_french_fries_effect();
+  test_bagel_effect();
+  test_baguette_effect();
+  test_garlic_bread_effect();
+  test_fried_egg_effect();
+  test_targeting_scopes();
+  test_deferred_flavor_mods_consumption();
+  test_modifier_persistence_after_dish_finishes();
+  test_modifier_persistence_when_entering_combat();
+  test_salmon_neighbor_freshness_persists_to_combat();
+
+  log_info("EFFECT_TEST: All tests completed");
+}
+
+TEST(validate_salmon_persistence) {
+  using namespace ValidateEffectSystemTestHelpers;
+  
+  log_info("EFFECT_TEST: Running salmon persistence test only");
+  
+  app.launch_game();
+  test_salmon_neighbor_freshness_persists_to_combat();
+}

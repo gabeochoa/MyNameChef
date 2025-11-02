@@ -27,14 +27,6 @@ void TestSystem::register_test_cases() {
 
   // Register validation functions
 
-  test_registry["validate_effect_system"] = []() {
-    ValidateEffectSystemTest::execute();
-  };
-
-  // Focused single test to isolate salmon persistence investigation
-  test_registry["validate_salmon_persistence"] = []() {
-    ValidateEffectSystemTest::execute_salmon_persistence_only();
-  };
 
   // First check if test is registered via new TEST() macro
   auto &registry = TestRegistry::get();
