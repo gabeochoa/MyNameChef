@@ -91,8 +91,9 @@ struct TestApp {
   bool game_launched = false;
   std::set<TestOperationID> completed_operations;
 
-  static TestOperationID generate_operation_id(
-      const std::source_location &loc, const std::string &context = "") {
+  static TestOperationID
+  generate_operation_id(const std::source_location &loc,
+                        const std::string &context = "") {
     std::stringstream pre_hash;
     pre_hash << "file: " << loc.file_name() << '(' << loc.line() << ':'
              << loc.column() << ") `" << loc.function_name() << "`: " << context
@@ -127,9 +128,9 @@ struct TestApp {
 
   TestApp &launch_game(
       const std::source_location &loc = std::source_location::current());
-  TestApp &click(const std::string &button_label,
-                 const std::source_location &loc =
-                     std::source_location::current());
+  TestApp &
+  click(const std::string &button_label,
+        const std::source_location &loc = std::source_location::current());
   TestApp &navigate_to_shop(
       const std::source_location &loc = std::source_location::current());
   TestApp &navigate_to_battle(
@@ -142,7 +143,7 @@ struct TestApp {
   int count_active_player_dishes();
   int count_active_opponent_dishes();
   bool read_replay_paused();
-  
+
   // Functions to manually manipulate game state for testing
   // These bypass normal game logic to set up specific test scenarios
   TestApp &set_wallet_gold(int gold, const std::string &location = "");
@@ -167,9 +168,8 @@ struct TestApp {
   TestApp &wait_for_screen(
       GameStateManager::Screen screen, float timeout_sec = 5.0f,
       const std::source_location &loc = std::source_location::current());
-  TestApp &wait_for_frames(
-      int frames,
-      const std::source_location &loc = std::source_location::current());
+  TestApp &wait_for_frames(int frames, const std::source_location &loc =
+                                           std::source_location::current());
   TestApp &pump_frame();
 
   TestApp &setup_battle();
@@ -187,39 +187,67 @@ struct TestApp {
   TestApp &expect_trigger_fired(TriggerHook hook, afterhours::EntityID dish_id,
                                 const std::string &location = "");
 
-  TestApp &expect_count_eq(int actual, int expected, const std::string &description, const std::string &location = "");
-  TestApp &expect_count_gt(int actual, int min, const std::string &description, const std::string &location = "");
-  TestApp &expect_count_lt(int actual, int max, const std::string &description, const std::string &location = "");
-  TestApp &expect_count_gte(int actual, int min, const std::string &description, const std::string &location = "");
-  TestApp &expect_count_lte(int actual, int max, const std::string &description, const std::string &location = "");
+  TestApp &expect_count_eq(int actual, int expected,
+                           const std::string &description,
+                           const std::string &location = "");
+  TestApp &expect_count_gt(int actual, int min, const std::string &description,
+                           const std::string &location = "");
+  TestApp &expect_count_lt(int actual, int max, const std::string &description,
+                           const std::string &location = "");
+  TestApp &expect_count_gte(int actual, int min, const std::string &description,
+                            const std::string &location = "");
+  TestApp &expect_count_lte(int actual, int max, const std::string &description,
+                            const std::string &location = "");
 
   template <typename Container>
-  TestApp &expect_not_empty(const Container &collection, const std::string &description, const std::string &location = "");
+  TestApp &expect_not_empty(const Container &collection,
+                            const std::string &description,
+                            const std::string &location = "");
   template <typename Container>
-  TestApp &expect_empty(const Container &collection, const std::string &description, const std::string &location = "");
+  TestApp &expect_empty(const Container &collection,
+                        const std::string &description,
+                        const std::string &location = "");
 
   template <typename T>
-  TestApp &expect_entity_has_component(afterhours::EntityID entity_id, const std::string &location = "");
+  TestApp &expect_entity_has_component(afterhours::EntityID entity_id,
+                                       const std::string &location = "");
   template <typename T>
-  TestApp &expect_singleton_has_component(afterhours::RefEntity &singleton_opt, const std::string &component_name, const std::string &location = "");
+  TestApp &expect_singleton_has_component(afterhours::RefEntity &singleton_opt,
+                                          const std::string &component_name,
+                                          const std::string &location = "");
 
-  TestApp &expect_dish_phase(afterhours::EntityID dish_id, DishBattleState::Phase expected_phase, const std::string &location = "");
-  TestApp &expect_dish_count(int expected_player, int expected_opponent, const std::string &location = "");
-  TestApp &expect_player_dish_count(int expected, const std::string &location = "");
-  TestApp &expect_opponent_dish_count(int expected, const std::string &location = "");
-  TestApp &expect_dish_count_at_least(int min_player, int min_opponent, const std::string &location = "");
+  TestApp &expect_dish_phase(afterhours::EntityID dish_id,
+                             DishBattleState::Phase expected_phase,
+                             const std::string &location = "");
+  TestApp &expect_dish_count(int expected_player, int expected_opponent,
+                             const std::string &location = "");
+  TestApp &expect_player_dish_count(int expected,
+                                    const std::string &location = "");
+  TestApp &expect_opponent_dish_count(int expected,
+                                      const std::string &location = "");
+  TestApp &expect_dish_count_at_least(int min_player, int min_opponent,
+                                      const std::string &location = "");
 
-  TestApp &expect_wallet_at_least(int min_gold, const std::string &location = "");
-  TestApp &expect_wallet_between(int min_gold, int max_gold, const std::string &location = "");
+  TestApp &expect_wallet_at_least(int min_gold,
+                                  const std::string &location = "");
+  TestApp &expect_wallet_between(int min_gold, int max_gold,
+                                 const std::string &location = "");
 
-  TestApp &wait_for_battle_initialized(float timeout_sec = 10.0f, const std::string &location = "");
-  TestApp &wait_for_dishes_in_combat(int min_count = 1, float timeout_sec = 10.0f, const std::string &location = "");
-  TestApp &wait_for_battle_complete(float timeout_sec = 60.0f, const std::string &location = "");
-  TestApp &wait_for_results_screen(float timeout_sec = 10.0f, const std::string &location = "");
+  TestApp &wait_for_battle_initialized(float timeout_sec = 10.0f,
+                                       const std::string &location = "");
+  TestApp &wait_for_dishes_in_combat(int min_count = 1,
+                                     float timeout_sec = 10.0f,
+                                     const std::string &location = "");
+  TestApp &wait_for_battle_complete(float timeout_sec = 60.0f,
+                                    const std::string &location = "");
+  TestApp &wait_for_results_screen(float timeout_sec = 10.0f,
+                                   const std::string &location = "");
   TestApp &expect_battle_not_tie(const std::string &location = "");
   TestApp &expect_battle_has_outcomes(const std::string &location = "");
-  TestApp &expect_true(bool value, const std::string &description, const std::string &location = "");
-  TestApp &expect_false(bool value, const std::string &description, const std::string &location = "");
+  TestApp &expect_true(bool value, const std::string &description,
+                       const std::string &location = "");
+  TestApp &expect_false(bool value, const std::string &description,
+                        const std::string &location = "");
 
 private:
   afterhours::Entity *find_entity_by_id(afterhours::EntityID id);
@@ -247,23 +275,31 @@ TestApp &TestApp::expect_dish_has_component(afterhours::EntityID dish_id,
 }
 
 template <typename Container>
-TestApp &TestApp::expect_not_empty(const Container &collection, const std::string &description, const std::string &location) {
+TestApp &TestApp::expect_not_empty(const Container &collection,
+                                   const std::string &description,
+                                   const std::string &location) {
   if (collection.empty()) {
-    fail("Expected " + description + " to not be empty, but it was empty", location);
+    fail("Expected " + description + " to not be empty, but it was empty",
+         location);
   }
   return *this;
 }
 
 template <typename Container>
-TestApp &TestApp::expect_empty(const Container &collection, const std::string &description, const std::string &location) {
+TestApp &TestApp::expect_empty(const Container &collection,
+                               const std::string &description,
+                               const std::string &location) {
   if (!collection.empty()) {
-    fail("Expected " + description + " to be empty, but it had " + std::to_string(collection.size()) + " items", location);
+    fail("Expected " + description + " to be empty, but it had " +
+             std::to_string(collection.size()) + " items",
+         location);
   }
   return *this;
 }
 
 template <typename T>
-TestApp &TestApp::expect_entity_has_component(afterhours::EntityID entity_id, const std::string &location) {
+TestApp &TestApp::expect_entity_has_component(afterhours::EntityID entity_id,
+                                              const std::string &location) {
   auto *entity = find_entity_by_id(entity_id);
   if (!entity) {
     fail("Entity not found: " + std::to_string(entity_id), location);
@@ -275,7 +311,10 @@ TestApp &TestApp::expect_entity_has_component(afterhours::EntityID entity_id, co
 }
 
 template <typename T>
-TestApp &TestApp::expect_singleton_has_component(afterhours::RefEntity &singleton_opt, const std::string &component_name, const std::string &location) {
+TestApp &
+TestApp::expect_singleton_has_component(afterhours::RefEntity &singleton_opt,
+                                        const std::string &component_name,
+                                        const std::string &location) {
   if (!singleton_opt.get().has<T>()) {
     fail("Singleton does not have " + component_name + " component", location);
   }
