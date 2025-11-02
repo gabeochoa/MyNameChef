@@ -53,7 +53,7 @@ struct SimplifiedOnServeSystem : afterhours::System<CombatQueue> {
     // Fire OnServe for all dishes at index 0 that haven't fired yet
     // (queues are reorganized when dishes finish, so always check index 0)
     afterhours::RefEntities indexZeroDishes =
-        afterhours::EntityQuery()
+        afterhours::EntityQuery({.ignore_temp_warning = true})
             .whereHasComponent<IsDish>()
             .whereHasComponent<DishBattleState>()
             .whereLambda([](const afterhours::Entity &e) {
@@ -74,7 +74,7 @@ struct SimplifiedOnServeSystem : afterhours::System<CombatQueue> {
 
     // Check if all dishes have fired OnServe
     bool hasUnfiredDishes =
-        EQ().whereHasComponent<IsDish>()
+        EQ({.ignore_temp_warning = true}).whereHasComponent<IsDish>()
             .whereHasComponent<DishBattleState>()
             .whereLambda([](const afterhours::Entity &e) {
               const DishBattleState &dbs = e.get<DishBattleState>();
@@ -106,7 +106,7 @@ private:
 
   afterhours::Entity *get_or_create_onserve_state() {
     for (afterhours::Entity &e :
-         afterhours::EntityQuery().whereHasComponent<OnServeState>().gen()) {
+         afterhours::EntityQuery({.ignore_temp_warning = true}).whereHasComponent<OnServeState>().gen()) {
       return &e;
     }
 
@@ -117,7 +117,7 @@ private:
 
   void clear_onserve_state() {
     for (afterhours::Entity &e :
-         afterhours::EntityQuery().whereHasComponent<OnServeState>().gen()) {
+         afterhours::EntityQuery({.ignore_temp_warning = true}).whereHasComponent<OnServeState>().gen()) {
       e.removeComponent<OnServeState>();
     }
   }
@@ -129,7 +129,7 @@ private:
     if (render_backend::is_headless_mode) {
       return true;
     }
-    return !afterhours::EntityQuery()
+    return !afterhours::EntityQuery({.ignore_temp_warning = true})
                 .whereHasComponent<AnimationEvent>()
                 .whereHasComponent<AnimationTimer>()
                 .whereLambda([](const afterhours::Entity &e) {

@@ -14,7 +14,8 @@ enum struct TargetScope {
   FutureAllies,
   FutureOpponents,
   Previous,
-  Next
+  Next,
+  SelfAndAdjacent
 };
 
 enum struct FlavorStatType {
@@ -35,6 +36,8 @@ struct DishEffect {
   FlavorStatType flavorStatType = FlavorStatType::Satiety;
 
   bool conditional = false;
+  FlavorStatType adjacentCheckStat = FlavorStatType::Freshness;
+  bool playFreshnessChainAnimation = false;
 
   DishEffect() = default;
 

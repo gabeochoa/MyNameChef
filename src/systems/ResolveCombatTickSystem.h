@@ -222,7 +222,7 @@ private:
     for (DishBattleState::TeamSide side : {DishBattleState::TeamSide::Player,
                                            DishBattleState::TeamSide::Opponent}) {
       afterhours::RefEntities active_dishes =
-          EQ().whereHasComponent<DishBattleState>()
+          EQ({.ignore_temp_warning = true}).whereHasComponent<DishBattleState>()
               .whereTeamSide(side)
               .whereLambda([](const afterhours::Entity &e) {
                 const DishBattleState &dbs = e.get<DishBattleState>();

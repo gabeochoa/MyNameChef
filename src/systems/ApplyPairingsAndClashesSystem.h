@@ -79,7 +79,7 @@ private:
   std::vector<afterhours::RefEntity> get_team_dishes(DishBattleState::TeamSide side) {
     std::vector<afterhours::RefEntity> dishes;
     for (afterhours::Entity &e :
-         EQ().whereHasComponent<IsDish>()
+         EQ({.ignore_temp_warning = true}).whereHasComponent<IsDish>()
              .whereHasComponent<DishBattleState>()
              .gen()) {
       auto &dbs = e.get<DishBattleState>();

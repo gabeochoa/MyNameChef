@@ -912,7 +912,7 @@ static void test_salmon_neighbor_freshness_persists_to_combat() {
 
     // Clean up any leftover entities from previous tests to avoid query
     // conflicts This ensures queries only find entities created in this test
-    for (auto &ref : EQ().whereHasComponent<IsDish>().gen()) {
+    for (auto &ref : EQ({.ignore_temp_warning = true}).whereHasComponent<IsDish>().gen()) {
       ref.get().cleanup = true;
     }
     afterhours::EntityHelper::merge_entity_arrays();
@@ -962,7 +962,7 @@ static void test_salmon_neighbor_freshness_persists_to_combat() {
     // Verify entities are accessible before dispatch (they should be after
     // merge)
     auto pre_check =
-        EQ().whereHasComponent<IsDish>()
+        EQ({.ignore_temp_warning = true}).whereHasComponent<IsDish>()
             .whereHasComponent<DishBattleState>()
             .whereLambda([](const afterhours::Entity &e) {
               const DishBattleState &dbs = e.get<DishBattleState>();
@@ -984,8 +984,24 @@ static void test_salmon_neighbor_freshness_persists_to_combat() {
     // (matching production behavior where merge happens after each system)
     afterhours::EntityHelper::merge_entity_arrays();
 
+    // EffectResolutionSystem processes effects from DishEffect (not legacy onServe)
+    // Note: TriggerDispatchSystem clears the queue after processing, so we need to
+    // re-add events for EffectResolutionSystem to process
+    queue.add_event(TriggerHook::OnServe, salmon1.id, 1,
+                    DishBattleState::TeamSide::Player);
+    queue.add_event(TriggerHook::OnServe, salmon2.id, 2,
+                    DishBattleState::TeamSide::Player);
+    
+    EffectResolutionSystem effectSystem;
+    if (effectSystem.should_run(1.0f / 60.0f)) {
+      effectSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
+    }
+
+    // Merge again after effect resolution
+    afterhours::EntityHelper::merge_entity_arrays();
+
     // Re-query bagel0 after merge to ensure we have the correct reference
-    auto bagel0_ref = EQ().whereID(bagel0.id).gen_first();
+    auto bagel0_ref = EQ({.ignore_temp_warning = true}).whereID(bagel0.id).gen_first();
     if (!bagel0_ref.has_value()) {
       log_error(
           "EFFECT_TEST: FAILED - Could not find Bagel(0) entity after merge");

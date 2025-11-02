@@ -1,6 +1,8 @@
 #include "dish_types.h"
+#include "dish_builder.h"
 #include <vector>
 
+#include "components/animation_event.h"
 #include "components/deferred_flavor_mods.h"
 #include "components/dish_battle_state.h"
 #include "components/dish_effect.h"
@@ -10,8 +12,16 @@
 #include "shop.h"
 #include <afterhours/ah.h>
 
-// All dishes now have the same price
-static constexpr int kUnifiedDishPrice = 3;
+DishInfo DishBuilder::build() {
+  if (!name_set_ || !flavor_set_ || !sprite_set_ || !tier_set_) {
+    log_error("DishBuilder: Missing required fields (name, flavor, sprite, "
+              "or tier)");
+  }
+  dish_.price = DishBuilder::kUnifiedDishPrice;
+  dish_.effects = std::move(effects_);
+  dish_.onServe = nullptr;
+  return dish_;
+}
 
 static DishInfo make_dish(const char *name, FlavorStats flavor,
                           SpriteLocation sprite, int tier = 2,
@@ -19,7 +29,7 @@ static DishInfo make_dish(const char *name, FlavorStats flavor,
                           std::vector<DishEffect> effects = {}) {
   DishInfo result;
   result.name = name;
-  result.price = kUnifiedDishPrice;
+  result.price = DishBuilder::kUnifiedDishPrice;
   result.tier = tier;
   result.flavor = flavor;
   result.sprite = sprite;
@@ -29,381 +39,315 @@ static DishInfo make_dish(const char *name, FlavorStats flavor,
 }
 
 static DishInfo make_salmon() {
-  return make_dish(
-      "Salmon", FlavorStats{.umami = 3, .freshness = 2}, SpriteLocation{6, 7},
-      1,
-      /*onServe=*/[](int sourceEntityId) {
-        auto src_opt = EQ().whereID(sourceEntityId).gen_first();
-        if (!src_opt || !src_opt->has<DishBattleState>()) {
-          return;
-        }
-
-        auto &src_dbs = src_opt->get<DishBattleState>();
-        int src_queue_index = src_dbs.queue_index;
-
-        bool has_freshness_adjacent = false;
-
-        // Query for previous dish - filter by phase to avoid conflicts with entities
-        // from other tests, and order by ID (newest first) to get the most recent match
-        auto prevDish =
-            EQ().whereHasComponent<IsDish>()
-                .whereHasComponent<DishBattleState>()
-                .whereLambda(
-                    [&src_dbs, src_queue_index](const afterhours::Entity &e) {
-                      const DishBattleState &dbs = e.get<DishBattleState>();
-                      return dbs.team_side == src_dbs.team_side &&
-                             dbs.queue_index == src_queue_index - 1 &&
-                             dbs.phase == DishBattleState::Phase::InQueue;
-                    })
-                .orderByLambda([](const afterhours::Entity &a, const afterhours::Entity &b) {
-                  return a.id > b.id; // Descending by ID (newest first)
-                })
-                .gen_first();
-        if (prevDish.has_value()) {
-          auto &dish = prevDish.value()->get<IsDish>();
-          auto dish_info = get_dish_info(dish.type);
-          if (dish_info.flavor.freshness > 0) {
-            has_freshness_adjacent = true;
-          }
-        }
-
-        if (!has_freshness_adjacent) {
-          // Query for next dish - same filtering approach
-          auto nextDish =
-              EQ().whereHasComponent<IsDish>()
-                  .whereHasComponent<DishBattleState>()
-                  .whereLambda(
-                      [&src_dbs, src_queue_index](const afterhours::Entity &e) {
-                        const DishBattleState &dbs = e.get<DishBattleState>();
-                        return dbs.team_side == src_dbs.team_side &&
-                               dbs.queue_index == src_queue_index + 1 &&
-                               dbs.phase == DishBattleState::Phase::InQueue;
-                      })
-                  .orderByLambda([](const afterhours::Entity &a, const afterhours::Entity &b) {
-                    return a.id > b.id; // Descending by ID (newest first)
-                  })
-                  .gen_first();
-          if (nextDish.has_value()) {
-            auto &dish = nextDish.value()->get<IsDish>();
-            auto dish_info = get_dish_info(dish.type);
-            if (dish_info.flavor.freshness > 0) {
-              has_freshness_adjacent = true;
-            }
-          }
-        }
-
-        if (has_freshness_adjacent) {
-          int previousEntityId = -1;
-          int nextEntityId = -1;
-
-          auto &src_deferred =
-              src_opt->addComponentIfMissing<DeferredFlavorMods>();
-          src_deferred.freshness += 1;
-
-          // Re-query for previous dish to apply boost
-          afterhours::OptEntity prevDishBoost =
-              EQ().whereHasComponent<IsDish>()
-                  .whereHasComponent<DishBattleState>()
-                  .whereLambda(
-                      [&src_dbs, src_queue_index](const afterhours::Entity &e) {
-                        const DishBattleState &dbs = e.get<DishBattleState>();
-                        return dbs.team_side == src_dbs.team_side &&
-                               dbs.queue_index == src_queue_index - 1 &&
-                               dbs.phase == DishBattleState::Phase::InQueue;
-                      })
-                  .orderByLambda([](const afterhours::Entity &a, const afterhours::Entity &b) {
-                    return a.id > b.id; // Descending by ID (newest first)
-                  })
-                  .gen_first();
-          if (prevDishBoost.has_value()) {
-            auto &deferred = prevDishBoost.value()
-                                 ->addComponentIfMissing<DeferredFlavorMods>();
-            deferred.freshness += 1;
-            previousEntityId = prevDishBoost.value()->id;
-          }
-
-          // Re-query for next dish to apply boost
-          auto nextDish =
-              EQ().whereHasComponent<IsDish>()
-                  .whereHasComponent<DishBattleState>()
-                  .whereLambda(
-                      [&src_dbs, src_queue_index](const afterhours::Entity &e) {
-                        const DishBattleState &dbs = e.get<DishBattleState>();
-                        return dbs.team_side == src_dbs.team_side &&
-                               dbs.queue_index == src_queue_index + 1 &&
-                               dbs.phase == DishBattleState::Phase::InQueue;
-                      })
-                  .orderByLambda([](const afterhours::Entity &a, const afterhours::Entity &b) {
-                    return a.id > b.id; // Descending by ID (newest first)
-                  })
-                  .gen_first();
-          if (nextDish.has_value()) {
-            auto &deferred =
-                nextDish.value()->addComponentIfMissing<DeferredFlavorMods>();
-            deferred.freshness += 1;
-            nextEntityId = nextDish.value()->id;
-          }
-
-          make_freshness_chain_animation(sourceEntityId, previousEntityId,
-                                         nextEntityId);
-        }
-      });
+  return dish()
+      .with_name("Salmon")
+      .with_flavor(FlavorStats{.umami = 3, .freshness = 2})
+      .with_sprite(SpriteLocation{6, 7})
+      .with_tier(1)
+      .register_on_serve(
+          ServeEffect()
+              .with_target(TargetScope::SelfAndAdjacent)
+              .if_adjacent_has(FlavorStatType::Freshness)
+              .add_flavor_stat(FlavorStatType::Freshness, 1)
+              .with_animation(AnimationEventType::FreshnessChain))
+      .build();
 }
 
 static DishInfo make_french_fries() {
-  std::vector<DishEffect> effects;
-  DishEffect friesEffect;
-  friesEffect.triggerHook = TriggerHook::OnServe;
-  friesEffect.operation = EffectOperation::AddCombatZing;
-  friesEffect.targetScope = TargetScope::FutureAllies;
-  friesEffect.amount = 1;
-  effects.push_back(friesEffect);
-
-  return make_dish("French Fries", FlavorStats{.satiety = 1, .richness = 1},
-                   SpriteLocation{1, 9}, 1, nullptr, effects);
+  return dish()
+      .with_name("French Fries")
+      .with_flavor(FlavorStats{.satiety = 1, .richness = 1})
+      .with_sprite(SpriteLocation{1, 9})
+      .with_tier(1)
+      .register_on_serve(
+          ServeEffect().with_target(TargetScope::FutureAllies).add_zing(1))
+      .build();
 }
 
 static DishInfo make_debug_dish() {
-  std::vector<DishEffect> effects;
-
-  auto add_effect = [&effects](TriggerHook hook, EffectOperation op,
-                               TargetScope scope, int amount,
-                               FlavorStatType statType =
-                                   FlavorStatType::Satiety) {
-    DishEffect effect;
-    effect.triggerHook = hook;
-    effect.operation = op;
-    effect.targetScope = scope;
-    effect.amount = amount;
-    if (op == EffectOperation::AddFlavorStat) {
-      effect.flavorStatType = statType;
-    }
-    effects.push_back(effect);
-  };
-
-  add_effect(TriggerHook::OnStartBattle, EffectOperation::AddCombatZing,
-             TargetScope::Self, 1);
-  add_effect(TriggerHook::OnStartBattle, EffectOperation::AddCombatBody,
-             TargetScope::AllAllies, 1);
-
-  add_effect(TriggerHook::OnServe, EffectOperation::AddFlavorStat,
-             TargetScope::Self, 1, FlavorStatType::Satiety);
-  add_effect(TriggerHook::OnServe, EffectOperation::AddFlavorStat,
-             TargetScope::Self, 1, FlavorStatType::Sweetness);
-  add_effect(TriggerHook::OnServe, EffectOperation::AddFlavorStat,
-             TargetScope::Self, 1, FlavorStatType::Spice);
-  add_effect(TriggerHook::OnServe, EffectOperation::AddFlavorStat,
-             TargetScope::Self, 1, FlavorStatType::Acidity);
-  add_effect(TriggerHook::OnServe, EffectOperation::AddFlavorStat,
-             TargetScope::Self, 1, FlavorStatType::Umami);
-  add_effect(TriggerHook::OnServe, EffectOperation::AddFlavorStat,
-             TargetScope::Self, 1, FlavorStatType::Richness);
-  add_effect(TriggerHook::OnServe, EffectOperation::AddFlavorStat,
-             TargetScope::Self, 1, FlavorStatType::Freshness);
-  add_effect(TriggerHook::OnServe, EffectOperation::AddCombatZing,
-             TargetScope::Opponent, -1);
-  add_effect(TriggerHook::OnServe, EffectOperation::AddCombatZing,
-             TargetScope::AllAllies, 1);
-  add_effect(TriggerHook::OnServe, EffectOperation::AddCombatZing,
-             TargetScope::AllOpponents, -1);
-  add_effect(TriggerHook::OnServe, EffectOperation::AddCombatZing,
-             TargetScope::DishesAfterSelf, 1);
-  add_effect(TriggerHook::OnServe, EffectOperation::AddCombatZing,
-             TargetScope::FutureAllies, 1);
-  add_effect(TriggerHook::OnServe, EffectOperation::AddCombatZing,
-             TargetScope::FutureOpponents, -1);
-  add_effect(TriggerHook::OnServe, EffectOperation::AddCombatZing,
-             TargetScope::Previous, 1);
-  add_effect(TriggerHook::OnServe, EffectOperation::AddCombatZing,
-             TargetScope::Next, 1);
-  add_effect(TriggerHook::OnServe, EffectOperation::AddCombatBody,
-             TargetScope::Self, 2);
-  add_effect(TriggerHook::OnServe, EffectOperation::AddCombatBody,
-             TargetScope::Opponent, -1);
-  add_effect(TriggerHook::OnServe, EffectOperation::AddCombatBody,
-             TargetScope::AllAllies, 1);
-
-  add_effect(TriggerHook::OnCourseStart, EffectOperation::AddCombatZing,
-             TargetScope::Self, 1);
-  add_effect(TriggerHook::OnCourseStart, EffectOperation::AddCombatBody,
-             TargetScope::AllAllies, 1);
-
-  add_effect(TriggerHook::OnBiteTaken, EffectOperation::AddCombatZing,
-             TargetScope::Self, 1);
-  add_effect(TriggerHook::OnBiteTaken, EffectOperation::AddCombatBody,
-             TargetScope::AllAllies, 1);
-
-  add_effect(TriggerHook::OnDishFinished, EffectOperation::AddCombatZing,
-             TargetScope::AllAllies, 1);
-  add_effect(TriggerHook::OnDishFinished, EffectOperation::AddCombatBody,
-             TargetScope::AllAllies, 2);
-
-  add_effect(TriggerHook::OnCourseComplete, EffectOperation::AddCombatZing,
-             TargetScope::AllAllies, 1);
-  add_effect(TriggerHook::OnCourseComplete, EffectOperation::AddCombatBody,
-             TargetScope::AllAllies, 1);
-
-  return make_dish(
-      "Debug Dish",
-      FlavorStats{.satiety = 1,
-                  .sweetness = 1,
-                  .spice = 1,
-                  .acidity = 1,
-                  .umami = 1,
-                  .richness = 1,
-                  .freshness = 1},
-      SpriteLocation{0, 0}, 1,
-      [](int sourceEntityId) {
-        log_info("DEBUG_DISH: OnServe handler triggered for entity {}",
-                 sourceEntityId);
-      },
-      effects);
+  return dish()
+      .with_name("Debug Dish")
+      .with_flavor(FlavorStats{.satiety = 1,
+                               .sweetness = 1,
+                               .spice = 1,
+                               .acidity = 1,
+                               .umami = 1,
+                               .richness = 1,
+                               .freshness = 1})
+      .with_sprite(SpriteLocation{0, 0})
+      .with_tier(1)
+      .register_on_start_battle(
+          OnStartBattleEffect().with_target(TargetScope::Self).add_zing(1))
+      .register_on_start_battle(
+          OnStartBattleEffect().with_target(TargetScope::AllAllies).add_body(1))
+      .register_on_serve(ServeEffect()
+                             .with_target(TargetScope::Self)
+                             .add_flavor_stat(FlavorStatType::Satiety, 1))
+      .register_on_serve(ServeEffect()
+                             .with_target(TargetScope::Self)
+                             .add_flavor_stat(FlavorStatType::Sweetness, 1))
+      .register_on_serve(ServeEffect()
+                             .with_target(TargetScope::Self)
+                             .add_flavor_stat(FlavorStatType::Spice, 1))
+      .register_on_serve(ServeEffect()
+                             .with_target(TargetScope::Self)
+                             .add_flavor_stat(FlavorStatType::Acidity, 1))
+      .register_on_serve(ServeEffect()
+                             .with_target(TargetScope::Self)
+                             .add_flavor_stat(FlavorStatType::Umami, 1))
+      .register_on_serve(ServeEffect()
+                             .with_target(TargetScope::Self)
+                             .add_flavor_stat(FlavorStatType::Richness, 1))
+      .register_on_serve(ServeEffect()
+                             .with_target(TargetScope::Self)
+                             .add_flavor_stat(FlavorStatType::Freshness, 1))
+      .register_on_serve(
+          ServeEffect().with_target(TargetScope::Opponent).remove_zing(1))
+      .register_on_serve(
+          ServeEffect().with_target(TargetScope::AllAllies).add_zing(1))
+      .register_on_serve(
+          ServeEffect().with_target(TargetScope::AllOpponents).remove_zing(1))
+      .register_on_serve(
+          ServeEffect().with_target(TargetScope::DishesAfterSelf).add_zing(1))
+      .register_on_serve(
+          ServeEffect().with_target(TargetScope::FutureAllies).add_zing(1))
+      .register_on_serve(ServeEffect()
+                             .with_target(TargetScope::FutureOpponents)
+                             .remove_zing(1))
+      .register_on_serve(
+          ServeEffect().with_target(TargetScope::Previous).add_zing(1))
+      .register_on_serve(
+          ServeEffect().with_target(TargetScope::Next).add_zing(1))
+      .register_on_serve(
+          ServeEffect().with_target(TargetScope::Self).add_body(2))
+      .register_on_serve(
+          ServeEffect().with_target(TargetScope::Opponent).remove_body(1))
+      .register_on_serve(
+          ServeEffect().with_target(TargetScope::AllAllies).add_body(1))
+      .register_on_course_start(
+          OnCourseStartEffect().with_target(TargetScope::Self).add_zing(1))
+      .register_on_course_start(
+          OnCourseStartEffect().with_target(TargetScope::AllAllies).add_body(1))
+      .register_on_bite_taken(
+          OnBiteEffect().with_target(TargetScope::Self).add_zing(1))
+      .register_on_bite_taken(
+          OnBiteEffect().with_target(TargetScope::AllAllies).add_body(1))
+      .register_on_dish_finished(OnDishFinishedEffect()
+                                     .with_target(TargetScope::AllAllies)
+                                     .add_zing(1))
+      .register_on_dish_finished(OnDishFinishedEffect()
+                                     .with_target(TargetScope::AllAllies)
+                                     .add_body(2))
+      .register_on_course_complete(OnCourseCompleteEffect()
+                                       .with_target(TargetScope::AllAllies)
+                                       .add_zing(1))
+      .register_on_course_complete(OnCourseCompleteEffect()
+                                       .with_target(TargetScope::AllAllies)
+                                       .add_body(1))
+      .build();
 }
 
 DishInfo get_dish_info(DishType type) {
   switch (type) {
   // Tier 1: Raw/Single Ingredient
   case DishType::Potato:
-    return make_dish("Potato", FlavorStats{.satiety = 1}, SpriteLocation{13, 3},
-                     1); // potato.png x=416,y=96 - Tier 1
+    return dish()
+        .with_name("Potato")
+        .with_flavor(FlavorStats{.satiety = 1})
+        .with_sprite(SpriteLocation{13, 3})
+        .with_tier(1)
+        .build();
   case DishType::Salmon:
     return make_salmon();
-  case DishType::Bagel: {
-    std::vector<DishEffect> effects;
-    DishEffect bagelEffect;
-    bagelEffect.triggerHook = TriggerHook::OnServe;
-    bagelEffect.operation = EffectOperation::AddFlavorStat;
-    bagelEffect.targetScope = TargetScope::DishesAfterSelf;
-    bagelEffect.amount = 1;
-    bagelEffect.flavorStatType = FlavorStatType::Richness;
-    effects.push_back(bagelEffect);
-    return make_dish("Bagel", FlavorStats{.satiety = 1}, SpriteLocation{13, 0},
-                     1, nullptr, effects);
-  }
-  case DishType::Baguette: {
-    std::vector<DishEffect> effects;
-    DishEffect baguetteEffect;
-    baguetteEffect.triggerHook = TriggerHook::OnServe;
-    baguetteEffect.operation = EffectOperation::AddCombatZing;
-    baguetteEffect.targetScope = TargetScope::Opponent;
-    baguetteEffect.amount = -1;
-    effects.push_back(baguetteEffect);
-    return make_dish("Baguette", FlavorStats{.satiety = 1},
-                     SpriteLocation{1, 0}, 1, nullptr, effects);
-  }
-  case DishType::GarlicBread: {
-    std::vector<DishEffect> effects;
-    DishEffect garlicBreadEffect;
-    garlicBreadEffect.triggerHook = TriggerHook::OnServe;
-    garlicBreadEffect.operation = EffectOperation::AddFlavorStat;
-    garlicBreadEffect.targetScope = TargetScope::FutureAllies;
-    garlicBreadEffect.amount = 1;
-    garlicBreadEffect.flavorStatType = FlavorStatType::Spice;
-    effects.push_back(garlicBreadEffect);
-    return make_dish("Garlic Bread", FlavorStats{.satiety = 1, .richness = 1},
-                     SpriteLocation{0, 9}, 1, nullptr, effects);
-  }
-  case DishType::FriedEgg: {
-    std::vector<DishEffect> effects;
-    DishEffect friedEggEffect;
-    friedEggEffect.triggerHook = TriggerHook::OnDishFinished;
-    friedEggEffect.operation = EffectOperation::AddCombatBody;
-    friedEggEffect.targetScope = TargetScope::AllAllies;
-    friedEggEffect.amount = 2;
-    effects.push_back(friedEggEffect);
-    return make_dish("Fried Egg", FlavorStats{.richness = 1},
-                     SpriteLocation{2, 7}, 1, nullptr, effects);
-  }
+  case DishType::Bagel:
+    return dish()
+        .with_name("Bagel")
+        .with_flavor(FlavorStats{.satiety = 1})
+        .with_sprite(SpriteLocation{13, 0})
+        .with_tier(1)
+        .register_on_serve(ServeEffect()
+                               .with_target(TargetScope::DishesAfterSelf)
+                               .add_flavor_stat(FlavorStatType::Richness, 1))
+        .build();
+  case DishType::Baguette:
+    return dish()
+        .with_name("Baguette")
+        .with_flavor(FlavorStats{.satiety = 1})
+        .with_sprite(SpriteLocation{1, 0})
+        .with_tier(1)
+        .register_on_serve(
+            ServeEffect().with_target(TargetScope::Opponent).remove_zing(1))
+        .build();
+  case DishType::GarlicBread:
+    return dish()
+        .with_name("Garlic Bread")
+        .with_flavor(FlavorStats{.satiety = 1, .richness = 1})
+        .with_sprite(SpriteLocation{0, 9})
+        .with_tier(1)
+        .register_on_serve(ServeEffect()
+                               .with_target(TargetScope::FutureAllies)
+                               .add_flavor_stat(FlavorStatType::Spice, 1))
+        .build();
+  case DishType::FriedEgg:
+    return dish()
+        .with_name("Fried Egg")
+        .with_flavor(FlavorStats{.richness = 1})
+        .with_sprite(SpriteLocation{2, 7})
+        .with_tier(1)
+        .register_on_dish_finished(OnDishFinishedEffect()
+                                       .with_target(TargetScope::AllAllies)
+                                       .add_body(2))
+        .build();
   case DishType::FrenchFries:
     return make_french_fries();
 
   // Tier 2: Simple 2-ingredient items
   case DishType::Pancakes:
-    return make_dish("Pancakes", FlavorStats{.sweetness = 1, .satiety = 1},
-                     SpriteLocation{33, 0},
-                     2); // 79_pancakes.png x=1056,y=0 - Tier 2
+    return dish()
+        .with_name("Pancakes")
+        .with_flavor(FlavorStats{.sweetness = 1, .satiety = 1})
+        .with_sprite(SpriteLocation{33, 0})
+        .with_tier(2)
+        .build();
   case DishType::Sandwich:
-    return make_dish("Sandwich", FlavorStats{.satiety = 2},
-                     SpriteLocation{40, 0},
-                     2); // 92_sandwich.png x=1280,y=0 - Tier 2
+    return dish()
+        .with_name("Sandwich")
+        .with_flavor(FlavorStats{.satiety = 2})
+        .with_sprite(SpriteLocation{40, 0})
+        .with_tier(2)
+        .build();
   case DishType::Nacho:
-    return make_dish("Nacho", FlavorStats{.satiety = 1, .richness = 1},
-                     SpriteLocation{29, 0},
-                     2); // 71_nacho.png x=928,y=0 - Tier 2
+    return dish()
+        .with_name("Nacho")
+        .with_flavor(FlavorStats{.satiety = 1, .richness = 1})
+        .with_sprite(SpriteLocation{29, 0})
+        .with_tier(2)
+        .build();
 
   // Tier 3: Moderate complexity
   case DishType::Burger:
-    return make_dish("Burger", FlavorStats{.satiety = 2, .richness = 1},
-                     SpriteLocation{8, 0},
-                     3); // 15_burger.png x=256,y=0 - Tier 3
+    return dish()
+        .with_name("Burger")
+        .with_flavor(FlavorStats{.satiety = 2, .richness = 1})
+        .with_sprite(SpriteLocation{8, 0})
+        .with_tier(3)
+        .build();
   case DishType::Taco:
-    return make_dish("Taco", FlavorStats{.satiety = 2, .spice = 1},
-                     SpriteLocation{47, 0},
-                     3); // 99_taco.png x=1504,y=0 - Tier 3
+    return dish()
+        .with_name("Taco")
+        .with_flavor(FlavorStats{.satiety = 2, .spice = 1})
+        .with_sprite(SpriteLocation{47, 0})
+        .with_tier(3)
+        .build();
   case DishType::Omlet:
-    return make_dish("Omlet", FlavorStats{.satiety = 1, .richness = 1},
-                     SpriteLocation{31, 0},
-                     3); // 73_omlet.png x=992,y=0 - Tier 3
+    return dish()
+        .with_name("Omlet")
+        .with_flavor(FlavorStats{.satiety = 1, .richness = 1})
+        .with_sprite(SpriteLocation{31, 0})
+        .with_tier(3)
+        .build();
   case DishType::IceCream:
-    return make_dish("Ice Cream", FlavorStats{.sweetness = 3},
-                     SpriteLocation{18, 1},
-                     3); // 57_icecream.png x=576,y=32 - Tier 3
+    return dish()
+        .with_name("Ice Cream")
+        .with_flavor(FlavorStats{.sweetness = 3})
+        .with_sprite(SpriteLocation{18, 1})
+        .with_tier(3)
+        .build();
 
   // Tier 4: Complex dishes
   case DishType::Pizza:
-    return make_dish("Pizza", FlavorStats{.satiety = 2, .umami = 1},
-                     SpriteLocation{35, 0},
-                     4); // 81_pizza.png x=1120,y=0 - Tier 4
+    return dish()
+        .with_name("Pizza")
+        .with_flavor(FlavorStats{.satiety = 2, .umami = 1})
+        .with_sprite(SpriteLocation{35, 0})
+        .with_tier(4)
+        .build();
   case DishType::Ramen:
-    return make_dish("Ramen", FlavorStats{.satiety = 2, .umami = 2},
-                     SpriteLocation{39, 0},
-                     4); // 87_ramen.png x=1248,y=0 - Tier 4
+    return dish()
+        .with_name("Ramen")
+        .with_flavor(FlavorStats{.satiety = 2, .umami = 2})
+        .with_sprite(SpriteLocation{39, 0})
+        .with_tier(4)
+        .build();
   case DishType::MacNCheese:
-    return make_dish("Mac 'n' Cheese", FlavorStats{.satiety = 2, .richness = 2},
-                     SpriteLocation{25, 0},
-                     4); // 67_macncheese.png x=800,y=0 - Tier 4
+    return dish()
+        .with_name("Mac 'n' Cheese")
+        .with_flavor(FlavorStats{.satiety = 2, .richness = 2})
+        .with_sprite(SpriteLocation{25, 0})
+        .with_tier(4)
+        .build();
   case DishType::Dumplings:
-    return make_dish("Dumplings", FlavorStats{.satiety = 2, .umami = 1},
-                     SpriteLocation{17, 0},
-                     4); // 36_dumplings.png x=544,y=0 - Tier 4
+    return dish()
+        .with_name("Dumplings")
+        .with_flavor(FlavorStats{.satiety = 2, .umami = 1})
+        .with_sprite(SpriteLocation{17, 0})
+        .with_tier(4)
+        .build();
   case DishType::Burrito:
-    return make_dish("Burrito", FlavorStats{.satiety = 2, .umami = 1},
-                     SpriteLocation{11, 0},
-                     4); // 18_burrito.png x=352,y=0 - Tier 4
+    return dish()
+        .with_name("Burrito")
+        .with_flavor(FlavorStats{.satiety = 2, .umami = 1})
+        .with_sprite(SpriteLocation{11, 0})
+        .with_tier(4)
+        .build();
   case DishType::Spaghetti:
-    return make_dish("Spaghetti", FlavorStats{.satiety = 2, .umami = 1},
-                     SpriteLocation{42, 0},
-                     4); // 94_spaghetti.png x=1344,y=0 - Tier 4
+    return dish()
+        .with_name("Spaghetti")
+        .with_flavor(FlavorStats{.satiety = 2, .umami = 1})
+        .with_sprite(SpriteLocation{42, 0})
+        .with_tier(4)
+        .build();
   case DishType::RoastedChicken:
-    return make_dish("Roasted Chicken", FlavorStats{.satiety = 2, .umami = 2},
-                     SpriteLocation{37, 0},
-                     4); // 85_roastedchicken.png x=1184,y=0 - Tier 4
+    return dish()
+        .with_name("Roasted Chicken")
+        .with_flavor(FlavorStats{.satiety = 2, .umami = 2})
+        .with_sprite(SpriteLocation{37, 0})
+        .with_tier(4)
+        .build();
 
   // Tier 5: Most complex/Gourmet
   case DishType::Steak:
-    return make_dish("Steak", FlavorStats{.satiety = 3, .umami = 2},
-                     SpriteLocation{43, 0},
-                     5); // 95_steak.png x=1376,y=0 - Tier 5
+    return dish()
+        .with_name("Steak")
+        .with_flavor(FlavorStats{.satiety = 3, .umami = 2})
+        .with_sprite(SpriteLocation{43, 0})
+        .with_tier(5)
+        .build();
   case DishType::Sushi:
-    return make_dish("Sushi", FlavorStats{.freshness = 2, .umami = 2},
-                     SpriteLocation{45, 0},
-                     5); // 97_sushi.png x=1440,y=0 - Tier 5
+    return dish()
+        .with_name("Sushi")
+        .with_flavor(FlavorStats{.freshness = 2, .umami = 2})
+        .with_sprite(SpriteLocation{45, 0})
+        .with_tier(5)
+        .build();
   case DishType::Cheesecake:
-    return make_dish("Cheesecake", FlavorStats{.sweetness = 3, .richness = 2},
-                     SpriteLocation{2, 1},
-                     5); // 22_cheesecake.png x=64,y=32 - Tier 5
+    return dish()
+        .with_name("Cheesecake")
+        .with_flavor(FlavorStats{.sweetness = 3, .richness = 2})
+        .with_sprite(SpriteLocation{2, 1})
+        .with_tier(5)
+        .build();
   case DishType::LemonPie:
-    return make_dish("Lemon Pie", FlavorStats{.sweetness = 2, .acidity = 1},
-                     SpriteLocation{22, 1},
-                     5); // 63_lemonpie.png x=704,y=32 - Tier 5
+    return dish()
+        .with_name("Lemon Pie")
+        .with_flavor(FlavorStats{.sweetness = 2, .acidity = 1})
+        .with_sprite(SpriteLocation{22, 1})
+        .with_tier(5)
+        .build();
   case DishType::Donut:
-    return make_dish("Donut", FlavorStats{.sweetness = 2, .richness = 1},
-                     SpriteLocation{10, 1},
-                     5); // 34_donut.png x=320,y=32 - Tier 5
+    return dish()
+        .with_name("Donut")
+        .with_flavor(FlavorStats{.sweetness = 2, .richness = 1})
+        .with_sprite(SpriteLocation{10, 1})
+        .with_tier(5)
+        .build();
   case DishType::Meatball:
-    return make_dish("Meatball", FlavorStats{.umami = 2, .satiety = 1},
-                     SpriteLocation{27, 0},
-                     5); // 69_meatball.png x=864,y=0 - Tier 5
+    return dish()
+        .with_name("Meatball")
+        .with_flavor(FlavorStats{.umami = 2, .satiety = 1})
+        .with_sprite(SpriteLocation{27, 0})
+        .with_tier(5)
+        .build();
   case DishType::DebugDish:
     return make_debug_dish();
   }

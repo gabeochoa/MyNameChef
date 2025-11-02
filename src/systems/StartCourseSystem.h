@@ -156,7 +156,7 @@ private:
   }
 
   bool has_remaining_active_dishes(DishBattleState::TeamSide side) {
-    return EQ().whereHasComponent<DishBattleState>()
+    return EQ({.ignore_temp_warning = true}).whereHasComponent<DishBattleState>()
                .whereTeamSide(side)
                .whereLambda([](const afterhours::Entity &e) {
                  const DishBattleState &dbs = e.get<DishBattleState>();
@@ -174,7 +174,7 @@ private:
     if (render_backend::is_headless_mode) {
       // In headless mode, skip animation checks and only check if OnServe fired
       afterhours::RefEntities unfinishedDishes =
-          afterhours::EntityQuery()
+          afterhours::EntityQuery({.ignore_temp_warning = true})
               .whereHasComponent<IsDish>()
               .whereHasComponent<DishBattleState>()
               .whereLambda([](const afterhours::Entity &e) {
@@ -188,7 +188,7 @@ private:
 
     bool slideInComplete = true;
     for (afterhours::Entity &animEntity :
-         afterhours::EntityQuery()
+         afterhours::EntityQuery({.ignore_temp_warning = true})
              .whereHasComponent<AnimationEvent>()
              .whereHasComponent<AnimationTimer>()
              .gen()) {
@@ -204,7 +204,7 @@ private:
     }
 
     afterhours::RefEntities unfinishedDishes =
-        afterhours::EntityQuery()
+        afterhours::EntityQuery({.ignore_temp_warning = true})
             .whereHasComponent<IsDish>()
             .whereHasComponent<DishBattleState>()
             .whereLambda([](const afterhours::Entity &e) {

@@ -11,7 +11,9 @@
 #include "../dish_types.h"
 #include "../game_state_manager.h"
 #include "../query.h"
+#include "../shop.h"
 #include <afterhours/ah.h>
+#include <optional>
 #include <vector>
 
 struct EffectResolutionSystem : afterhours::System<TriggerQueue> {
@@ -35,7 +37,7 @@ struct EffectResolutionSystem : afterhours::System<TriggerQueue> {
 
 private:
   void process_trigger_event(const TriggerEvent &ev) {
-    auto src_opt = EQ().whereID(ev.sourceEntityId).gen_first();
+    auto src_opt = EQ({.ignore_temp_warning = true}).whereID(ev.sourceEntityId).gen_first();
     if (!src_opt || !src_opt->has<IsDish>()) {
       return;
     }
@@ -51,20 +53,170 @@ private:
   }
 
   void apply_effect(const DishEffect &effect, const TriggerEvent &ev) {
+    if (effect.conditional) {
+      if (!check_conditional(effect, ev)) {
+        return;
+      }
+    }
+
     auto targets = get_targets(effect.targetScope, ev);
 
-    for (afterhours::Entity *target : targets) {
-      if (target) {
-        apply_to_target(*target, effect);
-      }
+    for (afterhours::Entity &target : targets) {
+      apply_to_target(target, effect);
+    }
+
+    if (effect.playFreshnessChainAnimation) {
+      trigger_freshness_chain_animation(ev, targets);
     }
   }
 
-  std::vector<afterhours::Entity *> get_targets(TargetScope scope,
-                                                const TriggerEvent &ev) {
-    std::vector<afterhours::Entity *> targets;
+  void
+  trigger_freshness_chain_animation(const TriggerEvent &ev,
+                                    const afterhours::RefEntities &targets) {
+    // TODO: Come back and think more about how to make a more robust system for
+    // this. Currently this is hardcoded for FreshnessChain animation and
+    // requires a boolean flag per animation type, which doesn't scale well.
+    // Consider making animations declarative and part of the effect definition.
+    int sourceEntityId = ev.sourceEntityId;
+    int previousEntityId = -1;
+    int nextEntityId = -1;
 
-    auto src_opt = EQ().whereID(ev.sourceEntityId).gen_first();
+    auto src_opt = EQ({.ignore_temp_warning = true})
+                       .whereID(ev.sourceEntityId)
+                       .gen_first();
+    if (!src_opt || !src_opt->has<DishBattleState>()) {
+      return;
+    }
+
+    const auto &src_dbs = src_opt->get<DishBattleState>();
+    const int src_queue_index = src_dbs.queue_index;
+
+    for (afterhours::Entity &target : targets) {
+      if (!target.has<DishBattleState>()) {
+        continue;
+      }
+      const auto &dbs = target.get<DishBattleState>();
+      if (dbs.queue_index == src_queue_index - 1) {
+        previousEntityId = target.id;
+      } else if (dbs.queue_index == src_queue_index + 1) {
+        nextEntityId = target.id;
+      }
+    }
+
+    make_freshness_chain_animation(sourceEntityId, previousEntityId,
+                                   nextEntityId);
+  }
+
+  bool check_conditional(const DishEffect &effect, const TriggerEvent &ev) {
+    if (!effect.conditional) {
+      return true;
+    }
+
+    auto src_opt = EQ({.ignore_temp_warning = true})
+                       .whereID(ev.sourceEntityId)
+                       .gen_first();
+    if (!src_opt || !src_opt->has<DishBattleState>()) {
+      return false;
+    }
+
+    const auto &src_dbs = src_opt->get<DishBattleState>();
+    const int src_queue_index = src_dbs.queue_index;
+
+    auto prevDish = find_previous_dish_in_queue(src_dbs, src_queue_index);
+    if (prevDish.has_value()) {
+      const auto &dish = prevDish.value()->get<IsDish>();
+      const auto &dish_info = get_dish_info(dish.type);
+      if (get_flavor_stat_value(dish_info.flavor, effect.adjacentCheckStat) >
+          0) {
+        return true;
+      }
+    }
+
+    auto nextDish = find_next_dish_in_queue(src_dbs, src_queue_index);
+    if (nextDish.has_value()) {
+      const auto &dish = nextDish.value()->get<IsDish>();
+      const auto &dish_info = get_dish_info(dish.type);
+      if (get_flavor_stat_value(dish_info.flavor, effect.adjacentCheckStat) >
+          0) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  int get_flavor_stat_value(const FlavorStats &stats, FlavorStatType stat) {
+    switch (stat) {
+    case FlavorStatType::Satiety:
+      return stats.satiety;
+    case FlavorStatType::Sweetness:
+      return stats.sweetness;
+    case FlavorStatType::Spice:
+      return stats.spice;
+    case FlavorStatType::Acidity:
+      return stats.acidity;
+    case FlavorStatType::Umami:
+      return stats.umami;
+    case FlavorStatType::Richness:
+      return stats.richness;
+    case FlavorStatType::Freshness:
+      return stats.freshness;
+    }
+    return 0;
+  }
+
+  std::optional<afterhours::Entity *>
+  find_previous_dish_in_queue(const DishBattleState &src_dbs,
+                              int src_queue_index) {
+    auto prev = EQ({.force_merge = true})
+                    .whereHasComponent<IsDish>()
+                    .whereHasComponent<DishBattleState>()
+                    .whereLambda([&src_dbs, src_queue_index](
+                                     const afterhours::Entity &e) {
+                      const DishBattleState &dbs = e.get<DishBattleState>();
+                      return dbs.team_side == src_dbs.team_side &&
+                             dbs.queue_index == src_queue_index - 1 &&
+                             dbs.phase == DishBattleState::Phase::InQueue;
+                    })
+                    .orderByLambda(
+                        [](const afterhours::Entity &a,
+                           const afterhours::Entity &b) { return a.id > b.id; })
+                    .gen_first();
+    if (prev.has_value()) {
+      return prev.value();
+    }
+    return std::nullopt;
+  }
+
+  std::optional<afterhours::Entity *>
+  find_next_dish_in_queue(const DishBattleState &src_dbs, int src_queue_index) {
+    auto next = EQ({.force_merge = true})
+                    .whereHasComponent<IsDish>()
+                    .whereHasComponent<DishBattleState>()
+                    .whereLambda([&src_dbs, src_queue_index](
+                                     const afterhours::Entity &e) {
+                      const DishBattleState &dbs = e.get<DishBattleState>();
+                      return dbs.team_side == src_dbs.team_side &&
+                             dbs.queue_index == src_queue_index + 1 &&
+                             dbs.phase == DishBattleState::Phase::InQueue;
+                    })
+                    .orderByLambda(
+                        [](const afterhours::Entity &a,
+                           const afterhours::Entity &b) { return a.id > b.id; })
+                    .gen_first();
+    if (next.has_value()) {
+      return next.value();
+    }
+    return std::nullopt;
+  }
+
+  afterhours::RefEntities get_targets(TargetScope scope,
+                                      const TriggerEvent &ev) {
+    afterhours::RefEntities targets;
+
+    auto src_opt = EQ({.ignore_temp_warning = true})
+                       .whereID(ev.sourceEntityId)
+                       .gen_first();
     if (!src_opt || !src_opt->has<DishBattleState>()) {
       return targets;
     }
@@ -80,49 +232,53 @@ private:
     switch (scope) {
     case TargetScope::Self: {
       if (src_opt.has_value()) {
-        targets.push_back(src_opt.value());
+        targets.push_back(*src_opt.value());
       }
       break;
     }
 
     case TargetScope::Opponent: {
-      auto opponent = EQ().whereHasComponent<IsDish>()
+      auto opponent = EQ({.force_merge = true})
+                          .whereHasComponent<IsDish>()
                           .whereHasComponent<DishBattleState>()
                           .whereTeamSide(opposite_side)
                           .whereInSlotIndex(src_queue_index)
                           .gen_first();
       if (opponent.has_value()) {
-        targets.push_back(opponent.value());
+        targets.push_back(*opponent.value());
       }
       break;
     }
 
     case TargetScope::AllAllies: {
-      auto allies = EQ().whereHasComponent<IsDish>()
+      auto allies = EQ({.force_merge = true})
+                        .whereHasComponent<IsDish>()
                         .whereHasComponent<DishBattleState>()
                         .whereTeamSide(src_team_side)
                         .whereNotID(ev.sourceEntityId)
                         .gen();
       for (afterhours::Entity &e : allies) {
-        targets.push_back(&e);
+        targets.push_back(e);
       }
       break;
     }
 
     case TargetScope::AllOpponents: {
-      auto opponents = EQ().whereHasComponent<IsDish>()
+      auto opponents = EQ({.force_merge = true})
+                           .whereHasComponent<IsDish>()
                            .whereHasComponent<DishBattleState>()
                            .whereTeamSide(opposite_side)
                            .gen();
       for (afterhours::Entity &e : opponents) {
-        targets.push_back(&e);
+        targets.push_back(e);
       }
       break;
     }
 
     case TargetScope::DishesAfterSelf: {
       auto after =
-          EQ().whereHasComponent<IsDish>()
+          EQ({.ignore_temp_warning = true})
+              .whereHasComponent<IsDish>()
               .whereHasComponent<DishBattleState>()
               .whereTeamSide(src_team_side)
               .whereLambda([src_queue_index](const afterhours::Entity &e) {
@@ -131,13 +287,14 @@ private:
               })
               .gen();
       for (afterhours::Entity &e : after) {
-        targets.push_back(&e);
+        targets.push_back(e);
       }
       break;
     }
 
     case TargetScope::FutureAllies: {
-      auto future = EQ().whereHasComponent<IsDish>()
+      auto future = EQ({.force_merge = true})
+                        .whereHasComponent<IsDish>()
                         .whereHasComponent<DishBattleState>()
                         .whereTeamSide(src_team_side)
                         .whereLambda([](const afterhours::Entity &e) {
@@ -146,13 +303,14 @@ private:
                         })
                         .gen();
       for (afterhours::Entity &e : future) {
-        targets.push_back(&e);
+        targets.push_back(e);
       }
       break;
     }
 
     case TargetScope::FutureOpponents: {
-      auto future = EQ().whereHasComponent<IsDish>()
+      auto future = EQ({.force_merge = true})
+                        .whereHasComponent<IsDish>()
                         .whereHasComponent<DishBattleState>()
                         .whereTeamSide(opposite_side)
                         .whereLambda([](const afterhours::Entity &e) {
@@ -161,39 +319,38 @@ private:
                         })
                         .gen();
       for (afterhours::Entity &e : future) {
-        targets.push_back(&e);
+        targets.push_back(e);
       }
       break;
     }
 
     case TargetScope::Previous: {
-      auto prev =
-          EQ().whereHasComponent<IsDish>()
-              .whereHasComponent<DishBattleState>()
-              .whereTeamSide(src_team_side)
-              .whereLambda([src_queue_index](const afterhours::Entity &e) {
-                const DishBattleState &dbs = e.get<DishBattleState>();
-                return dbs.queue_index == src_queue_index - 1;
-              })
-              .gen_first();
+      auto prev = find_previous_dish_in_queue(src_dbs, src_queue_index);
       if (prev.has_value()) {
-        targets.push_back(prev.value());
+        targets.push_back(**prev);
       }
       break;
     }
 
     case TargetScope::Next: {
-      auto next =
-          EQ().whereHasComponent<IsDish>()
-              .whereHasComponent<DishBattleState>()
-              .whereTeamSide(src_team_side)
-              .whereLambda([src_queue_index](const afterhours::Entity &e) {
-                const DishBattleState &dbs = e.get<DishBattleState>();
-                return dbs.queue_index == src_queue_index + 1;
-              })
-              .gen_first();
+      auto next = find_next_dish_in_queue(src_dbs, src_queue_index);
       if (next.has_value()) {
-        targets.push_back(next.value());
+        targets.push_back(**next);
+      }
+      break;
+    }
+
+    case TargetScope::SelfAndAdjacent: {
+      targets.push_back(*src_opt.value());
+
+      auto prev = find_previous_dish_in_queue(src_dbs, src_queue_index);
+      if (prev.has_value()) {
+        targets.push_back(**prev);
+      }
+
+      auto next = find_next_dish_in_queue(src_dbs, src_queue_index);
+      if (next.has_value()) {
+        targets.push_back(**next);
       }
       break;
     }

@@ -50,13 +50,13 @@ struct TriggerDispatchSystem : afterhours::System<TriggerQueue> {
       if (a.teamSide != b.teamSide)
         return a.teamSide == DishBattleState::TeamSide::Player;
       int za = 0;
-      if (auto ea = EQ().whereID(a.sourceEntityId).gen_first()) {
+      if (auto ea = EQ({.ignore_temp_warning = true}).whereID(a.sourceEntityId).gen_first()) {
         if (ea->has<CombatStats>()) {
           za = ea->get<CombatStats>().currentZing;
         }
       }
       int zb = 0;
-      if (auto eb = EQ().whereID(b.sourceEntityId).gen_first()) {
+      if (auto eb = EQ({.ignore_temp_warning = true}).whereID(b.sourceEntityId).gen_first()) {
         if (eb->has<CombatStats>()) {
           zb = eb->get<CombatStats>().currentZing;
         }
@@ -108,7 +108,7 @@ private:
     // quiet on_serve
 
     // Dispatch to dish-defined onServe, if any
-    if (auto src = EQ().whereID(ev.sourceEntityId).gen_first()) {
+    if (auto src = EQ({.ignore_temp_warning = true}).whereID(ev.sourceEntityId).gen_first()) {
       if (src->has<IsDish>()) {
         const auto &info = get_dish_info(src->get<IsDish>().type);
         if (info.onServe) {

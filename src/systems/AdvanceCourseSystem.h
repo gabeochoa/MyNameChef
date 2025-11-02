@@ -39,13 +39,13 @@ struct AdvanceCourseSystem : afterhours::System<CombatQueue> {
 private:
   bool both_dishes_finished() {
     afterhours::OptEntity player_dish =
-        EQ().whereHasComponent<DishBattleState>()
+        EQ({.ignore_temp_warning = true}).whereHasComponent<DishBattleState>()
             .whereInSlotIndex(0)
             .whereTeamSide(DishBattleState::TeamSide::Player)
             .gen_first();
 
     afterhours::OptEntity opponent_dish =
-        EQ().whereHasComponent<DishBattleState>()
+        EQ({.ignore_temp_warning = true}).whereHasComponent<DishBattleState>()
             .whereInSlotIndex(0)
             .whereTeamSide(DishBattleState::TeamSide::Opponent)
             .gen_first();

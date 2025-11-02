@@ -24,6 +24,7 @@ Examples:
 - use a function instead of a line with multiple ternary expressions
 - Avoid using `auto` for non-template types - use explicit types instead
 - Use `for (Entity &entity : EntityQuery().gen())` instead of `for (auto &ref : ...)` with `ref.get()` - the range-for will auto-extract the entity from the reference wrapper
+- Prefer references over pointers when possible - when iterating over containers of pointers, dereference immediately: `for (Type *ptr : container) { Type &ref = *ptr; ... }` instead of using `ptr->` throughout
 
 ## Project Structure
 - `src/` contains main game code
