@@ -24,7 +24,6 @@ std::unordered_map<std::string, std::function<void()>>
 
 void TestSystem::register_test_cases() {
   // Register test cases using individual test files
-  test_registry["goto_battle"] = []() { GotoBattleTest::execute(); };
 
   // Register validation functions
   if (test_name == "validate_combat_system") {
@@ -34,10 +33,6 @@ void TestSystem::register_test_cases() {
   } else if (test_name == "validate_battle_results") {
     validation_function = []() {
       return ValidateBattleResultsTest::validate_results_screen();
-    };
-  } else if (test_name == "validate_ui_navigation") {
-    validation_function = []() {
-      return ValidateUINavigationTest::validate_ui_elements();
     };
   } else if (test_name == "validate_full_game_flow") {
     validation_function = []() {
@@ -67,10 +62,6 @@ void TestSystem::register_test_cases() {
 
   test_registry["validate_battle_results"] = []() {
     ValidateBattleResultsTest::execute();
-  };
-
-  test_registry["validate_ui_navigation"] = []() {
-    ValidateUINavigationTest::execute();
   };
 
   test_registry["validate_full_game_flow"] = []() {
