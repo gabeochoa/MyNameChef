@@ -91,16 +91,13 @@ struct ComputeCombatStatsSystem : afterhours::System<IsDish, DishLevel> {
     // Calculate Zing and Body using FlavorStats methods
     int zing = flavor.zing();
     int body = flavor.body();
-    int body_before_level = body;
 
     // Level scaling: multiply by 2 for each level above 1
     if (lvl.level > 1) {
       int level_multiplier = 1 << (lvl.level - 1); // 2^(level-1)
       zing *= level_multiplier;
       body *= level_multiplier;
-      log_info("COMBAT_STATS: Entity {} - level={}, multiplier={}, body before "
-               "level: {}, after level: {}",
-               e.id, lvl.level, level_multiplier, body_before_level, body);
+      // quiet
     }
 
     // Apply pre-battle modifiers
@@ -167,12 +164,7 @@ struct ComputeCombatStatsSystem : afterhours::System<IsDish, DishLevel> {
     pre.zingDelta = totalZ;
     pre.bodyDelta = totalB;
 
-    log_info("COMBAT_STATS: Entity {} - level={}, flavor zing={} body={}, "
-             "bodyAfterLevel={}, mods(z={},b={}) = pairing(z={},b={}) + "
-             "persistent(z={},b={}), baseZing: {} -> {}, baseBody: {} -> {}",
-             e.id, lvl.level, flavor.zing(), body_before_level, body, totalZ,
-             totalB, pairingZ, pairingB, persistZ, persistB, oldBaseZing,
-             cs.baseZing, oldBaseBody, cs.baseBody);
+    // quiet summary
 
     // Sync currentBody to baseBody only when:
     // 1. NOT in combat (always sync for non-combat dishes)
@@ -181,8 +173,6 @@ struct ComputeCombatStatsSystem : afterhours::System<IsDish, DishLevel> {
     // We do NOT sync every frame when in combat because ResolveCombatTickSystem
     // applies damage by modifying currentBody, and we don't want to reset
     // damage
-    int oldCurrentZing = cs.currentZing;
-    int oldCurrentBody = cs.currentBody;
     bool baseChanged =
         (oldBaseZing != cs.baseZing || oldBaseBody != cs.baseBody);
 
@@ -190,26 +180,12 @@ struct ComputeCombatStatsSystem : afterhours::System<IsDish, DishLevel> {
       // Not in combat: always sync to baseBody
       cs.currentZing = cs.baseZing;
       cs.currentBody = cs.baseBody;
-      log_info("COMBAT_STATS: Entity {} NOT in combat - current stats synced: "
-               "zing {} -> {}, body {} -> {}",
-               e.id, oldCurrentZing, cs.currentZing, oldCurrentBody,
-               cs.currentBody);
     } else {
       // In combat: only sync if just entered or baseBody changed
       if (just_entered_combat || baseChanged) {
         cs.currentZing = cs.baseZing;
         cs.currentBody = cs.baseBody;
-        if (just_entered_combat) {
-          log_info("COMBAT_STATS: Entity {} JUST ENTERED combat - syncing "
-                   "current to base: zing {} -> {}, body {} -> {}",
-                   e.id, oldCurrentZing, cs.currentZing, oldCurrentBody,
-                   cs.currentBody);
-        } else {
-          log_info("COMBAT_STATS: Entity {} IN combat - baseBody changed, "
-                   "syncing current to base: zing {} -> {}, body {} -> {}",
-                   e.id, oldCurrentZing, cs.currentZing, oldCurrentBody,
-                   cs.currentBody);
-        }
+        // quiet
       } else {
         // In combat and baseBody unchanged - don't sync (damage might have been
         // applied) Only log periodically to confirm we're not resetting damage
@@ -217,11 +193,7 @@ struct ComputeCombatStatsSystem : afterhours::System<IsDish, DishLevel> {
         frame_count[e.id] = (frame_count.find(e.id) == frame_count.end())
                                 ? 0
                                 : frame_count[e.id] + 1;
-        if (frame_count[e.id] % 60 == 0) { // Log every 60 frames
-          log_info("COMBAT_STATS: Entity {} IN combat - currentBody={}, "
-                   "baseBody={} (preserving damage)",
-                   e.id, cs.currentBody, cs.baseBody);
-        }
+        // quiet periodic
       }
     }
 

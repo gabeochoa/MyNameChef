@@ -8,6 +8,7 @@
 #include "../components/trigger_queue.h"
 #include "../game_state_manager.h"
 #include "../query.h"
+#include "../render_backend.h"
 #include "../shop.h"
 #include <afterhours/ah.h>
 #include <afterhours/src/plugins/animation.h>
@@ -21,9 +22,12 @@ struct ResolveCombatTickSystem
 private:
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
-    bool should_run = gsm.active_screen == GameStateManager::Screen::Battle &&
-                      !hasActiveAnimation();
-    return should_run;
+    // TODO: Replace headless mode bypass with --disable-animation flag that calls
+    // into vendor library (afterhours::animation) to properly disable animations
+    // at the framework level instead of bypassing checks here
+    bool animation_blocking = !render_backend::is_headless_mode && hasActiveAnimation();
+    return gsm.active_screen == GameStateManager::Screen::Battle &&
+           !animation_blocking;
   }
 
   void for_each_with(afterhours::Entity &e, DishBattleState &dbs,
@@ -43,23 +47,33 @@ private:
 
     // Hard gate: ensure the SlideIn animation has fully finished for both
     // entities
-    auto sv_player =
-        afterhours::animation::get_value(BattleAnimKey::SlideIn, (size_t)e.id);
-    auto sv_opponent = afterhours::animation::get_value(BattleAnimKey::SlideIn,
-                                                        (size_t)opponent.id);
-    const float slide_player = sv_player.has_value() ? sv_player.value() : 1.0f;
-    const float slide_opponent =
-        sv_opponent.has_value() ? sv_opponent.value() : 1.0f;
-    if (slide_player < 1.0f || slide_opponent < 1.0f) {
-      return; // do not progress combat until slide-in visually completes
+    // TODO: Replace headless mode bypass with --disable-animation flag that calls
+    // into vendor library (afterhours::animation) to properly disable animations
+    // at the framework level instead of bypassing checks here
+    if (!render_backend::is_headless_mode) {
+      auto sv_player =
+          afterhours::animation::get_value(BattleAnimKey::SlideIn, (size_t)e.id);
+      auto sv_opponent = afterhours::animation::get_value(BattleAnimKey::SlideIn,
+                                                          (size_t)opponent.id);
+      const float slide_player = sv_player.has_value() ? sv_player.value() : 1.0f;
+      const float slide_opponent =
+          sv_opponent.has_value() ? sv_opponent.value() : 1.0f;
+      if (slide_player < 1.0f || slide_opponent < 1.0f) {
+        return; // do not progress combat until slide-in visually completes
+      }
     }
 
     // On entering InCombat for the first time, start with a pre-pause
     if (!dbs.first_bite_decided) {
-      // Do not start cadence until movement animation has fully finished
-      if (dbs.enter_progress < 1.0f ||
-          opponent.get<DishBattleState>().enter_progress < 1.0f) {
-        return;
+      // TODO: Replace headless mode bypass with --disable-animation flag that calls
+      // into vendor library (afterhours::animation) to properly disable animations
+      // at the framework level instead of bypassing checks here
+      if (!render_backend::is_headless_mode) {
+        // Do not start cadence until movement animation has fully finished
+        if (dbs.enter_progress < 1.0f ||
+            opponent.get<DishBattleState>().enter_progress < 1.0f) {
+          return;
+        }
       }
 
       dbs.first_bite_decided = true;
@@ -68,7 +82,10 @@ private:
       return; // do not deal damage immediately
     }
 
-    dbs.bite_cadence_timer += dt;
+    // Ensure forward progress even if dt is zero due to timing anomalies in headless mode
+    const float kFallbackDt = 1.0f / 60.0f;
+    float effective_dt = dt > 0.0f ? dt : kFallbackDt;
+    dbs.bite_cadence_timer += effective_dt;
 
     DishBattleState &opponent_dbs = opponent.get<DishBattleState>();
     CombatStats &opponent_cs = opponent.get<CombatStats>();

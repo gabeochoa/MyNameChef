@@ -8,6 +8,7 @@
 #include "../components/trigger_queue.h"
 #include "../game_state_manager.h"
 #include "../query.h"
+#include "../render_backend.h"
 #include "../shop.h"
 #include <afterhours/ah.h>
 
@@ -43,7 +44,10 @@ struct SimplifiedOnServeSystem : afterhours::System<CombatQueue> {
       return;
     }
 
-    if (hasActiveAnimation()) {
+    // TODO: Replace headless mode bypass with --disable-animation flag that
+    // calls into vendor library (afterhours::animation) to properly disable
+    // animations at the framework level instead of bypassing checks here
+    if (!render_backend::is_headless_mode && hasActiveAnimation()) {
       return;
     }
 
@@ -110,6 +114,28 @@ struct SimplifiedOnServeSystem : afterhours::System<CombatQueue> {
       } else {
         state.currentSlot++;
       }
+    } else {
+      // No dishes in the current slot; advance to the next slot that may have
+      // pending dishes. If we've already passed the maximum pending slot, mark
+      // as complete.
+      auto maxSlotOpt =
+          EQ().whereHasComponent<IsDish>()
+              .whereHasComponent<DishBattleState>()
+              .whereLambda([](const afterhours::Entity &e) {
+                const DishBattleState &dbs = e.get<DishBattleState>();
+                return dbs.phase == DishBattleState::Phase::InQueue &&
+                       !dbs.onserve_fired;
+              })
+              .gen_max_value<int>([](const afterhours::Entity &e) {
+                return e.get<DishBattleState>().queue_index;
+              });
+
+      if (!maxSlotOpt || state.currentSlot >= *maxSlotOpt) {
+        state.allFired = true;
+        log_info("COMBAT: All OnServe triggers fired");
+      } else {
+        state.currentSlot++;
+      }
     }
   }
 
@@ -147,6 +173,12 @@ private:
   }
 
   bool slide_in_complete() {
+    // TODO: Replace headless mode bypass with --disable-animation flag that
+    // calls into vendor library (afterhours::animation) to properly disable
+    // animations at the framework level instead of bypassing checks here
+    if (render_backend::is_headless_mode) {
+      return true;
+    }
     return !afterhours::EntityQuery()
                 .whereHasComponent<AnimationEvent>()
                 .whereHasComponent<AnimationTimer>()

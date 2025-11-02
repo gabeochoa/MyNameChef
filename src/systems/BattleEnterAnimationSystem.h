@@ -5,6 +5,7 @@
 #include "../components/persistent_combat_modifiers.h"
 #include "../components/transform.h"
 #include "../game_state_manager.h"
+#include "../render_backend.h"
 #include <afterhours/ah.h>
 
 struct BattleEnterAnimationSystem : afterhours::System<DishBattleState> {
@@ -18,15 +19,27 @@ struct BattleEnterAnimationSystem : afterhours::System<DishBattleState> {
     if (dbs.phase != DishBattleState::Phase::Entering)
       return;
 
-    const float enter_duration = 0.45f; // seconds
-    // Support a start delay by allowing enter_progress to begin negative; we
-    // count it up to 0 before progressing the visible animation 0..1.
-    if (dbs.enter_progress < 0.0f) {
-      dbs.enter_progress = std::min(0.0f, dbs.enter_progress + dt);
-      return;
+    // TODO: Replace headless mode bypass with --disable-animation flag that calls
+    // into vendor library (afterhours::animation) to properly disable animations
+    // at the framework level instead of bypassing timers here
+    if (render_backend::is_headless_mode) {
+      dbs.enter_progress = 1.0f;
+      // Skip the rest of the function; the >= 1.0f check below will transition to InCombat
+    } else {
+      // Ensure forward progress even if dt is zero due to timing anomalies
+      const float kFallbackDt = 1.0f / 60.0f;
+      float effective_dt = dt > 0.0f ? dt : kFallbackDt;
+
+      const float enter_duration = 0.45f; // seconds
+      // Support a start delay by allowing enter_progress to begin negative; we
+      // count it up to 0 before progressing the visible animation 0..1.
+      if (dbs.enter_progress < 0.0f) {
+        dbs.enter_progress = std::min(0.0f, dbs.enter_progress + effective_dt);
+        return;
+      }
+      dbs.enter_progress =
+          std::min(1.0f, dbs.enter_progress + effective_dt / enter_duration);
     }
-    dbs.enter_progress =
-        std::min(1.0f, dbs.enter_progress + dt / enter_duration);
 
     if (dbs.enter_progress >= 1.0f) {
       // Log modifiers at Entering -> InCombat boundary

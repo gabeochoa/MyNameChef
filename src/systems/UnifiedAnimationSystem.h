@@ -5,6 +5,7 @@
 #include "../components/dish_battle_state.h"
 #include "../components/is_dish.h"
 #include "../game_state_manager.h"
+#include "../render_backend.h"
 #include <afterhours/ah.h>
 #include <afterhours/src/plugins/animation.h>
 
@@ -73,7 +74,14 @@ struct AnimationTimerSystem : afterhours::System<AnimationTimer> {
 
   void for_each_with(afterhours::Entity &e, AnimationTimer &timer,
                      float dt) override {
-    timer.elapsed += dt;
+    // TODO: Replace headless mode bypass with --disable-animation flag that calls
+    // into vendor library (afterhours::animation) to properly disable animations
+    // at the framework level instead of bypassing timers here
+    if (render_backend::is_headless_mode) {
+      timer.elapsed = timer.duration;
+    } else {
+      timer.elapsed += dt;
+    }
 
     if (timer.elapsed >= timer.duration) {
       log_info("ANIM complete: Timer-based animation (event id={})", e.id);

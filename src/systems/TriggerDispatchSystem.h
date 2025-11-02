@@ -66,20 +66,15 @@ struct TriggerDispatchSystem : afterhours::System<TriggerQueue> {
       return a.sourceEntityId < b.sourceEntityId;
     });
 
-    log_info("TRIGGER_QUEUE dispatch order ({} events):", order.size());
+    // quiet dispatch order
     for (size_t idx : order) {
       const auto &ev = queue.events[idx];
-      log_info("  - hook={} slot={} side={} source={} payloadInt={}",
-               magic_enum::enum_name(ev.hook), ev.slotIndex,
-               ev.teamSide == DishBattleState::TeamSide::Player ? "Player"
-                                                                : "Opponent",
-               ev.sourceEntityId, ev.payloadInt);
+      // quiet per-event details
       handle_event(ev);
       // After each dispatch, enqueue a small non-blocking animation event if
       // desired
     }
-
-    log_info("TRIGGER_QUEUE processed and cleared ({} events)", order.size());
+    // quiet queue processed
     queue.clear();
   }
 
@@ -107,48 +102,29 @@ private:
     }
   }
 
-  void on_start_battle(const TriggerEvent &) {
-    log_info("TRIGGER OnStartBattle - battle initialized");
-  }
+  void on_start_battle(const TriggerEvent &) {}
 
   void on_serve(const TriggerEvent &ev) {
-    log_info("TRIGGER OnServe slot={} side={}", ev.slotIndex,
-             ev.teamSide == DishBattleState::TeamSide::Player ? "Player"
-                                                              : "Opponent");
+    // quiet on_serve
 
     // Dispatch to dish-defined onServe, if any
     if (auto src = EQ().whereID(ev.sourceEntityId).gen_first()) {
       if (src->has<IsDish>()) {
         const auto &info = get_dish_info(src->get<IsDish>().type);
         if (info.onServe) {
-          log_info("TRIGGER OnServe handler: dish={} (id={})", info.name,
-                   ev.sourceEntityId);
+          // quiet handler name
           info.onServe(ev.sourceEntityId);
-          log_info("TRIGGER OnServe handler completed for id={}",
-                   ev.sourceEntityId);
+          // quiet completion
         }
       }
     }
   }
 
-  void on_bite_taken(const TriggerEvent &ev) {
-    log_info("TRIGGER OnBiteTaken slot={} side={} dmg={}", ev.slotIndex,
-             ev.teamSide == DishBattleState::TeamSide::Player ? "Player"
-                                                              : "Opponent",
-             ev.payloadInt);
-  }
+  void on_bite_taken(const TriggerEvent &) {}
 
-  void on_dish_finished(const TriggerEvent &ev) {
-    log_info("TRIGGER OnDishFinished slot={} side={}", ev.slotIndex,
-             ev.teamSide == DishBattleState::TeamSide::Player ? "Player"
-                                                              : "Opponent");
-  }
+  void on_dish_finished(const TriggerEvent &) {}
 
-  void on_course_start(const TriggerEvent &ev) {
-    log_info("TRIGGER OnCourseStart slot={}", ev.slotIndex);
-  }
+  void on_course_start(const TriggerEvent &) {}
 
-  void on_course_complete(const TriggerEvent &ev) {
-    log_info("TRIGGER OnCourseComplete slot={}", ev.slotIndex);
-  }
+  void on_course_complete(const TriggerEvent &) {}
 };

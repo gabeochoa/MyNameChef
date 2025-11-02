@@ -61,25 +61,17 @@ struct ApplyPairingsAndClashesSystem
       // First time - set pairing/clash modifiers
       mod.bodyDelta = pairing_bonus;
       mod.zingDelta = -clash_penalty;
-      log_info("PAIRINGS_CLASHES: Dish {} - SET pairing/clash modifiers: bodyDelta: {} -> {}, zingDelta: {} -> {}",
-               e.id, oldBodyDelta, mod.bodyDelta, oldZingDelta, mod.zingDelta);
+      // quiet
     } else {
       // Modifiers already exist - preserve them
       if (oldBodyDelta != mod.bodyDelta || oldZingDelta != mod.zingDelta) {
         log_error("PAIRINGS_CLASHES: Dish {} - MODIFIERS CHANGED! bodyDelta: {} -> {}, zingDelta: {} -> {}",
                  e.id, oldBodyDelta, mod.bodyDelta, oldZingDelta, mod.zingDelta);
       }
-      log_info("PAIRINGS_CLASHES: Dish {} - PRESERVING existing modifiers: bodyDelta={}, zingDelta={} (computed pairing={}, clash={})",
-               e.id, mod.bodyDelta, mod.zingDelta, pairing_bonus, clash_penalty);
+      // quiet
     }
 
-    if (mod.bodyDelta != 0 || mod.zingDelta != 0) {
-      log_info("PAIRINGS_CLASHES: Dish {} - team={} slot={} bodyDelta={} zingDelta={}",
-               e.id,
-               dbs.team_side == DishBattleState::TeamSide::Player ? "Player"
-                                                                  : "Opponent",
-               dbs.queue_index, mod.bodyDelta, mod.zingDelta);
-    }
+    // quiet
   }
 
 private:

@@ -11,18 +11,19 @@
 #include "../components/trigger_queue.h"
 #include "../game_state_manager.h"
 #include "../query.h"
+#include "../render_backend.h"
 #include "../shop.h"
 #include <afterhours/ah.h>
 
 struct StartCourseSystem : afterhours::System<CombatQueue> {
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
-    bool should_run = gsm.active_screen == GameStateManager::Screen::Battle &&
-                      !hasActiveAnimation();
-    if (!should_run && gsm.active_screen == GameStateManager::Screen::Battle) {
-      log_info("COMBAT: StartCourseSystem paused - animation active");
-    }
-    return should_run;
+    // TODO: Replace headless mode bypass with --disable-animation flag that calls
+    // into vendor library (afterhours::animation) to properly disable animations
+    // at the framework level instead of bypassing checks here
+    bool animation_blocking = !render_backend::is_headless_mode && hasActiveAnimation();
+    return gsm.active_screen == GameStateManager::Screen::Battle &&
+           !animation_blocking;
   }
 
   void for_each_with(afterhours::Entity &, CombatQueue &cq, float) override {
@@ -184,6 +185,24 @@ private:
   }
 
   bool prerequisites_complete() {
+    // TODO: Replace headless mode bypass with --disable-animation flag that calls
+    // into vendor library (afterhours::animation) to properly disable animations
+    // at the framework level instead of bypassing checks here
+    if (render_backend::is_headless_mode) {
+      // In headless mode, skip animation checks and only check if OnServe fired
+      afterhours::RefEntities unfinishedDishes =
+          afterhours::EntityQuery()
+              .whereHasComponent<IsDish>()
+              .whereHasComponent<DishBattleState>()
+              .whereLambda([](const afterhours::Entity &e) {
+                const DishBattleState &dbs = e.get<DishBattleState>();
+                return dbs.phase == DishBattleState::Phase::InQueue &&
+                       !dbs.onserve_fired;
+              })
+              .gen();
+      return unfinishedDishes.empty();
+    }
+
     bool slideInComplete = true;
     for (afterhours::Entity &animEntity :
          afterhours::EntityQuery()
