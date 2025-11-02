@@ -165,6 +165,8 @@ private:
 
       log_info("COMBAT: Both dishes defeated at slot {} (tie)",
                dbs.queue_index);
+      
+      reorganize_queues();
     } else if (cs.currentBody <= 0) {
       dbs.phase = DishBattleState::Phase::Finished;
 
@@ -177,6 +179,8 @@ private:
 
       log_info("COMBAT: Player-side dish {} defeated at slot {}", e.id,
                dbs.queue_index);
+      
+      reorganize_queues();
     } else if (opponent_cs.currentBody <= 0) {
       opponent_dbs.phase = DishBattleState::Phase::Finished;
 
@@ -189,6 +193,8 @@ private:
 
       log_info("COMBAT: Opponent-side dish {} defeated at slot {}", opponent.id,
                dbs.queue_index);
+      
+      reorganize_queues();
     }
   }
 
@@ -199,16 +205,68 @@ private:
             ? DishBattleState::TeamSide::Opponent
             : DishBattleState::TeamSide::Player;
 
+    // Always look for opponent at index 0 (queues are reorganized when dishes finish)
     for (afterhours::Entity &e :
          afterhours::EntityQuery().whereHasComponent<DishBattleState>().gen()) {
       DishBattleState &other_dbs = e.get<DishBattleState>();
       if (other_dbs.team_side == opponent_side &&
-          other_dbs.queue_index == dbs.queue_index &&
+          other_dbs.queue_index == 0 &&
           other_dbs.phase == DishBattleState::Phase::InCombat) {
         return afterhours::OptEntity(e);
       }
     }
     return afterhours::OptEntity();
+  }
+
+  void reorganize_queues() {
+    for (DishBattleState::TeamSide side : {DishBattleState::TeamSide::Player,
+                                           DishBattleState::TeamSide::Opponent}) {
+      afterhours::RefEntities active_dishes =
+          EQ().whereHasComponent<DishBattleState>()
+              .whereTeamSide(side)
+              .whereLambda([](const afterhours::Entity &e) {
+                const DishBattleState &dbs = e.get<DishBattleState>();
+                return dbs.phase == DishBattleState::Phase::InQueue ||
+                       dbs.phase == DishBattleState::Phase::Entering ||
+                       dbs.phase == DishBattleState::Phase::InCombat;
+              })
+              .orderByLambda([](const afterhours::Entity &a,
+                                const afterhours::Entity &b) {
+                return a.get<DishBattleState>().queue_index <
+                       b.get<DishBattleState>().queue_index;
+              })
+              .gen();
+
+      int new_index = 0;
+      for (afterhours::Entity &dish : active_dishes) {
+        DishBattleState &dbs = dish.get<DishBattleState>();
+        bool was_reorganized = dbs.queue_index != new_index;
+        if (was_reorganized) {
+          log_info("COMBAT: Reorganizing {} side dish {} from index {} to {}",
+                   side == DishBattleState::TeamSide::Player ? "Player"
+                                                             : "Opponent",
+                   dish.id, dbs.queue_index, new_index);
+          dbs.queue_index = new_index;
+        }
+        
+        // Reset dishes that were InCombat or Entering to InQueue so they can start new fights
+        // (survivors from previous combat need to reset combat state)
+        if (dbs.phase == DishBattleState::Phase::InCombat ||
+            dbs.phase == DishBattleState::Phase::Entering) {
+          const char *old_phase = (dbs.phase == DishBattleState::Phase::InCombat) ? "InCombat" : "Entering";
+          dbs.phase = DishBattleState::Phase::InQueue;
+          dbs.enter_progress = 0.0f;
+          dbs.first_bite_decided = false;
+          dbs.bite_cadence = DishBattleState::BiteCadence::PrePause;
+          dbs.bite_cadence_timer = 0.0f;
+          log_info("COMBAT: Resetting {} side dish {} from {} to InQueue after reorganization",
+                   side == DishBattleState::TeamSide::Player ? "Player" : "Opponent",
+                   dish.id, old_phase);
+        }
+        
+        new_index++;
+      }
+    }
   }
 
   // (no intra-course chaining; course advancement handled by Start/Advance

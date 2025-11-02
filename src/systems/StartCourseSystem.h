@@ -18,10 +18,11 @@
 struct StartCourseSystem : afterhours::System<CombatQueue> {
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
-    // TODO: Replace headless mode bypass with --disable-animation flag that calls
-    // into vendor library (afterhours::animation) to properly disable animations
-    // at the framework level instead of bypassing checks here
-    bool animation_blocking = !render_backend::is_headless_mode && hasActiveAnimation();
+    // TODO: Replace headless mode bypass with --disable-animation flag that
+    // calls into vendor library (afterhours::animation) to properly disable
+    // animations at the framework level instead of bypassing checks here
+    bool animation_blocking =
+        !render_backend::is_headless_mode && hasActiveAnimation();
     return gsm.active_screen == GameStateManager::Screen::Battle &&
            !animation_blocking;
   }
@@ -38,62 +39,31 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
       return;
     }
 
-    // Find player and opponent dishes for current slot
+    // Always fight dishes at index 0 (queues are reorganized when dishes
+    // finish)
     afterhours::OptEntity player_dish =
-        find_dish_for_slot(cq.current_index, DishBattleState::TeamSide::Player);
-    afterhours::OptEntity opponent_dish = find_dish_for_slot(
-        cq.current_index, DishBattleState::TeamSide::Opponent);
+        find_dish_for_slot(0, DishBattleState::TeamSide::Player);
+    afterhours::OptEntity opponent_dish =
+        find_dish_for_slot(0, DishBattleState::TeamSide::Opponent);
 
-    // (quiet)
-
-    // Survivor carryover: if exactly one side is still in combat and the other
-    // has finished for this course, bring in the next dish for the defeated
-    // side
-    if (player_dish && opponent_dish) {
-      DishBattleState &player_dbs = player_dish->get<DishBattleState>();
-      DishBattleState &opponent_dbs = opponent_dish->get<DishBattleState>();
-      bool player_survived =
-          player_dbs.phase == DishBattleState::Phase::InCombat &&
-          opponent_dbs.phase == DishBattleState::Phase::Finished;
-      bool opponent_survived =
-          opponent_dbs.phase == DishBattleState::Phase::InCombat &&
-          player_dbs.phase == DishBattleState::Phase::Finished;
-
-      if (player_survived || opponent_survived) {
-        int next_index = cq.current_index + 1;
-        DishBattleState::TeamSide defeated_side =
-            player_survived ? DishBattleState::TeamSide::Opponent
-                            : DishBattleState::TeamSide::Player;
-        auto next_dish = find_dish_for_slot(next_index, defeated_side);
-        if (next_dish) {
-          // Keep the same course index; retarget next dish into the current
-          // slot
-          DishBattleState &next_dbs = next_dish->get<DishBattleState>();
-          next_dbs.queue_index = cq.current_index;
-          next_dbs.phase = DishBattleState::Phase::Entering;
-          next_dbs.enter_progress = -0.25f;
-          log_info("COMBAT: Survivor carryover - retargeting {} side dish {} "
-                   "from slot {} to current slot {}",
-                   defeated_side == DishBattleState::TeamSide::Opponent
-                       ? "Opponent"
-                       : "Player",
-                   next_dish->id, next_index, cq.current_index);
-          return;
-        } else {
-          // No next dish available for the defeated side; battle concludes
-          cq.complete = true;
-          GameStateManager::get().to_results();
-          return;
-        }
-      }
-    }
-
+    // Check if battle should end (one team has no remaining dishes)
     if (!player_dish || !opponent_dish) {
-      // No more dishes, mark combat complete and transition to results
-      cq.complete = true;
-      log_info("COMBAT: No more dishes for slot {}, transitioning to results",
-               cq.current_index);
-      GameStateManager::get().to_results();
+      bool player_has_remaining =
+          has_remaining_active_dishes(DishBattleState::TeamSide::Player);
+      bool opponent_has_remaining =
+          has_remaining_active_dishes(DishBattleState::TeamSide::Opponent);
+
+      if (!player_has_remaining || !opponent_has_remaining) {
+        cq.complete = true;
+        log_info("COMBAT: One team exhausted - Player: {}, Opponent: {}, "
+                 "transitioning to results",
+                 player_has_remaining ? "active" : "exhausted",
+                 opponent_has_remaining ? "active" : "exhausted");
+        GameStateManager::get().to_results();
+        return;
+      }
+
+      // Both teams have dishes but not at index 0 yet (reorganization pending)
       return;
     }
 
@@ -154,16 +124,17 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
       player_dbs.enter_progress = -enter_start_delay;
       opponent_dbs.phase = DishBattleState::Phase::Entering;
       opponent_dbs.enter_progress = -enter_start_delay;
-      log_info("COMBAT: Starting course {} - both dishes entering head to head",
+      cq.current_index++;
+      log_info("COMBAT: Starting course {} - both dishes at index 0 entering "
+               "head to head",
                cq.current_index);
 
       if (auto tq = afterhours::EntityHelper::get_singleton<TriggerQueue>();
           tq.get().has<TriggerQueue>()) {
         auto &queue = tq.get().get<TriggerQueue>();
-        queue.add_event(TriggerHook::OnCourseStart, 0, cq.current_index,
+        queue.add_event(TriggerHook::OnCourseStart, 0, 0,
                         DishBattleState::TeamSide::Player);
-        log_info("COMBAT: Fired OnCourseStart trigger for slot {}",
-                 cq.current_index);
+        log_info("COMBAT: Fired OnCourseStart trigger for index 0");
       }
     }
   }
@@ -184,10 +155,22 @@ private:
         .gen_first();
   }
 
+  bool has_remaining_active_dishes(DishBattleState::TeamSide side) {
+    return EQ().whereHasComponent<DishBattleState>()
+               .whereTeamSide(side)
+               .whereLambda([](const afterhours::Entity &e) {
+                 const DishBattleState &dbs = e.get<DishBattleState>();
+                 return dbs.phase == DishBattleState::Phase::InQueue ||
+                        dbs.phase == DishBattleState::Phase::Entering ||
+                        dbs.phase == DishBattleState::Phase::InCombat;
+               })
+               .gen_count() > 0;
+  }
+
   bool prerequisites_complete() {
-    // TODO: Replace headless mode bypass with --disable-animation flag that calls
-    // into vendor library (afterhours::animation) to properly disable animations
-    // at the framework level instead of bypassing checks here
+    // TODO: Replace headless mode bypass with --disable-animation flag that
+    // calls into vendor library (afterhours::animation) to properly disable
+    // animations at the framework level instead of bypassing checks here
     if (render_backend::is_headless_mode) {
       // In headless mode, skip animation checks and only check if OnServe fired
       afterhours::RefEntities unfinishedDishes =
