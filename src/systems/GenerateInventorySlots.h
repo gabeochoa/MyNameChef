@@ -88,6 +88,8 @@ struct GenerateInventorySlots : System<> {
           int target_inventory_slot;
         };
 
+        // Create test dishes in slots 0-3 (4 dishes), leaving slots 4-6 empty (3 slots)
+        // This matches the actual game behavior when entering shop screen
         std::vector<TestDishSpawn> spawnList = {
             {DishType::Bagel, INVENTORY_SLOT_OFFSET + 0},
             {DishType::Salmon, INVENTORY_SLOT_OFFSET + 1},

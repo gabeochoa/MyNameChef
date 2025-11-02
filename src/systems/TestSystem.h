@@ -8,6 +8,8 @@
 
 #include "../game_state_manager.h"
 #include "../log.h"
+#include "../rl.h"
+#include "../render_backend.h"
 
 struct TestSystem : afterhours::System<> {
   std::string test_name;
@@ -18,11 +20,14 @@ struct TestSystem : afterhours::System<> {
   float validation_start_time = 0.0f;
   float validation_elapsed_time = 0.0f;
   bool first_validation_frame = true;
-  const float kValidationTimeout = 1.0f;
+  // Use longer timeout in visible mode (slower due to rendering)
+  const float kValidationTimeout;
   std::function<void()> test_function;
   std::function<bool()> validation_function;
 
-  explicit TestSystem(std::string name) : test_name(std::move(name)) {
+  explicit TestSystem(std::string name)
+      : test_name(std::move(name)),
+        kValidationTimeout(render_backend::is_headless_mode ? 1.0f : 10.0f) {
     log_info("TEST SYSTEM CREATED: {} - TestSystem instantiated", test_name);
     register_test_cases();
   }

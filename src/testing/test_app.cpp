@@ -196,6 +196,10 @@ std::vector<TestDishInfo> TestApp::read_player_inventory() {
                                         .whereHasComponent<IsInventoryItem>()
                                         .whereHasComponent<IsDish>()
                                         .gen()) {
+    // Exclude entities that are shop items (they shouldn't be in inventory)
+    if (entity.has<IsShopItem>()) {
+      continue;
+    }
     IsInventoryItem &inv = entity.get<IsInventoryItem>();
     IsDish &dish = entity.get<IsDish>();
     int level = 1;
@@ -1323,35 +1327,70 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
   }
 
   // Find an empty inventory slot
+  // Retry with delays to handle timing issues in visible mode
   afterhours::Entity *target_slot = nullptr;
-  if (inventory_slot >= 0) {
-    // Use specified slot
-    for (afterhours::Entity &entity :
-         afterhours::EntityQuery().whereHasComponent<IsDropSlot>().gen()) {
-      const IsDropSlot &slot = entity.get<IsDropSlot>();
-      if (slot.slot_id == inventory_slot && slot.accepts_inventory_items &&
-          !slot.occupied) {
-        target_slot = &entity;
-        break;
+  const int max_attempts = 5;
+  
+  for (int attempt = 0; attempt < max_attempts && !target_slot; attempt++) {
+    // Merge entity arrays to ensure all slots are available
+    afterhours::EntityHelper::merge_entity_arrays();
+    
+    if (inventory_slot >= 0) {
+      // Use specified slot
+      for (afterhours::Entity &entity :
+           afterhours::EntityQuery({.force_merge = true}).whereHasComponent<IsDropSlot>().gen()) {
+        const IsDropSlot &slot = entity.get<IsDropSlot>();
+        if (slot.accepts_inventory_items && slot.accepts_shop_items &&
+            slot.slot_id == inventory_slot && !slot.occupied) {
+          target_slot = &entity;
+          break;
+        }
+      }
+    } else {
+      // Find any empty inventory slot
+      // Note: We need slots that accept both inventory AND shop items (actual inventory slots)
+      // The sell slot accepts inventory items but not shop items, so we exclude it
+      for (afterhours::Entity &entity :
+           afterhours::EntityQuery({.force_merge = true}).whereHasComponent<IsDropSlot>().gen()) {
+        const IsDropSlot &slot = entity.get<IsDropSlot>();
+        if (slot.accepts_inventory_items && slot.accepts_shop_items && !slot.occupied) {
+          target_slot = &entity;
+          break;
+        }
       }
     }
-    if (!target_slot) {
+    
+    if (!target_slot && attempt < max_attempts - 1) {
+      // Wait a bit for systems to process before retrying
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+  }
+  
+  // Final check after all attempts
+  if (!target_slot) {
+    // Re-merge and count for final error message
+    afterhours::EntityHelper::merge_entity_arrays();
+    int final_occupied = 0;
+    int final_total = 0;
+    for (afterhours::Entity &entity :
+         afterhours::EntityQuery({.force_merge = true}).whereHasComponent<IsDropSlot>().gen()) {
+      const IsDropSlot &slot = entity.get<IsDropSlot>();
+      if (slot.accepts_inventory_items && slot.accepts_shop_items) {
+        final_total++;
+        if (slot.occupied) {
+          final_occupied++;
+        }
+      }
+    }
+    if (inventory_slot >= 0) {
       fail("Inventory slot " + std::to_string(inventory_slot) +
-               " not found or is occupied",
-           location);
-    }
-  } else {
-    // Find any empty inventory slot
-    for (afterhours::Entity &entity :
-         afterhours::EntityQuery().whereHasComponent<IsDropSlot>().gen()) {
-      const IsDropSlot &slot = entity.get<IsDropSlot>();
-      if (slot.accepts_inventory_items && !slot.occupied) {
-        target_slot = &entity;
-        break;
-      }
-    }
-    if (!target_slot) {
-      fail("No empty inventory slots available", location);
+               " not found or is occupied after " + std::to_string(max_attempts) +
+               " attempts (total slots: " + std::to_string(final_total) +
+               ", occupied: " + std::to_string(final_occupied) + ")", location);
+    } else {
+      fail("No empty inventory slots available after " + std::to_string(max_attempts) + 
+               " attempts (total slots: " + std::to_string(final_total) +
+               ", occupied: " + std::to_string(final_occupied) + ", max: 7)", location);
     }
   }
 
