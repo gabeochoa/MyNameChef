@@ -12,6 +12,7 @@
 #include "../testing/tests/ValidateBattleResultsTest.h"
 #include "../testing/tests/ValidateCombatSystemTest.h"
 #include "../testing/tests/ValidateDebugDishTest.h"
+#include "../testing/tests/ValidateDishOrderingTest.h"
 #include "../testing/tests/ValidateDishSystemTest.h"
 #include "../testing/tests/ValidateEffectSystemTest.h"
 #include "../testing/tests/ValidateFullBattleFlowTest.h"
