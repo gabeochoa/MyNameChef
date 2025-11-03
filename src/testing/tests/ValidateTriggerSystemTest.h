@@ -3,6 +3,7 @@
 #include "../test_macros.h"
 
 TEST(validate_trigger_system) {
+  (void)app;
   // This test validates the trigger and effect system from the combat plan
 
   // TODO: Validate TriggerEvent component exists

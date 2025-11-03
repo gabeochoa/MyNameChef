@@ -176,6 +176,7 @@ TEST(validate_trigger_system_components) {
 }
 
 TEST(validate_onserve_trigger) {
+  (void)app;
   using namespace ValidateTriggerSystemComponentsTestHelpers;
   log_info("TRIGGER_HOOK_TEST: Testing OnServe trigger");
 
@@ -220,6 +221,7 @@ TEST(validate_onserve_trigger) {
 }
 
 TEST(validate_onbittetaken_trigger) {
+  (void)app;
   using namespace ValidateTriggerSystemComponentsTestHelpers;
   log_info("TRIGGER_HOOK_TEST: Testing OnBiteTaken trigger");
 
@@ -257,6 +259,7 @@ TEST(validate_onbittetaken_trigger) {
 }
 
 TEST(validate_ondishfinished_trigger) {
+  (void)app;
   using namespace ValidateTriggerSystemComponentsTestHelpers;
   log_info("TRIGGER_HOOK_TEST: Testing OnDishFinished trigger");
 
@@ -301,6 +304,7 @@ TEST(validate_ondishfinished_trigger) {
 }
 
 TEST(validate_oncoursestart_trigger) {
+  (void)app;
   using namespace ValidateTriggerSystemComponentsTestHelpers;
   log_info("TRIGGER_HOOK_TEST: Testing OnCourseStart trigger");
 
@@ -331,6 +335,7 @@ TEST(validate_oncoursestart_trigger) {
 }
 
 TEST(validate_onstartbattle_trigger) {
+  (void)app;
   using namespace ValidateTriggerSystemComponentsTestHelpers;
   log_info("TRIGGER_HOOK_TEST: Testing OnStartBattle trigger");
 
@@ -361,6 +366,7 @@ TEST(validate_onstartbattle_trigger) {
 }
 
 TEST(validate_oncoursecomplete_trigger) {
+  (void)app;
   using namespace ValidateTriggerSystemComponentsTestHelpers;
   log_info("TRIGGER_HOOK_TEST: Testing OnCourseComplete trigger");
 

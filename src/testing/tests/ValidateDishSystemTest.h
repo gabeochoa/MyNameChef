@@ -3,6 +3,7 @@
 #include "../test_macros.h"
 
 TEST(validate_dish_system) {
+  (void)app;
   // This test validates the dish and flavor system
   // Most validation happens through ECS queries, not UI elements
 

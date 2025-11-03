@@ -40,5 +40,5 @@ TEST(validate_shop_functionality) {
 
   // Verify inventory items can exist (may be 0 initially)
   // We just check that the query works, not that items exist
-  afterhours::EntityQuery().whereHasComponent<IsInventoryItem>().gen_count();
+  (void)afterhours::EntityQuery().whereHasComponent<IsInventoryItem>().gen_count();
 }

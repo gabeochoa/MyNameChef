@@ -1015,6 +1015,8 @@ TestApp &TestApp::expect_wallet_between(int min_gold, int max_gold,
 
 TestApp &TestApp::wait_for_battle_initialized(float timeout_sec,
                                               const std::string &location) {
+  (void)timeout_sec;
+  (void)location;
   static TestOperationID op_id = 0;
   if (op_id == 0) {
     op_id = generate_operation_id(std::source_location::current(),
@@ -1058,6 +1060,8 @@ TestApp &TestApp::wait_for_battle_initialized(float timeout_sec,
 
 TestApp &TestApp::wait_for_dishes_in_combat(int min_count, float timeout_sec,
                                             const std::string &location) {
+  (void)timeout_sec;
+  (void)location;
   TestOperationID op_id = generate_operation_id(std::source_location::current(),
                                                 "wait_for_dishes_in_combat:" +
                                                     std::to_string(min_count));
@@ -1136,6 +1140,7 @@ TestApp &TestApp::wait_for_battle_complete(float timeout_sec,
 
 TestApp &TestApp::wait_for_results_screen(float timeout_sec,
                                           const std::string &location) {
+  (void)location;
   return wait_for_screen(GameStateManager::Screen::Results, timeout_sec,
                          std::source_location::current());
 }
