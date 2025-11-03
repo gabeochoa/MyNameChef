@@ -12,6 +12,7 @@ backward::SignalHandling sh;
 #include "components/battle_anim_keys.h"
 #include "components/side_effect_tracker.h"
 #include "preload.h"
+#include "seeded_rng.h"
 #include "settings.h"
 #include "shop.h"
 #include "sound_systems.h"
@@ -104,6 +105,13 @@ void game(const std::optional<std::string> &run_test) {
     make_shop_manager(sophie);
     make_combat_manager(sophie);
     make_battle_processor_manager(sophie);
+
+    // Initialize SeededRng singleton for deterministic randomness
+    {
+      auto &rng = SeededRng::get();
+      rng.randomize_seed();
+      log_info("Initialized SeededRng with seed {}", rng.seed);
+    }
 
     if (audit_strict) {
       auto tracker = EntityHelper::get_singleton<SideEffectTracker>();

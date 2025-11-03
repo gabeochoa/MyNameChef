@@ -18,6 +18,7 @@
 #include "dish_types.h"
 #include "game_state_manager.h"
 #include "render_backend.h"
+#include "seeded_rng.h"
 #include "render_constants.h"
 #include "systems/GenerateInventorySlots.h"
 #include "systems/GenerateShopSlots.h"
@@ -68,23 +69,21 @@ std::vector<int> get_free_slots(int max_slots) {
 }
 
 DishType get_random_dish() {
-  static std::random_device rd;
-  static std::mt19937 gen(rd());
+  auto &rng = SeededRng::get();
   const auto &pool = get_default_dish_pool();
   static std::uniform_int_distribution<> dis(0, (int)pool.size() - 1);
-  return pool[dis(gen)];
+  return pool[dis(rng.gen)];
 }
 
 DishType get_random_dish_for_tier(int tier) {
-  static std::random_device rd;
-  static std::mt19937 gen(rd());
+  auto &rng = SeededRng::get();
   const auto &pool = get_dishes_for_tier(tier);
   if (pool.empty()) {
     log_warn("No dishes available for tier {}, falling back to potato", tier);
     return DishType::Potato;
   }
   static std::uniform_int_distribution<> dis(0, (int)pool.size() - 1);
-  return pool[dis(gen)];
+  return pool[dis(rng.gen)];
 }
 
 Entity &make_shop_manager(Entity &sophie) {

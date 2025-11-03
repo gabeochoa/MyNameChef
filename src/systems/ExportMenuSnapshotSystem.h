@@ -11,7 +11,6 @@
 #include <functional> // For std::reference_wrapper
 #include <magic_enum/magic_enum.hpp>
 #include <nlohmann/json.hpp>
-#include <random>
 
 /**
  * ExportMenuSnapshotSystem - Exports player inventory to battle format
@@ -60,15 +59,9 @@ public:
       team.push_back(dish_entry);
     }
 
-    // Generate seed
-    std::random_device rd;
-    std::mt19937_64 gen(rd());
-    uint64_t seed = gen();
-
-    // Build complete JSON
+    // Build complete JSON - seed will come from server response
     nlohmann::json snapshot;
     snapshot["team"] = team;
-    snapshot["seed"] = seed;
 
     // Add metadata
     auto now = std::chrono::system_clock::now();
@@ -83,9 +76,9 @@ public:
     // Ensure output directory exists
     std::filesystem::create_directories("output/battles/pending");
 
-    // Write file
+    // Write file (no seed in filename since it comes from server)
     std::string filename =
-        fmt::format("output/battles/pending/{}_{:016x}.json", timestamp, seed);
+        fmt::format("output/battles/pending/{}.json", timestamp);
     std::ofstream file(filename);
     if (file.is_open()) {
       file << snapshot.dump(2);

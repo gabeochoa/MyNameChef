@@ -18,6 +18,7 @@
 #include "../game_state_manager.h"
 #include "../input_mapping.h"
 #include "../render_constants.h"
+#include "../seeded_rng.h"
 #include "../settings.h"
 #include "../shop.h"
 #include "../systems/ExportMenuSnapshotSystem.h"
