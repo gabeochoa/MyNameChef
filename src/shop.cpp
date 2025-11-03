@@ -166,6 +166,7 @@ Entity &make_shop_item(int slot, DishType type) {
   e.addComponent<DishLevel>(1); // Start at level 1
   e.addComponent<IsShopItem>(slot);
   e.addComponent<IsDraggable>(true);
+  e.addComponent<Freezeable>(false);
   e.addComponent<HasRenderOrder>(RenderOrder::ShopItems, RenderScreen::Shop);
   // Attach sprite using dish atlas grid indices
   {
