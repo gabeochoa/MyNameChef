@@ -40,43 +40,6 @@
 - Use prefixes: `bf -` for bug fixes, `be -` for backend/engine, `ui -` for UI, no prefix for features
 - All lowercase, concise and descriptive
 
-### Task 9: Add Test for Dish Merging
-**Files**: Create `src/testing/tests/ValidateDishMergingTest.h`
-- **Goal**: Validate that dish merging works correctly when dropping same-type dishes
-- **Test Cases**:
-  - Merge two level 1 dishes of same type → target dish should level up to 2
-  - Merge dish onto higher level dish → should add merge progress without leveling
-  - Merge shop dish onto inventory dish → should charge wallet before merging
-  - Merge should remove donor dish and free its slot
-  - Merge progress accumulates correctly (2 merges per level)
-- **Validation Steps**:
-  1. Create test file with dish merging test cases
-  2. Build: `xmake`
-  3. Run headless tests: `./scripts/run_all_tests.sh` (especially validate_dish_merging)
-  4. Run non-headless tests: `./scripts/run_all_tests.sh -v`
-  5. Verify all merging scenarios work correctly
-  6. Commit: `git commit -m "add test for dish merging functionality"`
-- **Estimated**: 1-2 hours
-
-### Task 10: Add Test for Dish Selling
-**Files**: Create `src/testing/tests/ValidateDishSellingTest.h`
-- **Goal**: Validate that selling dishes works correctly
-- **Test Cases**:
-  - Drop inventory item onto sell slot → item should be removed and gold increased
-  - Sell slot should free the original inventory slot
-  - Wallet gold should increase by sell price (currently flat 1 gold refund)
-  - Selling should only work for inventory items (not shop items)
-  - Multiple sells should accumulate gold correctly
-- **Validation Steps**:
-  1. Create test file with dish selling test cases
-  2. Build: `xmake`
-  3. Run headless tests: `./scripts/run_all_tests.sh` (especially validate_dish_selling)
-  4. Run non-headless tests: `./scripts/run_all_tests.sh -v`
-  5. Verify all selling scenarios work correctly
-  6. Commit: `git commit -m "add test for dish selling functionality"`
-- **Estimated**: 1-2 hours
-
----
 
 ## Tier 3: System Implementation (2-4hrs each)
 
