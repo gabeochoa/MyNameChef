@@ -85,16 +85,54 @@ DishType get_random_dish_for_tier(int tier) {
 }
 
 Entity &make_shop_manager(Entity &sophie) {
-  sophie.addComponent<Wallet>();
-  sophie.addComponent<Health>();
-  sophie.addComponent<ShopState>();
-  sophie.addComponent<ShopTier>();
-  sophie.addComponent<RerollCost>(1, 0); // base=1, increment=0 (cost stays 1 initially)
-  EntityHelper::registerSingleton<Wallet>(sophie);
-  EntityHelper::registerSingleton<Health>(sophie);
-  EntityHelper::registerSingleton<ShopState>(sophie);
-  EntityHelper::registerSingleton<ShopTier>(sophie);
-  EntityHelper::registerSingleton<RerollCost>(sophie);
+  sophie.addComponentIfMissing<Wallet>();
+  sophie.addComponentIfMissing<Health>();
+  sophie.addComponentIfMissing<ShopState>();
+  sophie.addComponentIfMissing<ShopTier>();
+  sophie.addComponentIfMissing<RerollCost>(
+      1, 0); // base=1, increment=0 (cost stays 1 initially)
+
+  // Register singletons only if not already registered
+  // This prevents overwriting existing singletons with new entities/components
+  using namespace afterhours::components;
+  auto &singleton_map = EntityHelper::get().singletonMap;
+
+  const auto wallet_id = get_type_id<Wallet>();
+  if (singleton_map.find(wallet_id) == singleton_map.end()) {
+    EntityHelper::registerSingleton<Wallet>(sophie);
+  } else {
+    // If already registered, ensure this entity has the component too
+    // (so make_shop_manager can safely be called multiple times on same entity)
+    sophie.addComponentIfMissing<Wallet>();
+  }
+
+  const auto health_id = get_type_id<Health>();
+  if (singleton_map.find(health_id) == singleton_map.end()) {
+    EntityHelper::registerSingleton<Health>(sophie);
+  } else {
+    sophie.addComponentIfMissing<Health>();
+  }
+
+  const auto shop_state_id = get_type_id<ShopState>();
+  if (singleton_map.find(shop_state_id) == singleton_map.end()) {
+    EntityHelper::registerSingleton<ShopState>(sophie);
+  } else {
+    sophie.addComponentIfMissing<ShopState>();
+  }
+
+  const auto shop_tier_id = get_type_id<ShopTier>();
+  if (singleton_map.find(shop_tier_id) == singleton_map.end()) {
+    EntityHelper::registerSingleton<ShopTier>(sophie);
+  } else {
+    sophie.addComponentIfMissing<ShopTier>();
+  }
+
+  const auto reroll_cost_id = get_type_id<RerollCost>();
+  if (singleton_map.find(reroll_cost_id) == singleton_map.end()) {
+    EntityHelper::registerSingleton<RerollCost>(sophie);
+  } else {
+    sophie.addComponentIfMissing<RerollCost>(1, 0);
+  }
   return sophie;
 }
 

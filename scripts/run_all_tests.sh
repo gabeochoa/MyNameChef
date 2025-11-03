@@ -40,6 +40,7 @@ TESTS=(
     "goto_battle"
     "validate_shop_navigation"
     "validate_shop_functionality"
+    "validate_reroll_cost"
     "validate_shop_purchase"
     "validate_shop_purchase_no_gold"
     "validate_shop_purchase_insufficient_funds"

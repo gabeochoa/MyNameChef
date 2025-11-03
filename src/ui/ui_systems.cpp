@@ -397,18 +397,21 @@ Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
       context, top_right.ent(), reroll_label,
       []() {
         auto wallet_entity = EntityHelper::get_singleton<Wallet>();
-        if (!wallet_entity.get().has<Wallet>())
+        if (!wallet_entity.get().has<Wallet>()) {
           return;
+        }
         auto &wallet = wallet_entity.get().get<Wallet>();
         
         auto reroll_cost_entity = EntityHelper::get_singleton<RerollCost>();
-        if (!reroll_cost_entity.get().has<RerollCost>())
+        if (!reroll_cost_entity.get().has<RerollCost>()) {
           return;
+        }
         auto &reroll_cost = reroll_cost_entity.get().get<RerollCost>();
         
         int cost = reroll_cost.get_cost();
-        if (wallet.gold < cost)
+        if (wallet.gold < cost) {
           return;
+        }
         wallet.gold -= cost;
 
         // Mark non-frozen shop items for cleanup

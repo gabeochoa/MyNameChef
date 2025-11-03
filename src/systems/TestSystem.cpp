@@ -25,6 +25,7 @@
 #include "../testing/tests/ValidateSeededRngTest.h"
 #include "../testing/tests/ValidateShopFunctionalityTest.h"
 #include "../testing/tests/ValidateShopNavigationTest.h"
+#include "../testing/tests/ValidateRerollCostTest.h"
 #include "../testing/tests/ValidateShopPurchaseExactGoldTest.h"
 #include "../testing/tests/ValidateShopPurchaseFullInventoryTest.h"
 #include "../testing/tests/ValidateShopPurchaseInsufficientFundsTest.h"
