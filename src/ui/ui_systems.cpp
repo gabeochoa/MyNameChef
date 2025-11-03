@@ -380,29 +380,55 @@ Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
           .with_flex_direction(FlexDirection::Row)
           .with_debug_name("shop_buttons_row"));
 
-  // Reroll button (cost 5 gold): delete all shop items and regenerate
+  // Reroll button: delete non-frozen shop items and regenerate
+  // Get current reroll cost for button label
+  int reroll_cost = 1; // Default fallback (matches base cost)
+  try {
+    auto reroll_cost_entity = EntityHelper::get_singleton<RerollCost>();
+    if (reroll_cost_entity.get().has<RerollCost>()) {
+      reroll_cost = reroll_cost_entity.get().get<RerollCost>().get_cost();
+    }
+  } catch (...) {
+    // RerollCost singleton not registered yet, use default
+  }
+  std::string reroll_label = fmt::format("Reroll ({})", reroll_cost);
+  
   button_labeled<InputAction>(
-      context, top_right.ent(), "Reroll (5)",
+      context, top_right.ent(), reroll_label,
       []() {
         auto wallet_entity = EntityHelper::get_singleton<Wallet>();
         if (!wallet_entity.get().has<Wallet>())
           return;
         auto &wallet = wallet_entity.get().get<Wallet>();
-        if (wallet.gold < 5)
+        
+        auto reroll_cost_entity = EntityHelper::get_singleton<RerollCost>();
+        if (!reroll_cost_entity.get().has<RerollCost>())
           return;
-        wallet.gold -= 5;
+        auto &reroll_cost = reroll_cost_entity.get().get<RerollCost>();
+        
+        int cost = reroll_cost.get_cost();
+        if (wallet.gold < cost)
+          return;
+        wallet.gold -= cost;
 
-        // Mark existing shop items for cleanup
+        // Mark non-frozen shop items for cleanup
         for (auto &ref : afterhours::EntityQuery({.force_merge = true})
                              .template whereHasComponent<IsShopItem>()
                              .gen()) {
-          ref.get().cleanup = true;
+          // Skip frozen items
+          bool is_frozen = false;
+          if (ref.get().has<Freezeable>()) {
+            is_frozen = ref.get().get<Freezeable>().isFrozen;
+          }
+          if (!is_frozen) {
+            ref.get().cleanup = true;
+          }
         }
 
         // Force cleanup of marked entities before creating new ones
         afterhours::EntityHelper::cleanup();
 
-        // Regenerate shop items for all slots
+        // Regenerate shop items for empty slots only (preserve frozen items)
         // Get current shop tier
         auto shop_tier_entity = EntityHelper::get_singleton<ShopTier>();
         int current_tier = 1; // Default to tier 1
@@ -410,10 +436,27 @@ Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
           current_tier = shop_tier_entity.get().get<ShopTier>().current_tier;
         }
 
+        // Find free slots (slots without shop items)
+        std::vector<bool> slot_occupied(SHOP_SLOTS, false);
+        for (auto &ref : afterhours::EntityQuery({.force_merge = true})
+                             .template whereHasComponent<IsShopItem>()
+                             .gen()) {
+          int slot = ref.get().get<IsShopItem>().slot;
+          if (slot >= 0 && slot < SHOP_SLOTS) {
+            slot_occupied[slot] = true;
+          }
+        }
+        
+        // Fill empty slots
         for (int slot = 0; slot < SHOP_SLOTS; ++slot) {
-          make_shop_item(slot, get_random_dish_for_tier(current_tier));
+          if (!slot_occupied[slot]) {
+            make_shop_item(slot, get_random_dish_for_tier(current_tier));
+          }
         }
         afterhours::EntityHelper::merge_entity_arrays();
+        
+        // Increment reroll cost after successful reroll
+        reroll_cost.apply_reroll();
       },
       0);
 

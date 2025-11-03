@@ -28,7 +28,8 @@ TEST(validate_full_game_flow) {
   // Expected: Shop slots populated with dishes
   // Bug: Shop generation may not be working
   app.wait_for_ui_exists("Next Round");
-  app.wait_for_ui_exists("Reroll (5)");
+  // Reroll button starts at cost 1 (base=1, increment=0)
+  app.wait_for_ui_exists("Reroll (1)");
 
   // Step 4: Navigate to battle
   app.click("Next Round");

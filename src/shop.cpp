@@ -89,10 +89,12 @@ Entity &make_shop_manager(Entity &sophie) {
   sophie.addComponent<Health>();
   sophie.addComponent<ShopState>();
   sophie.addComponent<ShopTier>();
+  sophie.addComponent<RerollCost>(1, 0); // base=1, increment=0 (cost stays 1 initially)
   EntityHelper::registerSingleton<Wallet>(sophie);
   EntityHelper::registerSingleton<Health>(sophie);
   EntityHelper::registerSingleton<ShopState>(sophie);
   EntityHelper::registerSingleton<ShopTier>(sophie);
+  EntityHelper::registerSingleton<RerollCost>(sophie);
   return sophie;
 }
 

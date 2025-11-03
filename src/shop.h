@@ -25,6 +25,33 @@ struct ShopTier : afterhours::BaseComponent {
   int current_tier = 1;
 };
 
+struct RerollCost : afterhours::BaseComponent {
+  int base = 1;
+  int increment = 0;
+  int current = 1;
+  
+  RerollCost() = default;
+  RerollCost(int b, int inc) : base(b), increment(inc), current(b) {}
+  
+  int get_cost() const { return current; }
+  void apply_reroll() {
+    // After a reroll, increase cost by increment amount
+    // For now, increment stays 0, so cost stays at base (1)
+    // Future: increment could increase over time or per tier
+    current += increment;
+  }
+  void reset() {
+    current = base;
+  }
+};
+
+struct Freezeable : afterhours::BaseComponent {
+  bool isFrozen = false;
+  
+  Freezeable() = default;
+  explicit Freezeable(bool frozen) : isFrozen(frozen) {}
+};
+
 // Shop system constants
 constexpr int SHOP_SLOTS = 7;
 constexpr int INVENTORY_SLOTS = 7;

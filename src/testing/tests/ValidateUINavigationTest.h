@@ -28,7 +28,8 @@ TEST(validate_ui_navigation) {
   app.click("Play");
   app.wait_for_screen(GameStateManager::Screen::Shop, 10.0f);
   app.wait_for_ui_exists("Next Round");
-  app.wait_for_ui_exists("Reroll (5)");
+  // Reroll button starts at cost 1 (base=1, increment=0)
+  app.wait_for_ui_exists("Reroll (1)");
 
   // Test 3: Navigate to battle and validate battle UI
   // TODO: Validate battle screen elements

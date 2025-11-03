@@ -503,7 +503,8 @@ bool TestApp::check_wait_conditions() {
                  .gen()) {
           const afterhours::ui::HasLabel &label =
               entity.get<afterhours::ui::HasLabel>();
-          if (label.label == "Next Round" || label.label == "Reroll (5)") {
+          if (label.label == "Next Round" || 
+              (label.label.find("Reroll (") == 0 && label.label.find(")") != std::string::npos)) {
             shop_ui_exists = true;
             break;
           }
