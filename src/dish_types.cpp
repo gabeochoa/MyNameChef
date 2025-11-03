@@ -2,6 +2,7 @@
 #include "dish_builder.h"
 #include <vector>
 
+#include <magic_enum/magic_enum.hpp>
 #include "components/animation_event.h"
 #include "components/deferred_flavor_mods.h"
 #include "components/dish_battle_state.h"
@@ -355,17 +356,20 @@ DishInfo get_dish_info(DishType type) {
 }
 
 const std::vector<DishType> &get_default_dish_pool() {
-  static const std::vector<DishType> pool = {
-      DishType::Burger,      DishType::Burrito,        DishType::Cheesecake,
-      DishType::Donut,       DishType::Dumplings,      DishType::FriedEgg,
-      DishType::FrenchFries, DishType::IceCream,       DishType::LemonPie,
-      DishType::MacNCheese,  DishType::Meatball,       DishType::Nacho,
-      DishType::Omlet,       DishType::Pancakes,       DishType::Pizza,
-      DishType::Ramen,       DishType::RoastedChicken, DishType::Sandwich,
-      DishType::Spaghetti,   DishType::Steak,          DishType::Sushi,
-      DishType::Taco,        DishType::Salmon,         DishType::Bagel,
-      DishType::Baguette,    DishType::GarlicBread,    DishType::Potato,
-  };
+  static const std::vector<DishType> pool = []() {
+    auto all_dishes = magic_enum::enum_values<DishType>();
+    std::vector<DishType> result;
+    result.reserve(all_dishes.size());
+    
+    // Filter out placeholder/debug dishes
+    for (const auto &dish : all_dishes) {
+      if (dish != DishType::DebugDish) {
+        result.push_back(dish);
+      }
+    }
+    
+    return result;
+  }();
   return pool;
 }
 
