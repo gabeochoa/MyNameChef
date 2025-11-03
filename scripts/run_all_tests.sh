@@ -47,6 +47,8 @@ TESTS=(
     "validate_shop_purchase_exact_gold"
     "validate_shop_purchase_nonexistent_item"
     "validate_shop_purchase_wrong_screen"
+    "validate_seeded_rng_determinism"
+    "validate_seeded_rng_helper_methods"
     "validate_combat_system"
     "validate_battle_results"
     "validate_ui_navigation"

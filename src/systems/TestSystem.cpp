@@ -19,6 +19,7 @@
 #include "../testing/tests/ValidateFullGameFlowTest.h"
 #include "../testing/tests/ValidateMainMenuTest.h"
 #include "../testing/tests/ValidateReplayPausePlayTest.h"
+#include "../testing/tests/ValidateSeededRngTest.h"
 #include "../testing/tests/ValidateShopFunctionalityTest.h"
 #include "../testing/tests/ValidateShopNavigationTest.h"
 #include "../testing/tests/ValidateShopPurchaseExactGoldTest.h"
