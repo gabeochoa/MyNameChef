@@ -11,86 +11,15 @@
 #include "../../dish_types.h"
 #include "../../query.h"
 #include "../../shop.h"
+#include "../test_app.h"
 #include "../test_macros.h"
 #include <functional>
 #include <optional>
 
 namespace {
 
-// Find an inventory item by its slot number
-afterhours::OptEntity find_inventory_item_by_slot(int slot_index) {
-  return EQ()
-      .whereHasComponent<IsInventoryItem>()
-      .whereHasComponent<IsDish>()
-      .whereLambda([slot_index](const afterhours::Entity &e) {
-        return e.get<IsInventoryItem>().slot ==
-               INVENTORY_SLOT_OFFSET + slot_index;
-      })
-      .gen_first();
-}
-
-// Find an entity by its ID, checking inventory and shop items
 afterhours::OptEntity find_entity_by_id(afterhours::EntityID id) {
   return EQ().whereID(id).gen_first();
-}
-
-// Find a drop slot by its slot_id
-afterhours::OptEntity find_drop_slot(int slot_id) {
-  return EQ().whereHasComponent<IsDropSlot>().whereSlotID(slot_id).gen_first();
-}
-
-// Find a free shop slot (returns -1 if none found)
-int find_free_shop_slot(auto &eq) {
-  for (int i = 0; i < SHOP_SLOTS; ++i) {
-    bool slot_taken = false;
-    for (afterhours::Entity &entity :
-         eq.template whereHasComponent<IsShopItem>().gen()) {
-      if (entity.get<IsShopItem>().slot == i) {
-        slot_taken = true;
-        break;
-      }
-    }
-    if (!slot_taken) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-// Find a free inventory slot (returns -1 if none found)
-int find_free_inventory_slot(auto &eq) {
-  for (int i = 0; i < INVENTORY_SLOTS; ++i) {
-    bool slot_occupied =
-        eq.template whereHasComponent<IsInventoryItem>()
-            .whereLambda([i](const afterhours::Entity &e) {
-              return e.get<IsInventoryItem>().slot == INVENTORY_SLOT_OFFSET + i;
-            })
-            .has_values();
-    if (!slot_occupied) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-// Find a shop item by ID or by slot
-afterhours::OptEntity find_shop_item(auto &eq, afterhours::EntityID id,
-                                     int slot) {
-  auto entity_opt = eq.whereID(id)
-                        .template whereHasComponent<IsShopItem>()
-                        .template whereHasComponent<IsDish>()
-                        .gen_first();
-  if (entity_opt) {
-    return entity_opt;
-  }
-  for (afterhours::Entity &entity : eq.template whereHasComponent<IsShopItem>()
-                                        .template whereHasComponent<IsDish>()
-                                        .gen()) {
-    if (entity.get<IsShopItem>().slot == slot) {
-      return afterhours::OptEntity(entity);
-    }
-  }
-  return afterhours::OptEntity();
 }
 
 // Simulate drag-and-drop merge between two dish entities
@@ -123,7 +52,9 @@ bool simulate_drag_and_drop(afterhours::Entity &donor,
     return false;
   }
 
-  auto target_slot_opt = find_drop_slot(target_slot_id);
+  auto target_slot_opt = EQ().whereHasComponent<IsDropSlot>()
+                             .whereSlotID(target_slot_id)
+                             .gen_first();
   if (!target_slot_opt) {
     return false;
   }
@@ -221,7 +152,9 @@ bool simulate_drag_and_drop(afterhours::Entity &donor,
   donor_entity.removeComponent<IsHeld>();
 
   if (original_slot_id >= 0) {
-    auto original_slot_opt = find_drop_slot(original_slot_id);
+    auto original_slot_opt = EQ().whereHasComponent<IsDropSlot>()
+                                 .whereSlotID(original_slot_id)
+                                 .gen_first();
     if (original_slot_opt) {
       original_slot_opt.asE().get<IsDropSlot>().occupied = false;
     }
@@ -249,8 +182,8 @@ TEST(validate_dish_merging) {
   afterhours::EntityHelper::merge_entity_arrays();
 
   afterhours::EntityQuery eq_merged({.force_merge = true});
-  auto dish0_opt = find_inventory_item_by_slot(4);
-  auto dish1_opt = find_inventory_item_by_slot(5);
+  auto dish0_opt = app.find_inventory_item_by_slot(4);
+  auto dish1_opt = app.find_inventory_item_by_slot(5);
 
   app.expect_true(dish0_opt.has_value(), "dish0 found in slot 4");
   app.expect_true(dish1_opt.has_value(), "dish1 found in slot 5");
@@ -297,7 +230,7 @@ TEST(validate_dish_merging) {
                 "merged dish has progress 1 after first merge");
 
   // Verify donor slot is freed
-  auto donor_slot_opt = find_drop_slot(INVENTORY_SLOT_OFFSET + 4);
+  auto donor_slot_opt = app.find_drop_slot(INVENTORY_SLOT_OFFSET + 4);
   app.expect_true(donor_slot_opt.has_value(), "donor slot found");
   afterhours::Entity &donor_slot = donor_slot_opt.asE();
   app.expect_false(donor_slot.get<IsDropSlot>().occupied,
@@ -306,7 +239,7 @@ TEST(validate_dish_merging) {
   // Test 2: Second merge to level up
   app.create_inventory_item(DishType::Potato, 6);
   app.wait_for_frames(5);
-  auto dish0_opt_2 = find_inventory_item_by_slot(6);
+  auto dish0_opt_2 = app.find_inventory_item_by_slot(6);
   app.expect_true(dish0_opt_2.has_value(),
                   "dish0 found in slot 6 for second merge");
   app.expect_true(merged_dish_opt.has_value(), "merged dish still exists");
@@ -345,24 +278,64 @@ TEST(validate_dish_merging) {
   app.wait_for_frames(10);
   afterhours::EntityHelper::merge_entity_arrays();
 
-  int free_slot = find_free_shop_slot(eq_merged);
+  // Clear a shop slot to make room for our test item
+  int free_slot = -1;
+  for (afterhours::Entity &entity :
+       EQ({.force_merge = true})
+           .template whereHasComponent<IsShopItem>()
+           .gen()) {
+    afterhours::EntityID shop_item_id = entity.id;
+    int slot = entity.get<IsShopItem>().slot;
+    entity.cleanup = true;
+    auto slot_entity_opt = EQ({.force_merge = true})
+                               .whereHasComponent<IsDropSlot>()
+                               .whereSlotID(slot)
+                               .gen_first();
+    if (slot_entity_opt) {
+      slot_entity_opt.asE().get<IsDropSlot>().occupied = false;
+    }
+    free_slot = slot;
+    break;
+  }
+  afterhours::EntityHelper::merge_entity_arrays();
   app.expect_true(free_slot >= 0, "No free shop slot available");
+
+  // Clear an inventory slot for the shop merge test
+  int inv_slot_for_shop_merge = -1;
+  for (afterhours::Entity &entity :
+       EQ({.force_merge = true})
+           .template whereHasComponent<IsInventoryItem>()
+           .gen()) {
+    afterhours::EntityID item_id = entity.id;
+    int slot = entity.get<IsInventoryItem>().slot;
+    if (slot >= INVENTORY_SLOT_OFFSET) {
+      int slot_index = slot - INVENTORY_SLOT_OFFSET;
+      if (slot_index >= 4 && slot_index <= 6) {
+        entity.cleanup = true;
+        auto slot_entity_opt = app.find_drop_slot(slot);
+        if (slot_entity_opt) {
+          slot_entity_opt.asE().get<IsDropSlot>().occupied = false;
+        }
+        inv_slot_for_shop_merge = slot_index;
+        break;
+      }
+    }
+  }
+  afterhours::EntityHelper::merge_entity_arrays();
+  app.expect_true(inv_slot_for_shop_merge >= 0,
+                  "No free inventory slot available for shop merge");
 
   afterhours::Entity &shop_entity = make_shop_item(free_slot, merge_test_type);
   afterhours::EntityHelper::merge_entity_arrays();
   afterhours::EntityID shop_entity_id = shop_entity.id;
 
-  int inv_slot_for_shop_merge = find_free_inventory_slot(eq_merged);
-  app.expect_true(inv_slot_for_shop_merge >= 0,
-                  "No free inventory slot available for shop merge");
-
   app.create_inventory_item(merge_test_type, inv_slot_for_shop_merge);
   app.wait_for_frames(5);
   afterhours::EntityHelper::merge_entity_arrays();
 
-  auto shop_item_opt = find_shop_item(eq_merged, shop_entity_id, free_slot);
+  auto shop_item_opt = app.find_shop_item(shop_entity_id, free_slot);
   auto inventory_item_opt =
-      find_inventory_item_by_slot(inv_slot_for_shop_merge);
+      app.find_inventory_item_by_slot(inv_slot_for_shop_merge);
 
   app.expect_true(shop_item_opt.has_value(), "shop item found");
   app.expect_true(inventory_item_opt.has_value(), "inventory item found");

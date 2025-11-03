@@ -242,6 +242,13 @@ struct TestApp {
   TestApp &expect_wallet_between(int min_gold, int max_gold,
                                  const std::string &location = "");
 
+  afterhours::OptEntity find_inventory_item_by_slot(int slot_index);
+  afterhours::OptEntity find_drop_slot(int slot_id);
+  int find_free_shop_slot();
+  int find_free_inventory_slot();
+  afterhours::OptEntity find_shop_item(afterhours::EntityID id, int slot);
+  bool simulate_sell(afterhours::Entity &inventory_item);
+
   TestApp &wait_for_battle_initialized(float timeout_sec = 10.0f,
                                        const std::string &location = "");
   TestApp &wait_for_dishes_in_combat(int min_count = 1,
@@ -312,8 +319,8 @@ TestApp &TestApp::expect_eq(const T &actual, const T &expected,
                             const std::string &location) {
   if (actual != expected) {
     std::stringstream ss;
-    ss << "Expected " << description << " to equal " << expected
-       << " but got " << actual;
+    ss << "Expected " << description << " to equal " << expected << " but got "
+       << actual;
     fail(ss.str(), location);
   }
   return *this;

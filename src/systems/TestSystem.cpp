@@ -18,6 +18,7 @@
 #include "../testing/tests/ValidateDebugDishTest.h"
 #include "../testing/tests/ValidateDishMergingTest.h"
 #include "../testing/tests/ValidateDishOrderingTest.h"
+#include "../testing/tests/ValidateDishSellingTest.h"
 #include "../testing/tests/ValidateDishSystemTest.h"
 #include "../testing/tests/ValidateEffectSystemTest.h"
 #include "../testing/tests/ValidateFullBattleFlowTest.h"

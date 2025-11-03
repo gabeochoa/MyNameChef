@@ -1,6 +1,7 @@
 #include "test_app.h"
 #include "../components/battle_result.h"
 #include "../components/battle_team_tags.h"
+#include "../components/can_drop_onto.h"
 #include "../components/combat_stats.h"
 #include "../components/dish_battle_state.h"
 #include "../components/dish_level.h"
@@ -503,8 +504,9 @@ bool TestApp::check_wait_conditions() {
                  .gen()) {
           const afterhours::ui::HasLabel &label =
               entity.get<afterhours::ui::HasLabel>();
-          if (label.label == "Next Round" || 
-              (label.label.find("Reroll (") == 0 && label.label.find(")") != std::string::npos)) {
+          if (label.label == "Next Round" ||
+              (label.label.find("Reroll (") == 0 &&
+               label.label.find(")") != std::string::npos)) {
             shop_ui_exists = true;
             break;
           }
@@ -626,7 +628,8 @@ TestApp &TestApp::wait_for_frames(int frames, const std::source_location &loc) {
   }
 
   // Use non-blocking wait state so game loop continues
-  if (wait_state.type == WaitState::FrameDelay && wait_state.operation_id == op_id) {
+  if (wait_state.type == WaitState::FrameDelay &&
+      wait_state.operation_id == op_id) {
     if (check_wait_conditions()) {
       completed_operations.insert(op_id);
       return *this;
@@ -1336,15 +1339,17 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
   // Retry with delays to handle timing issues in visible mode
   afterhours::Entity *target_slot = nullptr;
   const int max_attempts = 5;
-  
+
   for (int attempt = 0; attempt < max_attempts && !target_slot; attempt++) {
     // Merge entity arrays to ensure all slots are available
     afterhours::EntityHelper::merge_entity_arrays();
-    
+
     if (inventory_slot >= 0) {
       // Use specified slot
       for (afterhours::Entity &entity :
-           afterhours::EntityQuery({.force_merge = true}).whereHasComponent<IsDropSlot>().gen()) {
+           afterhours::EntityQuery({.force_merge = true})
+               .whereHasComponent<IsDropSlot>()
+               .gen()) {
         const IsDropSlot &slot = entity.get<IsDropSlot>();
         if (slot.accepts_inventory_items && slot.accepts_shop_items &&
             slot.slot_id == inventory_slot && !slot.occupied) {
@@ -1354,24 +1359,28 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
       }
     } else {
       // Find any empty inventory slot
-      // Note: We need slots that accept both inventory AND shop items (actual inventory slots)
-      // The sell slot accepts inventory items but not shop items, so we exclude it
+      // Note: We need slots that accept both inventory AND shop items (actual
+      // inventory slots) The sell slot accepts inventory items but not shop
+      // items, so we exclude it
       for (afterhours::Entity &entity :
-           afterhours::EntityQuery({.force_merge = true}).whereHasComponent<IsDropSlot>().gen()) {
+           afterhours::EntityQuery({.force_merge = true})
+               .whereHasComponent<IsDropSlot>()
+               .gen()) {
         const IsDropSlot &slot = entity.get<IsDropSlot>();
-        if (slot.accepts_inventory_items && slot.accepts_shop_items && !slot.occupied) {
+        if (slot.accepts_inventory_items && slot.accepts_shop_items &&
+            !slot.occupied) {
           target_slot = &entity;
           break;
         }
       }
     }
-    
+
     if (!target_slot && attempt < max_attempts - 1) {
       // Wait a bit for systems to process before retrying
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
   }
-  
+
   // Final check after all attempts
   if (!target_slot) {
     // Re-merge and count for final error message
@@ -1379,7 +1388,9 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
     int final_occupied = 0;
     int final_total = 0;
     for (afterhours::Entity &entity :
-         afterhours::EntityQuery({.force_merge = true}).whereHasComponent<IsDropSlot>().gen()) {
+         afterhours::EntityQuery({.force_merge = true})
+             .whereHasComponent<IsDropSlot>()
+             .gen()) {
       const IsDropSlot &slot = entity.get<IsDropSlot>();
       if (slot.accepts_inventory_items && slot.accepts_shop_items) {
         final_total++;
@@ -1390,13 +1401,17 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
     }
     if (inventory_slot >= 0) {
       fail("Inventory slot " + std::to_string(inventory_slot) +
-               " not found or is occupied after " + std::to_string(max_attempts) +
+               " not found or is occupied after " +
+               std::to_string(max_attempts) +
                " attempts (total slots: " + std::to_string(final_total) +
-               ", occupied: " + std::to_string(final_occupied) + ")", location);
+               ", occupied: " + std::to_string(final_occupied) + ")",
+           location);
     } else {
-      fail("No empty inventory slots available after " + std::to_string(max_attempts) + 
+      fail("No empty inventory slots available after " +
+               std::to_string(max_attempts) +
                " attempts (total slots: " + std::to_string(final_total) +
-               ", occupied: " + std::to_string(final_occupied) + ", max: 7)", location);
+               ", occupied: " + std::to_string(final_occupied) + ", max: 7)",
+           location);
     }
   }
 
@@ -1467,4 +1482,140 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
   }
 
   return *this;
+}
+
+afterhours::OptEntity TestApp::find_inventory_item_by_slot(int slot_index) {
+  return EQ()
+      .whereHasComponent<IsInventoryItem>()
+      .whereHasComponent<IsDish>()
+      .whereLambda([slot_index](const afterhours::Entity &e) {
+        return e.get<IsInventoryItem>().slot ==
+               INVENTORY_SLOT_OFFSET + slot_index;
+      })
+      .gen_first();
+}
+
+afterhours::OptEntity TestApp::find_drop_slot(int slot_id) {
+  return EQ().whereHasComponent<IsDropSlot>().whereSlotID(slot_id).gen_first();
+}
+
+int TestApp::find_free_shop_slot() {
+  afterhours::EntityHelper::merge_entity_arrays();
+  for (int i = 0; i < SHOP_SLOTS; ++i) {
+    bool slot_taken = false;
+    for (afterhours::Entity &entity :
+         EQ({.force_merge = true})
+             .template whereHasComponent<IsShopItem>()
+             .gen()) {
+      if (entity.get<IsShopItem>().slot == i) {
+        slot_taken = true;
+        break;
+      }
+    }
+    if (!slot_taken) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+int TestApp::find_free_inventory_slot() {
+  afterhours::EntityHelper::merge_entity_arrays();
+  for (int i = 0; i < INVENTORY_SLOTS; ++i) {
+    bool slot_occupied =
+        EQ({.force_merge = true})
+            .template whereHasComponent<IsInventoryItem>()
+            .whereLambda([i](const afterhours::Entity &e) {
+              return e.get<IsInventoryItem>().slot == INVENTORY_SLOT_OFFSET + i;
+            })
+            .has_values();
+    if (!slot_occupied) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+afterhours::OptEntity TestApp::find_shop_item(afterhours::EntityID id,
+                                              int slot) {
+  auto entity_opt = EQ().whereID(id)
+                        .template whereHasComponent<IsShopItem>()
+                        .template whereHasComponent<IsDish>()
+                        .gen_first();
+  if (entity_opt) {
+    return entity_opt;
+  }
+  for (afterhours::Entity &entity :
+       EQ().template whereHasComponent<IsShopItem>()
+           .template whereHasComponent<IsDish>()
+           .gen()) {
+    if (entity.get<IsShopItem>().slot == slot) {
+      return afterhours::OptEntity(entity);
+    }
+  }
+  return afterhours::OptEntity();
+}
+
+bool TestApp::simulate_sell(afterhours::Entity &inventory_item) {
+  if (!inventory_item.has<IsInventoryItem>()) {
+    return false;
+  }
+
+  afterhours::EntityID item_id = inventory_item.id;
+  int original_slot_id = inventory_item.get<IsInventoryItem>().slot;
+
+  auto sell_slot_opt = find_drop_slot(SELL_SLOT_ID);
+  if (!sell_slot_opt) {
+    return false;
+  }
+  afterhours::Entity &sell_slot = sell_slot_opt.asE();
+
+  if (!inventory_item.has<Transform>()) {
+    inventory_item.addComponent<Transform>(vec2{0, 0}, vec2{80.0f, 80.0f});
+  }
+  if (!sell_slot.has<Transform>()) {
+    return false;
+  }
+
+  vec2 slot_center = sell_slot.get<Transform>().center();
+  Transform &item_transform = inventory_item.get<Transform>();
+  vec2 original_position = item_transform.position;
+
+  inventory_item.addComponent<IsHeld>(vec2{0, 0}, original_position);
+  inventory_item.get<Transform>().position =
+      slot_center - inventory_item.get<Transform>().size * 0.5f;
+
+  if (!sell_slot.has<CanDropOnto>()) {
+    sell_slot.addComponent<CanDropOnto>(true);
+  }
+
+  afterhours::EntityHelper::merge_entity_arrays();
+
+  auto item_ptr_opt = EQ().whereID(item_id).gen_first();
+  if (!item_ptr_opt) {
+    return false;
+  }
+  afterhours::Entity &item_entity = item_ptr_opt.asE();
+
+  if (!item_entity.has<IsHeld>() || !item_entity.has<Transform>()) {
+    return false;
+  }
+
+  auto original_slot_opt = find_drop_slot(original_slot_id);
+  if (original_slot_opt) {
+    original_slot_opt.asE().get<IsDropSlot>().occupied = false;
+  }
+
+  auto wallet_entity = afterhours::EntityHelper::get_singleton<Wallet>();
+  if (wallet_entity.get().has<Wallet>()) {
+    auto &wallet = wallet_entity.get().get<Wallet>();
+    wallet.gold += 1;
+  }
+
+  item_entity.cleanup = true;
+  item_entity.removeComponent<IsHeld>();
+
+  afterhours::EntityHelper::merge_entity_arrays();
+
+  return true;
 }
