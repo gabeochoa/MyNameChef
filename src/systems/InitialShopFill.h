@@ -4,7 +4,6 @@
 //
 #include "../game_state_manager.h"
 #include "../shop.h"
-#include "../seeded_rng.h"
 
 struct InitialShopFill : afterhours::System<> {
   bool filled = false;

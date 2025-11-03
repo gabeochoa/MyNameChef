@@ -1,5 +1,6 @@
 #pragma once
 
+#include "rl.h"
 #include <afterhours/src/singleton.h>
 #include <cstdint>
 #include <random>
@@ -36,5 +37,53 @@ struct SeededRng {
     std::random_device rd;
     seed = rd();
     gen.seed(seed);
+  }
+
+  /**
+   * Generate a random index in [0, size)
+   * Useful for selecting random items from containers
+   */
+  template <typename T> size_t gen_index(T size) {
+    if (size == 0)
+      return 0;
+    std::uniform_int_distribution<size_t> dis(0, size - 1);
+    return dis(gen);
+  }
+
+  /**
+   * Generate a random integer in [min, max] (inclusive)
+   */
+  template <typename T> T gen_in_range(T min, T max) {
+    std::uniform_int_distribution<T> dis(min, max);
+    return dis(gen);
+  }
+
+  /**
+   * Generate a random float in [min, max)
+   */
+  float gen_float(float min, float max) {
+    std::uniform_real_distribution<float> dis(min, max);
+    return dis(gen);
+  }
+
+  /**
+   * Generate a random integer from [0, max) (exclusive of max)
+   * Legacy compatibility with rand() % max pattern
+   */
+  template <typename T> T gen_mod(T max) {
+    if (max <= 0)
+      return 0;
+    std::uniform_int_distribution<T> dis(0, max - 1);
+    return dis(gen);
+  }
+
+  /**
+   * Generate a random vec2 within a rectangle
+   */
+  vec2 vec_rand_in_box(const Rectangle &rect) {
+    return vec2{
+        rect.x + gen_float(0.0f, rect.width),
+        rect.y + gen_float(0.0f, rect.height),
+    };
   }
 };

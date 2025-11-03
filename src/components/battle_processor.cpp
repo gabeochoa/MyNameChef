@@ -4,6 +4,7 @@
 #include "../components/trigger_event.h"
 #include "../components/trigger_queue.h"
 #include "../dish_types.h"
+#include "../seeded_rng.h"
 #include <afterhours/ah.h>
 #include <filesystem>
 #include <fstream>
@@ -335,6 +336,7 @@ bool BattleProcessor::determineFirstAttacker(const DishSimData &player,
     return false; // Opponent goes first
   }
 
-  // Tiebreaker 3: Deterministic fallback
-  return true; // Player goes first
+  // Tiebreaker 3: Random using SeededRng (deterministic based on seed)
+  auto &rng = SeededRng::get();
+  return rng.gen_mod(2) == 0; // 50/50 chance
 }

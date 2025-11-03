@@ -12,7 +12,6 @@
 #include <functional>
 #include <magic_enum/magic_enum.hpp>
 #include <nlohmann/json.hpp>
-#include <random>
 
 struct LoadBattleResults : afterhours::System<> {
   bool loaded = false;

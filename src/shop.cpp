@@ -18,8 +18,8 @@
 #include "dish_types.h"
 #include "game_state_manager.h"
 #include "render_backend.h"
-#include "seeded_rng.h"
 #include "render_constants.h"
+#include "seeded_rng.h"
 #include "systems/GenerateInventorySlots.h"
 #include "systems/GenerateShopSlots.h"
 #include "tooltip.h"
@@ -71,8 +71,7 @@ std::vector<int> get_free_slots(int max_slots) {
 DishType get_random_dish() {
   auto &rng = SeededRng::get();
   const auto &pool = get_default_dish_pool();
-  static std::uniform_int_distribution<> dis(0, (int)pool.size() - 1);
-  return pool[dis(rng.gen)];
+  return pool[rng.gen_index(pool.size())];
 }
 
 DishType get_random_dish_for_tier(int tier) {
@@ -82,8 +81,7 @@ DishType get_random_dish_for_tier(int tier) {
     log_warn("No dishes available for tier {}, falling back to potato", tier);
     return DishType::Potato;
   }
-  static std::uniform_int_distribution<> dis(0, (int)pool.size() - 1);
-  return pool[dis(rng.gen)];
+  return pool[rng.gen_index(pool.size())];
 }
 
 Entity &make_shop_manager(Entity &sophie) {
@@ -194,7 +192,8 @@ bool charge_for_shop_purchase(DishType type) {
 }
 
 bool hasActiveAnimation() {
-  // In headless mode, animations complete instantly, so there are never any blocking animations
+  // In headless mode, animations complete instantly, so there are never any
+  // blocking animations
   if (render_backend::is_headless_mode) {
     return false;
   }
