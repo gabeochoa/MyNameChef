@@ -203,6 +203,11 @@ struct TestApp {
   TestApp &expect_count_lte(int actual, int max, const std::string &description,
                             const std::string &location = "");
 
+  template <typename T>
+  TestApp &expect_eq(const T &actual, const T &expected,
+                     const std::string &description,
+                     const std::string &location = "");
+
   template <typename Container>
   TestApp &expect_not_empty(const Container &collection,
                             const std::string &description,
@@ -297,6 +302,19 @@ TestApp &TestApp::expect_empty(const Container &collection,
     fail("Expected " + description + " to be empty, but it had " +
              std::to_string(collection.size()) + " items",
          location);
+  }
+  return *this;
+}
+
+template <typename T>
+TestApp &TestApp::expect_eq(const T &actual, const T &expected,
+                            const std::string &description,
+                            const std::string &location) {
+  if (actual != expected) {
+    std::stringstream ss;
+    ss << "Expected " << description << " to equal " << expected
+       << " but got " << actual;
+    fail(ss.str(), location);
   }
   return *this;
 }

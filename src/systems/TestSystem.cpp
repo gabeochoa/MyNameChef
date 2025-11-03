@@ -5,8 +5,11 @@
 // issues)
 #include "../rl.h" // NOLINT - required for Vector2Type fix
 
+#include <algorithm>
 #include "../testing/test_macros.h"
+
 // Include all test files so TEST() macro registrations run
+// Static TestRegistrar_##name objects will register themselves during static initialization
 #include "../testing/tests/GotoBattleTest.h"
 #include "../testing/tests/PlayNavigatesToShopTest.h"
 #include "../testing/tests/ValidateBattleResultsTest.h"
@@ -34,13 +37,40 @@
 #include "../testing/tests/ValidateUINavigationTest.h"
 
 void TestSystem::register_test_cases() {
-  // First check if test is registered via new TEST() macro
+  // Force initialization of TestRegistry and all static test registrars
+  // by accessing the registry first (ensures singleton is created)
   auto &registry = TestRegistry::get();
+  
+  // Force static initialization of test registrars by referencing them
+  // The TEST() macro creates static TestRegistrar_##name variables that
+  // register themselves in their constructors. We need to ensure these
+  // have been initialized. Accessing the registry should trigger any
+  // initialization that needs to happen.
+  
+  // Get the test list after registry is initialized
   auto test_list = registry.list_tests();
+  
+  // Debug: log all registered tests to help diagnose registration issues
+  log_info("TEST REGISTRY: Found {} registered tests", test_list.size());
+  for (const auto &name : test_list) {
+    log_info("TEST REGISTRY:   - {}", name);
+  }
+  log_info("TEST REGISTRY: Looking for test: {}", test_name);
+  
+  // If test not found, it might be due to static initialization order.
+  // Try accessing the registry again and re-check.
+  if (std::find(test_list.begin(), test_list.end(), test_name) == test_list.end()) {
+    // Force a second check - sometimes static initialization happens lazily
+    log_info("TEST REGISTRY: Test not found in first pass, re-checking...");
+    test_list = registry.list_tests();
+    log_info("TEST REGISTRY: Second pass found {} tests", test_list.size());
+  }
+  
   bool found_in_new_registry = false;
   for (const auto &name : test_list) {
     if (name == test_name) {
       found_in_new_registry = true;
+      log_info("TEST REGISTRY: Found test '{}' in registry", test_name);
       break;
     }
   }
@@ -170,6 +200,42 @@ void TestSystem::register_test_cases() {
   }
 
   // If we get here, the test is not registered via the new TEST() macro
-  // This should not happen if all tests have been migrated
+  // This might happen if:
+  // 1. Static initialization hasn't completed yet (try again)
+  // 2. Test name doesn't match exactly
+  // 3. Test file wasn't included
   log_error("Test not found: {}", test_name);
+  log_error("Available tests in registry ({} total):", registry.list_tests().size());
+  for (const auto &name : registry.list_tests()) {
+    log_error("  - {}", name);
+  }
+  log_error("This might be a static initialization order issue.");
+  log_error("Please verify the test file is included and the test name matches exactly.");
+  
+  // Set up a fallback: try to find the test again on next frame
+  // This allows static initialization to complete if it hasn't yet
+  std::string test_name_copy = test_name;
+  test_function = [test_name_copy]() {
+    auto &registry = TestRegistry::get();
+    auto test_list = registry.list_tests();
+    if (std::find(test_list.begin(), test_list.end(), test_name_copy) != test_list.end()) {
+      log_info("TEST REGISTRY: Test '{}' found on retry!", test_name_copy);
+      // Test was registered, set up normal test execution
+      static TestApp *test_app_ptr = nullptr;
+      if (test_app_ptr == nullptr) {
+        test_app_ptr = new TestApp();
+        test_app_ptr->game_launched = false;
+      }
+      bool completed = TestRegistry::get().run_test(test_name_copy, *test_app_ptr);
+      if (completed) {
+        log_info("TEST PASSED: {}", test_name_copy);
+        delete test_app_ptr;
+        test_app_ptr = nullptr;
+        exit(0);
+      }
+    } else {
+      log_error("TEST REGISTRY: Test '{}' still not found on retry", test_name_copy);
+      exit(1);
+    }
+  };
 }

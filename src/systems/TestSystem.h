@@ -8,8 +8,8 @@
 
 #include "../game_state_manager.h"
 #include "../log.h"
-#include "../render_backend.h"
 #include "../rl.h"
+#include "../render_backend.h"
 
 struct TestSystem : afterhours::System<> {
   std::string test_name;
