@@ -5,16 +5,18 @@
 // issues)
 #include "../rl.h" // NOLINT - required for Vector2Type fix
 
-#include <algorithm>
 #include "../testing/test_macros.h"
+#include <algorithm>
 
 // Include all test files so TEST() macro registrations run
-// Static TestRegistrar_##name objects will register themselves during static initialization
+// Static TestRegistrar_##name objects will register themselves during static
+// initialization
 #include "../testing/tests/GotoBattleTest.h"
 #include "../testing/tests/PlayNavigatesToShopTest.h"
 #include "../testing/tests/ValidateBattleResultsTest.h"
 #include "../testing/tests/ValidateCombatSystemTest.h"
 #include "../testing/tests/ValidateDebugDishTest.h"
+#include "../testing/tests/ValidateDishMergingTest.h"
 #include "../testing/tests/ValidateDishOrderingTest.h"
 #include "../testing/tests/ValidateDishSystemTest.h"
 #include "../testing/tests/ValidateEffectSystemTest.h"
@@ -22,10 +24,10 @@
 #include "../testing/tests/ValidateFullGameFlowTest.h"
 #include "../testing/tests/ValidateMainMenuTest.h"
 #include "../testing/tests/ValidateReplayPausePlayTest.h"
+#include "../testing/tests/ValidateRerollCostTest.h"
 #include "../testing/tests/ValidateSeededRngTest.h"
 #include "../testing/tests/ValidateShopFunctionalityTest.h"
 #include "../testing/tests/ValidateShopNavigationTest.h"
-#include "../testing/tests/ValidateRerollCostTest.h"
 #include "../testing/tests/ValidateShopPurchaseExactGoldTest.h"
 #include "../testing/tests/ValidateShopPurchaseFullInventoryTest.h"
 #include "../testing/tests/ValidateShopPurchaseInsufficientFundsTest.h"
@@ -41,32 +43,33 @@ void TestSystem::register_test_cases() {
   // Force initialization of TestRegistry and all static test registrars
   // by accessing the registry first (ensures singleton is created)
   auto &registry = TestRegistry::get();
-  
+
   // Force static initialization of test registrars by referencing them
   // The TEST() macro creates static TestRegistrar_##name variables that
   // register themselves in their constructors. We need to ensure these
   // have been initialized. Accessing the registry should trigger any
   // initialization that needs to happen.
-  
+
   // Get the test list after registry is initialized
   auto test_list = registry.list_tests();
-  
+
   // Debug: log all registered tests to help diagnose registration issues
   log_info("TEST REGISTRY: Found {} registered tests", test_list.size());
   for (const auto &name : test_list) {
     log_info("TEST REGISTRY:   - {}", name);
   }
   log_info("TEST REGISTRY: Looking for test: {}", test_name);
-  
+
   // If test not found, it might be due to static initialization order.
   // Try accessing the registry again and re-check.
-  if (std::find(test_list.begin(), test_list.end(), test_name) == test_list.end()) {
+  if (std::find(test_list.begin(), test_list.end(), test_name) ==
+      test_list.end()) {
     // Force a second check - sometimes static initialization happens lazily
     log_info("TEST REGISTRY: Test not found in first pass, re-checking...");
     test_list = registry.list_tests();
     log_info("TEST REGISTRY: Second pass found {} tests", test_list.size());
   }
-  
+
   bool found_in_new_registry = false;
   for (const auto &name : test_list) {
     if (name == test_name) {
@@ -206,20 +209,23 @@ void TestSystem::register_test_cases() {
   // 2. Test name doesn't match exactly
   // 3. Test file wasn't included
   log_error("Test not found: {}", test_name);
-  log_error("Available tests in registry ({} total):", registry.list_tests().size());
+  log_error("Available tests in registry ({} total):",
+            registry.list_tests().size());
   for (const auto &name : registry.list_tests()) {
     log_error("  - {}", name);
   }
   log_error("This might be a static initialization order issue.");
-  log_error("Please verify the test file is included and the test name matches exactly.");
-  
+  log_error("Please verify the test file is included and the test name matches "
+            "exactly.");
+
   // Set up a fallback: try to find the test again on next frame
   // This allows static initialization to complete if it hasn't yet
   std::string test_name_copy = test_name;
   test_function = [test_name_copy]() {
     auto &registry = TestRegistry::get();
     auto test_list = registry.list_tests();
-    if (std::find(test_list.begin(), test_list.end(), test_name_copy) != test_list.end()) {
+    if (std::find(test_list.begin(), test_list.end(), test_name_copy) !=
+        test_list.end()) {
       log_info("TEST REGISTRY: Test '{}' found on retry!", test_name_copy);
       // Test was registered, set up normal test execution
       static TestApp *test_app_ptr = nullptr;
@@ -227,7 +233,8 @@ void TestSystem::register_test_cases() {
         test_app_ptr = new TestApp();
         test_app_ptr->game_launched = false;
       }
-      bool completed = TestRegistry::get().run_test(test_name_copy, *test_app_ptr);
+      bool completed =
+          TestRegistry::get().run_test(test_name_copy, *test_app_ptr);
       if (completed) {
         log_info("TEST PASSED: {}", test_name_copy);
         delete test_app_ptr;
@@ -235,7 +242,8 @@ void TestSystem::register_test_cases() {
         exit(0);
       }
     } else {
-      log_error("TEST REGISTRY: Test '{}' still not found on retry", test_name_copy);
+      log_error("TEST REGISTRY: Test '{}' still not found on retry",
+                test_name_copy);
       exit(1);
     }
   };
