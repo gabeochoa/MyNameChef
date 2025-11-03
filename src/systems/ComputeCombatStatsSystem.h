@@ -94,7 +94,10 @@ struct ComputeCombatStatsSystem : afterhours::System<IsDish, DishLevel> {
 
     // Level scaling: multiply by 2 for each level above 1
     if (lvl.level > 1) {
-      int level_multiplier = 1 << (lvl.level - 1); // 2^(level-1)
+      int level_multiplier = 2;
+      for (int i = 2; i < lvl.level; ++i) {
+        level_multiplier *= 2;
+      }
       zing *= level_multiplier;
       body *= level_multiplier;
       // quiet

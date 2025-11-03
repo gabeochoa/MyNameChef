@@ -20,6 +20,9 @@ struct ReplayControllerSystem : afterhours::System<ReplayState> {
   static constexpr float kTickMs = 150.0f / 1000.0f;
 
   virtual bool should_run(float) override {
+    if (render_backend::is_headless_mode) {
+      return false;
+    }
     auto &gsm = GameStateManager::get();
     if (gsm.active_screen != GameStateManager::Screen::Battle) {
       return false;
@@ -28,10 +31,6 @@ struct ReplayControllerSystem : afterhours::System<ReplayState> {
   }
 
   void for_each_with(afterhours::Entity &, ReplayState &rs, float dt) override {
-    if (render_backend::is_headless_mode) {
-      return;
-    }
-
     handle_inputs(rs);
 
     // When paused, battle systems will check isReplayPaused() and not run

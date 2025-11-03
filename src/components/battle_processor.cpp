@@ -308,7 +308,10 @@ std::pair<int, int> BattleProcessor::calculateDishStats(int dishType,
 
   // Level scaling: multiply by 2 for each level above 1
   if (level > 1) {
-    int levelMultiplier = 1 << (level - 1); // 2^(level-1)
+    int levelMultiplier = 2;
+    for (int i = 2; i < level; ++i) {
+      levelMultiplier *= 2;
+    }
     zing *= levelMultiplier;
     body *= levelMultiplier;
   }
