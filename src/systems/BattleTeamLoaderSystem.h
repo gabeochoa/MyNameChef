@@ -289,6 +289,7 @@ private:
     case DishType::Bagel:
     case DishType::Baguette:
     case DishType::GarlicBread:
+    case DishType::DebugDish:
     default:
       // No generation ability for other dishes
       break;

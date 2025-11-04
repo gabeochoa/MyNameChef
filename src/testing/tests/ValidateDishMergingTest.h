@@ -284,7 +284,6 @@ TEST(validate_dish_merging) {
        EQ({.force_merge = true})
            .template whereHasComponent<IsShopItem>()
            .gen()) {
-    afterhours::EntityID shop_item_id = entity.id;
     int slot = entity.get<IsShopItem>().slot;
     entity.cleanup = true;
     auto slot_entity_opt = EQ({.force_merge = true})
@@ -306,7 +305,6 @@ TEST(validate_dish_merging) {
        EQ({.force_merge = true})
            .template whereHasComponent<IsInventoryItem>()
            .gen()) {
-    afterhours::EntityID item_id = entity.id;
     int slot = entity.get<IsInventoryItem>().slot;
     if (slot >= INVENTORY_SLOT_OFFSET) {
       int slot_index = slot - INVENTORY_SLOT_OFFSET;

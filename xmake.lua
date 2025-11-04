@@ -7,7 +7,6 @@ elseif is_host("macosx") then
     set_toolset("ld", "clang++")
     set_extension(".exe")
     add_cxxflags("-DBACKWARD")
-    add_ldflags("-fuse-ld=lld")
 else
     set_toolset("cxx", "clang++")
     set_toolset("ld", "clang++")
@@ -65,7 +64,6 @@ target("my_name_chef")
     add_files("src/systems/*.cpp")
     add_files("src/ui/*.cpp")
     add_files("src/testing/*.cpp")
-    add_files("src/testing/tests/*.cpp")
     --
     add_includedirs("vendor")
 

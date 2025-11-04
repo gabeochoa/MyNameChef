@@ -1,8 +1,8 @@
 #pragma once
 
 #include "../game.h"
-#include "../render_backend.h"
 #include "../query.h"
+#include "../render_backend.h"
 #include <afterhours/ah.h>
 
 struct UpdateRenderTexture : System<> {
@@ -15,7 +15,7 @@ struct UpdateRenderTexture : System<> {
     return !render_backend::is_headless_mode;
   }
 
-  void once(float) {
+  void once(float) override {
     const window_manager::ProvidesCurrentResolution *pcr =
         EntityHelper::get_singleton_cmp<
             window_manager::ProvidesCurrentResolution>();
