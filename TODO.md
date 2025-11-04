@@ -45,25 +45,10 @@
 
 # REMAINING TASKS
 
-## Next additions (incremental, with how-to)
-
-- Deterministic RNG across shop and results
-  - Add singleton `SeededRng{ std::mt19937_64 gen; uint64_t seed; }`.
-  - Seed it in `ExportMenuSnapshotSystem` (use the snapshot `seed` you already write), then store in a singleton before transitioning to Battle.
-  - Replace `std::random_device` usages in shop fill, judge variation, and any future random calls with `SeededRng.gen` so outcomes are reproducible.
-
-- Reroll and Freeze in Shop
-  - Components: `RerollCost{ base=1, increment=0 }`, `Freezeable{ isFrozen }` on shop items.
-  - System `RerollFreezeSystem`: when Reroll button pressed, charge wallet, replace non-frozen shop items using `SeededRng`; keep frozen items.
-  - UI: Add "Reroll" button on Shop; click toggles per-item freeze (badge or small icon on the slot).
-
 - Course/tags and synergy counts (display-only)
   - Components on dishes: `CourseTag`, `CuisineTag`, `BrandTag`, `DietaryTag`, `DishArchetypeTag`.
   - System `SynergyCountingSystem`: scan current inventory once per frame on Shop, compute counts per tag set into `SynergyCounts` singleton for UI.
   - Update tooltips to show tags and current set thresholds reached.
-
-- Replace static dish pool with enum values
-  - Change `get_default_dish_pool()` to use `magic_enum::enum_values<DishType>()` to derive the pool, optionally filter placeholders.
 
 - Judge profile and base scoring (no pairings yet)
   - Singletons: `JudgeProfileRef{ weights[7] }`, `ScoringConfig{ k }`.
