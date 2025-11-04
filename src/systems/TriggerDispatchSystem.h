@@ -13,6 +13,7 @@
 #include <afterhours/ah.h>
 #include <algorithm>
 #include <magic_enum/magic_enum.hpp>
+#include <map>
 
 struct TriggerDispatchSystem : afterhours::System<TriggerQueue> {
   virtual bool should_run(float) override {
@@ -36,6 +37,28 @@ struct TriggerDispatchSystem : afterhours::System<TriggerQueue> {
       return;
     }
 
+    // Pre-calculate and cache team totals (sum baseZing of all dishes on each
+    // team)
+    std::map<DishBattleState::TeamSide, int> team_total_zing;
+    team_total_zing[DishBattleState::TeamSide::Player] = 0;
+    team_total_zing[DishBattleState::TeamSide::Opponent] = 0;
+
+    for (afterhours::Entity &e : EQ({.ignore_temp_warning = true})
+                                     .whereHasComponent<IsDish>()
+                                     .whereHasComponent<DishBattleState>()
+                                     .gen()) {
+      const auto &dbs = e.get<DishBattleState>();
+      if (!e.has<CombatStats>()) {
+        log_error("TRIGGER_ORDER: Dish {} on team {} missing CombatStats", e.id,
+                  dbs.team_side == DishBattleState::TeamSide::Player
+                      ? "Player"
+                      : "Opponent");
+        continue;
+      }
+      const auto &cs = e.get<CombatStats>();
+      team_total_zing[dbs.team_side] += cs.baseZing;
+    }
+
     // Build index order to avoid moving/assigning TriggerEvent
     std::vector<size_t> order;
     order.reserve(queue.events.size());
@@ -43,35 +66,11 @@ struct TriggerDispatchSystem : afterhours::System<TriggerQueue> {
       order.push_back(i);
     }
 
-    // Deterministic ordering: (slotIndex asc, Player then Opponent, Zing desc,
-    // sourceEntityId asc)
-    // TODO: Update to use highest total Zing team first
+    // Deterministic ordering: (slotIndex asc, highest total Zing team first,
+    // sourceEntityId asc if tied)
+    TriggerEventComparator comparator(team_total_zing);
     std::sort(order.begin(), order.end(), [&](size_t ia, size_t ib) {
-      const TriggerEvent &a = queue.events[ia];
-      const TriggerEvent &b = queue.events[ib];
-      if (a.slotIndex != b.slotIndex)
-        return a.slotIndex < b.slotIndex;
-      if (a.teamSide != b.teamSide)
-        return a.teamSide == DishBattleState::TeamSide::Player;
-      int za = 0;
-      if (auto ea = EQ({.ignore_temp_warning = true})
-                        .whereID(a.sourceEntityId)
-                        .gen_first()) {
-        if (ea->has<CombatStats>()) {
-          za = ea->get<CombatStats>().currentZing;
-        }
-      }
-      int zb = 0;
-      if (auto eb = EQ({.ignore_temp_warning = true})
-                        .whereID(b.sourceEntityId)
-                        .gen_first()) {
-        if (eb->has<CombatStats>()) {
-          zb = eb->get<CombatStats>().currentZing;
-        }
-      }
-      if (za != zb)
-        return za > zb; // higher zing first
-      return a.sourceEntityId < b.sourceEntityId;
+      return comparator(queue.events[ia], queue.events[ib]);
     });
 
     // Reorder events vector using the sorted indices
@@ -86,4 +85,44 @@ struct TriggerDispatchSystem : afterhours::System<TriggerQueue> {
     // Don't clear queue here - EffectResolutionSystem will clear it after
     // processing
   }
+
+private:
+  struct TriggerEventComparator {
+    const std::map<DishBattleState::TeamSide, int> &team_total_zing;
+
+    bool operator()(const TriggerEvent &a, const TriggerEvent &b) const {
+      if (a.slotIndex != b.slotIndex)
+        return a.slotIndex < b.slotIndex;
+      if (a.teamSide != b.teamSide) {
+        int team_a_total = team_total_zing.at(a.teamSide);
+        int team_b_total = team_total_zing.at(b.teamSide);
+        if (team_a_total != team_b_total)
+          return team_a_total > team_b_total; // higher total first
+        // If tied, use sourceEntityId as tie-breaker
+        return a.sourceEntityId < b.sourceEntityId;
+      }
+      int za = get_entity_zing(a.sourceEntityId);
+      int zb = get_entity_zing(b.sourceEntityId);
+      if (za != zb)
+        return za > zb; // higher zing first
+      return a.sourceEntityId < b.sourceEntityId;
+    }
+
+  private:
+    int get_entity_zing(int sourceEntityId) const {
+      if (sourceEntityId <= 0)
+        return 0;
+      if (auto ea = EQ({.ignore_temp_warning = true})
+                        .whereID(sourceEntityId)
+                        .gen_first()) {
+        if (ea->has<CombatStats>()) {
+          return ea->get<CombatStats>().baseZing;
+        } else {
+          log_error("TRIGGER_ORDER: Source entity {} missing CombatStats",
+                    sourceEntityId);
+        }
+      }
+      return 0;
+    }
+  };
 };

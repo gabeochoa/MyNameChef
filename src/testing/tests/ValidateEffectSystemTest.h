@@ -964,6 +964,20 @@ static void test_salmon_neighbor_freshness_persists_to_combat() {
     return;
   }
 
+  // Run ComputeCombatStatsSystem first to ensure all dishes have CombatStats
+  // before TriggerDispatchSystem tries to order events
+  ComputeCombatStatsSystem computeStats;
+  for (afterhours::Entity &e : EQ({.ignore_temp_warning = true})
+                                   .whereHasComponent<IsDish>()
+                                   .whereHasComponent<DishLevel>()
+                                   .gen()) {
+    if (computeStats.should_run(1.0f / 60.0f)) {
+      IsDish &dish = e.get<IsDish>();
+      DishLevel &lvl = e.get<DishLevel>();
+      computeStats.for_each_with(e, dish, lvl, 1.0f / 60.0f);
+    }
+  }
+
   TriggerDispatchSystem dispatch;
   if (dispatch.should_run(1.0f / 60.0f)) {
     dispatch.for_each_with(tq_entity, queue, 1.0f / 60.0f);

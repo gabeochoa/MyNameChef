@@ -151,6 +151,9 @@ void game(const std::optional<std::string> &run_test) {
     systems.register_update_system(std::make_unique<BattleTeamLoaderSystem>());
     systems.register_update_system(std::make_unique<BattleDebugSystem>());
     systems.register_update_system(std::make_unique<BattleProcessorSystem>());
+    // Compute stats before trigger ordering so baseZing is available
+    systems.register_update_system(
+        std::make_unique<ComputeCombatStatsSystem>());
     systems.register_update_system(
         std::make_unique<TriggerDispatchSystem>()); // Order events first
     systems.register_update_system(
@@ -165,8 +168,8 @@ void game(const std::optional<std::string> &run_test) {
     systems.register_update_system(std::make_unique<StartCourseSystem>());
     systems.register_update_system(
         std::make_unique<BattleEnterAnimationSystem>());
-    // Compute after phase transitions to ensure current/base sync reflects
-    // latest phase
+    // Compute again after phase transitions to ensure current/base sync
+    // reflects latest phase
     systems.register_update_system(
         std::make_unique<ComputeCombatStatsSystem>());
     systems.register_update_system(std::make_unique<SimplifiedOnServeSystem>());
