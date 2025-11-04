@@ -2,7 +2,6 @@
 #include "dish_builder.h"
 #include <vector>
 
-#include <magic_enum/magic_enum.hpp>
 #include "components/animation_event.h"
 #include "components/deferred_flavor_mods.h"
 #include "components/dish_battle_state.h"
@@ -12,6 +11,7 @@
 #include "query.h"
 #include "shop.h"
 #include <afterhours/ah.h>
+#include <magic_enum/magic_enum.hpp>
 
 DishInfo DishBuilder::build() {
   if (!name_set_ || !flavor_set_ || !sprite_set_ || !tier_set_) {
@@ -20,13 +20,11 @@ DishInfo DishBuilder::build() {
   }
   dish_.price = DishBuilder::kUnifiedDishPrice;
   dish_.effects = std::move(effects_);
-  dish_.onServe = nullptr;
   return dish_;
 }
 
 static DishInfo make_dish(const char *name, FlavorStats flavor,
                           SpriteLocation sprite, int tier = 2,
-                          OnServeHandler onServe = nullptr,
                           std::vector<DishEffect> effects = {}) {
   DishInfo result;
   result.name = name;
@@ -34,7 +32,6 @@ static DishInfo make_dish(const char *name, FlavorStats flavor,
   result.tier = tier;
   result.flavor = flavor;
   result.sprite = sprite;
-  result.onServe = onServe;
   result.effects = std::move(effects);
   return result;
 }
@@ -360,14 +357,14 @@ const std::vector<DishType> &get_default_dish_pool() {
     auto all_dishes = magic_enum::enum_values<DishType>();
     std::vector<DishType> result;
     result.reserve(all_dishes.size());
-    
+
     // Filter out placeholder/debug dishes
     for (const auto &dish : all_dishes) {
       if (dish != DishType::DebugDish) {
         result.push_back(dish);
       }
     }
-    
+
     return result;
   }();
   return pool;

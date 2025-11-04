@@ -2,7 +2,6 @@
 
 #include "components/deferred_flavor_mods.h"
 #include "components/dish_effect.h"
-#include <functional>
 #include <string>
 #include <vector>
 
@@ -77,15 +76,12 @@ struct SpriteLocation {
   int j = 0;
 };
 
-using OnServeHandler = std::function<void(int /*sourceEntityId*/)>;
-
 struct DishInfo {
   std::string name;
   int price = 1;
   int tier = 1;
   FlavorStats flavor;
   SpriteLocation sprite;
-  OnServeHandler onServe = nullptr;
   std::vector<DishEffect> effects;
 };
 

@@ -152,10 +152,10 @@ void game(const std::optional<std::string> &run_test) {
     systems.register_update_system(std::make_unique<BattleDebugSystem>());
     systems.register_update_system(std::make_unique<BattleProcessorSystem>());
     systems.register_update_system(
-        std::make_unique<EffectResolutionSystem>()); // Process effects first
+        std::make_unique<TriggerDispatchSystem>()); // Order events first
     systems.register_update_system(
-        std::make_unique<TriggerDispatchSystem>()); // Then handle callbacks and
-                                                    // clear
+        std::make_unique<EffectResolutionSystem>()); // Then process effects and
+                                                     // clear
     systems.register_update_system(
         std::make_unique<ApplyPendingCombatModsSystem>());
     // Legacy battle systems - can be removed once BattleProcessor is working
