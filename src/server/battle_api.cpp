@@ -1,10 +1,15 @@
 #include "battle_api.h"
+#include "battle_serializer.h"
+#include "file_storage.h"
 #include "../log.h"
 #include "../seeded_rng.h"
 #include "team_types.h"
 #include <filesystem>
 #include <nlohmann/json.hpp>
 #include <random>
+#include <chrono>
+#include <iomanip>
+#include <sstream>
 
 namespace server {
 static nlohmann::json make_error_json(const std::string &error) {
@@ -99,13 +104,40 @@ void BattleAPI::handle_battle_request(const httplib::Request &req,
 
     bool debug_mode = request_json.value("debug", false);
     nlohmann::json outcomes = BattleSerializer::collect_battle_outcomes();
-    nlohmann::json events = BattleSerializer::collect_battle_events();
+    nlohmann::json events = BattleSerializer::collect_battle_events(simulator);
 
     std::filesystem::path opp_path(opponent_path.value());
     TeamId opponent_id = extract_team_id_from_path(opponent_path.value());
 
     nlohmann::json response = BattleSerializer::serialize_battle_result(
         seed, opponent_id, outcomes, events, debug_mode);
+
+    std::string player_team_id = request_json.value("playerTeamId", "");
+    std::string player_username = request_json.value("playerUsername", "");
+    std::string opponent_username = request_json.value("opponentUsername", "");
+
+    std::string battle_id = std::to_string(seed);
+
+    auto now = std::chrono::system_clock::now();
+    auto time_t = std::chrono::system_clock::to_time_t(now);
+    std::stringstream ss;
+    ss << std::put_time(std::localtime(&time_t), "%Y%m%d_%H%M%S");
+    std::string timestamp = ss.str();
+
+    nlohmann::json result_to_save = response;
+    result_to_save["playerTeamId"] = player_team_id;
+    result_to_save["opponentTeamId"] = opponent_id;
+    result_to_save["playerUsername"] = player_username;
+    result_to_save["opponentUsername"] = opponent_username;
+
+    std::string results_dir = "output/battles/results";
+    FileStorage::ensure_directory_exists(results_dir);
+
+    std::string result_filename =
+        results_dir + "/" + timestamp + "_" + battle_id + ".json";
+    FileStorage::save_json_to_file(result_filename, result_to_save);
+
+    FileStorage::cleanup_old_files(results_dir, 10, ".json");
 
     res.status = 200;
     res.set_content(response.dump(), "application/json");
