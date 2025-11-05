@@ -7,7 +7,9 @@
 namespace server {
 struct ServerContext {
   afterhours::SystemManager systems;
-  afterhours::Entity manager_entity;
+  afterhours::Entity *manager_entity;
+
+  ServerContext() : manager_entity(nullptr) {}
 
   static ServerContext initialize();
   void initialize_singletons();

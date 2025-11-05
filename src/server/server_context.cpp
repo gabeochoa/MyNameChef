@@ -19,7 +19,8 @@ ServerContext ServerContext::initialize() {
 
   Preload::get().init("battle_server", true).make_singleton();
 
-  ctx.manager_entity = afterhours::EntityHelper::createEntity();
+  auto &entity = afterhours::EntityHelper::createEntity();
+  ctx.manager_entity = &entity;
 
   ctx.initialize_singletons();
 
@@ -29,10 +30,10 @@ ServerContext ServerContext::initialize() {
 }
 
 void ServerContext::initialize_singletons() {
-  make_combat_manager(manager_entity);
-  make_battle_processor_manager(manager_entity);
+  make_combat_manager(*manager_entity);
+  make_battle_processor_manager(*manager_entity);
 
-  SeededRng::get();
+  (void)SeededRng::get();
 }
 
 void ServerContext::register_battle_systems() {

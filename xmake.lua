@@ -63,7 +63,8 @@ target("my_name_chef")
     add_files("src/components/*.cpp")
     add_files("src/systems/*.cpp")
     add_files("src/ui/*.cpp")
-    add_files("src/testing/*.cpp")
+    add_files("src/testing/test_app.cpp")
+    add_files("src/testing/test_context.cpp")
     --
     add_includedirs("vendor")
 
@@ -87,3 +88,34 @@ target("my_name_chef")
 
 
 -- Test targets (removed - using --run-test flag instead)
+
+target("battle_server")
+    set_kind("binary")
+    set_targetdir("output")
+    
+    add_files("src/server/*.cpp")
+    add_files("src/*.cpp")
+    add_files("src/components/*.cpp")
+    add_files("src/systems/*.cpp")
+    add_files("src/ui/*.cpp")
+    
+    remove_files("src/main.cpp")
+    remove_files("src/testing/*.cpp")
+    remove_files("src/systems/TestSystem.cpp")
+    
+    add_includedirs("vendor")
+    
+    add_defines("HEADLESS_MODE")
+    
+    add_ldflags("-L.", "-Lvendor/")
+    if is_host("windows") then
+        add_ldflags("F:/RayLib/lib/raylib.dll")
+        add_ldflags("-lws2_32", "-lwinmm")
+    else
+        add_ldflags("$(shell pkg-config --libs raylib)")
+    end
+    if is_host("macosx") then
+        add_ldflags("-framework", "CoreFoundation", {force = true})
+    end
+    
+    add_cxxflags("-ftime-trace")
