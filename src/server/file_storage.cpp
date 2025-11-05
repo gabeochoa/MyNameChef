@@ -82,5 +82,40 @@ namespace server {
   size_t FileStorage::count_files_in_directory(const std::string &directory_path, const std::string &extension) {
     return list_files_in_directory(directory_path, extension).size();
   }
+
+  void FileStorage::cleanup_old_files(const std::string &directory, size_t keep_count, const std::string &extension) {
+    if (!directory_exists(directory)) {
+      return;
+    }
+
+    std::vector<std::pair<std::filesystem::path, std::filesystem::file_time_type>> files_with_time;
+
+    for (const auto &entry : std::filesystem::directory_iterator(directory)) {
+      if (entry.is_regular_file() && entry.path().extension() == extension) {
+        files_with_time.push_back({entry.path(), entry.last_write_time()});
+      }
+    }
+
+    if (files_with_time.size() <= keep_count) {
+      return;
+    }
+
+    std::sort(files_with_time.begin(), files_with_time.end(),
+              [](const auto &a, const auto &b) {
+                return a.second > b.second;
+              });
+
+    size_t files_to_delete = files_with_time.size() - keep_count;
+    for (size_t i = keep_count; i < files_with_time.size(); ++i) {
+      try {
+        std::filesystem::remove(files_with_time[i].first);
+        log_info("Cleaned up old file: {}", files_with_time[i].first.string());
+      } catch (const std::exception &e) {
+        log_error("Failed to delete file {}: {}", files_with_time[i].first.string(), e.what());
+      }
+    }
+
+    log_info("File cleanup: kept {} files, deleted {} files", keep_count, files_to_delete);
+  }
 }
 

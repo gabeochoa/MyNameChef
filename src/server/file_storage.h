@@ -14,6 +14,7 @@ namespace server {
     static bool directory_exists(const std::string &directory_path);
     static void ensure_directory_exists(const std::string &directory_path);
     static size_t count_files_in_directory(const std::string &directory_path, const std::string &extension = ".json");
+    static void cleanup_old_files(const std::string &directory, size_t keep_count, const std::string &extension = ".json");
   };
 }
 
