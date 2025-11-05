@@ -66,6 +66,7 @@ backward::SignalHandling sh;
 #include "systems/UnifiedAnimationSystem.h"
 #include "systems/UpdateRenderTexture.h"
 #include "systems/UpdateSpriteTransform.h"
+#include "systems/battle_system_registry.h"
 #include "ui/ui_systems.h"
 #include <afterhours/src/plugins/animation.h>
 #include <optional>
@@ -148,48 +149,7 @@ void game(const std::optional<std::string> &run_test) {
     systems.register_update_system(std::make_unique<HandleFreezeIconClick>());
     systems.register_update_system(std::make_unique<MarkIsHeldWhenHeld>());
     systems.register_update_system(std::make_unique<DropWhenNoLongerHeld>());
-    systems.register_update_system(std::make_unique<BattleTeamLoaderSystem>());
-    systems.register_update_system(std::make_unique<BattleDebugSystem>());
-    systems.register_update_system(std::make_unique<BattleProcessorSystem>());
-    // Compute stats before trigger ordering so baseZing is available
-    systems.register_update_system(
-        std::make_unique<ComputeCombatStatsSystem>());
-    systems.register_update_system(
-        std::make_unique<TriggerDispatchSystem>()); // Order events first
-    systems.register_update_system(
-        std::make_unique<EffectResolutionSystem>()); // Then process effects and
-                                                     // clear
-    systems.register_update_system(
-        std::make_unique<ApplyPendingCombatModsSystem>());
-    // Legacy battle systems - can be removed once BattleProcessor is working
-    systems.register_update_system(std::make_unique<InitCombatState>());
-    systems.register_update_system(
-        std::make_unique<ApplyPairingsAndClashesSystem>());
-    systems.register_update_system(std::make_unique<StartCourseSystem>());
-    systems.register_update_system(
-        std::make_unique<BattleEnterAnimationSystem>());
-    // Compute again after phase transitions to ensure current/base sync
-    // reflects latest phase
-    systems.register_update_system(
-        std::make_unique<ComputeCombatStatsSystem>());
-    systems.register_update_system(std::make_unique<SimplifiedOnServeSystem>());
-    systems.register_update_system(std::make_unique<ResolveCombatTickSystem>());
-    systems.register_update_system(std::make_unique<AdvanceCourseSystem>());
-    systems.register_update_system(std::make_unique<ReplayControllerSystem>());
-    systems.register_update_system(std::make_unique<AuditSystem>());
-    systems.register_update_system(std::make_unique<CleanupBattleEntities>());
-    systems.register_update_system(std::make_unique<CleanupShopEntities>());
-    systems.register_update_system(std::make_unique<CleanupDishesEntities>());
-    systems.register_update_system(std::make_unique<GenerateDishesGallery>());
-    texture_manager::register_update_systems(systems);
-    afterhours::animation::register_update_systems<
-        afterhours::animation::CompositeKey>(systems);
-    afterhours::animation::register_update_systems<BattleAnimKey>(systems);
-    systems.register_update_system(
-        std::make_unique<AnimationSchedulerSystem>());
-    systems.register_update_system(std::make_unique<AnimationTimerSystem>());
-    systems.register_update_system(
-        std::make_unique<SlideInAnimationDriverSystem>());
+    battle_systems::register_battle_systems(systems);
 
     register_sound_systems(systems);
     register_ui_systems(systems);
@@ -197,13 +157,6 @@ void game(const std::optional<std::string> &run_test) {
     if (run_test.has_value()) {
       systems.register_update_system(std::make_unique<TestSystem>(*run_test));
     }
-
-    // Ensure results are loaded in the same frame UI switches to Results
-    systems.register_update_system(std::make_unique<LoadBattleResults>());
-    // Process battle rewards and refill store after results are loaded
-    systems.register_update_system(std::make_unique<ProcessBattleRewards>());
-    // Fill shop on first game start
-    systems.register_update_system(std::make_unique<InitialShopFill>());
     register_shop_update_systems(systems);
 
     systems.register_update_system(std::make_unique<UpdateRenderTexture>());
