@@ -18,10 +18,18 @@ struct RenderBattleResults : afterhours::System<> {
   }
 
   void once(float) const override {
+    // Check if singleton exists before trying to get it
+    const auto componentId =
+        afterhours::components::get_type_id<BattleResult>();
+    if (!afterhours::EntityHelper::get().singletonMap.contains(componentId)) {
+      return;
+    }
+
     auto resultEntity = afterhours::EntityHelper::get_singleton<BattleResult>();
     auto &entity = resultEntity.get();
 
-    if (!entity.has<BattleResult>()) {
+    // Check if entity is valid and has the component before accessing
+    if (entity.cleanup || !entity.has<BattleResult>()) {
       return;
     }
 
