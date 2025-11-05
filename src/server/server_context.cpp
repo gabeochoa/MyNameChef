@@ -50,26 +50,28 @@ bool ServerContext::is_battle_complete() const {
   if (cq_entity.get().has<CombatQueue>()) {
     const CombatQueue &cq = cq_entity.get().get<CombatQueue>();
     if (cq.complete) {
-      bool player_has_active = false;
-      bool opponent_has_active = false;
+      return true;
+    }
 
-      for (afterhours::Entity &entity :
-           afterhours::EntityQuery()
-               .whereHasComponent<IsDish>()
-               .whereHasComponent<DishBattleState>()
-               .gen()) {
-        const DishBattleState &dbs = entity.get<DishBattleState>();
-        if (dbs.phase != DishBattleState::Phase::Finished) {
-          if (dbs.team_side == DishBattleState::TeamSide::Player) {
-            player_has_active = true;
-          } else {
-            opponent_has_active = true;
-          }
+    bool player_has_active = false;
+    bool opponent_has_active = false;
+
+    for (afterhours::Entity &entity :
+         afterhours::EntityQuery({.force_merge = true})
+             .whereHasComponent<IsDish>()
+             .whereHasComponent<DishBattleState>()
+             .gen()) {
+      const DishBattleState &dbs = entity.get<DishBattleState>();
+      if (dbs.phase != DishBattleState::Phase::Finished) {
+        if (dbs.team_side == DishBattleState::TeamSide::Player) {
+          player_has_active = true;
+        } else {
+          opponent_has_active = true;
         }
       }
-
-      return !player_has_active || !opponent_has_active;
     }
+
+    return !player_has_active || !opponent_has_active;
   }
   return false;
 }

@@ -57,6 +57,7 @@ struct InitCombatState : afterhours::System<CombatQueue> {
 
     log_info("COMBAT: Creating SlideIn animation at battle start");
     make_animation_event(AnimationEventType::SlideIn, true);
+    afterhours::EntityHelper::merge_entity_arrays();
 
     if (auto tq = afterhours::EntityHelper::get_singleton<TriggerQueue>();
         tq.get().has<TriggerQueue>()) {

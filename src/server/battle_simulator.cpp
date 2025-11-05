@@ -1,9 +1,9 @@
 #include "battle_simulator.h"
-#include "file_storage.h"
 #include "../components/battle_load_request.h"
-#include "../components/trigger_queue.h"
 #include "../components/combat_queue.h"
+#include "../components/trigger_queue.h"
 #include "../seeded_rng.h"
+#include "file_storage.h"
 #include <afterhours/ah.h>
 
 namespace server {
@@ -20,17 +20,17 @@ void BattleSimulator::start_battle(const nlohmann::json &player_team_json,
   battle_active = true;
   accumulated_events.clear();
 
-    SeededRng::get().set_seed(seed);
+  SeededRng::get().set_seed(seed);
 
-    FileStorage::ensure_directory_exists("output/battles");
+  FileStorage::ensure_directory_exists("output/battles");
 
-    std::string player_temp =
-        "output/battles/temp_player_" + std::to_string(seed) + ".json";
-    std::string opponent_temp =
-        "output/battles/temp_opponent_" + std::to_string(seed) + ".json";
+  std::string player_temp =
+      "output/battles/temp_player_" + std::to_string(seed) + ".json";
+  std::string opponent_temp =
+      "output/battles/temp_opponent_" + std::to_string(seed) + ".json";
 
-    FileStorage::save_json_to_file(player_temp, player_team_json);
-    FileStorage::save_json_to_file(opponent_temp, opponent_team_json);
+  FileStorage::save_json_to_file(player_temp, player_team_json);
+  FileStorage::save_json_to_file(opponent_temp, opponent_team_json);
 
   afterhours::Entity &request_entity = afterhours::EntityHelper::createEntity();
   request_entity.addComponent<BattleLoadRequest>();

@@ -1,4 +1,7 @@
 #include "battle_system_registry.h"
+#include "BattleTeamFileLoaderSystem.h"
+#include "InstantiateBattleTeamSystem.h"
+#include "TagTeamEntitiesSystem.h"
 #include "BattleTeamLoaderSystem.h"
 #include "BattleDebugSystem.h"
 #include "BattleProcessorSystem.h"
@@ -29,6 +32,9 @@
 
 namespace battle_systems {
   void register_battle_systems(afterhours::SystemManager &systems) {
+    systems.register_update_system(std::make_unique<BattleTeamFileLoaderSystem>());
+    systems.register_update_system(std::make_unique<InstantiateBattleTeamSystem>());
+    systems.register_update_system(std::make_unique<TagTeamEntitiesSystem>());
     systems.register_update_system(std::make_unique<BattleTeamLoaderSystem>());
     systems.register_update_system(std::make_unique<BattleDebugSystem>());
     systems.register_update_system(std::make_unique<BattleProcessorSystem>());

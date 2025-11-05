@@ -23,14 +23,9 @@ struct AdvanceCourseSystem : afterhours::System<CombatQueue> {
 
   void for_each_with(afterhours::Entity &, CombatQueue &cq, float) override {
     if (cq.complete) {
-      // Quiet skip once combat is complete
       return;
     }
 
-    // (quiet)
-
-    // Check if both dishes at index 0 are finished (queues are reorganized when
-    // dishes finish)
     if (both_dishes_finished()) {
       log_info("COMBAT: Course {} finished (both dishes at index 0)",
                cq.current_index);
@@ -45,6 +40,38 @@ struct AdvanceCourseSystem : afterhours::System<CombatQueue> {
 
       uint64_t fp = BattleFingerprint::compute();
       log_info("AUDIT_FP checkpoint=course_{} hash={}", cq.current_index, fp);
+
+      reorganize_queues();
+
+      bool has_remaining_dishes = false;
+      for (DishBattleState::TeamSide side :
+           {DishBattleState::TeamSide::Player,
+            DishBattleState::TeamSide::Opponent}) {
+        afterhours::RefEntities active =
+            EQ({.ignore_temp_warning = true})
+                .whereHasComponent<DishBattleState>()
+                .whereLambda([side](const afterhours::Entity &e) {
+                  const DishBattleState &dbs = e.get<DishBattleState>();
+                  return dbs.team_side == side &&
+                         dbs.phase != DishBattleState::Phase::Finished;
+                })
+                .gen();
+        if (!active.empty()) {
+          has_remaining_dishes = true;
+          break;
+        }
+      }
+
+      if (!has_remaining_dishes) {
+        cq.complete = true;
+        log_info("COMBAT: All courses complete - no remaining dishes");
+      } else if (cq.current_index >= cq.total_courses - 1) {
+        cq.complete = true;
+        log_info("COMBAT: All courses complete - reached max courses");
+      } else {
+        cq.current_index++;
+        log_info("COMBAT: Advancing to course {}", cq.current_index);
+      }
     }
   }
 
@@ -73,5 +100,49 @@ private:
             DishBattleState::Phase::Finished;
 
     return player_finished && opponent_finished;
+  }
+
+  void reorganize_queues() {
+    for (DishBattleState::TeamSide side :
+         {DishBattleState::TeamSide::Player,
+          DishBattleState::TeamSide::Opponent}) {
+      afterhours::RefEntities active_dishes =
+          EQ({.ignore_temp_warning = true})
+              .whereHasComponent<DishBattleState>()
+              .whereTeamSide(side)
+              .whereLambda([](const afterhours::Entity &e) {
+                const DishBattleState &dbs = e.get<DishBattleState>();
+                return dbs.phase == DishBattleState::Phase::InQueue ||
+                       dbs.phase == DishBattleState::Phase::Entering ||
+                       dbs.phase == DishBattleState::Phase::InCombat;
+              })
+              .orderByLambda(
+                  [](const afterhours::Entity &a, const afterhours::Entity &b) {
+                    return a.get<DishBattleState>().queue_index <
+                           b.get<DishBattleState>().queue_index;
+                  })
+              .gen();
+
+      int new_index = 0;
+      for (afterhours::Entity &dish : active_dishes) {
+        DishBattleState &dbs = dish.get<DishBattleState>();
+        bool was_reorganized = dbs.queue_index != new_index;
+        if (was_reorganized) {
+          log_info("COMBAT: Reorganizing {} side dish {} from index {} to {}",
+                   side == DishBattleState::TeamSide::Player ? "Player"
+                                                             : "Opponent",
+                   dish.id, dbs.queue_index, new_index);
+          dbs.queue_index = new_index;
+        }
+
+        if (dbs.phase == DishBattleState::Phase::InCombat ||
+            dbs.phase == DishBattleState::Phase::Entering) {
+          dbs.phase = DishBattleState::Phase::InQueue;
+          dbs.enter_progress = 0.0f;
+        }
+
+        new_index++;
+      }
+    }
   }
 };
