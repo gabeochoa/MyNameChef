@@ -27,12 +27,16 @@ nlohmann::json TeamManager::load_team_from_file(const TeamFilePath &path) {
   return FileStorage::load_json_from_file(path);
 }
 
-bool TeamManager::validate_team_json(const nlohmann::json &team_json) {
-  if (!team_json.contains("team") || !team_json["team"].is_array()) {
+bool TeamManager::validate_team_json(const nlohmann::json &request_json) {
+  if (!request_json.contains("team")) {
     return false;
   }
 
-  const auto &team = team_json["team"];
+  if (!request_json["team"].is_array()) {
+    return false;
+  }
+
+  const auto &team = request_json["team"];
   if (team.size() == 0 || team.size() > 7) {
     return false;
   }
