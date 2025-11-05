@@ -1,0 +1,8 @@
+{
+  "team": [
+    {"dishType": "Potato", "slot": 0, "level": 1},
+    {"dishType": "Burger", "slot": 1, "level": 1},
+    {"dishType": "Pizza", "slot": 2, "level": 1}
+  ]
+}
+
