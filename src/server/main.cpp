@@ -3,6 +3,7 @@
 #include "../rl.h"
 #include "battle_api.h"
 #include "file_storage.h"
+#include "test_framework.h"
 #include <argh.h>
 #include <filesystem>
 #include <nlohmann/json.hpp>
@@ -13,6 +14,12 @@ bool running = true;
 
 int main(int argc, char *argv[]) {
   argh::parser cmdl(argc, argv);
+
+  if (cmdl[{"--run-tests", "-t"}]) {
+    log_info("Running server unit tests...");
+    bool all_passed = server::test::TestRegistry::get().run_all_tests();
+    return all_passed ? 0 : 1;
+  }
 
   int port = 8080;
   cmdl({"-p", "--port"}, 8080) >> port;
