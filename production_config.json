@@ -1,0 +1,7 @@
+{
+    "port": 8080,
+    "base_path": ".",
+    "timeout_seconds": 30,
+    "error_detail_level": "warn",
+    "debug": false
+}

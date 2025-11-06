@@ -20,11 +20,14 @@ struct BattleSimulator {
 
   void start_battle(const nlohmann::json &player_team_json,
                     const nlohmann::json &opponent_team_json,
-                    uint64_t battle_seed);
+                    uint64_t battle_seed,
+                    const std::filesystem::path &temp_files_path);
 
   void update(float dt);
 
   bool is_complete() const;
+
+  float get_simulation_time() const { return simulation_time; }
 
   nlohmann::json get_battle_state() const;
 

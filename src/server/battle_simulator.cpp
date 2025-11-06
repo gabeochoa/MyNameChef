@@ -20,9 +20,10 @@ BattleSimulator::BattleSimulator()
     : ctx(ServerContext::initialize()), seed(0), battle_active(false),
       simulation_time(0.0f), accumulated_events() {}
 
-void BattleSimulator::start_battle(const nlohmann::json &player_team_json,
-                                   const nlohmann::json &opponent_team_json,
-                                   uint64_t battle_seed) {
+void BattleSimulator::start_battle(
+    const nlohmann::json &player_team_json,
+    const nlohmann::json &opponent_team_json, uint64_t battle_seed,
+    const std::filesystem::path &temp_files_path) {
 
   seed = battle_seed;
   simulation_time = 0.0f;
@@ -31,12 +32,14 @@ void BattleSimulator::start_battle(const nlohmann::json &player_team_json,
 
   SeededRng::get().set_seed(seed);
 
-  FileStorage::ensure_directory_exists("output/battles");
+  FileStorage::ensure_directory_exists(temp_files_path.string());
 
   std::string player_temp =
-      "output/battles/temp_player_" + std::to_string(seed) + ".json";
+      (temp_files_path / ("temp_player_" + std::to_string(seed) + ".json"))
+          .string();
   std::string opponent_temp =
-      "output/battles/temp_opponent_" + std::to_string(seed) + ".json";
+      (temp_files_path / ("temp_opponent_" + std::to_string(seed) + ".json"))
+          .string();
 
   FileStorage::save_json_to_file(player_temp, player_team_json);
   FileStorage::save_json_to_file(opponent_temp, opponent_team_json);

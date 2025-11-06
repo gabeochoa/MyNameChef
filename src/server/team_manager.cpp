@@ -5,15 +5,16 @@
 #include <algorithm>
 
 namespace server {
-std::vector<TeamFilePath> TeamManager::get_opponent_files() {
-  std::string opponents_dir = "resources/battles/opponents/";
-  return FileStorage::list_files_in_directory(opponents_dir, ".json");
+std::vector<TeamFilePath>
+TeamManager::get_opponent_files(const std::filesystem::path &opponents_path) {
+  return FileStorage::list_files_in_directory(opponents_path.string(), ".json");
 }
 
-std::optional<TeamFilePath> TeamManager::select_random_opponent() {
-  auto files = get_opponent_files();
+std::optional<TeamFilePath> TeamManager::select_random_opponent(
+    const std::filesystem::path &opponents_path) {
+  auto files = get_opponent_files(opponents_path);
   if (files.empty()) {
-    log_error("No opponent files found in resources/battles/opponents/");
+    log_error("No opponent files found in {}", opponents_path.string());
     return {};
   }
 
@@ -66,15 +67,16 @@ bool TeamManager::validate_team_json(const nlohmann::json &request_json) {
   return true;
 }
 
-void TeamManager::track_opponent_file_count() {
-  std::string opponents_dir = "resources/battles/opponents/";
-  size_t count = FileStorage::count_files_in_directory(opponents_dir, ".json");
+void TeamManager::track_opponent_file_count(
+    const std::filesystem::path &opponents_path) {
+  size_t count =
+      FileStorage::count_files_in_directory(opponents_path.string(), ".json");
 
   if (count > 1000) {
     log_warn("Opponent file count is high: {}. Consider cleanup/archival.",
              count);
   } else {
-    log_info("Found {} opponent files", count);
+    log_info("Found {} opponent files in {}", count, opponents_path.string());
   }
 }
 } // namespace server

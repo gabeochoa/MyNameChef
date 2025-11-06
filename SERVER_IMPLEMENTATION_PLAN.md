@@ -989,6 +989,161 @@ This refactor improves separation of concerns and makes the system more maintain
 
 - ✅ **Server Tests**: Server unit tests fixed - all 18 tests passing (entity cleanup between tests resolved segmentation faults)
 
+## Remaining Work
+
+### Overview
+
+All core implementation steps (1-9) are complete. The server builds, runs, and handles basic battle requests. Remaining work focuses on:
+1. Verification of existing functionality
+2. Configuration file enhancements (consolidate all settings into JSON config files)
+3. Validation checklist completion
+
+### Configuration File Approach
+
+**Decision**: Use a single config JSON file with `--config` flag instead of multiple command-line flags.
+
+**Benefits**:
+- Single source of truth for all server settings
+- Easy to maintain different configs (production vs test)
+- No need to remember multiple flags
+- Can version control config files
+
+**Implementation**:
+- Only `--config` or `-c` flag to specify config file path
+- If no config file specified, use sensible defaults
+- Create example config files: `production_config.json` and `test_config.json`
+
+### Step 10: Configuration File Infrastructure
+
+**Goal**: Consolidate all server settings into JSON config files
+
+**Files to modify**:
+- `src/server/main.cpp` - Remove individual flags, keep only `--config` flag
+- `src/server/battle_api.cpp` - Load config values and use them
+- Create `production_config.json` and `test_config.json` example files
+
+**Config file structure**:
+```json
+{
+  "port": 8080,
+  "base_path": ".",
+  "timeout_seconds": 30,
+  "error_detail_level": "minimal",
+  "debug": false
+}
+```
+
+**Production config** (`production_config.json`):
+- `error_detail_level: "minimal"` - Generic error messages for users
+- `debug: false` - No snapshots in responses
+- `timeout_seconds: 30` - 30 second timeout
+- `base_path: "."` - Use current working directory
+
+**Test config** (`test_config.json`):
+- `error_detail_level: "detailed"` - Full error details for debugging
+- `debug: true` - Include snapshots in responses
+- `timeout_seconds: 60` - Longer timeout for testing
+- `base_path: "."` - Use current working directory
+
+**Changes needed**:
+1. Remove individual flags from `main.cpp` (keep only `--config`)
+2. Load config file in `main.cpp` and store in server config structure
+3. Pass config to `BattleAPI` constructor or store as singleton
+4. Use config values throughout:
+   - `port` - Server port
+   - `base_path` - Base path for temp/result/opponent files
+   - `timeout_seconds` - Battle simulation timeout
+   - `error_detail_level` - Error message detail level
+   - `debug` - Global debug mode flag
+
+### Step 11: Configuration Features Implementation
+
+**11.1: Global Debug Mode (Q14.12)**
+- **Current**: Debug mode is per-request (`request_json.value("debug", false)`)
+- **Required**: Global debug flag in config file
+- **Files**: `src/server/main.cpp`, `src/server/battle_api.cpp`
+- **Changes**:
+  - Add `"debug": true/false` to config file (default `false`)
+  - Store global debug flag in server config
+  - Use global flag instead of per-request flag
+  - Update `BattleSerializer::serialize_battle_result()` to use global flag
+
+**11.2: Configurable Timeout (Q14.15)**
+- **Current**: Hardcoded `max_iterations = 100000` (no timeout in seconds)
+- **Required**: Configurable timeout via config file, save timeout battles to debug location
+- **Files**: `src/server/battle_api.cpp`
+- **Changes**:
+  - Add `"timeout_seconds"` to config file (default 30s)
+  - Track elapsed time in simulation loop
+  - On timeout, save battle state to `output/battles/debug/timeout_<timestamp>_<battle_id>.json`
+  - Include: both team JSONs, current battle state, seed, simulation time, entity counts
+  - Return HTTP 408 (Request Timeout) instead of HTTP 500
+
+**11.3: Error Detail Level (Q14.11)**
+- **Current**: Always returns detailed error messages
+- **Required**: Configurable error detail level (minimal vs detailed)
+- **Files**: `src/server/battle_api.cpp`
+- **Changes**:
+  - Add `"error_detail_level"` to config file (`"minimal"` or `"detailed"`)
+  - Default to `"minimal"` for production
+  - In catch blocks:
+    - Always log full error details internally
+    - Return sanitized message if `minimal`, full details if `detailed`
+  - Generic message for minimal: `"Internal server error"` or `"Battle simulation failed"`
+
+**11.4: Configurable Base Path (Q14.17)**
+- **Current**: Hardcoded paths like `"output/battles/temp_*.json"`
+- **Required**: Configurable base path in config file
+- **Files**: `src/server/battle_simulator.cpp`, `src/server/battle_api.cpp`, `src/server/team_manager.cpp`
+- **Changes**:
+  - Add `"base_path"` field to config file (defaults to current working directory)
+  - Store base path in server config
+  - Update paths:
+    - Temp files: `{base_path}/output/battles/temp_*.json`
+    - Result files: `{base_path}/output/battles/results/`
+    - Opponent files: `{base_path}/resources/battles/opponents/`
+  - Use `std::filesystem::path(base_path) / "output" / "battles"` pattern
+
+### Step 12: Verification and Testing
+
+**Goal**: Verify all existing functionality works end-to-end
+
+**Tasks**:
+- Run `./scripts/verify_battle_endpoint.sh` to verify `/battle` endpoint returns valid JSON
+- Run `ValidateServerChecksumMatchTest` to verify client-server checksum matching
+- Verify debug mode includes/excludes snapshots correctly
+- Test with both `production_config.json` and `test_config.json`
+- Document verification results
+
+**Validation**:
+- All verification scripts pass
+- Client-server checksum test passes
+- Debug mode correctly includes snapshots when `debug: true` in config
+- Production mode correctly excludes snapshots when `debug: false` in config
+- Config file loading works correctly
+- All config options are respected
+
+### Implementation Order
+
+1. **Verification First**: Run existing verification scripts to establish baseline
+2. **Config File Infrastructure**: 
+   - Remove individual flags (keep only `--config` flag)
+   - Create config file structure and loading logic
+   - Create `production_config.json` and `test_config.json` examples
+3. **Configuration Features**: Implement config features in order (debug mode, timeout, error detail, base path)
+4. **Testing**: Verify each config feature works with both config files
+5. **Documentation**: Update validation checklist with completion status
+
+### Validation Commands
+
+After each change:
+- Build: `xmake build battle_server`
+- Run server tests: `./output/battle_server.exe --run-tests`
+- Run endpoint verification: `./scripts/verify_battle_endpoint.sh`
+- Run client-server test: `./output/my_name_chef.exe --run-test validate_server_checksum_match --headless`
+- Test with production config: `./output/battle_server.exe --config production_config.json`
+- Test with test config: `./output/battle_server.exe --config test_config.json`
+
 ## Notes and TODOs
 
 - **Q6.3**: Entity ID serialization design deferred - use team-relative IDs for now
