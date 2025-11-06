@@ -115,4 +115,11 @@ struct TestSystem : afterhours::System<> {
 
 private:
   void register_test_cases();
+
+public:
+  // Public method to force test registration (used by --list-tests)
+  static void force_test_registration() {
+    TestSystem dummy("__force_registration__");
+    dummy.register_test_cases();
+  }
 };

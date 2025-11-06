@@ -4,20 +4,11 @@
 #include "../../game_state_manager.h"
 #include "../test_app.h"
 #include "../test_macros.h"
+#include "../test_server_helpers.h"
 #include <afterhours/ah.h>
-#include <cstdlib>
 #include <string>
 
-namespace {
-std::string get_server_url() {
-  const char *env = std::getenv("INTEGRATION_SERVER_URL");
-  return env ? std::string(env) : std::string("http://localhost:8080");
-}
-} // namespace
-
 TEST(validate_server_battle_integration) {
-  static bool setup_complete = false;
-
   app.launch_game();
   app.wait_for_ui_exists("Play");
   app.click("Play");
@@ -25,33 +16,7 @@ TEST(validate_server_battle_integration) {
   app.wait_for_ui_exists("Next Round");
 
   // Setup BattleLoadRequest with server URL (only once)
-  setup_complete = setup_complete || []() {
-    log_info(
-        "INTEGRATION_TEST: Setting up BattleLoadRequest with server URL...");
-
-    std::string server_url = get_server_url();
-    log_info("INTEGRATION_TEST: Using server URL: {}", server_url);
-
-    // Always create new entity and register as singleton (will replace
-    // existing)
-    afterhours::Entity &request_entity =
-        afterhours::EntityHelper::createEntity();
-    request_entity.addComponent<BattleLoadRequest>();
-    BattleLoadRequest &request = request_entity.get<BattleLoadRequest>();
-
-    request.serverUrl = server_url;
-    request.playerJsonPath = "";
-    request.opponentJsonPath = "";
-    request.loaded = false;
-    request.serverRequestPending = false;
-
-    afterhours::EntityHelper::registerSingleton<BattleLoadRequest>(
-        request_entity);
-    afterhours::EntityHelper::merge_entity_arrays();
-
-    log_info("INTEGRATION_TEST: BattleLoadRequest configured with server URL");
-    return true;
-  }();
+  test_server_helpers::server_integration_test_setup("INTEGRATION_TEST");
 
   app.wait_for_frames(1);
 

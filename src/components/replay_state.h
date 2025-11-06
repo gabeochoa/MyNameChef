@@ -15,6 +15,7 @@ struct ReplayState : afterhours::BaseComponent {
   int totalCourses = 7;
   std::string playerJsonPath;
   std::string opponentJsonPath;
+  std::string serverChecksum = ""; // Checksum from server response
 
   ReplayState() = default;
 };

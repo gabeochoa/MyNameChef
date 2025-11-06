@@ -27,6 +27,9 @@
 #include "../testing/tests/ValidateReplayPausePlayTest.h"
 #include "../testing/tests/ValidateRerollCostTest.h"
 #include "../testing/tests/ValidateSeededRngTest.h"
+#include "../testing/tests/ValidateServerBattleIntegrationTest.h"
+#include "../testing/tests/ValidateServerChecksumMatchTest.h"
+#include "../testing/tests/ValidateServerOpponentMatchTest.h"
 #include "../testing/tests/ValidateShopFreezeTest.h"
 #include "../testing/tests/ValidateShopFunctionalityTest.h"
 #include "../testing/tests/ValidateShopNavigationTest.h"
@@ -41,8 +44,6 @@
 #include "../testing/tests/ValidateTriggerSystemComponentsTest.h"
 #include "../testing/tests/ValidateTriggerSystemTest.h"
 #include "../testing/tests/ValidateUINavigationTest.h"
-#include "../testing/tests/ValidateServerBattleIntegrationTest.h"
-#include "../testing/tests/ValidateServerOpponentMatchTest.h"
 
 void TestSystem::register_test_cases() {
   // Force initialization of TestRegistry and all static test registrars

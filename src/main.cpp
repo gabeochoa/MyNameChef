@@ -67,6 +67,7 @@ backward::SignalHandling sh;
 #include "systems/UpdateRenderTexture.h"
 #include "systems/UpdateSpriteTransform.h"
 #include "systems/battle_system_registry.h"
+#include "testing/test_macros.h"
 #include "ui/ui_systems.h"
 #include <afterhours/src/plugins/animation.h>
 #include <optional>
@@ -239,6 +240,23 @@ int main(int argc, char *argv[]) {
   int screenWidth, screenHeight;
   cmdl({"-w", "--width"}, 1280) >> screenWidth;
   cmdl({"-h", "--height"}, 720) >> screenHeight;
+
+  // Handle --list-tests flag (must come before other initialization)
+  if (cmdl["--list-tests"]) {
+    // Access test registry directly - static initializers from TEST() macros
+    // should have already run when TestSystem.cpp was linked
+    // No initialization needed - just list the tests and exit
+    auto &registry = TestRegistry::get();
+    auto test_list = registry.list_tests();
+
+    std::cout << "Available tests (" << test_list.size()
+              << " total):" << std::endl;
+    for (const auto &name : test_list) {
+      std::cout << "  - " << name << std::endl;
+    }
+
+    return 0;
+  }
 
   std::optional<std::string> run_test = std::nullopt;
   std::string test_value;

@@ -82,10 +82,12 @@ struct ServerBattleRequestSystem : afterhours::System<BattleLoadRequest> {
     nlohmann::json battle_response = nlohmann::json::parse(res->body);
     uint64_t seed = battle_response["seed"].get<uint64_t>();
     std::string opponent_id = battle_response["opponentId"].get<std::string>();
+    std::string checksum = battle_response.value("checksum", std::string(""));
 
     log_info("SERVER_BATTLE_REQUEST: Battle request successful");
     log_info("  Seed: {}", seed);
     log_info("  Opponent ID: {}", opponent_id);
+    log_info("  Checksum: {}", checksum);
 
     request.playerJsonPath =
         "output/battles/temp_player_" + std::to_string(seed) + ".json";
@@ -112,6 +114,7 @@ struct ServerBattleRequestSystem : afterhours::System<BattleLoadRequest> {
     replay.seed = seed;
     replay.playerJsonPath = request.playerJsonPath;
     replay.opponentJsonPath = request.opponentJsonPath;
+    replay.serverChecksum = checksum;
     replay.active = true;
     replay.paused = false;
     replay.timeScale = 1.0f;
