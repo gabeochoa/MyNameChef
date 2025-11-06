@@ -22,6 +22,7 @@
 #include "ProcessBattleRewards.h"
 #include "ReplayControllerSystem.h"
 #include "ResolveCombatTickSystem.h"
+#include "ServerBattleRequestSystem.h"
 #include "SimplifiedOnServeSystem.h"
 #include "StartCourseSystem.h"
 #include "TagTeamEntitiesSystem.h"
@@ -32,6 +33,7 @@
 
 namespace battle_systems {
 void register_battle_systems(afterhours::SystemManager &systems) {
+  systems.register_update_system(std::make_unique<ServerBattleRequestSystem>());
   systems.register_update_system(
       std::make_unique<BattleTeamFileLoaderSystem>());
   systems.register_update_system(
