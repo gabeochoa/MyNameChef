@@ -5,11 +5,13 @@
 #include "../shop.h"
 #include "battle_api.h"
 #include "file_storage.h"
+#include "server_context.h"
 #include "test_framework.h"
 #include <afterhours/ah.h>
 #include <argh.h>
 #include <filesystem>
 #include <nlohmann/json.hpp>
+#include <thread>
 
 bool render_backend::is_headless_mode = true;
 int render_backend::step_delay_ms = 0;
@@ -55,11 +57,22 @@ int main(int argc, char *argv[]) {
   server::TeamManager::track_opponent_file_count();
 
   server::BattleAPI api;
+  server::ServerContext ctx = server::ServerContext::initialize();
 
   log_info("Battle server starting on port {}", port);
   log_info("Headless mode: enabled");
 
+  std::thread ecs_thread([&]() {
+    const float fixed_dt = 1.0f / 60.0f;
+    while (running) {
+      ctx.systems.run(fixed_dt);
+    }
+  });
   api.start(port);
+  running = false;
+  if (ecs_thread.joinable()) {
+    ecs_thread.join();
+  }
 
   return 0;
 }

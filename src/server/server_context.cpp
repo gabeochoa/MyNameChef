@@ -25,6 +25,8 @@ ServerContext ServerContext::initialize() {
 
   ctx.register_battle_systems();
 
+  ctx.register_server_systems();
+
   return ctx;
 }
 
@@ -38,6 +40,12 @@ void ServerContext::initialize_singletons() {
 
 void ServerContext::register_battle_systems() {
   battle_systems::register_battle_systems(systems);
+}
+
+void ServerContext::register_server_systems() {
+  log_info("SERVER_ECS: registering server systems (v1 placeholder)");
+  // Matchmaking, StartBattle, EventLogger, DetectCompletion, CollectResults
+  // will be registered here in subsequent steps.
 }
 
 bool ServerContext::is_battle_complete() const {

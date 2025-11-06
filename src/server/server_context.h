@@ -14,6 +14,7 @@ struct ServerContext {
   static ServerContext initialize();
   void initialize_singletons();
   void register_battle_systems();
+  void register_server_systems();
   bool is_battle_complete() const;
 };
 } // namespace server
