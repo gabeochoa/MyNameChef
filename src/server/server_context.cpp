@@ -7,6 +7,10 @@
 #include "../seeded_rng.h"
 #include "../shop.h"
 #include "../systems/battle_system_registry.h"
+#include "async/systems/CollectBattleResultsSystem.h"
+#include "async/systems/DebugServerEventLoggerSystem.h"
+#include "async/systems/DetectBattleCompletionSystem.h"
+#include "async/systems/ProcessCommandQueueSystem.h"
 #include <afterhours/ah.h>
 
 namespace server {
@@ -43,9 +47,18 @@ void ServerContext::register_battle_systems() {
 }
 
 void ServerContext::register_server_systems() {
-  log_info("SERVER_ECS: registering server systems (v1 placeholder)");
-  // Matchmaking, StartBattle, EventLogger, DetectCompletion, CollectResults
-  // will be registered here in subsequent steps.
+  log_info("SERVER_ECS: registering server systems");
+
+  systems.register_update_system(
+      std::make_unique<server::async::ProcessCommandQueueSystem>());
+  systems.register_update_system(
+      std::make_unique<server::async::DebugServerEventLoggerSystem>());
+  systems.register_update_system(
+      std::make_unique<server::async::DetectBattleCompletionSystem>());
+  systems.register_update_system(
+      std::make_unique<server::async::CollectBattleResultsSystem>());
+
+  log_info("SERVER_ECS: registered 4 server systems");
 }
 
 bool ServerContext::is_battle_complete() const {
