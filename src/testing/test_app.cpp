@@ -11,6 +11,7 @@
 #include "../components/is_held.h"
 #include "../components/is_inventory_item.h"
 #include "../components/is_shop_item.h"
+#include "../components/network_info.h"
 #include "../components/replay_state.h"
 #include "../components/transform.h"
 #include "../dish_types.h"
@@ -19,8 +20,10 @@
 #include "../query.h"
 #include "../render_backend.h"
 #include "../shop.h"
+#include "../systems/NetworkSystem.h"
 #include <afterhours/ah.h>
 #include <chrono>
+#include <magic_enum/magic_enum.hpp>
 #include <raylib/raylib.h>
 #include <source_location>
 #include <thread>
@@ -179,9 +182,21 @@ TestApp &TestApp::navigate_to_battle(const std::source_location &loc) {
     return *this;
   }
   GameStateManager &gsm = GameStateManager::get();
-  if (gsm.active_screen != GameStateManager::Screen::Shop) {
-    fail("Must be on Shop screen to navigate to battle");
+  if (gsm.active_screen == GameStateManager::Screen::Battle) {
+    completed_operations.insert(op_id);
+    return *this;
   }
+
+  if (gsm.active_screen != GameStateManager::Screen::Shop) {
+    std::string location =
+        std::string(loc.file_name()) + ":" + std::to_string(loc.line());
+    std::string current_screen_name =
+        std::string(magic_enum::enum_name(gsm.active_screen));
+    fail("Must be on Shop screen to navigate to battle (current screen: " +
+             current_screen_name + ")",
+         location);
+  }
+  wait_for_ui_exists("Next Round");
   click("Next Round");
   wait_for_screen(GameStateManager::Screen::Battle);
   completed_operations.insert(op_id);
@@ -1187,6 +1202,50 @@ TestApp &TestApp::expect_false(bool value, const std::string &description,
   if (value) {
     fail("Expected " + description + " to be false but got true", location);
   }
+  return *this;
+}
+
+TestApp &TestApp::kill_server() {
+  const char *pid_str = std::getenv("TEST_SERVER_PID");
+  if (!pid_str) {
+    fail("TEST_SERVER_PID environment variable not set", "");
+    return *this;
+  }
+
+  int pid = std::stoi(pid_str);
+  log_info("TEST: Killing server with PID {}", pid);
+
+  // Kill the server process (use -9 for forceful kill)
+  std::string kill_cmd = "kill -9 " + std::to_string(pid);
+  int result = system(kill_cmd.c_str());
+  if (result != 0) {
+    log_warn("TEST: Failed to kill server process (may already be dead)");
+  }
+
+  // Wait a moment for the process to fully terminate and port to be released
+  std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+  // The test will wait for NetworkSystem to detect the failure and
+  // ServerDisconnectionSystem to navigate to main menu
+  log_info(
+      "TEST: Server killed, waiting for NetworkSystem to detect failure...");
+
+  return *this;
+}
+
+TestApp &TestApp::force_network_check() {
+  auto networkInfoOpt = afterhours::EntityHelper::get_singleton<NetworkInfo>();
+  afterhours::Entity &entity = networkInfoOpt.get();
+  if (!entity.has<NetworkInfo>()) {
+    fail("NetworkInfo singleton not found", "");
+    return *this;
+  }
+
+  NetworkInfo &networkInfo = entity.get<NetworkInfo>();
+  // Set timeSinceLastCheck to 0 to trigger immediate check
+  networkInfo.timeSinceLastCheck = 0.0f;
+  log_info("TEST: Forced NetworkSystem to perform immediate health check");
+
   return *this;
 }
 

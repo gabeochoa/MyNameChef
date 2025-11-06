@@ -265,6 +265,12 @@ struct TestApp {
   TestApp &expect_false(bool value, const std::string &description,
                         const std::string &location = "");
 
+  // Kill the test server and wait for NetworkSystem to detect the failure
+  TestApp &kill_server();
+
+  // Force NetworkSystem to perform an immediate health check (for testing)
+  TestApp &force_network_check();
+
 private:
   afterhours::Entity *find_entity_by_id(afterhours::EntityID id);
   afterhours::Entity *find_clickable_with(const std::string &label);
