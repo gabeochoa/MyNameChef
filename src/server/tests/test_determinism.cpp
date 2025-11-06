@@ -5,7 +5,7 @@
 #include <filesystem>
 #include <nlohmann/json.hpp>
 
-inline nlohmann::json load_test_json(const std::string &filename) {
+static nlohmann::json load_test_json(const std::string &filename) {
   std::string path = "src/server/tests/test_data/" + filename;
   return server::FileStorage::load_json_from_file(path);
 }

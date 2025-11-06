@@ -33,8 +33,7 @@ int main(int argc, char *argv[]) {
 
   if (cmdl[{"--run-tests", "-t"}]) {
     log_info("Running server unit tests...");
-    bool all_passed = server::test::TestRegistry::get().run_all_tests();
-    return all_passed ? 0 : 1;
+    return server::test::TestRegistry::get().run_all_tests() ? 0 : 1;
   }
 
   server::ServerConfig config = server::ServerConfig::defaults();
