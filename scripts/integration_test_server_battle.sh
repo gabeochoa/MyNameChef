@@ -137,14 +137,28 @@ else
     echo -e "${YELLOW}   The client will request a battle from the server and load it automatically.${NC}"
     echo ""
     
-    # Run test in visible mode (without --headless flag)
+    # Run integration tests in visible mode (without --headless flag)
+    echo -e "${BLUE}   Running validate_server_battle_integration test...${NC}"
     "$CLIENT_EXECUTABLE" --run-test validate_server_battle_integration
     TEST_EXIT_CODE=$?
     
     if [ $TEST_EXIT_CODE -eq 0 ]; then
-        echo -e "  ${GREEN}✅ Client integration test passed${NC}"
+        echo -e "  ${GREEN}✅ Battle integration test passed${NC}"
     else
-        echo -e "  ${RED}❌ Client integration test failed (exit code: $TEST_EXIT_CODE)${NC}"
+        echo -e "  ${RED}❌ Battle integration test failed (exit code: $TEST_EXIT_CODE)${NC}"
+        kill $SERVER_PID 2>/dev/null || true
+        exit 1
+    fi
+    
+    echo ""
+    echo -e "${BLUE}   Running validate_server_opponent_match test...${NC}"
+    "$CLIENT_EXECUTABLE" --run-test validate_server_opponent_match
+    OPPONENT_TEST_EXIT_CODE=$?
+    
+    if [ $OPPONENT_TEST_EXIT_CODE -eq 0 ]; then
+        echo -e "  ${GREEN}✅ Opponent match test passed${NC}"
+    else
+        echo -e "  ${RED}❌ Opponent match test failed (exit code: $OPPONENT_TEST_EXIT_CODE)${NC}"
         kill $SERVER_PID 2>/dev/null || true
         exit 1
     fi

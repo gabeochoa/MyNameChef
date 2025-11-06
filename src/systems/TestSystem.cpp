@@ -42,6 +42,7 @@
 #include "../testing/tests/ValidateTriggerSystemTest.h"
 #include "../testing/tests/ValidateUINavigationTest.h"
 #include "../testing/tests/ValidateServerBattleIntegrationTest.h"
+#include "../testing/tests/ValidateServerOpponentMatchTest.h"
 
 void TestSystem::register_test_cases() {
   // Force initialization of TestRegistry and all static test registrars

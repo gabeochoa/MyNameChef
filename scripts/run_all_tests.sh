@@ -65,6 +65,7 @@ TESTS=(
     "validate_ui_navigation"
     "validate_full_game_flow"
     "validate_server_battle_integration"
+    "validate_server_opponent_match"
 )
 
 echo -e "${BLUE}🧪 My Name Chef - Test Suite Runner${NC}"
@@ -99,13 +100,13 @@ run_test() {
     
     echo -e "${BLUE}[$test_number/$total]${NC} Running test: ${YELLOW}$test_name${NC}"
     
-    # Integration tests must run visually (not headless) and need longer timeout
+    # Integration/server tests must run visually (not headless) and need longer timeout
     local is_integration_test=false
     local test_timeout=$TEST_TIMEOUT
-    if [[ "$test_name" == *"integration"* ]]; then
+    if [[ "$test_name" == *"integration"* ]] || [[ "$test_name" == *"server"* ]]; then
         is_integration_test=true
         test_timeout=60
-        echo -e "${YELLOW}  ℹ️  Integration test - running in visible mode (timeout: ${test_timeout}s)${NC}"
+        echo -e "${YELLOW}  ℹ️  Integration/server test - running in visible mode (timeout: ${test_timeout}s)${NC}"
     fi
     
     # Build headless flag
