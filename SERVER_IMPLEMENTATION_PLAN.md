@@ -937,7 +937,7 @@ Before considering implementation complete:
 - [x] Server builds successfully (`xmake battle_server`)
 - [x] Server starts and responds to `/health` endpoint
 - [ ] Server processes `/battle` requests and returns valid JSON (needs verification)
-- [ ] Battle simulation produces deterministic results (tests exist but crash during init)
+- [x] Battle simulation produces deterministic results (tests pass - determinism verified)
 - [ ] Client replay with server seed produces identical results
 - [ ] Checksum validation works (server provides, client verifies)
 - [x] Team validation rejects invalid teams (HTTP 400)
@@ -962,7 +962,7 @@ Before considering implementation complete:
 7. ✅ **Step 7**: Create server main (entry point)
 8. ✅ **Step 8**: Update build system (xmake target)
 9. ✅ **Step 9**: Update preload (headless support)
-10. ⚠️ **Testing**: Create unit and integration tests (tests exist but crash during initialization)
+10. ✅ **Testing**: Create unit and integration tests (tests fixed - all 18 tests passing)
 
 ## Additional Work Completed
 
@@ -987,7 +987,7 @@ This refactor improves separation of concerns and makes the system more maintain
 
 ## Known Issues
 
-- ⚠️ **Server Tests**: Server unit tests exist (`src/server/tests/`) but crash during initialization. This is a separate issue from the core implementation and needs investigation.
+- ✅ **Server Tests**: Server unit tests fixed - all 18 tests passing (entity cleanup between tests resolved segmentation faults)
 
 ## Notes and TODOs
 
