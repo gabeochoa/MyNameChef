@@ -378,4 +378,58 @@ void BattleSimulator::ensure_battle_result() {
            "singleton for entity {}",
            ent.id);
 }
+
+void BattleSimulator::cleanup_test_entities() {
+  // Mark all battle team entities for cleanup
+  for (afterhours::Entity &entity :
+       afterhours::EntityQuery({.force_merge = true})
+           .template whereHasComponent<IsPlayerTeamItem>()
+           .gen()) {
+    entity.cleanup = true;
+  }
+
+  for (afterhours::Entity &entity :
+       afterhours::EntityQuery({.force_merge = true})
+           .template whereHasComponent<IsOpponentTeamItem>()
+           .gen()) {
+    entity.cleanup = true;
+  }
+
+  // Mark all dish entities for cleanup
+  for (afterhours::Entity &entity :
+       afterhours::EntityQuery({.force_merge = true})
+           .template whereHasComponent<IsDish>()
+           .gen()) {
+    entity.cleanup = true;
+  }
+
+  // Reset CombatQueue state instead of deleting (singletons may be needed by
+  // systems)
+  auto combatQueue = afterhours::EntityHelper::get_singleton<CombatQueue>();
+  if (combatQueue.get().has<CombatQueue>()) {
+    CombatQueue &cq = combatQueue.get().get<CombatQueue>();
+    cq.reset();
+  }
+
+  // Reset TriggerQueue state instead of deleting
+  auto triggerQueue = afterhours::EntityHelper::get_singleton<TriggerQueue>();
+  if (triggerQueue.get().has<TriggerQueue>()) {
+    TriggerQueue &tq = triggerQueue.get().get<TriggerQueue>();
+    tq.clear();
+  }
+
+  // Clean up BattleResult singleton if it exists (safe to remove)
+  auto battleResult = afterhours::EntityHelper::get_singleton<BattleResult>();
+  if (battleResult.get().has<BattleResult>()) {
+    battleResult.get().cleanup = true;
+  }
+
+  // Don't clean up BattleLoadRequest - it will be updated by the next test
+  // Don't clean up CombatManager or BattleProcessorManager - they're permanent
+  // singletons
+
+  // Merge and cleanup entities
+  afterhours::EntityHelper::merge_entity_arrays();
+  afterhours::EntityHelper::cleanup();
+}
 } // namespace server

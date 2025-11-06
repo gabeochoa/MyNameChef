@@ -32,6 +32,9 @@ struct BattleSimulator {
     return accumulated_events;
   }
 
+  // Static cleanup function for tests - cleans up all battle entities
+  static void cleanup_test_entities();
+
 private:
   void track_events(float timestamp, int course_index);
   void create_battle_result();
