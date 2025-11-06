@@ -9,6 +9,7 @@
 #include "../components/trigger_event.h"
 #include "../dish_types.h"
 #include "../utils/battle_fingerprint.h"
+#include "async/battle_event.h"
 #include "battle_simulator.h"
 #include <afterhours/ah.h>
 #include <algorithm>
@@ -171,16 +172,18 @@ std::string BattleSerializer::compute_checksum(const nlohmann::json &state) {
 
 nlohmann::json
 BattleSerializer::collect_battle_events(const BattleSimulator &simulator) {
-  std::vector<BattleEvent> events = simulator.get_accumulated_events();
+  std::vector<async::DebugBattleEvent> events =
+      simulator.get_accumulated_events();
 
-  std::sort(events.begin(), events.end(),
-            [](const BattleEvent &a, const BattleEvent &b) {
-              return a.timestamp < b.timestamp;
-            });
+  std::sort(
+      events.begin(), events.end(),
+      [](const async::DebugBattleEvent &a, const async::DebugBattleEvent &b) {
+        return a.timestamp < b.timestamp;
+      });
 
   nlohmann::json events_array = nlohmann::json::array();
 
-  for (const BattleEvent &ev : events) {
+  for (const async::DebugBattleEvent &ev : events) {
     nlohmann::json event_json;
     event_json["hook"] = std::string(magic_enum::enum_name(ev.hook));
     event_json["sourceEntityId"] = ev.sourceEntityId;
