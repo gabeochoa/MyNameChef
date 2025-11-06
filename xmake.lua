@@ -94,6 +94,7 @@ target("battle_server")
     set_targetdir("output")
     
     add_files("src/server/*.cpp")
+    add_files("src/server/async/*.cpp")
     add_files("src/server/tests/*.cpp")
     add_files("src/*.cpp")
     add_files("src/components/*.cpp")
