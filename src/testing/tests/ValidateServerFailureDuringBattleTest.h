@@ -1,0 +1,36 @@
+#pragma once
+
+#include "../../game_state_manager.h"
+#include "../test_macros.h"
+
+TEST(validate_server_failure_during_battle) {
+  log_info("TEST FUNCTION CALLED: validate_server_failure_during_battle - Starting test execution");
+  // Navigate to battle
+  app.launch_game();
+  app.navigate_to_shop();
+  app.wait_for_frames(10);
+
+  // Ensure we have dishes before going to battle
+  app.create_inventory_item(DishType::Potato, 0);
+  app.wait_for_frames(5);
+
+  app.navigate_to_battle();
+  // navigate_to_battle already waits for Battle screen, so we don't need to
+  // verify again
+  app.wait_for_frames(10);
+
+  // Kill the server
+  app.kill_server();
+
+  // Force NetworkSystem to check immediately (tests set fast interval via env
+  // var)
+  app.force_network_check();
+
+  // Wait for navigation back to main menu
+  // With forced check and fast timeouts, this should happen quickly
+  // Battle screen may take a moment to transition, so give it more time
+  app.wait_for_screen(GameStateManager::Screen::Main, 10.0f);
+
+  // Verify we're back on main menu
+  app.expect_screen_is(GameStateManager::Screen::Main);
+}

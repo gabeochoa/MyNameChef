@@ -26,12 +26,20 @@ struct TestSystem : afterhours::System<> {
   std::function<bool()> validation_function;
 
   explicit TestSystem(std::string name)
-      : test_name(std::move(name)),
-        kValidationTimeout([name = std::string(name)]() {
+      : test_name(name), kValidationTimeout([test_name_copy = name]() {
           // Integration tests need much longer timeouts for full battles
-          bool is_integration = name.find("integration") != std::string::npos;
+          bool is_integration =
+              test_name_copy.find("integration") != std::string::npos;
           if (is_integration) {
             return render_backend::is_headless_mode ? 30.0f : 120.0f;
+          }
+          // Server failure tests use forced checks and fast intervals
+          // Should complete quickly with forced check mechanism
+          bool is_server_failure =
+              test_name_copy.find("server_failure") != std::string::npos;
+          if (is_server_failure) {
+            float timeout = render_backend::is_headless_mode ? 10.0f : 10.0f;
+            return timeout;
           }
           return render_backend::is_headless_mode ? 1.0f : 10.0f;
         }()) {
