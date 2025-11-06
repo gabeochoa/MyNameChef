@@ -155,6 +155,13 @@ ECS components (proposed):
   combile keyboard and controlx into a single sheet 
   replace dish pools with enum_values
 
+## Toast System (not needed at the moment)
+- Translation support: Add toast message keys to `strings::i18n` enum (`server_disconnected`, `server_reconnected`), update `ToastMessage` to support translatable strings, update `make_toast()` to accept `strings::i18n` keys or `TranslatableString`, add translations in `translation_manager.cpp`
+- Toast stacking/positioning: Multiple toasts may overlap, add vertical stacking (offset each new toast upward) or queue system to show one at a time
+- Toast types/styles: Different colors/styles for different message types (error, warning, info, success), add `ToastType` enum and update rendering accordingly
+- Additional toast usage: Add toasts for other game events (battle won/lost, purchase success, etc.)
+- Polish: Sound effects for toast appearance, different animation styles (slide from different directions), configurable positioning (top, bottom, center, etc.)
+
 
 ECS systems (proposed):
 - Phase & shop
