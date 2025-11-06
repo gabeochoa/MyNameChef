@@ -17,10 +17,11 @@ template <typename InputAction>
 inline ElementResult
 button_labeled(afterhours::ui::UIContext<InputAction> &context, Entity &parent,
                const std::string &label, std::function<void()> on_click,
-               int index = 0, const std::string &debug_name_override = "") {
+               int index = 0, const std::string &debug_name_override = "",
+               bool disabled = false) {
   std::string debug_name = debug_name_override.empty() ? label : debug_name_override;
   auto result = button(context, mk(parent, index),
-                       ComponentConfig{}.with_debug_name(debug_name).with_label(label));
+                       ComponentConfig{}.with_debug_name(debug_name).with_label(label).with_disabled(disabled));
   
   // Store the callback in HasClickListener so it can be called by HandleClicks system
   // and programmatically (e.g., from tests).

@@ -29,10 +29,10 @@ struct RerollCost : afterhours::BaseComponent {
   int base = 1;
   int increment = 0;
   int current = 1;
-  
+
   RerollCost() = default;
   RerollCost(int b, int inc) : base(b), increment(inc), current(b) {}
-  
+
   int get_cost() const { return current; }
   void apply_reroll() {
     // After a reroll, increase cost by increment amount
@@ -40,14 +40,12 @@ struct RerollCost : afterhours::BaseComponent {
     // Future: increment could increase over time or per tier
     current += increment;
   }
-  void reset() {
-    current = base;
-  }
+  void reset() { current = base; }
 };
 
 struct Freezeable : afterhours::BaseComponent {
   bool isFrozen = false;
-  
+
   Freezeable() = default;
   explicit Freezeable(bool frozen) : isFrozen(frozen) {}
 };
@@ -72,6 +70,7 @@ constexpr int SELL_SLOT_Y = INVENTORY_START_Y;
 afterhours::Entity &make_shop_manager(afterhours::Entity &);
 afterhours::Entity &make_combat_manager(afterhours::Entity &);
 afterhours::Entity &make_battle_processor_manager(afterhours::Entity &);
+afterhours::Entity &make_network_manager(afterhours::Entity &);
 afterhours::Entity &make_shop_item(int slot, DishType type);
 afterhours::Entity &make_drop_slot(int slot_id, vec2 position, vec2 size,
                                    bool accepts_inventory = true,

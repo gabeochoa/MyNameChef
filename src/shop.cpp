@@ -10,6 +10,7 @@
 #include "components/is_draggable.h"
 #include "components/is_drop_slot.h"
 #include "components/is_shop_item.h"
+#include "components/network_info.h"
 #include "components/render_order.h"
 #include "components/replay_state.h"
 #include "components/side_effect_tracker.h"
@@ -133,6 +134,12 @@ Entity &make_shop_manager(Entity &sophie) {
   } else {
     sophie.addComponentIfMissing<RerollCost>(1, 0);
   }
+  return sophie;
+}
+
+Entity &make_network_manager(Entity &sophie) {
+  sophie.addComponentIfMissing<NetworkInfo>();
+  EntityHelper::registerSingleton<NetworkInfo>(sophie);
   return sophie;
 }
 

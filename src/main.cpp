@@ -37,6 +37,7 @@ backward::SignalHandling sh;
 #include "systems/LoadBattleResults.h"
 #include "systems/MarkEntitiesWithShaders.h"
 #include "systems/MarkIsHeldWhenHeld.h"
+#include "systems/NetworkSystem.h"
 #include "systems/PostProcessingSystems.h"
 #include "systems/ProcessBattleRewards.h"
 #include "systems/RenderAnimations.h"
@@ -109,6 +110,7 @@ void game(const std::optional<std::string> &run_test) {
     make_shop_manager(sophie);
     make_combat_manager(sophie);
     make_battle_processor_manager(sophie);
+    make_network_manager(sophie);
 
     // Initialize SeededRng singleton for deterministic randomness
     {
@@ -144,6 +146,7 @@ void game(const std::optional<std::string> &run_test) {
       }
     });
 
+    systems.register_update_system(std::make_unique<NetworkSystem>());
     systems.register_update_system(std::make_unique<UpdateSpriteTransform>());
     systems.register_update_system(std::make_unique<UpdateShaderValues>());
     systems.register_update_system(std::make_unique<MarkEntitiesWithShaders>());

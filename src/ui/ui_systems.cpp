@@ -13,6 +13,7 @@
 
 #include "../components/is_gallery_item.h"
 #include "../components/is_shop_item.h"
+#include "../components/network_info.h"
 #include "../components/replay_state.h"
 #include "../game.h"
 #include "../game_state_manager.h"
@@ -29,6 +30,8 @@
 #include "metrics.h"
 #include "navigation.h"
 #include <afterhours/src/plugins/texture_manager.h>
+#include <cstdlib>
+#include <httplib.h>
 
 using namespace afterhours;
 
@@ -248,7 +251,8 @@ Screen ScheduleMainMenuUI::main_screen(Entity &entity,
   // Play button
   button_labeled<InputAction>(
       context, top_left.ent(), "Play",
-      []() { GameStateManager::get().start_game(); }, 0);
+      []() { GameStateManager::get().start_game(); }, 0, "",
+      NetworkInfo::is_disconnected());
 
   // Settings button
   button_labeled<InputAction>(
@@ -392,7 +396,7 @@ Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
     // RerollCost singleton not registered yet, use default
   }
   std::string reroll_label = fmt::format("Reroll ({})", reroll_cost);
-  
+
   button_labeled<InputAction>(
       context, top_right.ent(), reroll_label,
       []() {
@@ -401,13 +405,13 @@ Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
           return;
         }
         auto &wallet = wallet_entity.get().get<Wallet>();
-        
+
         auto reroll_cost_entity = EntityHelper::get_singleton<RerollCost>();
         if (!reroll_cost_entity.get().has<RerollCost>()) {
           return;
         }
         auto &reroll_cost = reroll_cost_entity.get().get<RerollCost>();
-        
+
         int cost = reroll_cost.get_cost();
         if (wallet.gold < cost) {
           return;
@@ -449,7 +453,7 @@ Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
             slot_occupied[slot] = true;
           }
         }
-        
+
         // Fill empty slots
         for (int slot = 0; slot < SHOP_SLOTS; ++slot) {
           if (!slot_occupied[slot]) {
@@ -457,7 +461,7 @@ Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
           }
         }
         afterhours::EntityHelper::merge_entity_arrays();
-        
+
         // Increment reroll cost after successful reroll
         reroll_cost.apply_reroll();
       },
@@ -512,17 +516,20 @@ Screen ScheduleMainMenuUI::battle_screen(Entity &entity,
           context, replay_bar.ent(), play_pause_label,
           []() {
             // Re-fetch singleton each time to avoid stale references
-            auto replayState = afterhours::EntityHelper::get_singleton<ReplayState>();
+            auto replayState =
+                afterhours::EntityHelper::get_singleton<ReplayState>();
             if (replayState.get().has<ReplayState>()) {
               ReplayState &rs_mut = replayState.get().get<ReplayState>();
               bool old_paused = rs_mut.paused;
               rs_mut.paused = !rs_mut.paused;
-              log_info("REPLAY_PAUSE (from UI button) {} -> {}", old_paused, rs_mut.paused);
+              log_info("REPLAY_PAUSE (from UI button) {} -> {}", old_paused,
+                       rs_mut.paused);
             } else {
               log_error("REPLAY_PAUSE: ReplayState singleton not found!");
             }
           },
-          0, "replay_play_pause_button"); // Unique debug name for test identification
+          0, "replay_play_pause_button"); // Unique debug name for test
+                                          // identification
 
       // Progress slider (read-only for now - calculate progress from frames)
       // totalFrames is captured from the server simulation when it completes

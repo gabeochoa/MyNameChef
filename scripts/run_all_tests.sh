@@ -19,6 +19,7 @@ VERIFY_SCRIPT="./scripts/verify_battle_endpoint.sh"
 TEST_TIMEOUT=5
 SERVER_PORT=8080
 TOTAL_TESTS=0
+TOTAL_TESTS_RUN=0
 PASSED_TESTS=0
 FAILED_TESTS=0
 SERVER_TESTS_PASSED=0
@@ -30,8 +31,9 @@ STREAM_OUTPUT=false # Default to capture output
 RUN_SERVER_TESTS=true
 RUN_BATTLE_ENDPOINT=true
 
-# Test list - add new tests here
-TESTS=(
+# Test groups
+# Client tests that need the shared server (NetworkInfo checks)
+CLIENT_TESTS=(
     "validate_main_menu"
     "validate_dish_system"
     "validate_debug_dish_creation"
@@ -64,6 +66,10 @@ TESTS=(
     "validate_battle_results"
     "validate_ui_navigation"
     "validate_full_game_flow"
+)
+
+# Integration tests that start their own server
+INTEGRATION_TESTS=(
     "validate_server_battle_integration"
     "validate_server_opponent_match"
 )
@@ -100,14 +106,17 @@ run_test() {
     
     echo -e "${BLUE}[$test_number/$total]${NC} Running test: ${YELLOW}$test_name${NC}"
     
-    # Integration/server tests must run visually (not headless) and need longer timeout
+    # Integration tests must run visually (not headless) and need longer timeout
     local is_integration_test=false
     local test_timeout=$TEST_TIMEOUT
-    if [[ "$test_name" == *"integration"* ]] || [[ "$test_name" == *"server"* ]]; then
-        is_integration_test=true
-        test_timeout=60
-        echo -e "${YELLOW}  ℹ️  Integration/server test - running in visible mode (timeout: ${test_timeout}s)${NC}"
-    fi
+    for int_test in "${INTEGRATION_TESTS[@]}"; do
+        if [ "$test_name" = "$int_test" ]; then
+            is_integration_test=true
+            test_timeout=60
+            echo -e "${YELLOW}  ℹ️  Integration test - running in visible mode (timeout: ${test_timeout}s)${NC}"
+            break
+        fi
+    done
     
     # Build headless flag
     local headless_flag=""
@@ -160,23 +169,79 @@ run_test() {
     fi
 }
 
-# Function to run all tests
-run_all_tests() {
-    TOTAL_TESTS=${#TESTS[@]}
-    
-    echo -e "${BLUE}Found $TOTAL_TESTS tests to run${NC}"
-    echo -e "${BLUE}Timeout per test: ${TEST_TIMEOUT}s${NC}"
-    if [ "$HEADLESS_MODE" = true ]; then
-        echo -e "${BLUE}Mode: Headless (no visible windows)${NC}"
-        echo -e "${YELLOW}Note: Integration tests will run in visible mode${NC}"
-    else
-        echo -e "${BLUE}Mode: Visible windows${NC}"
+# Function to start battle server for client tests
+start_client_test_server() {
+    if [ "$RUN_SERVER_TESTS" != true ]; then
+        return 0
     fi
-    echo ""
     
-    for i in "${!TESTS[@]}"; do
-        local test_name="${TESTS[$i]}"
-        local test_number=$((i + 1))
+    echo -e "${BLUE}Starting battle server for client tests...${NC}"
+    
+    nohup "$SERVER_EXECUTABLE" > /tmp/client_test_server_$$.log 2>&1 &
+    CLIENT_TEST_SERVER_PID=$!
+    
+    sleep 2
+    
+    if ! kill -0 $CLIENT_TEST_SERVER_PID 2>/dev/null; then
+        echo -e "  ${RED}❌ FAILED${NC} - Server process died immediately"
+        if [ -f /tmp/client_test_server_$$.log ]; then
+            echo "  Server log:"
+            tail -20 /tmp/client_test_server_$$.log | sed 's/^/  /'
+        fi
+        return 1
+    fi
+    
+    echo -e "${BLUE}Waiting for server to start on port ${SERVER_PORT}...${NC}"
+    local max_attempts=15
+    local attempt=0
+    while [ $attempt -lt $max_attempts ]; do
+        if curl -s -f "http://localhost:${SERVER_PORT}/health" > /dev/null 2>&1; then
+            echo -e "  ${GREEN}✅ Server started${NC}"
+            return 0
+        fi
+        sleep 1
+        ((attempt++))
+        
+        if ! kill -0 $CLIENT_TEST_SERVER_PID 2>/dev/null; then
+            echo -e "  ${RED}❌ FAILED${NC} - Server process died during startup"
+            if [ -f /tmp/client_test_server_$$.log ]; then
+                echo "  Server log:"
+                tail -20 /tmp/client_test_server_$$.log | sed 's/^/  /'
+            fi
+            return 1
+        fi
+    done
+    
+    if [ $attempt -eq $max_attempts ]; then
+        echo -e "  ${RED}❌ FAILED${NC} - Server failed to respond on port ${SERVER_PORT}"
+        kill $CLIENT_TEST_SERVER_PID 2>/dev/null || true
+        return 1
+    fi
+}
+
+# Function to stop battle server for client tests
+stop_client_test_server() {
+    if [ -z "$CLIENT_TEST_SERVER_PID" ]; then
+        return 0
+    fi
+    
+    if kill -0 $CLIENT_TEST_SERVER_PID 2>/dev/null; then
+        echo -e "${BLUE}Stopping battle server...${NC}"
+        kill $CLIENT_TEST_SERVER_PID 2>/dev/null || true
+        wait $CLIENT_TEST_SERVER_PID 2>/dev/null || true
+        rm -f /tmp/client_test_server_$$.log
+    fi
+}
+
+# Function to run a group of tests
+run_test_group() {
+    local test_group=("$@")
+    local group_total=${#test_group[@]}
+    local start_number=$((TOTAL_TESTS_RUN + 1))
+    
+    for i in "${!test_group[@]}"; do
+        local test_name="${test_group[$i]}"
+        local test_number=$((start_number + i))
         
         if run_test "$test_name" "$test_number" "$TOTAL_TESTS"; then
             ((PASSED_TESTS++))
@@ -184,9 +249,37 @@ run_all_tests() {
             ((FAILED_TESTS++))
         fi
         
+        ((TOTAL_TESTS_RUN++))
+        
         # Small delay between tests to ensure clean state
         sleep 0.1
     done
+}
+
+# Function to run client tests (with server)
+run_client_tests() {
+    echo -e "${BLUE}Found ${#CLIENT_TESTS[@]} client tests to run${NC}"
+    echo -e "${BLUE}Timeout per test: ${TEST_TIMEOUT}s${NC}"
+    if [ "$HEADLESS_MODE" = true ]; then
+        echo -e "${BLUE}Mode: Headless (no visible windows)${NC}"
+    else
+        echo -e "${BLUE}Mode: Visible windows${NC}"
+    fi
+    echo ""
+    
+    run_test_group "${CLIENT_TESTS[@]}"
+}
+
+# Function to run integration tests (without shared server)
+run_integration_tests() {
+    echo ""
+    echo -e "${BLUE}🔗 Integration Tests${NC}"
+    echo -e "${BLUE}==================${NC}"
+    echo -e "${BLUE}Found ${#INTEGRATION_TESTS[@]} integration tests to run${NC}"
+    echo -e "${YELLOW}Note: Integration tests start their own server and run in visible mode${NC}"
+    echo ""
+    
+    run_test_group "${INTEGRATION_TESTS[@]}"
 }
 
 # Function to run server unit tests
@@ -449,10 +542,24 @@ if [ "$RUN_BATTLE_ENDPOINT" = true ]; then
     run_battle_endpoint_verification
 fi
 
-# Run client tests
+# Calculate total tests
+TOTAL_TESTS=$((${#CLIENT_TESTS[@]} + ${#INTEGRATION_TESTS[@]}))
+
+# Run client tests (with shared server)
 echo ""
-echo -e "${BLUE}🎮 Client Headless Tests${NC}"
-echo -e "${BLUE}======================${NC}"
-run_all_tests
+echo -e "${BLUE}🎮 Client Tests${NC}"
+echo -e "${BLUE}==============${NC}"
+
+# Start server before client tests
+start_client_test_server
+
+# Run client tests (server will be running)
+run_client_tests
+
+# Stop server after client tests, before integration tests
+stop_client_test_server
+
+# Run integration tests (they start their own server)
+run_integration_tests
 
 show_summary
