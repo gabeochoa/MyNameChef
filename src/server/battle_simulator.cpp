@@ -134,15 +134,14 @@ void BattleSimulator::track_events(float timestamp, int course_index) {
 
   const TriggerQueue &queue = tq_entity.get().get<TriggerQueue>();
   for (const TriggerEvent &ev : queue.events) {
-    BattleEvent battle_event;
-    battle_event.hook = ev.hook;
-    battle_event.sourceEntityId = ev.sourceEntityId;
-    battle_event.slotIndex = ev.slotIndex;
-    battle_event.teamSide = ev.teamSide;
-    battle_event.timestamp = timestamp;
-    battle_event.courseIndex = course_index;
-    battle_event.payloadInt = ev.payloadInt;
-    battle_event.payloadFloat = ev.payloadFloat;
+    async::DebugBattleEvent battle_event = {.hook = ev.hook,
+                                            .sourceEntityId = ev.sourceEntityId,
+                                            .slotIndex = ev.slotIndex,
+                                            .teamSide = ev.teamSide,
+                                            .timestamp = timestamp,
+                                            .courseIndex = course_index,
+                                            .payloadInt = ev.payloadInt,
+                                            .payloadFloat = ev.payloadFloat};
     accumulated_events.push_back(battle_event);
   }
 }
