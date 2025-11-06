@@ -64,6 +64,7 @@ TESTS=(
     "validate_battle_results"
     "validate_ui_navigation"
     "validate_full_game_flow"
+    "validate_server_battle_integration"
 )
 
 echo -e "${BLUE}🧪 My Name Chef - Test Suite Runner${NC}"
@@ -98,21 +99,30 @@ run_test() {
     
     echo -e "${BLUE}[$test_number/$total]${NC} Running test: ${YELLOW}$test_name${NC}"
     
+    # Integration tests must run visually (not headless) and need longer timeout
+    local is_integration_test=false
+    local test_timeout=$TEST_TIMEOUT
+    if [[ "$test_name" == *"integration"* ]]; then
+        is_integration_test=true
+        test_timeout=60
+        echo -e "${YELLOW}  ℹ️  Integration test - running in visible mode (timeout: ${test_timeout}s)${NC}"
+    fi
+    
     # Build headless flag
     local headless_flag=""
-    if [ "$HEADLESS_MODE" = true ]; then
+    if [ "$HEADLESS_MODE" = true ] && [ "$is_integration_test" = false ]; then
         headless_flag="--headless"
     fi
 
     if [ "$STREAM_OUTPUT" = true ]; then
         # Stream output directly
-        if timeout $TEST_TIMEOUT "$EXECUTABLE" --run-test "$test_name" $headless_flag; then
+        if timeout $test_timeout "$EXECUTABLE" --run-test "$test_name" $headless_flag; then
             echo -e "  ${GREEN}✅ PASSED${NC} - Test completed successfully"
             return 0
         else
             local exit_code=$?
             if [ $exit_code -eq 124 ]; then
-                echo -e "  ${RED}❌ TIMEOUT${NC} - Test exceeded ${TEST_TIMEOUT}s timeout"
+                echo -e "  ${RED}❌ TIMEOUT${NC} - Test exceeded ${test_timeout}s timeout"
             elif [ $exit_code -eq 139 ]; then
                 echo -e "  ${RED}❌ SEGFAULT${NC} - Test caused segmentation fault"
             else
@@ -123,7 +133,7 @@ run_test() {
     else
         # Capture output to file (default)
         local output_file="/tmp/test_output_$$"
-        if timeout $TEST_TIMEOUT "$EXECUTABLE" --run-test "$test_name" $headless_flag > "$output_file" 2>&1; then
+        if timeout $test_timeout "$EXECUTABLE" --run-test "$test_name" $headless_flag > "$output_file" 2>&1; then
             # Check if test completed successfully
             if grep -q "TEST COMPLETED:" "$output_file" || grep -q "TEST VALIDATION PASSED:" "$output_file" || grep -q "TEST PASSED:" "$output_file"; then
                 echo -e "  ${GREEN}✅ PASSED${NC} - Test completed successfully"
@@ -137,7 +147,7 @@ run_test() {
         else
             local exit_code=$?
             if [ $exit_code -eq 124 ]; then
-                echo -e "  ${RED}❌ TIMEOUT${NC} - Test exceeded ${TEST_TIMEOUT}s timeout"
+                echo -e "  ${RED}❌ TIMEOUT${NC} - Test exceeded ${test_timeout}s timeout"
             elif [ $exit_code -eq 139 ]; then
                 echo -e "  ${RED}❌ SEGFAULT${NC} - Test caused segmentation fault"
             else
@@ -157,6 +167,7 @@ run_all_tests() {
     echo -e "${BLUE}Timeout per test: ${TEST_TIMEOUT}s${NC}"
     if [ "$HEADLESS_MODE" = true ]; then
         echo -e "${BLUE}Mode: Headless (no visible windows)${NC}"
+        echo -e "${YELLOW}Note: Integration tests will run in visible mode${NC}"
     else
         echo -e "${BLUE}Mode: Visible windows${NC}"
     fi

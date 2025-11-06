@@ -181,11 +181,42 @@ Examples:
 - Add `// TODO` comments in game code for UI label improvements
 - **Never use `GameStateManager::get().update_screen()` or directly manipulate game state in tests**
 - **Always use UI interactions (clicks, waits) to navigate between screens - click buttons to change screens, never directly set screen state**
-- **Avoid branching logic in tests - use `wait_for_ui_exists()` and `click()` to navigate, let waits handle timing**
-- **Avoid if/else branches in tests - use assertions (`expect_true`, `expect_false`, `expect_count_eq`, etc.) to validate conditions**
-- **For cases that seem to require branching, create separate test functions with different assertions and fail conditions to improve coverage**
 - Tests will timeout after 1 second if waiting for a condition that never completes
 - Use `create_inventory_item()` or similar helper functions to set up test state rather than checking if conditions exist and branching
+
+### Test Structure Requirements (CRITICAL)
+- **NO BRANCHING LOGIC**: Tests must NOT use `if`, `else`, `switch`, ternary operators (`?:`), or any conditional statements
+- **NO EARLY RETURNS**: Tests must NOT use `return` statements to exit early - tests run until completion or failure
+- **USE ASSERTIONS ONLY**: Use `app.expect_*()`, `app.fail()`, `app.wait_for_*()` methods instead of branching
+  - `app.expect_true(value, description)` - validates a condition is true
+  - `app.expect_false(value, description)` - validates a condition is false
+  - `app.expect_screen_is(screen)` - validates current screen
+  - `app.expect_not_empty(container, description)` - validates container has items
+  - `app.expect_singleton_has_component<Type>(singleton, description)` - validates singleton exists
+  - `app.fail(message)` - immediately fails the test with a message
+- **USE WAIT METHODS**: Use `app.wait_for_*()` methods for sequential operations - they handle frame-by-frame waiting automatically
+  - `app.wait_for_ui_exists(label, timeout)` - waits for UI element to appear
+  - `app.wait_for_screen(screen, timeout)` - waits for screen transition
+  - `app.wait_for_frames(count)` - waits for specific number of frames
+  - `app.wait_for_battle_initialized(timeout)` - waits for battle setup
+  - `app.wait_for_battle_complete(timeout)` - waits for battle completion
+- **SETUP PATTERN**: For one-time setup, use lambda initialization with static flag: `static bool setup = setup || []() { /* setup code */ return true; }();`
+- **VALIDATION PATTERN**: Always validate state using assertions, never check conditions with if statements
+- **Example of WRONG pattern**:
+  ```cpp
+  if (!condition) {
+    return; // NO - early return
+  }
+  if (value > 0) {
+    doSomething(); // NO - branching logic
+  }
+  ```
+- **Example of CORRECT pattern**:
+  ```cpp
+  app.expect_true(condition, "condition must be true");
+  app.expect_false(value <= 0, "value must be positive");
+  doSomething(); // Always executes, validation happens via assertions
+  ```
 
 ## Refactoring and Development Workflow
 - Extract helper functions to reduce code duplication

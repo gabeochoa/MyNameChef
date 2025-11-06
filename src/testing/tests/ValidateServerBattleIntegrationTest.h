@@ -6,47 +6,39 @@
 #include "../test_macros.h"
 #include <afterhours/ah.h>
 #include <cstdlib>
+#include <string>
+
+namespace {
+std::string get_server_url() {
+  const char *env = std::getenv("INTEGRATION_SERVER_URL");
+  return env ? std::string(env) : std::string("http://localhost:8080");
+}
+} // namespace
 
 TEST(validate_server_battle_integration) {
-  static enum {
-    NAVIGATE_TO_SHOP,
-    SETUP_BATTLE_REQUEST,
-    NAVIGATE_TO_BATTLE,
-    WAIT_FOR_BATTLE_COMPLETE,
-    VERIFY_RESULTS
-  } phase = NAVIGATE_TO_SHOP;
+  static bool setup_complete = false;
 
   app.launch_game();
+  app.wait_for_ui_exists("Play");
+  app.click("Play");
+  app.wait_for_screen(GameStateManager::Screen::Shop, 10.0f);
+  app.wait_for_ui_exists("Next Round");
 
-  // Step 1: Navigate to shop screen
-  if (phase == NAVIGATE_TO_SHOP) {
-    log_info("INTEGRATION_TEST: Navigating to shop screen...");
-    app.navigate_to_shop();
-    app.wait_for_ui_exists("Next Round");
-    phase = SETUP_BATTLE_REQUEST;
-    return;
-  }
-
-  // Step 2: Set up BattleLoadRequest with server URL
-  if (phase == SETUP_BATTLE_REQUEST) {
+  // Setup BattleLoadRequest with server URL (only once)
+  setup_complete = setup_complete || []() {
     log_info(
         "INTEGRATION_TEST: Setting up BattleLoadRequest with server URL...");
 
-    const char *server_url_env = std::getenv("INTEGRATION_SERVER_URL");
-    std::string server_url =
-        server_url_env ? server_url_env : "http://localhost:8080";
-
+    std::string server_url = get_server_url();
     log_info("INTEGRATION_TEST: Using server URL: {}", server_url);
 
-    auto battle_request_opt =
-        afterhours::EntityHelper::get_singleton<BattleLoadRequest>();
-    afterhours::Entity &request_entity = battle_request_opt.get();
-
-    if (!request_entity.has<BattleLoadRequest>()) {
-      request_entity.addComponent<BattleLoadRequest>();
-    }
-
+    // Always create new entity and register as singleton (will replace
+    // existing)
+    afterhours::Entity &request_entity =
+        afterhours::EntityHelper::createEntity();
+    request_entity.addComponent<BattleLoadRequest>();
     BattleLoadRequest &request = request_entity.get<BattleLoadRequest>();
+
     request.serverUrl = server_url;
     request.playerJsonPath = "";
     request.opponentJsonPath = "";
@@ -58,42 +50,46 @@ TEST(validate_server_battle_integration) {
     afterhours::EntityHelper::merge_entity_arrays();
 
     log_info("INTEGRATION_TEST: BattleLoadRequest configured with server URL");
-    phase = NAVIGATE_TO_BATTLE;
-    return;
-  }
+    return true;
+  }();
 
-  // Step 3: Navigate to battle screen
-  if (phase == NAVIGATE_TO_BATTLE) {
-    log_info("INTEGRATION_TEST: Navigating to battle screen...");
-    app.click("Next Round");
-    app.wait_for_screen(GameStateManager::Screen::Battle, 15.0f);
-    app.wait_for_ui_exists("Skip to Results", 5.0f);
+  app.wait_for_frames(1);
 
-    log_info("INTEGRATION_TEST: Waiting for battle to initialize...");
-    app.wait_for_frames(10);
-    phase = WAIT_FOR_BATTLE_COMPLETE;
-    return;
-  }
+  // Navigate to battle
+  app.click("Next Round");
+  app.wait_for_screen(GameStateManager::Screen::Battle, 15.0f);
 
-  // Step 4: Wait for battle to complete
-  if (phase == WAIT_FOR_BATTLE_COMPLETE) {
-    log_info("INTEGRATION_TEST: Battle started, waiting for completion...");
-    app.wait_for_battle_complete(60.0f);
-    app.wait_for_screen(GameStateManager::Screen::Results, 10.0f);
-    phase = VERIFY_RESULTS;
-    return;
-  }
+  // Wait for server request to complete - files must be set
+  app.wait_for_frames(60); // Give server time to respond
+  auto request_opt =
+      afterhours::EntityHelper::get_singleton<BattleLoadRequest>();
+  app.expect_singleton_has_component<BattleLoadRequest>(request_opt,
+                                                        "BattleLoadRequest");
 
-  // Step 5: Verify results
-  if (phase == VERIFY_RESULTS) {
-    log_info("INTEGRATION_TEST: Battle completed successfully!");
+  const BattleLoadRequest &req = request_opt.get().get<BattleLoadRequest>();
+  app.expect_false(req.playerJsonPath.empty(),
+                   "playerJsonPath should be set by server");
+  app.expect_false(req.opponentJsonPath.empty(),
+                   "opponentJsonPath should be set by server");
 
-    auto &gsm = GameStateManager::get();
-    if (gsm.active_screen != GameStateManager::Screen::Results) {
-      app.fail("Expected to be on Results screen after battle");
-    }
+  log_info("INTEGRATION_TEST: Server request completed, files ready");
+  log_info("  Player file: {}", req.playerJsonPath);
+  log_info("  Opponent file: {}", req.opponentJsonPath);
 
-    log_info("INTEGRATION_TEST: ✅ Test passed - battle completed and results "
-             "screen shown");
-  }
+  // Wait for battle to initialize and dishes to enter combat
+  app.wait_for_battle_initialized(30.0f);
+  app.wait_for_dishes_in_combat(1, 30.0f);
+
+  app.wait_for_ui_exists("Skip to Results", 5.0f);
+
+  // Wait 5 seconds to see the battle in action, then skip to results
+  log_info("INTEGRATION_TEST: Waiting 5 seconds to watch battle...");
+  app.wait_for_frames(300); // 5 seconds at 60fps
+
+  log_info("INTEGRATION_TEST: Clicking 'Skip to Results' to finish battle...");
+  app.click("Skip to Results");
+  app.wait_for_results_screen(10.0f);
+
+  log_info("INTEGRATION_TEST: ✅ Test passed - battle completed and results "
+           "screen shown");
 }

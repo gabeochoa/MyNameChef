@@ -1,0 +1,21 @@
+{
+    "team": [
+        {
+            "slot": 0,
+            "dishType": "GarlicBread"
+        },
+        {
+            "slot": 1,
+            "dishType": "Potato"
+        },
+        {
+            "slot": 2,
+            "dishType": "Potato"
+        }
+    ],
+    "seed": 1234567890,
+    "meta": {
+        "timestampIso": "20250111_000000",
+        "gameVersion": "0.1.0"
+    }
+}

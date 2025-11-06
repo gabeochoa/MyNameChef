@@ -27,8 +27,16 @@ struct TestSystem : afterhours::System<> {
 
   explicit TestSystem(std::string name)
       : test_name(std::move(name)),
-        kValidationTimeout(render_backend::is_headless_mode ? 1.0f : 10.0f) {
-    log_info("TEST SYSTEM CREATED: {} - TestSystem instantiated", test_name);
+        kValidationTimeout([name = std::string(name)]() {
+          // Integration tests need much longer timeouts for full battles
+          bool is_integration = name.find("integration") != std::string::npos;
+          if (is_integration) {
+            return render_backend::is_headless_mode ? 30.0f : 120.0f;
+          }
+          return render_backend::is_headless_mode ? 1.0f : 10.0f;
+        }()) {
+    log_info("TEST SYSTEM CREATED: {} - TestSystem instantiated (timeout: {}s)",
+             test_name, kValidationTimeout);
     register_test_cases();
   }
 
