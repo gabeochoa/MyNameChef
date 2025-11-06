@@ -1,0 +1,12 @@
+{
+  "team": [
+    {"dishType": "Potato", "slot": 0},
+    {"dishType": "Burger", "slot": 1},
+    {"dishType": "Pizza", "slot": 2},
+    {"dishType": "Ramen", "slot": 3},
+    {"dishType": "Sushi", "slot": 4},
+    {"dishType": "Steak", "slot": 5},
+    {"dishType": "Taco", "slot": 6}
+  ]
+}
+
