@@ -58,6 +58,7 @@ backward::SignalHandling sh;
 #include "systems/RenderZingBodyOverlay.h"
 #include "systems/ReplayControllerSystem.h"
 #include "systems/ResolveCombatTickSystem.h"
+#include "systems/ServerDisconnectionSystem.h"
 #include "systems/SimplifiedOnServeSystem.h"
 #include "systems/StartCourseSystem.h"
 #include "systems/TagShaderRender.h"
@@ -147,6 +148,8 @@ void game(const std::optional<std::string> &run_test) {
     });
 
     systems.register_update_system(std::make_unique<NetworkSystem>());
+    systems.register_update_system(
+        std::make_unique<ServerDisconnectionSystem>());
     systems.register_update_system(std::make_unique<UpdateSpriteTransform>());
     systems.register_update_system(std::make_unique<UpdateShaderValues>());
     systems.register_update_system(std::make_unique<MarkEntitiesWithShaders>());
