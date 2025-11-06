@@ -54,6 +54,7 @@ backward::SignalHandling sh;
 #include "systems/RenderSpritesByOrder.h"
 #include "systems/RenderSpritesWithShaders.h"
 #include "systems/RenderSystemHelpers.h"
+#include "systems/RenderToastSystem.h"
 #include "systems/RenderWalletHUD.h"
 #include "systems/RenderZingBodyOverlay.h"
 #include "systems/ReplayControllerSystem.h"
@@ -63,6 +64,8 @@ backward::SignalHandling sh;
 #include "systems/StartCourseSystem.h"
 #include "systems/TagShaderRender.h"
 #include "systems/TestSystem.h"
+#include "systems/ToastAnimationSystem.h"
+#include "systems/ToastLifetimeSystem.h"
 #include "systems/TooltipSystem.h"
 #include "systems/TriggerDispatchSystem.h"
 #include "systems/UnifiedAnimationSystem.h"
@@ -150,6 +153,8 @@ void game(const std::optional<std::string> &run_test) {
     systems.register_update_system(std::make_unique<NetworkSystem>());
     systems.register_update_system(
         std::make_unique<ServerDisconnectionSystem>());
+    systems.register_update_system(std::make_unique<ToastLifetimeSystem>());
+    systems.register_update_system(std::make_unique<ToastAnimationSystem>());
     systems.register_update_system(std::make_unique<UpdateSpriteTransform>());
     systems.register_update_system(std::make_unique<UpdateShaderValues>());
     systems.register_update_system(std::make_unique<MarkEntitiesWithShaders>());
@@ -218,6 +223,7 @@ void game(const std::optional<std::string> &run_test) {
       systems.register_render_system(std::make_unique<RenderFreezeIcon>());
       systems.register_render_system(std::make_unique<RenderBattleResults>());
       // ReplayUISystem is now integrated into ScheduleMainMenuUI::battle_screen
+      systems.register_render_system(std::make_unique<RenderToastSystem>());
       systems.register_render_system(std::make_unique<RenderTooltipSystem>());
       systems.register_render_system(std::make_unique<RenderFPS>());
       systems.register_render_system(std::make_unique<RenderDebugWindowInfo>());

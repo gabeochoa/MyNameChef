@@ -43,6 +43,7 @@
 #include "../testing/tests/ValidateShopPurchaseNonexistentItemTest.h"
 #include "../testing/tests/ValidateShopPurchaseTest.h"
 #include "../testing/tests/ValidateShopPurchaseWrongScreenTest.h"
+#include "../testing/tests/ValidateToastSystemTest.h"
 #include "../testing/tests/ValidateTriggerOrderingTest.h"
 #include "../testing/tests/ValidateTriggerSystemComponentsTest.h"
 #include "../testing/tests/ValidateTriggerSystemTest.h"

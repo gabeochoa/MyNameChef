@@ -101,3 +101,6 @@ afterhours::Entity &make_animation_event(AnimationEventType type,
 afterhours::Entity &make_freshness_chain_animation(int sourceEntityId,
                                                    int previousEntityId = -1,
                                                    int nextEntityId = -1);
+
+afterhours::Entity &make_toast(const std::string &message,
+                               float duration = 3.0f);

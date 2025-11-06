@@ -14,6 +14,7 @@
 #include "components/render_order.h"
 #include "components/replay_state.h"
 #include "components/side_effect_tracker.h"
+#include "components/toast_message.h"
 #include "components/transform.h"
 #include "components/trigger_queue.h"
 #include "dish_types.h"
@@ -219,6 +220,36 @@ Entity &make_drop_slot(int slot_id, vec2 position, vec2 size,
   e.addComponent<IsDropSlot>(slot_id, accepts_inventory, accepts_shop);
   e.addComponent<CanDropOnto>(true);
   e.addComponent<HasRenderOrder>(RenderOrder::DropSlots, RenderScreen::Shop);
+
+  return e;
+}
+
+Entity &make_toast(const std::string &message, float duration) {
+  auto &e = EntityHelper::createEntity();
+
+  const float fontSize = 20.0f;
+  const float paddingX = 20.0f;
+  const float paddingY = 10.0f;
+
+  float textWidth =
+      raylib::MeasureText(message.c_str(), static_cast<int>(fontSize));
+  float toastWidth = textWidth + paddingX * 2.0f;
+  float toastHeight = fontSize + paddingY * 2.0f;
+
+  float screenWidth = 800.0f;
+  float screenHeight = 600.0f;
+  if (!render_backend::is_headless_mode) {
+    screenWidth = static_cast<float>(raylib::GetScreenWidth());
+    screenHeight = static_cast<float>(raylib::GetScreenHeight());
+  }
+
+  float startY = screenHeight + 50.0f;
+  float x = (screenWidth - toastWidth) / 2.0f;
+
+  e.addComponent<Transform>(vec2{x, startY}, vec2{toastWidth, toastHeight});
+  e.addComponent<HasColor>(raylib::Color{40, 40, 40, 0});
+  e.addComponent<ToastMessage>(message, duration);
+  e.addComponent<HasRenderOrder>(RenderOrder::UI, RenderScreen::All);
 
   return e;
 }

@@ -4,6 +4,7 @@
 #include "../components/network_info.h"
 #include "../game_state_manager.h"
 #include "../log.h"
+#include "../shop.h"
 #include <afterhours/ah.h>
 #include <magic_enum/magic_enum.hpp>
 
@@ -34,7 +35,7 @@ struct ServerDisconnectionSystem : afterhours::System<NetworkInfo> {
     if (justDisconnected) {
       log_warn("SERVER_DISCONNECTION: Server disconnected (screen: {})",
                magic_enum::enum_name(current_screen));
-      // TODO: Show toast message to user when server disconnects
+      make_toast("Server disconnected");
 
       if (hasPendingRequest &&
           current_screen == GameStateManager::Screen::Shop) {
@@ -47,7 +48,7 @@ struct ServerDisconnectionSystem : afterhours::System<NetworkInfo> {
     if (justReconnected) {
       log_info("SERVER_DISCONNECTION: Server reconnected (screen: {})",
                magic_enum::enum_name(current_screen));
-      // TODO: Show toast message to user when server reconnects
+      make_toast("Server reconnected");
     }
   }
 };
