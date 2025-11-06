@@ -1,12 +1,9 @@
 #include "server_context.h"
-#include "../components/battle_result.h"
-#include "../components/battle_team_tags.h"
 #include "../components/combat_queue.h"
 #include "../components/dish_battle_state.h"
 #include "../components/is_dish.h"
 #include "../game_state_manager.h"
-#include "../preload.h"
-#include "../query.h"
+#include "../render_backend.h"
 #include "../seeded_rng.h"
 #include "../shop.h"
 #include "../systems/battle_system_registry.h"
@@ -18,13 +15,11 @@ ServerContext ServerContext::initialize() {
 
   render_backend::is_headless_mode = true;
 
-  Preload::get().init("battle_server", true).make_singleton();
+  // Manager entity is not needed - singletons are initialized in main()
+  ctx.manager_entity = nullptr;
 
   GameStateManager::get().set_next_screen(GameStateManager::Screen::Battle);
   GameStateManager::get().update_screen();
-
-  auto &entity = afterhours::EntityHelper::createEntity();
-  ctx.manager_entity = &entity;
 
   ctx.initialize_singletons();
 
@@ -34,8 +29,9 @@ ServerContext ServerContext::initialize() {
 }
 
 void ServerContext::initialize_singletons() {
-  make_combat_manager(*manager_entity);
-  make_battle_processor_manager(*manager_entity);
+  // Combat and battle processor managers are initialized once in main()
+  // We just ensure the manager entity exists for any additional components
+  // (currently none, but kept for future extensibility)
 
   (void)SeededRng::get();
 }

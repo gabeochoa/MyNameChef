@@ -1,9 +1,12 @@
 #include "../log.h"
+#include "../preload.h"
 #include "../render_backend.h"
 #include "../rl.h"
+#include "../shop.h"
 #include "battle_api.h"
 #include "file_storage.h"
 #include "test_framework.h"
+#include <afterhours/ah.h>
 #include <argh.h>
 #include <filesystem>
 #include <nlohmann/json.hpp>
@@ -14,6 +17,17 @@ bool running = true;
 
 int main(int argc, char *argv[]) {
   argh::parser cmdl(argc, argv);
+
+  // Initialize Preload once for the entire server process
+  // This must be done before creating ServerContext instances (tests or API)
+  Preload::get().init("battle_server", true).make_singleton();
+
+  // Initialize combat and battle processor managers once for the entire server
+  // process These are shared singletons that don't need to be recreated per
+  // battle
+  auto &manager_entity = afterhours::EntityHelper::createEntity();
+  make_combat_manager(manager_entity);
+  make_battle_processor_manager(manager_entity);
 
   if (cmdl[{"--run-tests", "-t"}]) {
     log_info("Running server unit tests...");

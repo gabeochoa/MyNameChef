@@ -46,5 +46,7 @@ struct BattleSimulator {
 
 private:
   void track_events(float timestamp, int course_index);
+  void create_battle_result();
+  void ensure_battle_result();
 };
 } // namespace server

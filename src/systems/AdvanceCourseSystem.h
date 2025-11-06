@@ -6,6 +6,7 @@
 #include "../components/trigger_queue.h"
 #include "../game_state_manager.h"
 #include "../query.h"
+#include "../shop.h"
 #include "../utils/battle_fingerprint.h"
 #include <afterhours/ah.h>
 
