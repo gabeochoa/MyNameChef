@@ -1,32 +1,20 @@
 #pragma once
 
 #include "../seeded_rng.h"
+#include "async/battle_event.h"
 #include "server_context.h"
-#include "../components/trigger_event.h"
-#include "../components/dish_battle_state.h"
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <vector>
 
 namespace server {
-struct BattleEvent {
-  TriggerHook hook;
-  int sourceEntityId;
-  int slotIndex;
-  DishBattleState::TeamSide teamSide;
-  float timestamp;
-  int courseIndex;
-  int payloadInt;
-  float payloadFloat;
-};
-
 struct BattleSimulator {
   ServerContext ctx;
   uint64_t seed;
   bool battle_active;
   float simulation_time;
-  std::vector<BattleEvent> accumulated_events;
+  std::vector<async::DebugBattleEvent> accumulated_events;
 
   BattleSimulator();
 
@@ -40,7 +28,7 @@ struct BattleSimulator {
 
   nlohmann::json get_battle_state() const;
 
-  std::vector<BattleEvent> get_accumulated_events() const {
+  std::vector<async::DebugBattleEvent> get_accumulated_events() const {
     return accumulated_events;
   }
 
