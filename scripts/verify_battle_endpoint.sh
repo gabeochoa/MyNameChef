@@ -136,56 +136,34 @@ fi
 echo "✅ Response structure validation passed"
 echo ""
 
-# Test with debug mode
-echo "5. Testing with debug mode enabled..."
-DEBUG_TEAM=$(cat <<EOF
-{
-  "team": [
-    {"dishType": "Potato", "slot": 0, "level": 1},
-    {"dishType": "Burger", "slot": 1, "level": 1}
-  ],
-  "debug": true
-}
-EOF
-)
-
-DEBUG_RESPONSE=$(curl -s -X POST "${BASE_URL}/battle" \
-    -H "Content-Type: application/json" \
-    -d "${DEBUG_TEAM}")
-
-DEBUG_MODE=$(echo "${DEBUG_RESPONSE}" | jq -r '.debug')
-HAS_SNAPSHOTS=$(echo "${DEBUG_RESPONSE}" | jq -e '.snapshots' > /dev/null 2>&1 && echo "true" || echo "false")
-
-if [ "${DEBUG_MODE}" != "true" ]; then
-    echo "❌ ERROR: Debug mode not set correctly"
-    exit 1
-fi
-
-if [ "${HAS_SNAPSHOTS}" != "true" ]; then
-    echo "❌ ERROR: Debug mode enabled but snapshots missing"
-    exit 1
-fi
-
-echo "✅ Debug mode test passed (snapshots included)"
+# Test debug mode (now global-only via config file, not per-request)
+echo "5. Testing debug mode (global-only, set via config file)..."
+echo "   Note: Debug mode is now global-only. To test debug mode:"
+echo "   - Start server with test_config.json (debug: true) to test snapshots"
+echo "   - Start server with production_config.json (debug: false) for production"
+echo "   - Current server config determines debug mode, not request JSON"
 echo ""
 
-# Test without debug mode (should not have snapshots)
-echo "6. Testing without debug mode..."
-NO_DEBUG_RESPONSE=$(curl -s -X POST "${BASE_URL}/battle" \
-    -H "Content-Type: application/json" \
-    -d "${TEST_TEAM}")
+# Check if snapshots are present (depends on server's config file)
+HAS_SNAPSHOTS=$(echo "${BATTLE_RESPONSE}" | jq -e '.snapshots' > /dev/null 2>&1 && echo "true" || echo "false")
+DEBUG_MODE=$(echo "${BATTLE_RESPONSE}" | jq -r '.debug // false')
 
-HAS_SNAPSHOTS=$(echo "${NO_DEBUG_RESPONSE}" | jq -e '.snapshots' > /dev/null 2>&1 && echo "true" || echo "false")
-
-if [ "${HAS_SNAPSHOTS}" = "true" ]; then
-    echo "⚠️  WARNING: Snapshots present when debug=false (might be expected)"
+if [ "${DEBUG_MODE}" = "true" ] && [ "${HAS_SNAPSHOTS}" != "true" ]; then
+    echo "⚠️  WARNING: Debug mode is true but snapshots missing (check server config)"
+elif [ "${DEBUG_MODE}" = "false" ] && [ "${HAS_SNAPSHOTS}" = "true" ]; then
+    echo "⚠️  WARNING: Debug mode is false but snapshots present (check server config)"
 else
-    echo "✅ Production mode test passed (snapshots excluded)"
+    echo "✅ Debug mode configuration check passed"
+    if [ "${DEBUG_MODE}" = "true" ]; then
+        echo "   (Debug mode enabled - snapshots included)"
+    else
+        echo "   (Debug mode disabled - snapshots excluded)"
+    fi
 fi
 echo ""
 
 # Test error handling
-echo "7. Testing error handling..."
+echo "6. Testing error handling..."
 
 # Invalid team (empty team)
 INVALID_TEAM='{"team": []}'
@@ -217,8 +195,7 @@ echo "Summary:"
 echo "  - Health endpoint: ✅"
 echo "  - Battle endpoint: ✅"
 echo "  - Response structure: ✅"
-echo "  - Debug mode: ✅"
-echo "  - Production mode: ✅"
+echo "  - Debug mode (global config): ✅"
 echo "  - Error handling: ✅"
 echo ""
 

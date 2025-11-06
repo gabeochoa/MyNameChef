@@ -148,9 +148,6 @@ void BattleAPI::handle_battle_request(const httplib::Request &req,
     }
 
     bool debug_mode = config.debug;
-    if (request_json.contains("debug") && request_json["debug"].is_boolean()) {
-      debug_mode = request_json["debug"];
-    }
     nlohmann::json outcomes = BattleSerializer::collect_battle_outcomes();
     nlohmann::json events = BattleSerializer::collect_battle_events(simulator);
 
