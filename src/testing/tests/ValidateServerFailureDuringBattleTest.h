@@ -26,11 +26,10 @@ TEST(validate_server_failure_during_battle) {
   // var)
   app.force_network_check();
 
-  // Wait for navigation back to main menu
-  // With forced check and fast timeouts, this should happen quickly
-  // Battle screen may take a moment to transition, so give it more time
-  app.wait_for_screen(GameStateManager::Screen::Main, 10.0f);
+  // Wait a moment for disconnection to be detected
+  app.wait_for_frames(30);
 
-  // Verify we're back on main menu
-  app.expect_screen_is(GameStateManager::Screen::Main);
+  // Verify we're still on Battle screen (should not navigate)
+  // With new behavior, we never navigate away from Battle screen on disconnection
+  app.expect_screen_is(GameStateManager::Screen::Battle);
 }

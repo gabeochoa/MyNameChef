@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../components/battle_load_request.h"
 #include "../components/network_info.h"
 #include "../game_state_manager.h"
 #include "../log.h"
@@ -7,30 +8,46 @@
 #include <magic_enum/magic_enum.hpp>
 
 struct ServerDisconnectionSystem : afterhours::System<NetworkInfo> {
+  bool previousConnectionState = true;
+
   void for_each_with(afterhours::Entity &, NetworkInfo &networkInfo,
                      float) override {
-    // Only act if we're disconnected
-    if (networkInfo.hasConnection) {
-      return;
-    }
+    bool currentlyConnected = networkInfo.hasConnection;
+    bool justReconnected = !previousConnectionState && currentlyConnected;
+    bool justDisconnected = previousConnectionState && !currentlyConnected;
 
-    // TODO eventually we only want to kick out once we finish what we are doing
-    // since the battle is just playing what the server told us, its not a bad
-    // idea to just let it finishe playing and then after ther estul screen go
-    // back to main menu. when on shop, its okay until you hit"next round" and
-    // then it should error and go back to main menu.
+    previousConnectionState = currentlyConnected;
 
     GameStateManager &gsm = GameStateManager::get();
     GameStateManager::Screen current_screen = gsm.active_screen;
 
-    // Only navigate to main menu if we're on Shop or Battle screen
-    if (current_screen == GameStateManager::Screen::Shop ||
-        current_screen == GameStateManager::Screen::Battle) {
-      log_warn("SERVER_DISCONNECTION: Server disconnected during gameplay, "
-               "returning to main menu (screen: {})",
+    bool hasPendingRequest = false;
+    auto request_entity_opt = afterhours::EntityQuery()
+                                  .whereHasComponent<BattleLoadRequest>()
+                                  .gen_first();
+    if (request_entity_opt) {
+      const BattleLoadRequest &request =
+          request_entity_opt.asE().get<BattleLoadRequest>();
+      hasPendingRequest = request.serverRequestPending;
+    }
+
+    if (justDisconnected) {
+      log_warn("SERVER_DISCONNECTION: Server disconnected (screen: {})",
                magic_enum::enum_name(current_screen));
-      // TODO: Show error message to user when server disconnects
-      gsm.set_next_screen(GameStateManager::Screen::Main);
+      // TODO: Show toast message to user when server disconnects
+
+      if (hasPendingRequest &&
+          current_screen == GameStateManager::Screen::Shop) {
+        log_warn("SERVER_DISCONNECTION: Disconnected during pending request on "
+                 "Shop screen, staying on Shop");
+        // Stay on Shop screen, don't navigate
+      }
+    }
+
+    if (justReconnected) {
+      log_info("SERVER_DISCONNECTION: Server reconnected (screen: {})",
+               magic_enum::enum_name(current_screen));
+      // TODO: Show toast message to user when server reconnects
     }
   }
 };

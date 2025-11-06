@@ -30,6 +30,7 @@
 #include "../testing/tests/ValidateServerBattleIntegrationTest.h"
 #include "../testing/tests/ValidateServerChecksumMatchTest.h"
 #include "../testing/tests/ValidateServerFailureDuringBattleTest.h"
+#include "../testing/tests/ValidateServerFailureDuringPendingRequestTest.h"
 #include "../testing/tests/ValidateServerFailureDuringShopTest.h"
 #include "../testing/tests/ValidateServerOpponentMatchTest.h"
 #include "../testing/tests/ValidateShopFreezeTest.h"

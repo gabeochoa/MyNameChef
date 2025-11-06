@@ -18,10 +18,11 @@ TEST(validate_server_failure_during_shop) {
   // var)
   app.force_network_check();
 
-  // Wait for navigation back to main menu
-  // With forced check and fast timeouts, this should happen quickly
-  app.wait_for_screen(GameStateManager::Screen::Main, 5.0f);
+  // Wait a moment for disconnection to be detected
+  app.wait_for_frames(30);
 
-  // Verify we're back on main menu
-  app.expect_screen_is(GameStateManager::Screen::Main);
+  // Verify we're still on Shop screen (should not navigate)
+  // With new behavior, we only navigate if there's a pending request,
+  // and even then we stay on Shop screen
+  app.expect_screen_is(GameStateManager::Screen::Shop);
 }
