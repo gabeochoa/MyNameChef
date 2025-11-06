@@ -15,6 +15,8 @@ struct BattleSimulator {
   bool battle_active;
   float simulation_time;
   std::vector<async::DebugBattleEvent> accumulated_events;
+  std::string player_temp_file;
+  std::string opponent_temp_file;
 
   BattleSimulator();
 
@@ -37,6 +39,9 @@ struct BattleSimulator {
 
   // Static cleanup function for tests - cleans up all battle entities
   static void cleanup_test_entities();
+
+  // Clean up temp files created for this battle
+  void cleanup_temp_files();
 
 private:
   void track_events(float timestamp, int course_index);

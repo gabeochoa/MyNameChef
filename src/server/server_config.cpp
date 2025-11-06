@@ -50,6 +50,41 @@ ServerConfig ServerConfig::load_from_json(const std::string &config_path) {
     config.debug = json_config["debug"];
   }
 
+  if (json_config.contains("max_request_body_size") &&
+      json_config["max_request_body_size"].is_number()) {
+    config.max_request_body_size = json_config["max_request_body_size"];
+  }
+
+  if (json_config.contains("max_team_size") &&
+      json_config["max_team_size"].is_number()) {
+    config.max_team_size = json_config["max_team_size"];
+  }
+
+  if (json_config.contains("max_simulation_iterations") &&
+      json_config["max_simulation_iterations"].is_number()) {
+    config.max_simulation_iterations = json_config["max_simulation_iterations"];
+  }
+
+  if (json_config.contains("temp_file_retention_count") &&
+      json_config["temp_file_retention_count"].is_number()) {
+    config.temp_file_retention_count = json_config["temp_file_retention_count"];
+  }
+
+  if (json_config.contains("enable_cors") &&
+      json_config["enable_cors"].is_boolean()) {
+    config.enable_cors = json_config["enable_cors"];
+  }
+
+  if (json_config.contains("cors_origin") &&
+      json_config["cors_origin"].is_string()) {
+    config.cors_origin = json_config["cors_origin"];
+  }
+
+  if (json_config.contains("file_operation_retries") &&
+      json_config["file_operation_retries"].is_number()) {
+    config.file_operation_retries = json_config["file_operation_retries"];
+  }
+
   return config;
 }
 

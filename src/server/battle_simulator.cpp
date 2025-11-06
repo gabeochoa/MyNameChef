@@ -29,20 +29,28 @@ void BattleSimulator::start_battle(
   simulation_time = 0.0f;
   battle_active = true;
   accumulated_events.clear();
+  player_temp_file.clear();
+  opponent_temp_file.clear();
 
   SeededRng::get().set_seed(seed);
 
   FileStorage::ensure_directory_exists(temp_files_path.string());
 
-  std::string player_temp =
+  player_temp_file =
       (temp_files_path / ("temp_player_" + std::to_string(seed) + ".json"))
           .string();
-  std::string opponent_temp =
+  opponent_temp_file =
       (temp_files_path / ("temp_opponent_" + std::to_string(seed) + ".json"))
           .string();
 
-  FileStorage::save_json_to_file(player_temp, player_team_json);
-  FileStorage::save_json_to_file(opponent_temp, opponent_team_json);
+  if (!FileStorage::save_json_to_file(player_temp_file, player_team_json)) {
+    log_error("Failed to save player temp file: {}", player_temp_file);
+    throw std::runtime_error("Failed to save player temp file");
+  }
+  if (!FileStorage::save_json_to_file(opponent_temp_file, opponent_team_json)) {
+    log_error("Failed to save opponent temp file: {}", opponent_temp_file);
+    throw std::runtime_error("Failed to save opponent temp file");
+  }
 
   // Check if BattleLoadRequest singleton already exists (from previous
   // test/battle)
@@ -61,15 +69,15 @@ void BattleSimulator::start_battle(
         afterhours::EntityHelper::get_singleton<BattleLoadRequest>();
     if (existingRequest.get().has<BattleLoadRequest>()) {
       BattleLoadRequest &req = existingRequest.get().get<BattleLoadRequest>();
-      req.playerJsonPath = player_temp;
-      req.opponentJsonPath = opponent_temp;
+      req.playerJsonPath = player_temp_file;
+      req.opponentJsonPath = opponent_temp_file;
       req.loaded = false;
     } else {
       // Add component to existing entity
       existingRequest.get().addComponent<BattleLoadRequest>();
       BattleLoadRequest &req = existingRequest.get().get<BattleLoadRequest>();
-      req.playerJsonPath = player_temp;
-      req.opponentJsonPath = opponent_temp;
+      req.playerJsonPath = player_temp_file;
+      req.opponentJsonPath = opponent_temp_file;
       req.loaded = false;
     }
   } else {
@@ -79,8 +87,8 @@ void BattleSimulator::start_battle(
         afterhours::EntityHelper::createEntity();
     request_entity.addComponent<BattleLoadRequest>();
     BattleLoadRequest &req = request_entity.get<BattleLoadRequest>();
-    req.playerJsonPath = player_temp;
-    req.opponentJsonPath = opponent_temp;
+    req.playerJsonPath = player_temp_file;
+    req.opponentJsonPath = opponent_temp_file;
     req.loaded = false;
     afterhours::EntityHelper::registerSingleton<BattleLoadRequest>(
         request_entity);
@@ -434,5 +442,31 @@ void BattleSimulator::cleanup_test_entities() {
   // Merge and cleanup entities
   afterhours::EntityHelper::merge_entity_arrays();
   afterhours::EntityHelper::cleanup();
+}
+
+void BattleSimulator::cleanup_temp_files() {
+  if (!player_temp_file.empty()) {
+    try {
+      if (std::filesystem::exists(player_temp_file)) {
+        std::filesystem::remove(player_temp_file);
+        log_info("Cleaned up temp file: {}", player_temp_file);
+      }
+    } catch (const std::exception &e) {
+      log_error("Failed to delete temp file {}: {}", player_temp_file,
+                e.what());
+    }
+  }
+
+  if (!opponent_temp_file.empty()) {
+    try {
+      if (std::filesystem::exists(opponent_temp_file)) {
+        std::filesystem::remove(opponent_temp_file);
+        log_info("Cleaned up temp file: {}", opponent_temp_file);
+      }
+    } catch (const std::exception &e) {
+      log_error("Failed to delete temp file {}: {}", opponent_temp_file,
+                e.what());
+    }
+  }
 }
 } // namespace server
