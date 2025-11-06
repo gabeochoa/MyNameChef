@@ -30,6 +30,7 @@ HEADLESS_MODE=true  # Default to headless mode
 STREAM_OUTPUT=false # Default to capture output
 RUN_SERVER_TESTS=true
 RUN_BATTLE_ENDPOINT=true
+JUST_TEST=""  # If set, run only this test
 
 # Test groups
 # Client tests that need the shared server (NetworkInfo checks)
@@ -66,6 +67,8 @@ CLIENT_TESTS=(
     "validate_battle_results"
     "validate_ui_navigation"
     "validate_full_game_flow"
+    "validate_server_failure_during_shop"
+    "validate_server_failure_during_battle"
 )
 
 # Integration tests that start their own server
@@ -117,6 +120,19 @@ run_test() {
             break
         fi
     done
+    
+    # Server failure tests use fast network checks for reliable testing
+    if [ "$test_name" = "validate_server_failure_during_shop" ] || [ "$test_name" = "validate_server_failure_during_battle" ]; then
+        test_timeout=10
+        # Set fast network check interval and timeouts for these tests
+        export NETWORK_CHECK_INTERVAL_SECONDS=0.25
+        export NETWORK_TIMEOUT_MS=200
+        echo -e "${YELLOW}  ℹ️  Server failure test - using fast network checks (timeout: ${test_timeout}s)${NC}"
+    else
+        # Clear environment variables for other tests
+        unset NETWORK_CHECK_INTERVAL_SECONDS
+        unset NETWORK_TIMEOUT_MS
+    fi
     
     # Build headless flag
     local headless_flag=""
@@ -177,8 +193,14 @@ start_client_test_server() {
     
     echo -e "${BLUE}Starting battle server for client tests...${NC}"
     
+    # Kill any existing battle_server processes to ensure clean state
+    killall battle_server.exe 2>/dev/null || true
+    sleep 0.5  # Give processes time to terminate
+    
     nohup "$SERVER_EXECUTABLE" > /tmp/client_test_server_$$.log 2>&1 &
     CLIENT_TEST_SERVER_PID=$!
+    # Export PID for tests to use
+    export TEST_SERVER_PID=$CLIENT_TEST_SERVER_PID
     
     sleep 2
     
@@ -231,6 +253,87 @@ stop_client_test_server() {
         wait $CLIENT_TEST_SERVER_PID 2>/dev/null || true
         rm -f /tmp/client_test_server_$$.log
     fi
+}
+
+# Function to determine which test group a test belongs to
+get_test_group() {
+    local test_name="$1"
+    
+    # Check if it's a client test
+    for client_test in "${CLIENT_TESTS[@]}"; do
+        if [ "$test_name" = "$client_test" ]; then
+            echo "client"
+            return 0
+        fi
+    done
+    
+    # Check if it's an integration test
+    for int_test in "${INTEGRATION_TESTS[@]}"; do
+        if [ "$test_name" = "$int_test" ]; then
+            echo "integration"
+            return 0
+        fi
+    done
+    
+    # Check if it's a server test (server unit tests are run differently)
+    # For now, assume any test not in CLIENT_TESTS or INTEGRATION_TESTS is a server test
+    echo "server"
+    return 0
+}
+
+# Function to run a single test with appropriate server setup
+run_just_test() {
+    local test_name="$1"
+    local test_group=$(get_test_group "$test_name")
+    
+    echo -e "${BLUE}Running single test: ${YELLOW}$test_name${NC}"
+    echo -e "${BLUE}Test group: ${YELLOW}$test_group${NC}"
+    echo ""
+    
+    case "$test_group" in
+        "client")
+            # Client tests need a shared server
+            echo -e "${BLUE}Setting up server for client test...${NC}"
+            if ! start_client_test_server; then
+                echo -e "${RED}❌ Failed to start server${NC}"
+                return 1
+            fi
+            
+            # Run the test
+            if run_test "$test_name" "1" "1"; then
+                local result=0
+            else
+                local result=1
+            fi
+            
+            # Stop the server
+            stop_client_test_server
+            
+            return $result
+            ;;
+        "integration")
+            # Integration tests start their own server, no shared server needed
+            echo -e "${YELLOW}ℹ️  Integration test - will start its own server${NC}"
+            if run_test "$test_name" "1" "1"; then
+                return 0
+            else
+                return 1
+            fi
+            ;;
+        "server")
+            # Server tests are unit tests, no server needed
+            echo -e "${YELLOW}ℹ️  Server unit test - no server needed${NC}"
+            if run_test "$test_name" "1" "1"; then
+                return 0
+            else
+                return 1
+            fi
+            ;;
+        *)
+            echo -e "${RED}❌ Unknown test group: $test_group${NC}"
+            return 1
+            ;;
+    esac
 }
 
 # Function to run a group of tests
@@ -486,6 +589,7 @@ show_help() {
     echo "  $0                    # Run all tests in headless mode"
     echo "  $0 -v                 # Run all tests with visible windows"
     echo "  $0 -t 10              # Run all tests with 10s timeout"
+    echo "  $0 --just test_name   # Run a single test (auto-manages server)"
     echo "  $0 --help             # Show this help"
 }
 
@@ -502,6 +606,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         -v|--visible)
             HEADLESS_MODE=false
+            STREAM_OUTPUT=true
             shift
             ;;
         --stream)
@@ -521,6 +626,10 @@ while [[ $# -gt 0 ]]; do
             RUN_BATTLE_ENDPOINT=false
             shift
             ;;
+        --just)
+            JUST_TEST="$2"
+            shift 2
+            ;;
         *)
             echo "Unknown option: $1"
             show_help
@@ -531,6 +640,19 @@ done
 
 # Main execution
 echo ""
+
+# If --just is specified, run only that test
+if [ -n "$JUST_TEST" ]; then
+    if run_just_test "$JUST_TEST"; then
+        echo ""
+        echo -e "${GREEN}✅ Test passed: $JUST_TEST${NC}"
+        exit 0
+    else
+        echo ""
+        echo -e "${RED}❌ Test failed: $JUST_TEST${NC}"
+        exit 1
+    fi
+fi
 
 # Run server unit tests first
 if [ "$RUN_SERVER_TESTS" = true ]; then
