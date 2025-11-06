@@ -13,6 +13,7 @@ using OptServerAddr = std::optional<ServerAddress>;
 
 struct NetworkInfo : afterhours::BaseComponent {
   bool hasConnection = false;
+  // default to 0 so that the first check is immediate
   float timeSinceLastCheck = 0.0f;
   OptServerAddr serverAddress = std::nullopt;
 

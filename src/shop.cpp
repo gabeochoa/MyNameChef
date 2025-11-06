@@ -23,6 +23,7 @@
 #include "seeded_rng.h"
 #include "systems/GenerateInventorySlots.h"
 #include "systems/GenerateShopSlots.h"
+#include "systems/NetworkSystem.h"
 #include "tooltip.h"
 #include <afterhours/src/plugins/color.h>
 #include <afterhours/src/plugins/texture_manager.h>
@@ -140,6 +141,27 @@ Entity &make_shop_manager(Entity &sophie) {
 Entity &make_network_manager(Entity &sophie) {
   sophie.addComponentIfMissing<NetworkInfo>();
   EntityHelper::registerSingleton<NetworkInfo>(sophie);
+
+  // Perform initial health check to establish connection state before systems
+  // run
+  NetworkInfo &networkInfo = sophie.get<NetworkInfo>();
+  ServerAddress addr;
+  addr.ip = NetworkSystem::SERVER_IP;
+  addr.port = NetworkSystem::SERVER_PORT;
+  networkInfo.serverAddress = addr;
+
+  bool connected = NetworkSystem::check_server_health(addr);
+  networkInfo.hasConnection = connected;
+  if (connected) {
+    log_info("NETWORK: Initial connection check - Server connection OK");
+  } else {
+    log_warn("NETWORK: Initial connection check - Server connection failed");
+  }
+
+  // Initialize countdown timer to check_interval
+  float check_interval = NetworkSystem::get_check_interval();
+  networkInfo.timeSinceLastCheck = check_interval;
+
   return sophie;
 }
 
