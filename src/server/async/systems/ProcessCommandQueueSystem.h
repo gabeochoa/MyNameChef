@@ -5,7 +5,6 @@
 #include "../../../dish_types.h"
 #include "../../../log.h"
 #include "../../../seeded_rng.h"
-#include <random>
 #include "../components/battle_info.h"
 #include "../components/command_queue_entry.h"
 #include "../components/team_pool.h"
@@ -14,6 +13,7 @@
 #include <cstdint>
 #include <magic_enum/magic_enum.hpp>
 #include <nlohmann/json.hpp>
+#include <random>
 
 namespace server::async {
 struct ProcessCommandQueueSystem : afterhours::System<CommandQueueEntry> {
@@ -212,7 +212,7 @@ private:
     // Generate battle seed
     std::random_device rd;
     uint64_t battle_seed = static_cast<uint64_t>(rd()) << 32 | rd();
-    
+
     // Set seed for deterministic battle simulation
     SeededRng::get().set_seed(battle_seed);
 
