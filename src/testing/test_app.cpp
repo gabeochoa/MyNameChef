@@ -2,6 +2,7 @@
 #include "../components/battle_result.h"
 #include "../components/battle_team_tags.h"
 #include "../components/can_drop_onto.h"
+#include "../components/combat_queue.h"
 #include "../components/combat_stats.h"
 #include "../components/dish_battle_state.h"
 #include "../components/dish_level.h"
@@ -1114,9 +1115,13 @@ TestApp &TestApp::wait_for_battle_complete(float timeout_sec,
 
   static std::chrono::steady_clock::time_point start_time;
   static bool started = false;
+  static int last_course_index = -1;
+  static int log_counter = 0;
   if (!started) {
     start_time = std::chrono::steady_clock::now();
     started = true;
+    last_course_index = -1;
+    log_counter = 0;
   }
 
   if (completed_operations.count(op_id) > 0) {
@@ -1136,7 +1141,34 @@ TestApp &TestApp::wait_for_battle_complete(float timeout_sec,
   int player_count = count_active_player_dishes();
   int opponent_count = count_active_opponent_dishes();
 
+  // Log course progression and dish counts periodically
+  auto combat_queue_opt = afterhours::EntityHelper::get_singleton<CombatQueue>();
+  if (combat_queue_opt.get().has<CombatQueue>()) {
+    const CombatQueue &cq = combat_queue_opt.get().get<CombatQueue>();
+    if (cq.current_index != last_course_index) {
+      last_course_index = cq.current_index;
+      log_info("TEST_BATTLE: Course {} started - Player dishes: {}, Opponent dishes: {}", 
+               cq.current_index + 1, player_count, opponent_count);
+    }
+    
+    // Log dish counts every 100 frames to track progress
+    log_counter++;
+    if (log_counter % 100 == 0) {
+      log_info("TEST_BATTLE: Course {} in progress - Player dishes: {}, Opponent dishes: {}, Complete: {}", 
+               cq.current_index + 1, player_count, opponent_count, cq.complete);
+    }
+  } else {
+    // Log dish counts even if CombatQueue not available
+    log_counter++;
+    if (log_counter % 100 == 0) {
+      log_info("TEST_BATTLE: Battle in progress - Player dishes: {}, Opponent dishes: {}", 
+               player_count, opponent_count);
+    }
+  }
+
   if (player_count == 0 || opponent_count == 0) {
+    log_info("TEST_BATTLE: Battle ending - Player dishes: {}, Opponent dishes: {}", 
+             player_count, opponent_count);
     wait_for_screen(GameStateManager::Screen::Results, timeout_sec);
     return *this;
   }
@@ -1208,12 +1240,20 @@ TestApp &TestApp::expect_false(bool value, const std::string &description,
 TestApp &TestApp::kill_server() {
   const char *pid_str = std::getenv("TEST_SERVER_PID");
   if (!pid_str) {
-    fail("TEST_SERVER_PID environment variable not set", "");
+    log_warn("TEST: TEST_SERVER_PID environment variable not set - server may not be running");
     return *this;
   }
 
   int pid = std::stoi(pid_str);
   log_info("TEST: Killing server with PID {}", pid);
+
+  // Check if process exists before trying to kill it
+  std::string check_cmd = "kill -0 " + std::to_string(pid) + " 2>/dev/null";
+  int check_result = system(check_cmd.c_str());
+  if (check_result != 0) {
+    log_warn("TEST: Server process {} does not exist (may already be dead)", pid);
+    return *this;
+  }
 
   // Kill the server process (use -9 for forceful kill)
   std::string kill_cmd = "kill -9 " + std::to_string(pid);

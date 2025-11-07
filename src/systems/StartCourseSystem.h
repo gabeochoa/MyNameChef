@@ -54,17 +54,23 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
       bool opponent_has_remaining =
           has_remaining_active_dishes(DishBattleState::TeamSide::Opponent);
 
+      log_info("COMBAT_START: No dishes at index 0 - Player has remaining: {}, Opponent has remaining: {}", 
+               player_has_remaining, opponent_has_remaining);
+
       if (!player_has_remaining || !opponent_has_remaining) {
         cq.complete = true;
 
         uint64_t fp = BattleFingerprint::compute();
         log_info("AUDIT_FP checkpoint=end hash={}", fp);
+        log_info("COMBAT_START: Battle ending - Player remaining: {}, Opponent remaining: {}", 
+                 player_has_remaining, opponent_has_remaining);
 
         GameStateManager::get().to_results();
         return;
       }
 
       // Both teams have dishes but not at index 0 yet (reorganization pending)
+      log_info("COMBAT_START: Waiting for reorganization - dishes exist but not at index 0 yet");
       return;
     }
 
@@ -79,14 +85,20 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
     }
 
     const float enter_start_delay = 0.25f;
+    float scaled_enter_start_delay = enter_start_delay / render_backend::timing_speed_scale;
 
     if (player_dbs.phase == DishBattleState::Phase::InQueue &&
         opponent_dbs.phase == DishBattleState::Phase::InQueue) {
       player_dbs.phase = DishBattleState::Phase::Entering;
-      player_dbs.enter_progress = -enter_start_delay;
+      player_dbs.enter_progress = -scaled_enter_start_delay;
       opponent_dbs.phase = DishBattleState::Phase::Entering;
-      opponent_dbs.enter_progress = -enter_start_delay;
-      cq.current_index++;
+      opponent_dbs.enter_progress = -scaled_enter_start_delay;
+      log_info("COMBAT_START: Starting course {} - Player dish {}, Opponent dish {}", 
+               cq.current_index, player_dish->id, opponent_dish->id);
+
+      // Store dish IDs for this course so AdvanceCourseSystem can track when they finish
+      cq.current_player_dish_id = player_dish->id;
+      cq.current_opponent_dish_id = opponent_dish->id;
 
       if (auto tq = afterhours::EntityHelper::get_singleton<TriggerQueue>();
           tq.get().has<TriggerQueue>()) {
@@ -114,7 +126,7 @@ private:
   }
 
   bool has_remaining_active_dishes(DishBattleState::TeamSide side) {
-    return EQ().whereHasComponent<DishBattleState>()
+    int count = EQ().whereHasComponent<DishBattleState>()
                .whereTeamSide(side)
                .whereLambda([](const afterhours::Entity &e) {
                  const DishBattleState &dbs = e.get<DishBattleState>();
@@ -122,7 +134,10 @@ private:
                         dbs.phase == DishBattleState::Phase::Entering ||
                         dbs.phase == DishBattleState::Phase::InCombat;
                })
-               .gen_count() > 0;
+               .gen_count();
+    log_info("COMBAT_START: {} side has {} active dishes (phases: InQueue, Entering, InCombat)", 
+             side == DishBattleState::TeamSide::Player ? "Player" : "Opponent", count);
+    return count > 0;
   }
 
   bool prerequisites_complete() {

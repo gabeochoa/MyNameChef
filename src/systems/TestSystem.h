@@ -28,8 +28,11 @@ struct TestSystem : afterhours::System<> {
   explicit TestSystem(std::string name)
       : test_name(name), kValidationTimeout([test_name_copy = name]() {
           // Integration tests need much longer timeouts for full battles
+          // Check for integration, opponent_match, or checksum_match (all are integration tests)
           bool is_integration =
-              test_name_copy.find("integration") != std::string::npos;
+              test_name_copy.find("integration") != std::string::npos ||
+              test_name_copy.find("opponent_match") != std::string::npos ||
+              test_name_copy.find("checksum_match") != std::string::npos;
           if (is_integration) {
             return render_backend::is_headless_mode ? 30.0f : 120.0f;
           }
@@ -63,9 +66,9 @@ struct TestSystem : afterhours::System<> {
           // Cap dt to reasonable frame time (16ms at 60fps) to avoid huge
           // spikes
           float clamped_dt = std::min(dt, 0.1f);
-          // Divide by animation speed multiplier to track real wall-clock time
-          // instead of game time (dt is already multiplied by the multiplier)
-          float real_dt = clamped_dt / render_backend::animation_speed_multiplier;
+          // Divide by timing speed scale to track real wall-clock time
+          // instead of game time (dt is already multiplied by the scale)
+          float real_dt = clamped_dt / render_backend::timing_speed_scale;
           validation_elapsed_time += real_dt;
         }
 

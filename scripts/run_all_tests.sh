@@ -142,7 +142,7 @@ run_test() {
 
     if [ "$STREAM_OUTPUT" = true ]; then
         # Stream output directly
-        if timeout $test_timeout "$EXECUTABLE" --run-test "$test_name" $headless_flag --animation-speed-multiplier 5; then
+        if timeout $test_timeout "$EXECUTABLE" --run-test "$test_name" $headless_flag --timing-speed-scale 5; then
             echo -e "  ${GREEN}✅ PASSED${NC} - Test completed successfully"
             return 0
         else
@@ -159,7 +159,7 @@ run_test() {
     else
         # Capture output to file (default)
         local output_file="/tmp/test_output_$$"
-        if timeout $test_timeout "$EXECUTABLE" --run-test "$test_name" $headless_flag --animation-speed-multiplier 5 > "$output_file" 2>&1; then
+        if timeout $test_timeout "$EXECUTABLE" --run-test "$test_name" $headless_flag --timing-speed-scale 5 > "$output_file" 2>&1; then
             # Check if test completed successfully
             if grep -q "TEST COMPLETED:" "$output_file" || grep -q "TEST VALIDATION PASSED:" "$output_file" || grep -q "TEST PASSED:" "$output_file"; then
                 echo -e "  ${GREEN}✅ PASSED${NC} - Test completed successfully"

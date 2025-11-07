@@ -15,7 +15,7 @@
 
 bool render_backend::is_headless_mode = true;
 int render_backend::step_delay_ms = 0;
-float render_backend::animation_speed_multiplier = 1.0f;
+float render_backend::timing_speed_scale = 1.0f;
 bool running = true;
 
 int main(int argc, char *argv[]) {

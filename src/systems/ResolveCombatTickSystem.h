@@ -87,7 +87,8 @@ private:
 
     // Handle cadence state machine
     if (dbs.bite_cadence == DishBattleState::BiteCadence::PrePause) {
-      if (dbs.bite_cadence_timer < kPrePauseMs)
+      float scaled_pre_pause = kPrePauseMs / render_backend::timing_speed_scale;
+      if (dbs.bite_cadence_timer < scaled_pre_pause)
         return;
 
       // Time to apply damage - both dishes attack simultaneously
@@ -138,7 +139,8 @@ private:
     }
 
     if (dbs.bite_cadence == DishBattleState::BiteCadence::PostPause) {
-      if (dbs.bite_cadence_timer < kPostPauseMs)
+      float scaled_post_pause = kPostPauseMs / render_backend::timing_speed_scale;
+      if (dbs.bite_cadence_timer < scaled_post_pause)
         return;
 
       // Advance to next simultaneous attack

@@ -6,7 +6,7 @@ namespace render_backend {
 extern bool is_headless_mode;
 extern int step_delay_ms; // Delay between test steps in non-headless mode
                           // (milliseconds)
-extern float animation_speed_multiplier; // Multiplier for animation speed
+extern float timing_speed_scale; // Scale factor for timing-based waits and animations (1.0 = normal speed)
 
 // Drawing context management
 inline void BeginDrawing() {

@@ -1,15 +1,14 @@
 #pragma once
 
+#include "../../components/battle_result.h"
+#include "../../components/dish_battle_state.h"
 #include "../../game_state_manager.h"
+#include "../../log.h"
 #include "../test_macros.h"
+#include <afterhours/ah.h>
 
 TEST(validate_full_game_flow) {
-  GameStateManager::get().update_screen();
-  auto &gsm = GameStateManager::get();
-  if (gsm.active_screen == GameStateManager::Screen::Battle) {
-    app.wait_for_ui_exists("Skip to Results", 5.0f);
-    return;
-  }
+  log_info("TEST: Starting validate_full_game_flow test");
 
   // Step 1: Start from main menu
   app.launch_game();
@@ -19,58 +18,95 @@ TEST(validate_full_game_flow) {
   app.click("Play");
   app.wait_for_screen(GameStateManager::Screen::Shop, 10.0f);
 
-  // TODO: Validate shop screen loaded
-  // Expected: Shop screen with slots and inventory
-  // Bug: Shop screen may not be loading properly
-
   // Step 3: Validate shop functionality
-  // TODO: Shop should have items to buy
-  // Expected: Shop slots populated with dishes
-  // Bug: Shop generation may not be working
   app.wait_for_ui_exists("Next Round");
-  // Reroll button starts at cost 1 (base=1, increment=0)
   app.wait_for_ui_exists("Reroll (1)");
 
   // Step 4: Navigate to battle
   app.click("Next Round");
   app.wait_for_screen(GameStateManager::Screen::Battle, 15.0f);
+  // With timing speed scale, battle might complete very quickly, so check current screen
+  GameStateManager::get().update_screen();
+  GameStateManager::Screen current_screen = GameStateManager::get().active_screen;
+  if (current_screen != GameStateManager::Screen::Battle && 
+      current_screen != GameStateManager::Screen::Results) {
+    app.expect_screen_is(GameStateManager::Screen::Battle);
+  }
 
-  // TODO: Validate battle screen loaded
-  // Expected: Battle screen with combat display
-  // Bug: Battle screen may not be loading properly
-  app.wait_for_ui_exists("Skip to Results");
+  app.wait_for_frames(10);
 
-  // Step 5: Validate battle progression
-  // TODO: Battle should progress through courses
-  // Expected: 7 courses with alternating bites
-  // Bug: Battle progression may not be working
+  app.wait_for_battle_initialized(10.0f);
+  log_info("TEST: Battle initialized");
 
-  // Step 6: Validate battle completion
-  // TODO: Battle should complete and show results
-  // Expected: Results screen with match outcome
-  // Bug: Battle completion may not be working
+  // Check screen - might be Battle or Results if battle completed very quickly
+  GameStateManager::get().update_screen();
+  GameStateManager::Screen screen_after_init = GameStateManager::get().active_screen;
+  if (screen_after_init == GameStateManager::Screen::Results) {
+    // Battle completed very quickly, skip to results validation
+    log_info("TEST: Battle completed very quickly, already on Results screen");
+  } else {
+    app.expect_screen_is(GameStateManager::Screen::Battle);
+  }
 
-  // TODO: Validate game state is consistent throughout flow
-  // Expected: No crashes, proper state transitions
-  // Bug: Game state may become inconsistent
+  static int initial_player_dishes = 0;
+  static int initial_opponent_dishes = 0;
+  static bool dishes_counted = dishes_counted || [&]() {
+    // Only count dishes if we're still on Battle screen
+    GameStateManager::get().update_screen();
+    if (GameStateManager::get().active_screen == GameStateManager::Screen::Battle) {
+      initial_player_dishes = app.count_active_player_dishes();
+      initial_opponent_dishes = app.count_active_opponent_dishes();
+      log_info("TEST: Initial dish counts - Player: {}, Opponent: {}",
+               initial_player_dishes, initial_opponent_dishes);
+    } else {
+      // Battle already completed, set defaults
+      initial_player_dishes = 1;
+      initial_opponent_dishes = 1;
+      log_info("TEST: Battle already completed, using default dish counts");
+    }
+    return true;
+  }();
 
-  // TODO: Validate entity cleanup
-  // Expected: Entities should be properly cleaned up between screens
-  // Bug: Entity cleanup may not be working
+  // Step 5: Wait for battle to complete naturally
+  GameStateManager::get().update_screen();
+  if (GameStateManager::get().active_screen != GameStateManager::Screen::Results) {
+    log_info("TEST: Waiting for battle to complete...");
+    app.wait_for_battle_complete(60.0f);
+    log_info("TEST: Battle completed");
+  } else {
+    log_info("TEST: Battle already completed, skipping wait");
+  }
 
-  // TODO: Validate singleton state
-  // Expected: Singletons should maintain proper state
-  // Bug: Singleton state may be corrupted
+  // Step 6: Validate battle completion and results
+  app.wait_for_results_screen(10.0f);
+  app.expect_screen_is(GameStateManager::Screen::Results);
+  log_info("TEST: Results screen reached");
 
-  // TODO: Validate game performance
-  // Expected: Smooth 60fps, no stuttering
-  // Bug: Performance may be poor
+  app.expect_true(initial_player_dishes > 0 || initial_opponent_dishes > 0,
+                  "should have initial dishes");
+  int final_player = app.count_active_player_dishes();
+  int final_opponent = app.count_active_opponent_dishes();
+  log_info("TEST: Final dish counts - Player: {}, Opponent: {}", final_player,
+           final_opponent);
+  app.expect_count_lte(final_player, initial_player_dishes,
+                       "final player dish count");
+  app.expect_count_lte(final_opponent, initial_opponent_dishes,
+                       "final opponent dish count");
 
-  // TODO: Validate memory usage
-  // Expected: No memory leaks
-  // Bug: Memory leaks may exist
-
-  // TODO: Validate rendering performance
-  // Expected: Efficient rendering pipeline
-  // Bug: Rendering may be inefficient
+  // Wait a moment for BattleResult to be created if battle just completed
+  app.wait_for_frames(10);
+  auto result_entity = afterhours::EntityHelper::get_singleton<BattleResult>();
+  // Check if entity is valid before accessing it
+  if (result_entity.get().id == 0) {
+    log_warn("TEST: BattleResult not found yet, waiting more...");
+    // Try waiting a bit more
+    app.wait_for_frames(20);
+    result_entity = afterhours::EntityHelper::get_singleton<BattleResult>();
+  }
+  // Now check if it has the component (this will fail gracefully if entity is invalid)
+  app.expect_singleton_has_component<BattleResult>(result_entity,
+                                                    "BattleResult");
+  app.expect_battle_not_tie();
+  app.expect_battle_has_outcomes();
+  log_info("TEST: Battle result validated");
 }

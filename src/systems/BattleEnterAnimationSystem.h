@@ -39,6 +39,7 @@ struct BattleEnterAnimationSystem : afterhours::System<DishBattleState> {
       float effective_dt = dt > 0.0f ? dt : kFallbackDt;
 
       const float enter_duration = 0.45f; // seconds
+      float scaled_enter_duration = enter_duration / render_backend::timing_speed_scale;
       // Support a start delay by allowing enter_progress to begin negative; we
       // count it up to 0 before progressing the visible animation 0..1.
       if (dbs.enter_progress < 0.0f) {
@@ -46,7 +47,7 @@ struct BattleEnterAnimationSystem : afterhours::System<DishBattleState> {
         return;
       }
       dbs.enter_progress =
-          std::min(1.0f, dbs.enter_progress + effective_dt / enter_duration);
+          std::min(1.0f, dbs.enter_progress + effective_dt / scaled_enter_duration);
     }
 
     if (dbs.enter_progress >= 1.0f) {
