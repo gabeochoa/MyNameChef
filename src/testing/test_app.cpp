@@ -37,6 +37,11 @@ void TestApp::fail(const std::string &message, const std::string &location) {
   throw std::runtime_error(message);
 }
 
+void TestApp::yield(std::function<void()> continuation) {
+  yield_continuation = std::move(continuation);
+  throw std::runtime_error("TEST_YIELD");
+}
+
 TestApp &TestApp::launch_game(const std::source_location &loc) {
   TestOperationID op_id = generate_operation_id(loc, "launch_game");
   if (completed_operations.count(op_id) > 0) {
@@ -47,7 +52,8 @@ TestApp &TestApp::launch_game(const std::source_location &loc) {
   game_launched = true;
   completed_operations.insert(op_id);
   if (step_delay()) {
-    throw std::runtime_error("WAIT_FOR_FRAME_DELAY_CONTINUE");
+    yield([this, loc]() { launch_game(loc); });
+    return *this;
   }
   return *this;
 }
@@ -82,7 +88,8 @@ TestApp &TestApp::click(const std::string &button_label,
   completed_operations.insert(op_id);
 
   if (step_delay()) {
-    throw std::runtime_error("WAIT_FOR_FRAME_DELAY_CONTINUE");
+    yield([this, button_label, loc]() { click(button_label, loc); });
+    return *this;
   }
   return *this;
 }
@@ -172,7 +179,8 @@ TestApp &TestApp::navigate_to_shop(const std::source_location &loc) {
   wait_for_screen(GameStateManager::Screen::Shop);
   completed_operations.insert(op_id);
   if (step_delay()) {
-    throw std::runtime_error("WAIT_FOR_FRAME_DELAY_CONTINUE");
+    yield([this, loc]() { navigate_to_shop(loc); });
+    return *this;
   }
   return *this;
 }
@@ -202,7 +210,8 @@ TestApp &TestApp::navigate_to_battle(const std::source_location &loc) {
   wait_for_screen(GameStateManager::Screen::Battle);
   completed_operations.insert(op_id);
   if (step_delay()) {
-    throw std::runtime_error("WAIT_FOR_FRAME_DELAY_CONTINUE");
+    yield([this, loc]() { navigate_to_battle(loc); });
+    return *this;
   }
   return *this;
 }
@@ -400,11 +409,17 @@ TestApp &TestApp::wait_for_ui_exists(const std::string &label,
       wait_state.type = WaitState::None;
       return *this;
     }
-    throw std::runtime_error("WAIT_FOR_UI_CONTINUE");
+    yield([this, label, timeout_sec, location, loc]() {
+      wait_for_ui_exists(label, timeout_sec, location, loc);
+    });
+    return *this;
   }
 
   if (wait_state.type != WaitState::None && wait_state.operation_id != op_id) {
-    throw std::runtime_error("WAIT_FOR_UI_CONTINUE");
+    yield([this, label, timeout_sec, location, loc]() {
+      wait_for_ui_exists(label, timeout_sec, location, loc);
+    });
+    return *this;
   }
 
   setup_wait_state(WaitState::UI, timeout_sec, location);
@@ -417,7 +432,10 @@ TestApp &TestApp::wait_for_ui_exists(const std::string &label,
     return *this;
   }
 
-  throw std::runtime_error("WAIT_FOR_UI_CONTINUE");
+  yield([this, op_id, label, timeout_sec, location, loc]() {
+    wait_for_ui_exists(label, timeout_sec, location, loc);
+  });
+  return *this;
 }
 
 bool TestApp::check_wait_conditions() {
@@ -615,11 +633,17 @@ TestApp &TestApp::wait_for_screen(GameStateManager::Screen screen,
       wait_state.type = WaitState::None;
       return *this;
     }
-    throw std::runtime_error("WAIT_FOR_SCREEN_CONTINUE");
+    yield([this, screen, timeout_sec, loc]() {
+      wait_for_screen(screen, timeout_sec, loc);
+    });
+    return *this;
   }
 
   if (wait_state.type != WaitState::None && wait_state.operation_id != op_id) {
-    throw std::runtime_error("WAIT_FOR_SCREEN_CONTINUE");
+    yield([this, screen, timeout_sec, loc]() {
+      wait_for_screen(screen, timeout_sec, loc);
+    });
+    return *this;
   }
 
   setup_wait_state(WaitState::Screen, timeout_sec);
@@ -633,7 +657,10 @@ TestApp &TestApp::wait_for_screen(GameStateManager::Screen screen,
     return *this;
   }
 
-  throw std::runtime_error("WAIT_FOR_SCREEN_CONTINUE");
+  yield([this, op_id, screen, timeout_sec, loc]() {
+    wait_for_screen(screen, timeout_sec, loc);
+  });
+  return *this;
 }
 
 TestApp &TestApp::wait_for_frames(int frames, const std::source_location &loc) {
@@ -650,11 +677,13 @@ TestApp &TestApp::wait_for_frames(int frames, const std::source_location &loc) {
       completed_operations.insert(op_id);
       return *this;
     }
-    throw std::runtime_error("WAIT_FOR_FRAME_DELAY_CONTINUE");
+    yield([this, frames, loc]() { wait_for_frames(frames, loc); });
+    return *this;
   }
 
   if (wait_state.type != WaitState::None && wait_state.operation_id != op_id) {
-    throw std::runtime_error("WAIT_FOR_FRAME_DELAY_CONTINUE");
+    yield([this, frames, loc]() { wait_for_frames(frames, loc); });
+    return *this;
   }
 
   setup_wait_state(WaitState::FrameDelay, 60.0f); // 60 second timeout
@@ -667,7 +696,8 @@ TestApp &TestApp::wait_for_frames(int frames, const std::source_location &loc) {
     return *this;
   }
 
-  throw std::runtime_error("WAIT_FOR_FRAME_DELAY_CONTINUE");
+  yield([this, op_id, frames, loc]() { wait_for_frames(frames, loc); });
+  return *this;
 }
 
 TestApp &TestApp::pump_frame() {
@@ -1075,7 +1105,10 @@ TestApp &TestApp::wait_for_battle_initialized(float timeout_sec,
   wait_state.type = WaitState::FrameDelay;
   wait_state.frame_delay_count = 1;
   wait_state.operation_id = op_id;
-  throw std::runtime_error("WAIT_FOR_FRAME_DELAY_CONTINUE");
+  yield([this, timeout_sec, location]() {
+    wait_for_battle_initialized(timeout_sec, location);
+  });
+  return *this;
 }
 
 TestApp &TestApp::wait_for_dishes_in_combat(int min_count, float timeout_sec,
@@ -1105,7 +1138,10 @@ TestApp &TestApp::wait_for_dishes_in_combat(int min_count, float timeout_sec,
   wait_state.type = WaitState::FrameDelay;
   wait_state.frame_delay_count = 1;
   wait_state.operation_id = op_id;
-  throw std::runtime_error("WAIT_FOR_FRAME_DELAY_CONTINUE");
+  yield([this, min_count, timeout_sec, location]() {
+    wait_for_dishes_in_combat(min_count, timeout_sec, location);
+  });
+  return *this;
 }
 
 TestApp &TestApp::wait_for_battle_complete(float timeout_sec,
@@ -1142,33 +1178,38 @@ TestApp &TestApp::wait_for_battle_complete(float timeout_sec,
   int opponent_count = count_active_opponent_dishes();
 
   // Log course progression and dish counts periodically
-  auto combat_queue_opt = afterhours::EntityHelper::get_singleton<CombatQueue>();
+  auto combat_queue_opt =
+      afterhours::EntityHelper::get_singleton<CombatQueue>();
   if (combat_queue_opt.get().has<CombatQueue>()) {
     const CombatQueue &cq = combat_queue_opt.get().get<CombatQueue>();
     if (cq.current_index != last_course_index) {
       last_course_index = cq.current_index;
-      log_info("TEST_BATTLE: Course {} started - Player dishes: {}, Opponent dishes: {}", 
+      log_info("TEST_BATTLE: Course {} started - Player dishes: {}, Opponent "
+               "dishes: {}",
                cq.current_index + 1, player_count, opponent_count);
     }
-    
+
     // Log dish counts every 100 frames to track progress
     log_counter++;
     if (log_counter % 100 == 0) {
-      log_info("TEST_BATTLE: Course {} in progress - Player dishes: {}, Opponent dishes: {}, Complete: {}", 
+      log_info("TEST_BATTLE: Course {} in progress - Player dishes: {}, "
+               "Opponent dishes: {}, Complete: {}",
                cq.current_index + 1, player_count, opponent_count, cq.complete);
     }
   } else {
     // Log dish counts even if CombatQueue not available
     log_counter++;
     if (log_counter % 100 == 0) {
-      log_info("TEST_BATTLE: Battle in progress - Player dishes: {}, Opponent dishes: {}", 
+      log_info("TEST_BATTLE: Battle in progress - Player dishes: {}, Opponent "
+               "dishes: {}",
                player_count, opponent_count);
     }
   }
 
   if (player_count == 0 || opponent_count == 0) {
-    log_info("TEST_BATTLE: Battle ending - Player dishes: {}, Opponent dishes: {}", 
-             player_count, opponent_count);
+    log_info(
+        "TEST_BATTLE: Battle ending - Player dishes: {}, Opponent dishes: {}",
+        player_count, opponent_count);
     wait_for_screen(GameStateManager::Screen::Results, timeout_sec);
     return *this;
   }
@@ -1186,7 +1227,10 @@ TestApp &TestApp::wait_for_battle_complete(float timeout_sec,
   wait_state.type = WaitState::FrameDelay;
   wait_state.frame_delay_count = 2;
   wait_state.operation_id = op_id;
-  throw std::runtime_error("WAIT_FOR_FRAME_DELAY_CONTINUE");
+  yield([this, timeout_sec, location]() {
+    wait_for_battle_complete(timeout_sec, location);
+  });
+  return *this;
 }
 
 TestApp &TestApp::wait_for_results_screen(float timeout_sec,
@@ -1240,7 +1284,8 @@ TestApp &TestApp::expect_false(bool value, const std::string &description,
 TestApp &TestApp::kill_server() {
   const char *pid_str = std::getenv("TEST_SERVER_PID");
   if (!pid_str) {
-    log_warn("TEST: TEST_SERVER_PID environment variable not set - server may not be running");
+    log_warn("TEST: TEST_SERVER_PID environment variable not set - server may "
+             "not be running");
     return *this;
   }
 
@@ -1251,7 +1296,8 @@ TestApp &TestApp::kill_server() {
   std::string check_cmd = "kill -0 " + std::to_string(pid) + " 2>/dev/null";
   int check_result = system(check_cmd.c_str());
   if (check_result != 0) {
-    log_warn("TEST: Server process {} does not exist (may already be dead)", pid);
+    log_warn("TEST: Server process {} does not exist (may already be dead)",
+             pid);
     return *this;
   }
 
@@ -1577,7 +1623,10 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
   }
 
   if (step_delay()) {
-    throw std::runtime_error("WAIT_FOR_FRAME_DELAY_CONTINUE");
+    yield([this, type, inventory_slot, location]() {
+      purchase_item(type, inventory_slot, location);
+    });
+    return *this;
   }
 
   return *this;

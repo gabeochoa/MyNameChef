@@ -7,9 +7,14 @@
 #include <afterhours/ah.h>
 
 #include "../game_state_manager.h"
+#include "../testing/test_app.h"
 #include "../log.h"
 #include "../render_backend.h"
 #include "../rl.h"
+
+// Forward declarations for static maps in TestSystem.cpp
+extern std::unordered_map<std::string, TestApp*> g_test_apps;
+extern std::unordered_map<std::string, std::function<void()>> g_test_continuations;
 
 struct TestSystem : afterhours::System<> {
   std::string test_name;
@@ -55,49 +60,63 @@ struct TestSystem : afterhours::System<> {
 
   virtual void once(float dt) override {
     if (initialized) {
-      // Run validation on subsequent frames
-      if (!validation_completed && validation_function) {
-        validation_attempts++;
-        // Skip accumulating time on first validation frame (dt may be huge due
-        // to initialization)
-        if (first_validation_frame) {
-          first_validation_frame = false;
-        } else {
-          // Cap dt to reasonable frame time (16ms at 60fps) to avoid huge
-          // spikes
-          float clamped_dt = std::min(dt, 0.1f);
-          // Divide by timing speed scale to track real wall-clock time
-          // instead of game time (dt is already multiplied by the scale)
-          float real_dt = clamped_dt / render_backend::timing_speed_scale;
-          validation_elapsed_time += real_dt;
-        }
+      // Check wait conditions and resume test when waits complete
+      auto it = g_test_apps.find(test_name);
+      if (it != g_test_apps.end() && it->second != nullptr) {
+        TestApp* test_app = it->second;
+        
+        // Check if we're waiting for something
+        if (test_app->wait_state.type != TestApp::WaitState::None) {
+          validation_attempts++;
+          // Skip accumulating time on first validation frame (dt may be huge due
+          // to initialization)
+          if (first_validation_frame) {
+            first_validation_frame = false;
+          } else {
+            // Cap dt to reasonable frame time (16ms at 60fps) to avoid huge
+            // spikes
+            float clamped_dt = std::min(dt, 0.1f);
+            // Divide by timing speed scale to track real wall-clock time
+            // instead of game time (dt is already multiplied by the scale)
+            float real_dt = clamped_dt / render_backend::timing_speed_scale;
+            validation_elapsed_time += real_dt;
+          }
 
-        if (validation_elapsed_time >= kValidationTimeout) {
-          log_error("TEST VALIDATION TIMEOUT: {} - Validation exceeded {}s "
-                    "timeout ({} attempts)",
-                    test_name, kValidationTimeout, validation_attempts);
-          exit(1);
-        }
+          if (validation_elapsed_time >= kValidationTimeout) {
+            log_error("TEST VALIDATION TIMEOUT: {} - Validation exceeded {}s "
+                      "timeout ({} attempts)",
+                      test_name, kValidationTimeout, validation_attempts);
+            exit(1);
+          }
 
-        bool validation_result = validation_function();
-        if (validation_result) {
-          validation_completed = true;
-          test_completed = true;
-          log_info("TEST VALIDATION PASSED: {} - Validation successful after "
-                   "{} attempts ({}s)",
-                   test_name, validation_attempts, validation_elapsed_time);
-          exit(0);
+          bool wait_complete = test_app->check_wait_conditions();
+          if (wait_complete && test_app->wait_state.type == TestApp::WaitState::None) {
+            // Wait completed - resume test via continuation
+            auto cont_it = g_test_continuations.find(test_name);
+            if (cont_it != g_test_continuations.end() && cont_it->second) {
+              // Resume test by calling test_function again (it will use continuation)
+              if (test_function) {
+                test_function();
+              }
+            }
+          } else {
+            // Still waiting
+            if (validation_attempts % 100 == 0) {
+              log_info("TEST VALIDATION CHECKING: {} - Attempt {} ({}s) - Still "
+                       "waiting...",
+                       test_name, validation_attempts, validation_elapsed_time);
+            }
+          }
         } else {
-          if (validation_attempts % 100 == 0) {
-            log_info("TEST VALIDATION CHECKING: {} - Attempt {} ({}s) - Still "
-                     "waiting for validation...",
-                     test_name, validation_attempts, validation_elapsed_time);
+          // No wait state - test should have completed
+          // Try running test_function one more time to see if it completes
+          if (test_function) {
+            test_function();
           }
         }
       } else if (!test_completed) {
         test_completed = true;
-        log_info("TEST COMPLETED: {} - No validation function, test finished",
-                 test_name);
+        log_info("TEST COMPLETED: {} - Test finished", test_name);
         exit(0);
       }
       return;
@@ -112,11 +131,8 @@ struct TestSystem : afterhours::System<> {
       test_function();
     }
 
-    if (!validation_function) {
-      test_completed = true;
-      log_info("TEST COMPLETED: {} - No validation function, test finished "
-               "immediately",
-               test_name);
+    // If test completed immediately (no waits), exit
+    if (test_completed) {
       exit(0);
     }
   }

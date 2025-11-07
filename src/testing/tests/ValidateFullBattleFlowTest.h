@@ -56,17 +56,8 @@ TEST(validate_full_battle_flow) {
 
   app.expect_screen_is(GameStateManager::Screen::Battle);
 
-  static int initial_player_dishes = 0;
-  static int initial_opponent_dishes = 0;
-  static bool dishes_counted = false;
-
-  if (!dishes_counted) {
-    app.expect_screen_is(GameStateManager::Screen::Battle);
-    initial_player_dishes = app.count_active_player_dishes();
-    initial_opponent_dishes = app.count_active_opponent_dishes();
-    dishes_counted = true;
-    return;
-  }
+  int initial_player_dishes = app.count_active_player_dishes();
+  int initial_opponent_dishes = app.count_active_opponent_dishes();
 
   app.wait_for_battle_complete(60.0f);
   app.wait_for_results_screen(10.0f);

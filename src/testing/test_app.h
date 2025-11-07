@@ -16,6 +16,7 @@
 #include "../shop.h"
 #include <afterhours/ah.h>
 #include <chrono>
+#include <functional>
 #include <optional>
 #include <set>
 #include <source_location>
@@ -114,6 +115,9 @@ struct TestApp {
     TestOperationID operation_id = 0;
   } wait_state;
 
+  // Continuation function for yield/resume pattern
+  std::function<void()> yield_continuation;
+
   TestApp() = default;
 
   void set_test_name(const std::string &name) {
@@ -126,6 +130,9 @@ struct TestApp {
   }
 
   void fail(const std::string &message, const std::string &location = "");
+
+  // Yield/resume support for one-time test execution
+  void yield(std::function<void()> continuation);
 
   // Check wait conditions (call this from TestSystem each frame)
   bool check_wait_conditions();

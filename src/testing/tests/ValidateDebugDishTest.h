@@ -28,20 +28,19 @@ static void navigate_to_battle_screen(TestApp &app) {
   auto &gsm = GameStateManager::get();
   if (gsm.active_screen == GameStateManager::Screen::Battle) {
     app.wait_for_ui_exists("Skip to Results", 5.0f);
-    return; // Already on battle screen
+  } else {
+    app.launch_game();
+    app.wait_for_ui_exists("Play");
+    app.click("Play");
+    app.wait_for_screen(GameStateManager::Screen::Shop, 10.0f);
+    app.wait_for_ui_exists("Next Round");
+    app.click("Next Round");
+    app.wait_for_screen(GameStateManager::Screen::Battle, 15.0f);
+    app.wait_for_ui_exists("Skip to Results", 5.0f);
+
+    // Ensure screen is updated after navigation
+    GameStateManager::get().update_screen();
   }
-
-  app.launch_game();
-  app.wait_for_ui_exists("Play");
-  app.click("Play");
-  app.wait_for_screen(GameStateManager::Screen::Shop, 10.0f);
-  app.wait_for_ui_exists("Next Round");
-  app.click("Next Round");
-  app.wait_for_screen(GameStateManager::Screen::Battle, 15.0f);
-  app.wait_for_ui_exists("Skip to Results", 5.0f);
-
-  // Ensure screen is updated after navigation
-  GameStateManager::get().update_screen();
 }
 
 static afterhours::Entity &

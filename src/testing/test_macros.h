@@ -49,6 +49,13 @@ public:
     try {
       it->second.test_fn(app);
 
+      // If test yielded, it will have stored a continuation and thrown TEST_YIELD
+      // Check if test yielded
+      if (app.yield_continuation) {
+        // Test yielded - will resume when wait completes
+        return false;
+      }
+
       // If test completed but we're still waiting for something, return false
       // to indicate test needs to continue on next frame
       if (app.wait_state.type != TestApp::WaitState::None) {
@@ -58,8 +65,14 @@ public:
       log_info("TEST PASSED: {}", name);
       return true;
     } catch (const std::exception &e) {
-      // Check if this is a "continue" exception (non-blocking wait)
+      // Check if this is a yield exception
       std::string error_msg = e.what();
+      if (error_msg == "TEST_YIELD") {
+        // Test yielded - continuation is stored in app.yield_continuation
+        return false; // Test needs to continue on next frame after wait completes
+      }
+
+      // Legacy continue exceptions (should not be used with yield/resume, but handle for compatibility)
       if (error_msg == "WAIT_FOR_UI_CONTINUE" ||
           error_msg == "WAIT_FOR_SCREEN_CONTINUE" ||
           error_msg == "WAIT_FOR_FRAME_DELAY_CONTINUE") {

@@ -48,24 +48,21 @@ TEST(validate_full_game_flow) {
     app.expect_screen_is(GameStateManager::Screen::Battle);
   }
 
-  static int initial_player_dishes = 0;
-  static int initial_opponent_dishes = 0;
-  static bool dishes_counted = dishes_counted || [&]() {
-    // Only count dishes if we're still on Battle screen
-    GameStateManager::get().update_screen();
-    if (GameStateManager::get().active_screen == GameStateManager::Screen::Battle) {
-      initial_player_dishes = app.count_active_player_dishes();
-      initial_opponent_dishes = app.count_active_opponent_dishes();
-      log_info("TEST: Initial dish counts - Player: {}, Opponent: {}",
-               initial_player_dishes, initial_opponent_dishes);
-    } else {
-      // Battle already completed, set defaults
-      initial_player_dishes = 1;
-      initial_opponent_dishes = 1;
-      log_info("TEST: Battle already completed, using default dish counts");
-    }
-    return true;
-  }();
+  int initial_player_dishes = 0;
+  int initial_opponent_dishes = 0;
+  // Only count dishes if we're still on Battle screen
+  GameStateManager::get().update_screen();
+  if (GameStateManager::get().active_screen == GameStateManager::Screen::Battle) {
+    initial_player_dishes = app.count_active_player_dishes();
+    initial_opponent_dishes = app.count_active_opponent_dishes();
+    log_info("TEST: Initial dish counts - Player: {}, Opponent: {}",
+             initial_player_dishes, initial_opponent_dishes);
+  } else {
+    // Battle already completed, set defaults
+    initial_player_dishes = 1;
+    initial_opponent_dishes = 1;
+    log_info("TEST: Battle already completed, using default dish counts");
+  }
 
   // Step 5: Wait for battle to complete naturally
   GameStateManager::get().update_screen();
