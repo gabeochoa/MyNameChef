@@ -63,7 +63,10 @@ struct TestSystem : afterhours::System<> {
           // Cap dt to reasonable frame time (16ms at 60fps) to avoid huge
           // spikes
           float clamped_dt = std::min(dt, 0.1f);
-          validation_elapsed_time += clamped_dt;
+          // Divide by animation speed multiplier to track real wall-clock time
+          // instead of game time (dt is already multiplied by the multiplier)
+          float real_dt = clamped_dt / render_backend::animation_speed_multiplier;
+          validation_elapsed_time += real_dt;
         }
 
         if (validation_elapsed_time >= kValidationTimeout) {

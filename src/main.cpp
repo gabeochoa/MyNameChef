@@ -88,6 +88,8 @@ raylib::RenderTexture2D screenRT;
 bool render_backend::is_headless_mode = false;
 // Step delay for non-headless test mode (milliseconds)
 int render_backend::step_delay_ms = 500;
+// Animation speed multiplier (default 1.0 = normal speed)
+float render_backend::animation_speed_multiplier = 1.0f;
 // Global audit strict mode flag
 bool audit_strict = false;
 
@@ -233,12 +235,14 @@ void game(const std::optional<std::string> &run_test) {
 
     if (!render_backend::is_headless_mode) {
       while (running && !raylib::WindowShouldClose()) {
-        systems.run(raylib::GetFrameTime());
+        float dt = raylib::GetFrameTime();
+        systems.run(dt * render_backend::animation_speed_multiplier);
       }
     } else {
       // Headless loop: run with fixed timestep; tests will exit the process
       while (running) {
-        systems.run(1.0f / 60.0f);
+        float dt = 1.0f / 60.0f;
+        systems.run(dt * render_backend::animation_speed_multiplier);
       }
     }
   }
@@ -299,6 +303,14 @@ int main(int argc, char *argv[]) {
   render_backend::step_delay_ms = step_delay;
   if (!headless_mode && step_delay > 0) {
     log_info("STEP DELAY: {}ms between test steps", step_delay);
+  }
+
+  // Parse animation speed multiplier flag
+  float animation_speed = 1.0f; // Default 1.0 = normal speed
+  cmdl({"--animation-speed-multiplier"}, 1.0f) >> animation_speed;
+  render_backend::animation_speed_multiplier = animation_speed;
+  if (animation_speed != 1.0f) {
+    log_info("ANIMATION SPEED: {}x multiplier", animation_speed);
   }
 
   // Load savefile first

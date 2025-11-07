@@ -117,7 +117,7 @@ export INTEGRATION_SERVER_URL="${BASE_URL}"
 if [ "${AUTO_TEST:-false}" = "true" ]; then
     echo -e "${BLUE}   Running automated test (headless)...${NC}"
     echo -e "${YELLOW}   Client will request battle from server at ${BASE_URL}${NC}"
-    if timeout 60 "$CLIENT_EXECUTABLE" --run-test validate_server_battle_integration --headless > /tmp/integration_client_$$.log 2>&1; then
+    if timeout 60 "$CLIENT_EXECUTABLE" --run-test validate_server_battle_integration --headless --animation-speed-multiplier 5 > /tmp/integration_client_$$.log 2>&1; then
         echo -e "  ${GREEN}✅ Client integration test passed${NC}"
     else
         echo -e "  ${RED}❌ Client integration test failed${NC}"
@@ -139,7 +139,7 @@ else
     
     # Run integration tests in visible mode (without --headless flag)
     echo -e "${BLUE}   Running validate_server_battle_integration test...${NC}"
-    "$CLIENT_EXECUTABLE" --run-test validate_server_battle_integration
+    "$CLIENT_EXECUTABLE" --run-test validate_server_battle_integration --animation-speed-multiplier 5
     TEST_EXIT_CODE=$?
     
     if [ $TEST_EXIT_CODE -eq 0 ]; then
@@ -152,7 +152,7 @@ else
     
     echo ""
     echo -e "${BLUE}   Running validate_server_opponent_match test...${NC}"
-    "$CLIENT_EXECUTABLE" --run-test validate_server_opponent_match
+    "$CLIENT_EXECUTABLE" --run-test validate_server_opponent_match --animation-speed-multiplier 5
     OPPONENT_TEST_EXIT_CODE=$?
     
     if [ $OPPONENT_TEST_EXIT_CODE -eq 0 ]; then
