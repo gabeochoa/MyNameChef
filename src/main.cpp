@@ -11,6 +11,7 @@ backward::SignalHandling sh;
 #include "argh.h"
 #include "components/battle_anim_keys.h"
 #include "components/side_effect_tracker.h"
+#include "components/user_id.h"
 #include "preload.h"
 #include "seeded_rng.h"
 #include "settings.h"
@@ -117,6 +118,10 @@ void game(const std::optional<std::string> &run_test) {
     make_combat_manager(sophie);
     make_battle_processor_manager(sophie);
     make_network_manager(sophie);
+    make_user_id_singleton();
+    make_round_singleton(sophie);
+    make_continue_game_request_singleton(sophie);
+    make_continue_button_disabled_singleton(sophie);
 
     // Initialize SeededRng singleton for deterministic randomness
     {

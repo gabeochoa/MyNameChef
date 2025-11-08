@@ -4,8 +4,14 @@
 #include "../game_state_manager.h"
 #include "../shop.h"
 #include <afterhours/ah.h>
+#include <optional>
+#include <vector>
 
 using namespace afterhours;
+
+// Local type alias to avoid conflicts
+using ProcessBattleOptEntity =
+    std::optional<std::reference_wrapper<afterhours::Entity>>;
 
 struct ProcessBattleRewards : System<> {
   bool processed = false;
@@ -28,15 +34,24 @@ struct ProcessBattleRewards : System<> {
 
   void once(float) override {
     // Handle battle rewards
-    auto resultEntity = EntityHelper::get_singleton<BattleResult>();
-    if (!resultEntity.get().has<BattleResult>()) {
+    ProcessBattleOptEntity resultEntity =
+        EntityHelper::get_singleton<BattleResult>();
+    if (!resultEntity.has_value() || !resultEntity->get().has<BattleResult>()) {
       return;
     }
 
-    auto &result = resultEntity.get().get<BattleResult>();
+    BattleResult &result = resultEntity->get().get<BattleResult>();
 
     // Award rewards based on battle outcome
     award_battle_rewards(result);
+
+    // Increment round number
+    ProcessBattleOptEntity round_entity = EntityHelper::get_singleton<Round>();
+    if (round_entity.has_value() && round_entity->get().has<Round>()) {
+      round_entity->get().get<Round>().current++;
+      log_info("Round incremented to {}",
+               round_entity->get().get<Round>().current);
+    }
 
     // Refill store for next round
     refill_store();
@@ -46,16 +61,16 @@ struct ProcessBattleRewards : System<> {
 
 private:
   void award_battle_rewards(const BattleResult &result) {
-    auto walletEntity = EntityHelper::get_singleton<Wallet>();
-    auto healthEntity = EntityHelper::get_singleton<Health>();
+    ProcessBattleOptEntity walletEntity = EntityHelper::get_singleton<Wallet>();
+    ProcessBattleOptEntity healthEntity = EntityHelper::get_singleton<Health>();
 
-    if (!walletEntity.get().has<Wallet>() ||
-        !healthEntity.get().has<Health>()) {
+    if (!walletEntity.has_value() || !walletEntity->get().has<Wallet>() ||
+        !healthEntity.has_value() || !healthEntity->get().has<Health>()) {
       return;
     }
 
-    auto &wallet = walletEntity.get().get<Wallet>();
-    auto &health = healthEntity.get().get<Health>();
+    Wallet &wallet = walletEntity->get().get<Wallet>();
+    Health &health = healthEntity->get().get<Health>();
 
     // Award coins and health based on outcome
     switch (result.outcome) {
@@ -77,19 +92,22 @@ private:
   }
 
   void refill_store() {
-    auto free_slots = get_free_slots(SHOP_SLOTS);
-    
+    std::vector<int> free_slots = get_free_slots(SHOP_SLOTS);
+
     // Get current shop tier
-    auto shop_tier_entity = EntityHelper::get_singleton<ShopTier>();
+    ProcessBattleOptEntity shop_tier_entity =
+        EntityHelper::get_singleton<ShopTier>();
     int current_tier = 1; // Default to tier 1
-    if (shop_tier_entity.get().has<ShopTier>()) {
-      current_tier = shop_tier_entity.get().get<ShopTier>().current_tier;
+    if (shop_tier_entity.has_value() &&
+        shop_tier_entity->get().has<ShopTier>()) {
+      current_tier = shop_tier_entity->get().get<ShopTier>().current_tier;
     }
-    
+
     for (int slot : free_slots) {
       make_shop_item(slot, get_random_dish_for_tier(current_tier));
     }
     EntityHelper::merge_entity_arrays();
-    log_info("Store refilled with {} new items at tier {}", free_slots.size(), current_tier);
+    log_info("Store refilled with {} new items at tier {}", free_slots.size(),
+             current_tier);
   }
 };

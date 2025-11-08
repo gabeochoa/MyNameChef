@@ -17,8 +17,10 @@
 #include "components/toast_message.h"
 #include "components/transform.h"
 #include "components/trigger_queue.h"
+#include "components/user_id.h"
 #include "dish_types.h"
 #include "game_state_manager.h"
+#include "log.h"
 #include "render_backend.h"
 #include "render_constants.h"
 #include "seeded_rng.h"
@@ -183,6 +185,32 @@ Entity &make_battle_processor_manager(Entity &sophie) {
   EntityHelper::registerSingleton<ReplayState>(sophie);
   sophie.addComponentIfMissing<SideEffectTracker>();
   EntityHelper::registerSingleton<SideEffectTracker>(sophie);
+  return sophie;
+}
+
+Entity &make_user_id_singleton() {
+  auto &userId_entity = EntityHelper::createEntity();
+  userId_entity.addComponent<UserId>();
+  EntityHelper::registerSingleton<UserId>(userId_entity);
+  log_info("Initialized UserId: {}", userId_entity.get<UserId>().userId);
+  return userId_entity;
+}
+
+Entity &make_round_singleton(Entity &sophie) {
+  sophie.addComponentIfMissing<Round>();
+  EntityHelper::registerSingleton<Round>(sophie);
+  return sophie;
+}
+
+Entity &make_continue_game_request_singleton(Entity &sophie) {
+  sophie.addComponentIfMissing<ContinueGameRequest>();
+  EntityHelper::registerSingleton<ContinueGameRequest>(sophie);
+  return sophie;
+}
+
+Entity &make_continue_button_disabled_singleton(Entity &sophie) {
+  sophie.addComponentIfMissing<ContinueButtonDisabled>();
+  EntityHelper::registerSingleton<ContinueButtonDisabled>(sophie);
   return sophie;
 }
 

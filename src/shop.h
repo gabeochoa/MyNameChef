@@ -1,6 +1,8 @@
 #pragma once
 
 #include "components/animation_event.h"
+#include "components/continue_button_disabled.h"
+#include "components/continue_game_request.h"
 #include "rl.h"
 #include <afterhours/ah.h>
 #include <vector>
@@ -15,6 +17,10 @@ struct Wallet : afterhours::BaseComponent {
 struct Health : afterhours::BaseComponent {
   int current = 5;
   int max = 5;
+};
+
+struct Round : afterhours::BaseComponent {
+  int current = 1;
 };
 
 struct ShopState : afterhours::BaseComponent {
@@ -71,6 +77,11 @@ afterhours::Entity &make_shop_manager(afterhours::Entity &);
 afterhours::Entity &make_combat_manager(afterhours::Entity &);
 afterhours::Entity &make_battle_processor_manager(afterhours::Entity &);
 afterhours::Entity &make_network_manager(afterhours::Entity &);
+afterhours::Entity &make_user_id_singleton();
+afterhours::Entity &make_round_singleton(afterhours::Entity &);
+afterhours::Entity &make_continue_game_request_singleton(afterhours::Entity &);
+afterhours::Entity &
+make_continue_button_disabled_singleton(afterhours::Entity &);
 afterhours::Entity &make_shop_item(int slot, DishType type);
 afterhours::Entity &make_drop_slot(int slot_id, vec2 position, vec2 size,
                                    bool accepts_inventory = true,
