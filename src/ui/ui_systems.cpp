@@ -11,15 +11,19 @@
 #include <afterhours/src/developer.h>
 #include <afterhours/src/logging.h>
 
+#include "../components/continue_button_disabled.h"
+#include "../components/continue_game_request.h"
 #include "../components/is_gallery_item.h"
 #include "../components/is_shop_item.h"
 #include "../components/network_info.h"
 #include "../components/replay_state.h"
+#include "../components/user_id.h"
 #include "../game.h"
 #include "../game_state_manager.h"
 #include "../input_mapping.h"
 #include "../render_constants.h"
 #include "../seeded_rng.h"
+#include "../server/file_storage.h"
 #include "../settings.h"
 #include "../shop.h"
 #include "../systems/ExportMenuSnapshotSystem.h"
@@ -31,6 +35,7 @@
 #include "navigation.h"
 #include <afterhours/src/plugins/texture_manager.h>
 #include <cstdlib>
+#include <filesystem>
 #include <httplib.h>
 
 using namespace afterhours;
@@ -248,25 +253,78 @@ Screen ScheduleMainMenuUI::main_screen(Entity &entity,
   auto top_left =
       column_left<InputAction>(context, bg.ent(), "main_top_left", 0);
 
-  // Play button
-  button_labeled<InputAction>(
-      context, top_left.ent(), "Play",
-      []() { GameStateManager::get().start_game(); }, 0, "",
-      NetworkInfo::is_disconnected());
+  bool has_save = false;
+  bool continue_disabled = false;
+
+  auto userId_opt = afterhours::EntityHelper::get_singleton<UserId>();
+  if (userId_opt.get().has<UserId>()) {
+    std::string userId = userId_opt.get().get<UserId>().userId;
+    has_save = server::FileStorage::file_exists(
+        server::FileStorage::get_game_state_save_path(userId));
+
+    auto continue_disabled_opt =
+        afterhours::EntityHelper::get_singleton<ContinueButtonDisabled>();
+    continue_disabled =
+        continue_disabled_opt.get().has<ContinueButtonDisabled>();
+  }
+
+  int button_index = 0;
+
+  if (has_save) {
+    // New Team button
+    button_labeled<InputAction>(
+        context, top_left.ent(), "New Team",
+        []() {
+          auto userId_opt = afterhours::EntityHelper::get_singleton<UserId>();
+          if (userId_opt.get().has<UserId>()) {
+            std::string userId = userId_opt.get().get<UserId>().userId;
+            std::string save_file =
+                server::FileStorage::get_game_state_save_path(userId);
+            if (server::FileStorage::file_exists(save_file)) {
+              std::filesystem::remove(save_file);
+            }
+          }
+          GameStateManager::get().start_game();
+        },
+        button_index++, "", NetworkInfo::is_disconnected());
+
+    // Continue button
+    button_labeled<InputAction>(
+        context, top_left.ent(), "Continue",
+        []() {
+          auto continue_opt =
+              afterhours::EntityHelper::get_singleton<ContinueGameRequest>();
+          if (continue_opt.get().has<ContinueGameRequest>()) {
+            continue_opt.get().get<ContinueGameRequest>().requested = true;
+          }
+          GameStateManager::get().start_game();
+        },
+        button_index++, "",
+        continue_disabled || NetworkInfo::is_disconnected());
+  } else {
+    // Play button
+    button_labeled<InputAction>(
+        context, top_left.ent(), "Play",
+        []() { GameStateManager::get().start_game(); }, button_index++, "",
+        NetworkInfo::is_disconnected());
+  }
 
   // Settings button
   button_labeled<InputAction>(
       context, top_left.ent(), "Settings",
-      []() { navigation::to(GameStateManager::Screen::Settings); }, 1);
+      []() { navigation::to(GameStateManager::Screen::Settings); },
+      button_index++);
 
   // Dishes button
   button_labeled<InputAction>(
       context, top_left.ent(), "Dishes",
-      []() { navigation::to(GameStateManager::Screen::Dishes); }, 2);
+      []() { navigation::to(GameStateManager::Screen::Dishes); },
+      button_index++);
 
   // Exit button
   button_labeled<InputAction>(
-      context, top_left.ent(), "Quit", [this]() { exit_game(); }, 3);
+      context, top_left.ent(), "Quit", [this]() { exit_game(); },
+      button_index++);
 
   return GameStateManager::get().next_screen.value_or(
       GameStateManager::get().active_screen);
