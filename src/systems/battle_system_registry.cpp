@@ -14,6 +14,7 @@
 #include "CleanupShopEntities.h"
 #include "ComputeCombatStatsSystem.h"
 #include "EffectResolutionSystem.h"
+#include "GameStateLoadSystem.h"
 #include "GenerateDishesGallery.h"
 #include "InitCombatState.h"
 #include "InitialShopFill.h"
@@ -75,6 +76,7 @@ void register_battle_systems(afterhours::SystemManager &systems) {
 
   systems.register_update_system(std::make_unique<LoadBattleResults>());
   systems.register_update_system(std::make_unique<ProcessBattleRewards>());
+  systems.register_update_system(std::make_unique<GameStateLoadSystem>());
   systems.register_update_system(std::make_unique<InitialShopFill>());
 }
 } // namespace battle_systems

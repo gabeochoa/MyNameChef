@@ -14,11 +14,14 @@ struct FileStorage {
   static nlohmann::json
   load_json_from_file_with_retry(const std::string &file_path,
                                  int max_retries = 3);
+  static std::string load_string_from_file(const std::string &file_path);
   static bool save_json_to_file(const std::string &file_path,
                                 const nlohmann::json &data);
   static bool save_json_to_file_with_retry(const std::string &file_path,
                                            const nlohmann::json &data,
                                            int max_retries = 3);
+  static bool save_string_to_file(const std::string &file_path,
+                                  const std::string &data);
   static bool file_exists(const std::string &file_path);
   static bool directory_exists(const std::string &directory_path);
   static void ensure_directory_exists(const std::string &directory_path);
@@ -29,5 +32,6 @@ struct FileStorage {
                                 const std::string &extension = ".json");
   static bool check_disk_space(const std::string &path,
                                size_t required_bytes = 1048576);
+  static std::string get_game_state_save_path(const std::string &userId);
 };
 } // namespace server
