@@ -154,6 +154,15 @@ struct TestApp {
   std::vector<TestShopItemInfo> read_store_options();
   int read_wallet_gold();
   int read_player_health();
+  int read_round();
+  int read_shop_tier();
+  struct RerollCostInfo {
+    int base;
+    int increment;
+    int current;
+  };
+  RerollCostInfo read_reroll_cost();
+  uint64_t read_shop_seed();
   int count_active_player_dishes();
   int count_active_opponent_dishes();
   bool read_replay_paused();
@@ -162,6 +171,9 @@ struct TestApp {
   // These bypass normal game logic to set up specific test scenarios
   TestApp &set_wallet_gold(int gold, const std::string &location = "");
   TestApp &create_inventory_item(DishType type, int slot);
+  TestApp &trigger_game_state_save();
+  TestApp &trigger_game_state_load();
+  bool save_file_exists();
   GameStateManager::Screen read_current_screen();
 
   TestApp &wait_for_ui_exists(
