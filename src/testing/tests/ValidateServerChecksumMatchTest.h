@@ -4,6 +4,7 @@
 #include "../../components/replay_state.h"
 #include "../../game_state_manager.h"
 #include "../../utils/battle_fingerprint.h"
+#include "../../utils/http_helpers.h"
 #include "../test_app.h"
 #include "../test_macros.h"
 #include "../test_server_helpers.h"
