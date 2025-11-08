@@ -28,7 +28,7 @@ private:
   void drop_into_empty_slot(afterhours::Entity &entity,
                             afterhours::Entity *drop_slot,
                             const Transform &transform, const IsHeld &held);
-  void swap_items(afterhours::Entity &entity, afterhours::Entity *occupied_slot,
+  bool swap_items(afterhours::Entity &entity, afterhours::Entity *occupied_slot,
                   const Transform &transform, const IsHeld &held);
 
 public:

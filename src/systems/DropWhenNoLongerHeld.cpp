@@ -39,16 +39,28 @@ void DropWhenNoLongerHeld::set_slot_id(Entity &entity, int slot_id) {
 afterhours::OptEntity
 DropWhenNoLongerHeld::find_item_in_slot(int slot_id,
                                         const Entity &exclude_entity) {
-  afterhours::OptEntity inventoryItem =
-      EQ().whereHasComponent<IsInventoryItem>()
-          .whereSlotID(slot_id)
-          .whereNotID(exclude_entity.id)
-          .gen_first();
-  return inventoryItem.has_value() ? inventoryItem
-                                   : EQ().whereHasComponent<IsShopItem>()
-                                         .whereSlotID(slot_id)
-                                         .whereNotID(exclude_entity.id)
-                                         .gen_first();
+  // First check inventory items - need to check the slot field, not use
+  // whereSlotID (which checks IsDropSlot entities, not items)
+  for (auto &ref : EQ().whereHasComponent<IsInventoryItem>()
+                       .whereNotID(exclude_entity.id)
+                       .gen()) {
+    const auto &inv = ref.get().get<IsInventoryItem>();
+    if (inv.slot == slot_id) {
+      return afterhours::OptEntity(ref.get());
+    }
+  }
+
+  // Then check shop items
+  for (auto &ref : EQ().whereHasComponent<IsShopItem>()
+                       .whereNotID(exclude_entity.id)
+                       .gen()) {
+    const auto &shop = ref.get().get<IsShopItem>();
+    if (shop.slot == slot_id) {
+      return afterhours::OptEntity(ref.get());
+    }
+  }
+
+  return afterhours::OptEntity();
 }
 
 void DropWhenNoLongerHeld::snap_back_to_original(Entity &entity,
@@ -107,10 +119,7 @@ void DropWhenNoLongerHeld::merge_dishes(Entity &entity, Entity *target_item,
   // Don't move the target item - it should stay where it is
   // The target item keeps its current position (inventory or shop)
 
-  // Remove the dropped item
-  entity.cleanup = true;
-
-  // Free the original slot if it was occupied
+  // Free the original slot if it was occupied (do this before cleanup)
   int original_slot_id = get_slot_id(entity);
   if (original_slot_id >= 0) {
     if (auto original_slot = EQ().whereHasComponent<IsDropSlot>()
@@ -119,6 +128,11 @@ void DropWhenNoLongerHeld::merge_dishes(Entity &entity, Entity *target_item,
       original_slot->get<IsDropSlot>().occupied = false;
     }
   }
+
+  // Remove the dropped item - mark for cleanup
+  // Don't call cleanup immediately as it may interfere with the current frame
+  entity.removeComponent<IsHeld>();
+  entity.cleanup = true;
 }
 
 bool DropWhenNoLongerHeld::try_purchase_shop_item(Entity &entity,
@@ -179,20 +193,22 @@ void DropWhenNoLongerHeld::drop_into_empty_slot(Entity &entity,
   drop_slot->get<IsDropSlot>().occupied = true;
 }
 
-void DropWhenNoLongerHeld::swap_items(Entity &entity, Entity *occupied_slot,
+bool DropWhenNoLongerHeld::swap_items(Entity &entity, Entity *occupied_slot,
                                       const Transform &transform,
                                       const IsHeld &held) {
-  afterhours::OptEntity item_in_slot =
-      find_item_in_slot(occupied_slot->get<IsDropSlot>().slot_id, entity);
-  if (!item_in_slot.has_value())
-    return;
+  int slot_id = occupied_slot->get<IsDropSlot>().slot_id;
+
+  afterhours::OptEntity item_in_slot = find_item_in_slot(slot_id, entity);
+  if (!item_in_slot.has_value()) {
+    return false;
+  }
 
   Entity &item = *item_in_slot.value();
 
   // Check if we can merge instead of swap
   if (can_merge_dishes(entity, item)) {
     merge_dishes(entity, &item, occupied_slot, transform, held);
-    return;
+    return true;
   }
 
   // Only prevent swapping if one is shop item and one is inventory item
@@ -200,7 +216,7 @@ void DropWhenNoLongerHeld::swap_items(Entity &entity, Entity *occupied_slot,
   if ((entity.has<IsShopItem>() && item.has<IsInventoryItem>()) ||
       (entity.has<IsInventoryItem>() && item.has<IsShopItem>())) {
     snap_back_to_original(entity, held);
-    return;
+    return false;
   }
 
   int original_slot_id = get_slot_id(entity);
@@ -222,6 +238,7 @@ void DropWhenNoLongerHeld::swap_items(Entity &entity, Entity *occupied_slot,
       original_slot->get<IsDropSlot>().occupied = true;
     }
   }
+  return false;
 }
 
 void DropWhenNoLongerHeld::for_each_with(Entity &entity, IsHeld &held,
@@ -266,13 +283,16 @@ void DropWhenNoLongerHeld::for_each_with(Entity &entity, IsHeld &held,
     }
   }
 
+  bool was_merged = false;
   if (best_drop_slot) {
     drop_into_empty_slot(entity, best_drop_slot, transform, held);
   } else if (occupied_slot) {
-    swap_items(entity, occupied_slot, transform, held);
+    was_merged = swap_items(entity, occupied_slot, transform, held);
   } else {
     snap_back_to_original(entity, held);
   }
 
-  entity.removeComponent<IsHeld>();
+  if (!was_merged) {
+    entity.removeComponentIfExists<IsHeld>();
+  }
 }
