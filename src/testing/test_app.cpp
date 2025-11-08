@@ -1424,6 +1424,8 @@ bool TestApp::try_purchase_item(DishType type, int inventory_slot,
   IsInventoryItem &inv_item = shop_item->addComponent<IsInventoryItem>();
   inv_item.slot = target_slot->get<IsDropSlot>().slot_id;
 
+  shop_item->removeComponentIfExists<Freezeable>();
+
   // Mark slot as occupied
   target_slot->get<IsDropSlot>().occupied = true;
 
@@ -1595,6 +1597,8 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
   shop_item->removeComponent<IsShopItem>();
   IsInventoryItem &inv_item = shop_item->addComponent<IsInventoryItem>();
   inv_item.slot = target_slot->get<IsDropSlot>().slot_id;
+
+  shop_item->removeComponentIfExists<Freezeable>();
 
   // Mark slot as occupied
   target_slot->get<IsDropSlot>().occupied = true;

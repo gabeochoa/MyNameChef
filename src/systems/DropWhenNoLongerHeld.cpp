@@ -95,6 +95,7 @@ void DropWhenNoLongerHeld::merge_dishes(Entity &entity, Entity *target_item,
       snap_back_to_original(entity, held);
       return;
     }
+    entity.removeComponentIfExists<Freezeable>();
   }
 
   auto &target_level = target_item->get<DishLevel>();
@@ -135,6 +136,7 @@ bool DropWhenNoLongerHeld::try_purchase_shop_item(Entity &entity,
   entity.removeComponent<IsShopItem>();
   entity.addComponent<IsInventoryItem>();
   entity.get<IsInventoryItem>().slot = drop_slot->get<IsDropSlot>().slot_id;
+  entity.removeComponentIfExists<Freezeable>();
 
   return true;
 }
