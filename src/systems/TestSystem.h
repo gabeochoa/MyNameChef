@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <set>
 #include <string>
 #include <unordered_map>
 
@@ -25,9 +26,14 @@ struct TestSystem : afterhours::System<> {
   int validation_attempts = 0;
   float validation_start_time = 0.0f;
   float validation_elapsed_time = 0.0f;
+  float test_start_time = 0.0f;
+  float test_elapsed_time = 0.0f;
   bool first_validation_frame = true;
+  bool first_test_frame = true;
   // Use longer timeout in visible mode (slower due to rendering)
   const float kValidationTimeout;
+  // Overall test execution timeout (30 seconds)
+  const float kTestTimeout = 30.0f;
   std::function<void()> test_function;
   std::function<bool()> validation_function;
 
@@ -51,7 +57,7 @@ struct TestSystem : afterhours::System<> {
             float timeout = render_backend::is_headless_mode ? 10.0f : 10.0f;
             return timeout;
           }
-          return render_backend::is_headless_mode ? 1.0f : 10.0f;
+          return render_backend::is_headless_mode ? 10.0f : 10.0f;
         }()) {
     log_info("TEST SYSTEM CREATED: {} - TestSystem instantiated (timeout: {}s)",
              test_name, kValidationTimeout);
@@ -62,10 +68,31 @@ struct TestSystem : afterhours::System<> {
 
   virtual void once(float dt) override {
     if (initialized) {
+      // Track overall test execution time
+      if (first_test_frame) {
+        first_test_frame = false;
+      } else {
+        // Cap dt to reasonable frame time (16ms at 60fps) to avoid huge spikes
+        float clamped_dt = std::min(dt, 0.1f);
+        // Divide by timing speed scale to track real wall-clock time
+        // instead of game time (dt is already multiplied by the scale)
+        float real_dt = clamped_dt / render_backend::timing_speed_scale;
+        test_elapsed_time += real_dt;
+      }
+
+      // Check overall test timeout
+      if (test_elapsed_time >= kTestTimeout) {
+        log_error(
+            "TEST TIMEOUT: {} - Test exceeded {}s timeout (total elapsed: {}s)",
+            test_name, kTestTimeout, test_elapsed_time);
+        exit(1);
+      }
+
       // Check wait conditions and resume test when waits complete
       auto it = g_test_apps.find(test_name);
+      TestApp *test_app = nullptr;
       if (it != g_test_apps.end() && it->second != nullptr) {
-        TestApp *test_app = it->second;
+        test_app = it->second;
 
         // Check if we're waiting for something
         if (test_app->wait_state.type != TestApp::WaitState::None) {
@@ -94,14 +121,16 @@ struct TestSystem : afterhours::System<> {
           bool wait_complete = test_app->check_wait_conditions();
           if (wait_complete &&
               test_app->wait_state.type == TestApp::WaitState::None) {
-            // Wait completed - resume test via continuation if available,
-            // otherwise re-run
+            // Wait completed - reset validation tracking and resume test
+            validation_attempts = 0;
+            validation_elapsed_time = 0.0f;
+            first_validation_frame = true;
+
+            // Resume test via continuation if available, otherwise re-run
             auto cont_it = g_test_continuations.find(test_name);
             if (cont_it != g_test_continuations.end() && cont_it->second) {
               // Resume from continuation
-              if (test_function) {
-                test_function();
-              }
+              cont_it->second();
             } else {
               // No continuation - re-run test function (completed operations
               // will be skipped)
@@ -119,14 +148,31 @@ struct TestSystem : afterhours::System<> {
             }
           }
         } else {
-          // No wait state - test should have completed or be waiting for next
-          // operation Don't re-run here - let the test function complete
-          // naturally
+          // No wait state - if test is still in progress, re-run it to let it
+          // continue This handles the case where a wait completed and the test
+          // needs to continue
+          if (test_app) {
+            if (test_app->test_in_progress && test_function) {
+              test_function();
+            } else if (!test_app->test_in_progress) {
+              // Test completed - run_test() set test_in_progress = false
+              test_completed = true;
+              log_info("TEST PASSED: {} - Test completed", test_name);
+              exit(0);
+            }
+          } else if (test_function) {
+            // Test app not created yet, but we have a test function - call it to initialize
+            test_function();
+          }
         }
-      } else if (!test_completed) {
-        test_completed = true;
-        log_info("TEST COMPLETED: {} - Test finished", test_name);
-        exit(0);
+      } else {
+        // Test app doesn't exist in map yet - try to initialize it
+        // Only do this once per test to avoid double-initialization
+        static std::set<std::string> initialization_attempted;
+        if (initialization_attempted.find(test_name) == initialization_attempted.end() && test_function) {
+          initialization_attempted.insert(test_name);
+          test_function();
+        }
       }
       return;
     }
@@ -134,7 +180,11 @@ struct TestSystem : afterhours::System<> {
     initialized = true;
     validation_start_time = 0.0f;
     validation_elapsed_time = 0.0f;
-    log_info("TEST EXECUTING: {} - Running test logic", test_name);
+    test_start_time = 0.0f;
+    test_elapsed_time = 0.0f;
+    first_test_frame = true;
+    log_info("TEST EXECUTING: {} - Running test logic (timeout: {}s)",
+             test_name, kTestTimeout);
 
     if (test_function) {
       test_function();

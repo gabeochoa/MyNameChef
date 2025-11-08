@@ -30,6 +30,11 @@ std::unordered_map<std::string, std::function<void()>> g_test_continuations;
 #include "../testing/tests/ValidateEffectSystemTest.h"
 #include "../testing/tests/ValidateFullBattleFlowTest.h"
 #include "../testing/tests/ValidateFullGameFlowTest.h"
+#include "../testing/tests/ValidateGameStateMultiRoundPersistenceTest.h"
+#include "../testing/tests/ValidateGameStateNewTeamVsContinueTest.h"
+#include "../testing/tests/ValidateGameStateSaveResumeBasicTest.h"
+#include "../testing/tests/ValidateGameStateServerChecksumSyncTest.h"
+#include "../testing/tests/ValidateGameStateShopSeedDeterminismTest.h"
 #include "../testing/tests/ValidateMainMenuTest.h"
 #include "../testing/tests/ValidateReplayPausePlayTest.h"
 #include "../testing/tests/ValidateRerollCostTest.h"
@@ -138,7 +143,7 @@ void TestSystem::register_test_cases() {
         }
 
         // Check if test yielded (stored a continuation)
-        if (test_app_ptr->yield_continuation) {
+        if (test_app_ptr && test_app_ptr->yield_continuation) {
           test_continuation = test_app_ptr->yield_continuation;
           test_app_ptr->yield_continuation = nullptr;
           // Test yielded - will resume when wait completes
@@ -146,13 +151,14 @@ void TestSystem::register_test_cases() {
         }
 
         // Check if we're still waiting for something
-        if (test_app_ptr->wait_state.type != TestApp::WaitState::None) {
+        if (test_app_ptr && test_app_ptr->wait_state.type != TestApp::WaitState::None) {
           // Still waiting - don't complete yet
           return;
         }
 
-        // Check if test is actually in progress (not just skipping operations)
-        if (!test_app_ptr->test_in_progress) {
+        // No wait state and no yield - check if test completed
+        // If test_in_progress is false, run_test() completed the test
+        if (test_app_ptr && !test_app_ptr->test_in_progress) {
           // Test completed - run_test() set test_in_progress = false
           log_info("TEST PASSED: {}", test_name_copy);
           delete test_app_ptr;
@@ -161,12 +167,9 @@ void TestSystem::register_test_cases() {
           exit(0);
         }
 
-        // Test completed successfully (still in progress but no waits/yields)
-        log_info("TEST PASSED: {}", test_name_copy);
-        delete test_app_ptr;
-        g_test_apps.erase(test_name_copy);
-        g_test_continuations.erase(test_name_copy);
-        exit(0);
+        // Test is still in progress but no waits/yields - this shouldn't happen
+        // but if it does, the test will continue on the next frame
+        return;
       } catch (const std::exception &e) {
         std::string error_msg = e.what();
         // Check if this is a yield exception
