@@ -9,60 +9,62 @@
 TEST(validate_three_battles_flow) {
   log_info("TEST: Starting validate_three_battles_flow test");
 
+  log_info("TEST: Step 1 - Launching game");
   app.launch_game();
-
-  GameStateManager::Screen current_screen = app.read_current_screen();
-  app.expect_true(current_screen == GameStateManager::Screen::Main ||
-                      current_screen == GameStateManager::Screen::Shop,
-                  "should start on Main or Shop");
-  if (current_screen == GameStateManager::Screen::Main) {
-    app.wait_for_ui_exists("Play");
-    app.click("Play");
-    app.wait_for_screen(GameStateManager::Screen::Shop, 10.0f);
-  }
-
+  log_info("TEST: Step 1.5 - Waiting for Main screen");
+  app.wait_for_screen(GameStateManager::Screen::Main, 5.0f);
+  log_info("TEST: Step 2 - Waiting for Play button");
+  app.wait_for_ui_exists("Play");
+  log_info("TEST: Step 3 - Clicking Play button");
+  app.click("Play");
+  log_info("TEST: Step 4 - Waiting for Shop screen");
+  app.wait_for_screen(GameStateManager::Screen::Shop, 10.0f);
+  log_info("TEST: Step 5 - Verifying Shop screen");
   app.expect_screen_is(GameStateManager::Screen::Shop);
   app.wait_for_frames(5);
-  const auto inventory = app.read_player_inventory();
-  if (inventory.empty()) {
-    app.create_inventory_item(DishType::Potato, 0);
-    app.wait_for_frames(2);
-  }
+
+  log_info("TEST: Step 6 - Creating inventory item");
+  app.create_inventory_item(DishType::Potato, 0);
+  app.wait_for_frames(2);
 
   log_info("TEST: Starting battle 1");
+  log_info("TEST: Battle 1 - Waiting for Next Round button");
   app.wait_for_ui_exists("Next Round");
+  log_info("TEST: Battle 1 - Clicking Next Round");
   app.click("Next Round");
   app.wait_for_frames(3);
+  log_info("TEST: Battle 1 - Waiting for Battle screen");
   app.wait_for_screen(GameStateManager::Screen::Battle, 15.0f);
   app.wait_for_frames(10);
+  log_info("TEST: Battle 1 - Waiting for battle initialization");
   app.wait_for_battle_initialized(10.0f);
   app.expect_screen_is(GameStateManager::Screen::Battle);
 
+  log_info("TEST: Battle 1 - Waiting for Skip to Results");
   app.wait_for_ui_exists("Skip to Results", 5.0f);
+  log_info("TEST: Battle 1 - Clicking Skip to Results");
   app.click("Skip to Results");
+  log_info("TEST: Battle 1 - Waiting for Results screen");
   app.wait_for_screen(GameStateManager::Screen::Results, 10.0f);
+  log_info("TEST: Battle 1 - Waiting for Back to Shop");
   app.wait_for_ui_exists("Back to Shop", 5.0f);
 
+  log_info("TEST: Battle 1 - Clicking Back to Shop");
   app.click("Back to Shop");
+  log_info("TEST: Battle 1 - Waiting for Shop screen");
   app.wait_for_screen(GameStateManager::Screen::Shop, 10.0f);
   app.wait_for_frames(5);
 
   const auto shop_items1 = app.read_store_options();
   app.expect_not_empty(shop_items1, "shop items should exist");
   const int price1 = shop_items1[0].price;
-  const int current_gold1 = app.read_wallet_gold();
-  if (current_gold1 < price1) {
-    app.set_wallet_gold(price1 + 10);
-  }
+  app.set_wallet_gold(price1 + 10);
   app.purchase_item(shop_items1[0].type);
   app.wait_for_frames(5);
 
   log_info("TEST: Starting battle 2");
-  const auto inventory2 = app.read_player_inventory();
-  if (inventory2.empty()) {
-    app.create_inventory_item(DishType::Potato, 0);
-    app.wait_for_frames(2);
-  }
+  app.create_inventory_item(DishType::Potato, 0);
+  app.wait_for_frames(2);
   app.wait_for_ui_exists("Next Round");
   app.click("Next Round");
   app.wait_for_frames(3);
@@ -83,19 +85,13 @@ TEST(validate_three_battles_flow) {
   const auto shop_items2 = app.read_store_options();
   app.expect_not_empty(shop_items2, "shop items should exist");
   const int price2 = shop_items2[0].price;
-  const int current_gold2 = app.read_wallet_gold();
-  if (current_gold2 < price2) {
-    app.set_wallet_gold(price2 + 10);
-  }
+  app.set_wallet_gold(price2 + 10);
   app.purchase_item(shop_items2[0].type);
   app.wait_for_frames(5);
 
   log_info("TEST: Starting battle 3");
-  const auto inventory3 = app.read_player_inventory();
-  if (inventory3.empty()) {
-    app.create_inventory_item(DishType::Potato, 0);
-    app.wait_for_frames(2);
-  }
+  app.create_inventory_item(DishType::Potato, 0);
+  app.wait_for_frames(2);
   app.wait_for_ui_exists("Next Round");
   app.click("Next Round");
   app.wait_for_frames(3);

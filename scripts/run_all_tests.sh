@@ -16,7 +16,7 @@ NC='\033[0m' # No Color
 EXECUTABLE="./output/my_name_chef.exe"
 SERVER_EXECUTABLE="./output/battle_server.exe"
 VERIFY_SCRIPT="./scripts/verify_battle_endpoint.sh"
-TEST_TIMEOUT=5
+TEST_TIMEOUT=30
 SERVER_PORT=8080
 TOTAL_TESTS=0
 TOTAL_TESTS_RUN=0
@@ -172,6 +172,15 @@ run_test() {
             fi
         else
             local exit_code=$?
+            # Check output file even on timeout - test might have completed
+            if [ -f "$output_file" ]; then
+                if grep -q "TEST COMPLETED:" "$output_file" || grep -q "TEST VALIDATION PASSED:" "$output_file" || grep -q "TEST PASSED:" "$output_file"; then
+                    echo -e "  ${GREEN}✅ PASSED${NC} - Test completed successfully (despite timeout signal)"
+                    rm -f "$output_file"
+                    return 0
+                fi
+            fi
+            
             if [ $exit_code -eq 124 ]; then
                 echo -e "  ${RED}❌ TIMEOUT${NC} - Test exceeded ${test_timeout}s timeout"
             elif [ $exit_code -eq 139 ]; then

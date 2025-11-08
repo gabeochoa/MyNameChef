@@ -1,4 +1,5 @@
 #include "test_app.h"
+#include "test_macros.h"
 #include "../components/battle_result.h"
 #include "../components/battle_team_tags.h"
 #include "../components/can_drop_onto.h"
@@ -52,7 +53,10 @@ TestApp &TestApp::launch_game(const std::source_location &loc) {
   game_launched = true;
   completed_operations.insert(op_id);
   if (step_delay()) {
-    yield([this, loc]() { launch_game(loc); });
+    yield([this]() {
+      test_resuming = true;
+      TestRegistry::get().run_test(current_test_name, *this);
+    });
     return *this;
   }
   return *this;
@@ -88,7 +92,10 @@ TestApp &TestApp::click(const std::string &button_label,
   completed_operations.insert(op_id);
 
   if (step_delay()) {
-    yield([this, button_label, loc]() { click(button_label, loc); });
+    yield([this]() {
+      test_resuming = true;
+      TestRegistry::get().run_test(current_test_name, *this);
+    });
     return *this;
   }
   return *this;
@@ -179,7 +186,10 @@ TestApp &TestApp::navigate_to_shop(const std::source_location &loc) {
   wait_for_screen(GameStateManager::Screen::Shop);
   completed_operations.insert(op_id);
   if (step_delay()) {
-    yield([this, loc]() { navigate_to_shop(loc); });
+    yield([this]() {
+      test_resuming = true;
+      TestRegistry::get().run_test(current_test_name, *this);
+    });
     return *this;
   }
   return *this;
@@ -210,7 +220,10 @@ TestApp &TestApp::navigate_to_battle(const std::source_location &loc) {
   wait_for_screen(GameStateManager::Screen::Battle);
   completed_operations.insert(op_id);
   if (step_delay()) {
-    yield([this, loc]() { navigate_to_battle(loc); });
+    yield([this]() {
+      test_resuming = true;
+      TestRegistry::get().run_test(current_test_name, *this);
+    });
     return *this;
   }
   return *this;
@@ -409,15 +422,17 @@ TestApp &TestApp::wait_for_ui_exists(const std::string &label,
       wait_state.type = WaitState::None;
       return *this;
     }
-    yield([this, label, timeout_sec, location, loc]() {
-      wait_for_ui_exists(label, timeout_sec, location, loc);
+    yield([this]() {
+      test_resuming = true;
+      TestRegistry::get().run_test(current_test_name, *this);
     });
     return *this;
   }
 
   if (wait_state.type != WaitState::None && wait_state.operation_id != op_id) {
-    yield([this, label, timeout_sec, location, loc]() {
-      wait_for_ui_exists(label, timeout_sec, location, loc);
+    yield([this]() {
+      test_resuming = true;
+      TestRegistry::get().run_test(current_test_name, *this);
     });
     return *this;
   }
@@ -432,8 +447,8 @@ TestApp &TestApp::wait_for_ui_exists(const std::string &label,
     return *this;
   }
 
-  yield([this, op_id, label, timeout_sec, location, loc]() {
-    wait_for_ui_exists(label, timeout_sec, location, loc);
+  yield([this]() {
+    TestRegistry::get().run_test(current_test_name, *this);
   });
   return *this;
 }
@@ -633,15 +648,17 @@ TestApp &TestApp::wait_for_screen(GameStateManager::Screen screen,
       wait_state.type = WaitState::None;
       return *this;
     }
-    yield([this, screen, timeout_sec, loc]() {
-      wait_for_screen(screen, timeout_sec, loc);
+    yield([this]() {
+      test_resuming = true;
+      TestRegistry::get().run_test(current_test_name, *this);
     });
     return *this;
   }
 
   if (wait_state.type != WaitState::None && wait_state.operation_id != op_id) {
-    yield([this, screen, timeout_sec, loc]() {
-      wait_for_screen(screen, timeout_sec, loc);
+    yield([this]() {
+      test_resuming = true;
+      TestRegistry::get().run_test(current_test_name, *this);
     });
     return *this;
   }
@@ -657,8 +674,8 @@ TestApp &TestApp::wait_for_screen(GameStateManager::Screen screen,
     return *this;
   }
 
-  yield([this, op_id, screen, timeout_sec, loc]() {
-    wait_for_screen(screen, timeout_sec, loc);
+  yield([this]() {
+    TestRegistry::get().run_test(current_test_name, *this);
   });
   return *this;
 }
@@ -677,12 +694,18 @@ TestApp &TestApp::wait_for_frames(int frames, const std::source_location &loc) {
       completed_operations.insert(op_id);
       return *this;
     }
-    yield([this, frames, loc]() { wait_for_frames(frames, loc); });
+    yield([this]() {
+      test_resuming = true;
+      TestRegistry::get().run_test(current_test_name, *this);
+    });
     return *this;
   }
 
   if (wait_state.type != WaitState::None && wait_state.operation_id != op_id) {
-    yield([this, frames, loc]() { wait_for_frames(frames, loc); });
+    yield([this]() {
+      test_resuming = true;
+      TestRegistry::get().run_test(current_test_name, *this);
+    });
     return *this;
   }
 
@@ -696,7 +719,9 @@ TestApp &TestApp::wait_for_frames(int frames, const std::source_location &loc) {
     return *this;
   }
 
-  yield([this, op_id, frames, loc]() { wait_for_frames(frames, loc); });
+  yield([this]() {
+    TestRegistry::get().run_test(current_test_name, *this);
+  });
   return *this;
 }
 
@@ -901,8 +926,9 @@ bool TestApp::step_delay() {
     // Set up frame-based wait state so frames can process
     setup_wait_state(WaitState::FrameDelay, 5.0f); // 5 second timeout as safety
     wait_state.frame_delay_count = frames_to_wait;
+    wait_state.operation_id = 0; // No specific operation ID for step delays
 
-    // Return true to indicate caller should throw exception
+    // Return true to indicate caller should yield
     return true;
   }
   return false; // No delay needed
@@ -1105,8 +1131,8 @@ TestApp &TestApp::wait_for_battle_initialized(float timeout_sec,
   wait_state.type = WaitState::FrameDelay;
   wait_state.frame_delay_count = 1;
   wait_state.operation_id = op_id;
-  yield([this, timeout_sec, location]() {
-    wait_for_battle_initialized(timeout_sec, location);
+  yield([this]() {
+    TestRegistry::get().run_test(current_test_name, *this);
   });
   return *this;
 }
@@ -1138,8 +1164,8 @@ TestApp &TestApp::wait_for_dishes_in_combat(int min_count, float timeout_sec,
   wait_state.type = WaitState::FrameDelay;
   wait_state.frame_delay_count = 1;
   wait_state.operation_id = op_id;
-  yield([this, min_count, timeout_sec, location]() {
-    wait_for_dishes_in_combat(min_count, timeout_sec, location);
+  yield([this]() {
+    TestRegistry::get().run_test(current_test_name, *this);
   });
   return *this;
 }
@@ -1227,8 +1253,8 @@ TestApp &TestApp::wait_for_battle_complete(float timeout_sec,
   wait_state.type = WaitState::FrameDelay;
   wait_state.frame_delay_count = 2;
   wait_state.operation_id = op_id;
-  yield([this, timeout_sec, location]() {
-    wait_for_battle_complete(timeout_sec, location);
+  yield([this]() {
+    TestRegistry::get().run_test(current_test_name, *this);
   });
   return *this;
 }
@@ -1627,8 +1653,9 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
   }
 
   if (step_delay()) {
-    yield([this, type, inventory_slot, location]() {
-      purchase_item(type, inventory_slot, location);
+    yield([this]() {
+      test_resuming = true;
+      TestRegistry::get().run_test(current_test_name, *this);
     });
     return *this;
   }

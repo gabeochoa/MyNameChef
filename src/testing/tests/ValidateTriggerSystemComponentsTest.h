@@ -313,7 +313,7 @@ TEST(validate_oncoursestart_trigger) {
 
   auto &dish = add_dish_to_menu(DishType::Potato,
                                 DishBattleState::TeamSide::Player, 0,
-                                DishBattleState::Phase::Entering);
+                                DishBattleState::Phase::Entering, true);
 
   afterhours::EntityHelper::merge_entity_arrays();
 
@@ -344,7 +344,7 @@ TEST(validate_onstartbattle_trigger) {
 
   auto &dish = add_dish_to_menu(DishType::Potato,
                                 DishBattleState::TeamSide::Player, 0,
-                                DishBattleState::Phase::InQueue);
+                                DishBattleState::Phase::InQueue, true);
 
   afterhours::EntityHelper::merge_entity_arrays();
 
@@ -375,7 +375,7 @@ TEST(validate_oncoursecomplete_trigger) {
 
   auto &dish = add_dish_to_menu(DishType::Potato,
                                 DishBattleState::TeamSide::Player, 0,
-                                DishBattleState::Phase::Finished);
+                                DishBattleState::Phase::Finished, true);
 
   afterhours::EntityHelper::merge_entity_arrays();
 

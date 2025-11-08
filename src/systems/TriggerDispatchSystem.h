@@ -94,8 +94,17 @@ private:
       if (a.slotIndex != b.slotIndex)
         return a.slotIndex < b.slotIndex;
       if (a.teamSide != b.teamSide) {
-        int team_a_total = team_total_zing.at(a.teamSide);
-        int team_b_total = team_total_zing.at(b.teamSide);
+        // Safely get team totals, defaulting to 0 if not found
+        int team_a_total = 0;
+        int team_b_total = 0;
+        auto it_a = team_total_zing.find(a.teamSide);
+        if (it_a != team_total_zing.end()) {
+          team_a_total = it_a->second;
+        }
+        auto it_b = team_total_zing.find(b.teamSide);
+        if (it_b != team_total_zing.end()) {
+          team_b_total = it_b->second;
+        }
         if (team_a_total != team_b_total)
           return team_a_total > team_b_total; // higher total first
         // If tied, use sourceEntityId as tie-breaker

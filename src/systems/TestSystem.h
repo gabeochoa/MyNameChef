@@ -7,14 +7,15 @@
 #include <afterhours/ah.h>
 
 #include "../game_state_manager.h"
-#include "../testing/test_app.h"
 #include "../log.h"
 #include "../render_backend.h"
 #include "../rl.h"
+#include "../testing/test_app.h"
 
 // Forward declarations for static maps in TestSystem.cpp
-extern std::unordered_map<std::string, TestApp*> g_test_apps;
-extern std::unordered_map<std::string, std::function<void()>> g_test_continuations;
+extern std::unordered_map<std::string, TestApp *> g_test_apps;
+extern std::unordered_map<std::string, std::function<void()>>
+    g_test_continuations;
 
 struct TestSystem : afterhours::System<> {
   std::string test_name;
@@ -33,7 +34,8 @@ struct TestSystem : afterhours::System<> {
   explicit TestSystem(std::string name)
       : test_name(name), kValidationTimeout([test_name_copy = name]() {
           // Integration tests need much longer timeouts for full battles
-          // Check for integration, opponent_match, or checksum_match (all are integration tests)
+          // Check for integration, opponent_match, or checksum_match (all are
+          // integration tests)
           bool is_integration =
               test_name_copy.find("integration") != std::string::npos ||
               test_name_copy.find("opponent_match") != std::string::npos ||
@@ -63,13 +65,13 @@ struct TestSystem : afterhours::System<> {
       // Check wait conditions and resume test when waits complete
       auto it = g_test_apps.find(test_name);
       if (it != g_test_apps.end() && it->second != nullptr) {
-        TestApp* test_app = it->second;
-        
+        TestApp *test_app = it->second;
+
         // Check if we're waiting for something
         if (test_app->wait_state.type != TestApp::WaitState::None) {
           validation_attempts++;
-          // Skip accumulating time on first validation frame (dt may be huge due
-          // to initialization)
+          // Skip accumulating time on first validation frame (dt may be huge
+          // due to initialization)
           if (first_validation_frame) {
             first_validation_frame = false;
           } else {
@@ -90,11 +92,19 @@ struct TestSystem : afterhours::System<> {
           }
 
           bool wait_complete = test_app->check_wait_conditions();
-          if (wait_complete && test_app->wait_state.type == TestApp::WaitState::None) {
-            // Wait completed - resume test via continuation
+          if (wait_complete &&
+              test_app->wait_state.type == TestApp::WaitState::None) {
+            // Wait completed - resume test via continuation if available,
+            // otherwise re-run
             auto cont_it = g_test_continuations.find(test_name);
             if (cont_it != g_test_continuations.end() && cont_it->second) {
-              // Resume test by calling test_function again (it will use continuation)
+              // Resume from continuation
+              if (test_function) {
+                test_function();
+              }
+            } else {
+              // No continuation - re-run test function (completed operations
+              // will be skipped)
               if (test_function) {
                 test_function();
               }
@@ -102,17 +112,16 @@ struct TestSystem : afterhours::System<> {
           } else {
             // Still waiting
             if (validation_attempts % 100 == 0) {
-              log_info("TEST VALIDATION CHECKING: {} - Attempt {} ({}s) - Still "
-                       "waiting...",
-                       test_name, validation_attempts, validation_elapsed_time);
+              log_info(
+                  "TEST VALIDATION CHECKING: {} - Attempt {} ({}s) - Still "
+                  "waiting...",
+                  test_name, validation_attempts, validation_elapsed_time);
             }
           }
         } else {
-          // No wait state - test should have completed
-          // Try running test_function one more time to see if it completes
-          if (test_function) {
-            test_function();
-          }
+          // No wait state - test should have completed or be waiting for next
+          // operation Don't re-run here - let the test function complete
+          // naturally
         }
       } else if (!test_completed) {
         test_completed = true;

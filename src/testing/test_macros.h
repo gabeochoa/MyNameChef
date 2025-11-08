@@ -46,11 +46,29 @@ public:
 
     app.set_test_name(name);
 
+    // Guard against recursive calls
+    if (app.test_executing) {
+      // Already executing - this is a recursive call, return false to indicate
+      // not done
+      return false;
+    }
+    app.test_executing = true;
+
+    // Only set test_in_progress if we're not resuming (resuming means we're
+    // continuing, not starting)
+    if (!app.test_resuming) {
+      app.test_in_progress = true;
+    }
+    app.test_resuming = false;
+
     try {
       it->second.test_fn(app);
 
-      // If test yielded, it will have stored a continuation and thrown TEST_YIELD
-      // Check if test yielded
+      // Reset executing flag before checking yield/wait state
+      app.test_executing = false;
+
+      // If test yielded, it will have stored a continuation and thrown
+      // TEST_YIELD Check if test yielded
       if (app.yield_continuation) {
         // Test yielded - will resume when wait completes
         return false;
@@ -62,6 +80,9 @@ public:
         return false; // Need to continue waiting
       }
 
+      // Test actually completed - reset flags and return true
+      app.test_in_progress = false;
+      app.test_executing = false;
       log_info("TEST PASSED: {}", name);
       return true;
     } catch (const std::exception &e) {
@@ -69,16 +90,21 @@ public:
       std::string error_msg = e.what();
       if (error_msg == "TEST_YIELD") {
         // Test yielded - continuation is stored in app.yield_continuation
-        return false; // Test needs to continue on next frame after wait completes
+        // test_in_progress remains true - test will continue
+        app.test_executing = false; // Reset executing flag
+        return false; // Test needs to continue on next frame after wait
+                      // completes
       }
 
-      // Legacy continue exceptions (should not be used with yield/resume, but handle for compatibility)
+      // Legacy continue exceptions (should not be used with yield/resume, but
+      // handle for compatibility)
       if (error_msg == "WAIT_FOR_UI_CONTINUE" ||
           error_msg == "WAIT_FOR_SCREEN_CONTINUE" ||
           error_msg == "WAIT_FOR_FRAME_DELAY_CONTINUE") {
         return false; // Test needs to continue on next frame
       }
 
+      app.test_executing = false; // Reset executing flag on error
       log_error("TEST FAILED: {} - {}", name, e.what());
       log_error("  Location: {}:{}", it->second.file, it->second.line);
       if (!app.failure_location.empty()) {

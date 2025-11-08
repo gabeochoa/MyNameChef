@@ -90,6 +90,9 @@ struct TestApp {
   std::string failure_message;
   std::string failure_location;
   bool game_launched = false;
+  bool test_in_progress = false;
+  bool test_resuming = false;
+  bool test_executing = false; // Guard against recursive run_test calls
   std::set<TestOperationID> completed_operations;
 
   static TestOperationID

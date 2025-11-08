@@ -120,9 +120,21 @@ void TestSystem::register_test_cases() {
         if (test_continuation) {
           test_continuation();
           test_continuation = nullptr;
+          // Continuation calls run_test, which will skip completed operations
+          // and continue from next line - check if test completed after
+          // continuation
         } else {
-          // First time running - call the test
-          TestRegistry::get().run_test(test_name_copy, *test_app_ptr);
+          // Call the test - it will yield if it needs to wait
+          bool test_done =
+              TestRegistry::get().run_test(test_name_copy, *test_app_ptr);
+          if (test_done) {
+            // Test actually completed
+            log_info("TEST PASSED: {}", test_name_copy);
+            delete test_app_ptr;
+            g_test_apps.erase(test_name_copy);
+            g_test_continuations.erase(test_name_copy);
+            exit(0);
+          }
         }
 
         // Check if test yielded (stored a continuation)
@@ -133,7 +145,23 @@ void TestSystem::register_test_cases() {
           return;
         }
 
-        // Test completed successfully
+        // Check if we're still waiting for something
+        if (test_app_ptr->wait_state.type != TestApp::WaitState::None) {
+          // Still waiting - don't complete yet
+          return;
+        }
+
+        // Check if test is actually in progress (not just skipping operations)
+        if (!test_app_ptr->test_in_progress) {
+          // Test completed - run_test() set test_in_progress = false
+          log_info("TEST PASSED: {}", test_name_copy);
+          delete test_app_ptr;
+          g_test_apps.erase(test_name_copy);
+          g_test_continuations.erase(test_name_copy);
+          exit(0);
+        }
+
+        // Test completed successfully (still in progress but no waits/yields)
         log_info("TEST PASSED: {}", test_name_copy);
         delete test_app_ptr;
         g_test_apps.erase(test_name_copy);
