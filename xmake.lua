@@ -63,6 +63,7 @@ target("my_name_chef")
     add_files("src/components/*.cpp")
     add_files("src/systems/*.cpp")
     add_files("src/ui/*.cpp")
+    add_files("src/server/file_storage.cpp")
     add_files("src/testing/test_app.cpp")
     add_files("src/testing/test_context.cpp")
     --
