@@ -49,6 +49,7 @@ TEST(validate_server_checksum_match) {
   std::string url = test_server_helpers::get_server_url();
   test_server_helpers::ServerUrlParts url_parts =
       test_server_helpers::parse_server_url(url);
+  app.expect_true(url_parts.success, "Server URL should parse successfully");
 
   // Build player team JSON
   nlohmann::json player_team_json = test_server_helpers::team_to_json();

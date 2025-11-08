@@ -3,6 +3,7 @@
 #include "../components/battle_load_request.h"
 #include "../components/is_dish.h"
 #include "../components/is_inventory_item.h"
+#include "../utils/http_helpers.h"
 #include "test_app.h"
 #include <afterhours/ah.h>
 #include <cstdlib>
@@ -21,30 +22,15 @@ inline std::string get_server_url() {
   return env ? std::string(env) : std::string("http://localhost:8080");
 }
 
-// Server URL parsing result
-struct ServerUrlParts {
-  std::string host;
-  int port;
-};
+// Alias for http_helpers::ServerUrlParts for backward compatibility
+using ServerUrlParts = http_helpers::ServerUrlParts;
 
 // Parse server URL into host and port
 // Returns host and port extracted from URL (e.g., "http://localhost:8080" ->
 // "localhost", 8080)
+// Uses the shared http_helpers::parse_server_url implementation
 inline ServerUrlParts parse_server_url(const std::string &url) {
-  ServerUrlParts parts;
-  size_t colon_pos = url.find("://");
-  colon_pos = colon_pos != std::string::npos ? colon_pos + 3 : 0;
-  size_t port_pos = url.find(":", colon_pos);
-  size_t path_pos = url.find("/", colon_pos);
-
-  parts.host = url.substr(colon_pos, port_pos != std::string::npos
-                                         ? port_pos - colon_pos
-                                         : path_pos - colon_pos);
-  parts.port =
-      port_pos != std::string::npos
-          ? std::stoi(url.substr(port_pos + 1, path_pos - port_pos - 1))
-          : 8080;
-  return parts;
+  return http_helpers::parse_server_url(url);
 }
 
 // Format BattleFingerprint result as hex string (matching server format)
