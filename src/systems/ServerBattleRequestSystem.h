@@ -6,6 +6,9 @@
 #include "../components/replay_state.h"
 #include "../game_state_manager.h"
 #include "../log.h"
+#include "../server/file_storage.h"
+#include "../systems/GameStateSaveSystem.h"
+#include "../utils/http_helpers.h"
 #include <afterhours/ah.h>
 #include <filesystem>
 #include <fstream>
@@ -38,6 +41,15 @@ struct ServerBattleRequestSystem : afterhours::System<BattleLoadRequest> {
     log_info("SERVER_BATTLE_REQUEST: Starting server battle request to {}",
              request.serverUrl);
 
+    GameStateSaveSystem save_system;
+    auto save_result = save_system.save_game_state();
+    if (save_result.success) {
+      log_info("GAME_STATE_SAVE: Saved game state before battle start");
+    } else {
+      log_error(
+          "GAME_STATE_SAVE: Failed to save game state before battle start");
+    }
+
     nlohmann::json player_team_json = build_player_team_json();
     if (player_team_json.empty()) {
       log_error("SERVER_BATTLE_REQUEST: Failed to build player team JSON");
@@ -45,20 +57,23 @@ struct ServerBattleRequestSystem : afterhours::System<BattleLoadRequest> {
       return;
     }
 
-    std::string host;
-    int port = 8080;
+    if (save_result.success) {
+      player_team_json["checksum"] = save_result.checksum;
+    }
 
-    if (!parse_server_url(request.serverUrl, host, port)) {
+    http_helpers::ServerUrlParts url_parts =
+        http_helpers::parse_server_url(request.serverUrl);
+    if (!url_parts.success) {
       log_error("SERVER_BATTLE_REQUEST: Failed to parse server URL: {}",
                 request.serverUrl);
       request.serverRequestPending = false;
       return;
     }
 
-    log_info("SERVER_BATTLE_REQUEST: Connecting to server at {}:{}", host,
-             port);
+    log_info("SERVER_BATTLE_REQUEST: Connecting to server at {}:{}",
+             url_parts.host, url_parts.port);
 
-    httplib::Client client(host, port);
+    httplib::Client client(url_parts.host, url_parts.port);
     client.set_read_timeout(30, 0);
     client.set_connection_timeout(10, 0);
 
@@ -125,6 +140,41 @@ struct ServerBattleRequestSystem : afterhours::System<BattleLoadRequest> {
     log_info("SERVER_BATTLE_REQUEST: Server request complete");
     log_info("  Player file: {}", request.playerJsonPath);
     log_info("  Opponent file: {}", request.opponentJsonPath);
+
+    auto save_result_after = save_system.save_game_state();
+    if (save_result_after.success) {
+      log_info("GAME_STATE_SAVE: Saving game state after battle response");
+
+      nlohmann::json save_request;
+      save_request["userId"] = save_result_after.gameState["userId"];
+      save_request["checksum"] = save_result_after.checksum;
+      save_request["gameState"] = save_result_after.gameState;
+      save_request["timestamp"] = save_result_after.gameState["timestamp"];
+
+      auto save_res = client.Post("/save-game-state", save_request.dump(),
+                                  "application/json");
+      if (save_res && save_res->status == 200) {
+        nlohmann::json save_response = nlohmann::json::parse(save_res->body);
+        bool match = save_response.value("match", false);
+        if (!match && save_response.contains("gameState")) {
+          log_info("GAME_STATE_SAVE: Server returned updated state, "
+                   "overwriting local save");
+          std::string userId =
+              save_result_after.gameState["userId"].get<std::string>();
+          server::FileStorage::save_json_to_file(
+              server::FileStorage::get_game_state_save_path(userId),
+              save_response["gameState"]);
+        } else {
+          log_info("GAME_STATE_SAVE: Server save successful, checksum match");
+        }
+      } else {
+        log_error("GAME_STATE_SAVE: Server save failed, continuing "
+                  "with local save only");
+      }
+    } else {
+      log_error(
+          "GAME_STATE_SAVE: Failed to save game state after battle response");
+    }
   }
 
 private:
@@ -164,36 +214,5 @@ private:
     nlohmann::json result;
     result["team"] = team;
     return result;
-  }
-
-  bool parse_server_url(const std::string &server_url, std::string &host,
-                        int &port) {
-    if (server_url.find("://") == std::string::npos) {
-      host = server_url;
-      return true;
-    }
-
-    size_t protocol_end = server_url.find("://") + 3;
-    size_t colon_pos = server_url.find(":", protocol_end);
-    size_t slash_pos = server_url.find("/", protocol_end);
-
-    if (colon_pos != std::string::npos &&
-        (slash_pos == std::string::npos || colon_pos < slash_pos)) {
-      host = server_url.substr(protocol_end, colon_pos - protocol_end);
-      size_t port_end =
-          (slash_pos != std::string::npos) ? slash_pos : server_url.length();
-      try {
-        port = std::stoi(
-            server_url.substr(colon_pos + 1, port_end - colon_pos - 1));
-      } catch (...) {
-        return false;
-      }
-    } else {
-      size_t end =
-          (slash_pos != std::string::npos) ? slash_pos : server_url.length();
-      host = server_url.substr(protocol_end, end - protocol_end);
-    }
-
-    return true;
   }
 };
