@@ -6,10 +6,13 @@ Replaces bash scripts with a more maintainable Python implementation.
 """
 
 import argparse
+import json
 import os
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import List, Optional, Tuple
 
@@ -24,7 +27,6 @@ class Colors:
 # Configuration
 EXECUTABLE = "./output/my_name_chef.exe"
 SERVER_EXECUTABLE = "./output/battle_server.exe"
-VERIFY_SCRIPT = "./scripts/verify_battle_endpoint.sh"
 DEFAULT_TIMEOUT = 30
 SERVER_PORT = 8080
 BASE_DIR = Path(__file__).parent.parent
@@ -217,6 +219,156 @@ class TestExecutor:
             return (False, str(e))
 
 
+class EndpointVerifier:
+    """Verifies battle server HTTP endpoints."""
+    
+    def __init__(self, port: int = SERVER_PORT):
+        self.port = port
+        self.base_url = f"http://localhost:{port}"
+    
+    def verify(self) -> Tuple[bool, str]:
+        """Run endpoint verification and return (success, message)."""
+        try:
+            # 1. Check server health
+            if not self._check_health():
+                return (False, "Server health check failed")
+            
+            # 2. Test /battle endpoint
+            battle_response = self._test_battle_endpoint()
+            if battle_response is None:
+                return (False, "Battle endpoint test failed")
+            
+            # 3. Validate response structure
+            if not self._validate_response_structure(battle_response):
+                return (False, "Response structure validation failed")
+            
+            # 4. Test error handling
+            if not self._test_error_handling():
+                return (False, "Error handling test failed")
+            
+            return (True, "All endpoint verification tests passed")
+        except Exception as e:
+            return (False, f"Endpoint verification error: {e}")
+    
+    def _check_health(self) -> bool:
+        """Check if server health endpoint responds."""
+        try:
+            req = urllib.request.Request(f"{self.base_url}/health")
+            with urllib.request.urlopen(req, timeout=5) as response:
+                health_data = response.read().decode('utf-8')
+                print(f"  {Colors.GREEN}✅ Health check passed: {health_data}{Colors.NC}")
+                return True
+        except Exception as e:
+            print(f"  {Colors.RED}❌ ERROR: Server not responding on {self.base_url}/health{Colors.NC}")
+            return False
+    
+    def _test_battle_endpoint(self) -> Optional[dict]:
+        """Test /battle endpoint with a test team."""
+        test_team = {
+            "team": [
+                {"dishType": "Potato", "slot": 0, "level": 1},
+                {"dishType": "Burger", "slot": 1, "level": 1},
+                {"dishType": "Pizza", "slot": 2, "level": 1}
+            ]
+        }
+        
+        try:
+            data = json.dumps(test_team).encode('utf-8')
+            req = urllib.request.Request(
+                f"{self.base_url}/battle",
+                data=data,
+                headers={'Content-Type': 'application/json'},
+                method='POST'
+            )
+            
+            with urllib.request.urlopen(req, timeout=30) as response:
+                response_data = response.read().decode('utf-8')
+                battle_response = json.loads(response_data)
+                print(f"  {Colors.GREEN}✅ Received valid JSON response{Colors.NC}")
+                return battle_response
+        except urllib.error.HTTPError as e:
+            print(f"  {Colors.RED}❌ ERROR: HTTP {e.code} - {e.read().decode('utf-8')}{Colors.NC}")
+            return None
+        except json.JSONDecodeError as e:
+            print(f"  {Colors.RED}❌ ERROR: Response is not valid JSON: {e}{Colors.NC}")
+            return None
+        except Exception as e:
+            print(f"  {Colors.RED}❌ ERROR: Battle endpoint test failed: {e}{Colors.NC}")
+            return None
+    
+    def _validate_response_structure(self, response: dict) -> bool:
+        """Validate that response has all required fields and correct types."""
+        required_fields = ["seed", "opponentId", "outcomes", "events", "checksum"]
+        missing_fields = [field for field in required_fields if field not in response]
+        
+        if missing_fields:
+            print(f"  {Colors.RED}❌ ERROR: Missing required fields: {', '.join(missing_fields)}{Colors.NC}")
+            return False
+        
+        # Validate outcomes is an array
+        if not isinstance(response["outcomes"], list):
+            print(f"  {Colors.RED}❌ ERROR: 'outcomes' is not an array{Colors.NC}")
+            return False
+        
+        # Validate events is an array
+        if not isinstance(response["events"], list):
+            print(f"  {Colors.RED}❌ ERROR: 'events' is not an array{Colors.NC}")
+            return False
+        
+        # Validate checksum is not empty
+        if not response["checksum"] or response["checksum"] == "null":
+            print(f"  {Colors.RED}❌ ERROR: 'checksum' is missing or empty{Colors.NC}")
+            return False
+        
+        print(f"  {Colors.GREEN}✅ All required fields present{Colors.NC}")
+        print(f"    Seed: {response['seed']}")
+        print(f"    Opponent ID: {response['opponentId']}")
+        print(f"    Outcomes count: {len(response['outcomes'])}")
+        print(f"    Events count: {len(response['events'])}")
+        print(f"    Checksum: {response['checksum']}")
+        
+        return True
+    
+    def _test_error_handling(self) -> bool:
+        """Test error handling with invalid team."""
+        invalid_team = {"team": []}
+        
+        try:
+            data = json.dumps(invalid_team).encode('utf-8')
+            req = urllib.request.Request(
+                f"{self.base_url}/battle",
+                data=data,
+                headers={'Content-Type': 'application/json'},
+                method='POST'
+            )
+            
+            try:
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    # Should not succeed
+                    print(f"  {Colors.RED}❌ ERROR: Expected HTTP 400 for invalid team, got {response.code}{Colors.NC}")
+                    return False
+            except urllib.error.HTTPError as e:
+                if e.code == 400:
+                    error_body = e.read().decode('utf-8')
+                    try:
+                        error_json = json.loads(error_body)
+                        if "error" in error_json:
+                            print(f"  {Colors.GREEN}✅ Error handling test passed (HTTP 400 for invalid team){Colors.NC}")
+                            return True
+                        else:
+                            print(f"  {Colors.RED}❌ ERROR: Error response missing 'error' field{Colors.NC}")
+                            return False
+                    except json.JSONDecodeError:
+                        print(f"  {Colors.RED}❌ ERROR: Error response is not valid JSON{Colors.NC}")
+                        return False
+                else:
+                    print(f"  {Colors.RED}❌ ERROR: Expected HTTP 400 for invalid team, got {e.code}{Colors.NC}")
+                    return False
+        except Exception as e:
+            print(f"  {Colors.RED}❌ ERROR: Error handling test failed: {e}{Colors.NC}")
+            return False
+
+
 class TestReporter:
     """Formats and displays test results."""
     
@@ -407,30 +559,30 @@ def main():
         print("")
     
     # Run battle endpoint verification (if enabled)
-    if not args.no_endpoint and not args.client_only and os.path.exists(VERIFY_SCRIPT):
+    if not args.no_endpoint and not args.client_only:
         print(f"{Colors.BLUE}🌐 Battle Endpoint Verification{Colors.NC}")
         print(f"{Colors.BLUE}{'=' * 33}{Colors.NC}")
+        print(f"Testing server on port {SERVER_PORT}")
+        print("")
         
         server_mgr = ServerManager()
         if server_mgr.start():
             try:
-                result = subprocess.run(
-                    [VERIFY_SCRIPT, str(SERVER_PORT)],
-                    capture_output=True,
-                    text=True,
-                    timeout=30,
-                    cwd=BASE_DIR
-                )
-                if result.returncode == 0:
-                    print(f"  {Colors.GREEN}✅ PASSED{Colors.NC} - All endpoint verification tests passed")
+                verifier = EndpointVerifier(SERVER_PORT)
+                success, message = verifier.verify()
+                if success:
+                    print(f"  {Colors.GREEN}✅ PASSED{Colors.NC} - {message}")
                 else:
-                    print(f"  {Colors.RED}❌ FAILED{Colors.NC} - Endpoint verification failed")
+                    print(f"  {Colors.RED}❌ FAILED{Colors.NC} - {message}")
                     total_failed += 1
             except Exception as e:
                 print(f"  {Colors.RED}❌ FAILED{Colors.NC} - {e}")
                 total_failed += 1
             finally:
                 server_mgr.stop()
+        else:
+            print(f"  {Colors.RED}❌ FAILED{Colors.NC} - Could not start server for endpoint verification")
+            total_failed += 1
         print("")
     
     # Run client tests (with shared server) - headless mode
