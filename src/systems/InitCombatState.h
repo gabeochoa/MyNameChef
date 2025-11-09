@@ -18,14 +18,23 @@ struct InitCombatState : afterhours::System<CombatQueue> {
 
   virtual bool should_run(float) override {
     GameStateManager &gsm = GameStateManager::get();
+    
     bool entering_battle =
         last_screen != GameStateManager::Screen::Battle &&
         gsm.active_screen == GameStateManager::Screen::Battle;
+    
+    if (entering_battle) {
+      log_info("INIT_COMBAT: Entering battle screen - last_screen={}, current_screen={}", 
+               (int)last_screen, (int)gsm.active_screen);
+    }
+    
     last_screen = gsm.active_screen;
     return entering_battle;
   }
 
   void for_each_with(afterhours::Entity &, CombatQueue &cq, float) override {
+    log_info("INIT_COMBAT: Initializing combat state - before reset: complete={}", cq.complete);
+    
     // Reset combat queue
     cq.reset();
 

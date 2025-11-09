@@ -7,6 +7,8 @@
 #include <afterhours/ah.h>
 
 struct BattleProcessorSystem : afterhours::System<BattleProcessor> {
+  GameStateManager::Screen last_screen = GameStateManager::Screen::Main;
+
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
     if (gsm.active_screen != GameStateManager::Screen::Battle)
@@ -21,6 +23,18 @@ struct BattleProcessorSystem : afterhours::System<BattleProcessor> {
 
   void for_each_with(afterhours::Entity &, BattleProcessor &processor,
                      float dt) override {
+    auto &gsm = GameStateManager::get();
+    
+    bool entering_battle = last_screen != GameStateManager::Screen::Battle &&
+                           gsm.active_screen == GameStateManager::Screen::Battle;
+    
+    if (entering_battle && !processor.isBattleActive()) {
+      log_info("BATTLE_PROCESSOR: Entering battle screen, resetting simulationStarted");
+      processor.simulationStarted = false;
+    }
+    
+    last_screen = gsm.active_screen;
+
     if (!processor.simulationStarted) {
       // Check for BattleLoadRequest to start simulation
       auto battleRequest =
@@ -28,8 +42,12 @@ struct BattleProcessorSystem : afterhours::System<BattleProcessor> {
       if (battleRequest.get().has<BattleLoadRequest>()) {
         auto &request = battleRequest.get().get<BattleLoadRequest>();
 
+        log_info("BATTLE_PROCESSOR: Checking battle start - loaded={}, isBattleActive={}", 
+                 request.loaded, processor.isBattleActive());
+
         if (request.loaded && !processor.isBattleActive()) {
           // Start new battle simulation
+          log_info("BATTLE_PROCESSOR: Starting new battle simulation");
           BattleProcessor::BattleInput input;
           input.playerJsonPath = request.playerJsonPath;
           input.opponentJsonPath = request.opponentJsonPath;
@@ -37,7 +55,13 @@ struct BattleProcessorSystem : afterhours::System<BattleProcessor> {
 
           processor.startBattle(input);
           processor.simulationStarted = true;
+          log_info("BATTLE_PROCESSOR: Battle simulation started");
+        } else {
+          log_info("BATTLE_PROCESSOR: Cannot start battle - loaded={}, isBattleActive={}", 
+                   request.loaded, processor.isBattleActive());
         }
+      } else {
+        log_info("BATTLE_PROCESSOR: No BattleLoadRequest found");
       }
     }
 

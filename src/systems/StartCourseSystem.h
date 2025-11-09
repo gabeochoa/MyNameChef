@@ -31,7 +31,7 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
 
   void for_each_with(afterhours::Entity &, CombatQueue &cq, float) override {
     if (cq.complete) {
-      // Quiet skip once combat is complete
+      log_info("COMBAT_START: CombatQueue is complete, skipping");
       return;
     }
 

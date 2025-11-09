@@ -31,9 +31,13 @@ struct BattleTeamFileLoaderSystem : afterhours::System<BattleLoadRequest> {
   void for_each_with(afterhours::Entity &, BattleLoadRequest &request,
                      float) override {
     if (request.loaded) {
+      log_info("BATTLE_LOADER: BattleLoadRequest already loaded, skipping");
       loaded = true;
       return;
     }
+    
+    log_info("BATTLE_LOADER: Loading battle teams - playerPath={}, opponentPath={}", 
+             request.playerJsonPath, request.opponentJsonPath);
 
     auto manager_entity =
         afterhours::EntityHelper::get_singleton<CombatQueue>();
@@ -52,6 +56,7 @@ struct BattleTeamFileLoaderSystem : afterhours::System<BattleLoadRequest> {
 
     request.loaded = true;
     loaded = true;
+    log_info("BATTLE_LOADER: Battle teams loaded successfully, loaded=true");
   }
 
 private:

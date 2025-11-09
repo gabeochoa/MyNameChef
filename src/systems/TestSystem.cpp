@@ -56,6 +56,7 @@ std::unordered_map<std::string, std::function<void()>> g_test_continuations;
 #include "../testing/tests/ValidateShopPurchaseTest.h"
 #include "../testing/tests/ValidateShopPurchaseWrongScreenTest.h"
 #include "../testing/tests/ValidateThreeBattlesFlowTest.h"
+#include "../testing/tests/ValidateDoubleBattleFlowTest.h"
 #include "../testing/tests/ValidateToastSystemTest.h"
 #include "../testing/tests/ValidateTriggerOrderingTest.h"
 #include "../testing/tests/ValidateTriggerSystemComponentsTest.h"

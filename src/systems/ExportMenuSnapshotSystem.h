@@ -105,6 +105,7 @@ public:
           existingBattleRequest.playerJsonPath = filename;
           existingBattleRequest.opponentJsonPath =
               "resources/battles/opponent_sample.json";
+          existingBattleRequest.loaded = false;
         }
       } else {
         // Create new singleton
