@@ -131,7 +131,7 @@ struct UITestHelpers {
     // If we get here, the UI element was not found after all attempts
     log_error("TEST ASSERT FAILED: UI element '{}' not found after {} attempts",
               label, max_attempts);
-    assert(false && "UI element not found");
+    throw std::runtime_error("UI element not found: " + std::string(label));
   }
 
   // Find a UI element by label
@@ -194,7 +194,7 @@ struct UITestHelpers {
     log_error(
         "TEST ASSERT FAILED: UI element '{}' not clickable after {} attempts",
         label, max_attempts);
-    assert(false && "UI element not clickable");
+    throw std::runtime_error("UI element not clickable: " + std::string(label));
   }
 
   // Check if a UI element contains specific text

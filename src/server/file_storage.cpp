@@ -69,6 +69,23 @@ FileStorage::load_json_from_file_with_retry(const std::string &file_path,
   return nlohmann::json{};
 }
 
+std::string FileStorage::load_string_from_file(const std::string &file_path) {
+  if (!file_exists(file_path)) {
+    return "";
+  }
+
+  std::ifstream file(file_path);
+  if (!file.is_open()) {
+    log_error("Failed to open file: {}", file_path);
+    return "";
+  }
+
+  std::string content;
+  std::getline(file, content);
+  file.close();
+  return content;
+}
+
 bool FileStorage::save_json_to_file(const std::string &file_path,
                                     const nlohmann::json &data) {
   std::filesystem::path path(file_path);
@@ -110,6 +127,29 @@ bool FileStorage::save_json_to_file_with_retry(const std::string &file_path,
 
   log_error("Failed to save file {} after {} attempts", file_path, max_retries);
   return false;
+}
+
+bool FileStorage::save_string_to_file(const std::string &file_path,
+                                      const std::string &data) {
+  std::filesystem::path path(file_path);
+  if (path.has_parent_path()) {
+    ensure_directory_exists(path.parent_path().string());
+  }
+
+  std::ofstream file(file_path);
+  if (!file.is_open()) {
+    log_error("Failed to open file for writing: {}", file_path);
+    return false;
+  }
+
+  try {
+    file << data;
+    file.close();
+    return true;
+  } catch (const std::exception &e) {
+    log_error("Failed to write string to file {}: {}", file_path, e.what());
+    return false;
+  }
 }
 
 bool FileStorage::file_exists(const std::string &file_path) {
@@ -169,6 +209,10 @@ void FileStorage::cleanup_old_files(const std::string &directory,
 
   log_info("File cleanup: kept {} files, deleted {} files", keep_count,
            files_to_delete);
+}
+
+std::string FileStorage::get_game_state_save_path(const std::string &userId) {
+  return "output/saves/game_state_" + userId + ".json";
 }
 
 bool FileStorage::check_disk_space(const std::string &path,

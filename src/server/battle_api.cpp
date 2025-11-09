@@ -1,9 +1,12 @@
 #include "battle_api.h"
 #include "../log.h"
 #include "../seeded_rng.h"
+#include "../utils/battle_fingerprint.h"
+#include "async/components/team_pool.h"
 #include "battle_serializer.h"
 #include "file_storage.h"
 #include "team_types.h"
+#include <afterhours/ah.h>
 #include <chrono>
 #include <filesystem>
 #include <iomanip>
@@ -17,6 +20,20 @@ BattleAPI::BattleAPI(const ServerConfig &cfg) : config(cfg) {}
 static nlohmann::json make_error_json(const std::string &error) {
   return nlohmann::json{{"error", error}};
 }
+
+static void set_error_response(httplib::Response &res, int status_code,
+                               const std::string &error_message) {
+  res.status = status_code;
+  res.set_content(make_error_json(error_message).dump(), "application/json");
+}
+
+#define return_if(condition, status_code, error_message)                       \
+  do {                                                                         \
+    if (condition) {                                                           \
+      set_error_response(res, status_code, error_message);                     \
+      return;                                                                  \
+    }                                                                          \
+  } while (0)
 
 std::string
 BattleAPI::get_error_message(const std::string &detailed_error) const {
@@ -45,11 +62,31 @@ void BattleAPI::setup_routes() {
                 handle_battle_request(req, res);
               });
 
+  server.Post("/save-game-state",
+              [this](const httplib::Request &req, httplib::Response &res) {
+                handle_save_game_state(req, res);
+              });
+
+  server.Get("/game-state",
+             [this](const httplib::Request &req, httplib::Response &res) {
+               handle_get_game_state(req, res);
+             });
+
   server.Options("/health", [](const httplib::Request &,
                                httplib::Response &res) { res.status = 200; });
 
   server.Options("/battle", [](const httplib::Request &,
                                httplib::Response &res) { res.status = 200; });
+
+  server.Options("/save-game-state",
+                 [](const httplib::Request &, httplib::Response &res) {
+                   res.status = 200;
+                 });
+
+  server.Options("/game-state",
+                 [](const httplib::Request &, httplib::Response &res) {
+                   res.status = 200;
+                 });
 }
 
 void BattleAPI::handle_health_request(const httplib::Request &,
@@ -123,59 +160,35 @@ void BattleAPI::handle_battle_request(const httplib::Request &req,
   bool simulator_initialized = false;
   try {
     std::string content_type = req.get_header_value("Content-Type");
-    if (content_type.find("application/json") == std::string::npos) {
-      res.status = 415;
-      res.set_content(
-          make_error_json("Content-Type must be application/json").dump(),
-          "application/json");
-      return;
-    }
+    return_if(content_type.find("application/json") == std::string::npos, 415,
+              "Content-Type must be application/json");
 
     if (req.body.size() > static_cast<size_t>(config.max_request_body_size)) {
-      res.status = 413;
       std::string error_msg = "Request body too large. Maximum size: " +
                               std::to_string(config.max_request_body_size) +
                               " bytes";
-      res.set_content(make_error_json(error_msg).dump(), "application/json");
+      set_error_response(res, 413, error_msg);
       return;
     }
 
-    if (req.body.empty()) {
-      res.status = 400;
-      res.set_content(make_error_json("Request body is empty").dump(),
-                      "application/json");
-      return;
-    }
+    return_if(req.body.empty(), 400, "Request body is empty");
 
     nlohmann::json request_json = nlohmann::json::parse(req.body);
 
-    if (!TeamManager::validate_team_json(request_json, config.max_team_size)) {
-      res.status = 400;
-      res.set_content(make_error_json("Invalid team JSON format").dump(),
-                      "application/json");
-      return;
-    }
+    return_if(
+        !TeamManager::validate_team_json(request_json, config.max_team_size),
+        400, "Invalid team JSON format");
 
     nlohmann::json player_team = request_json["team"];
 
     std::optional<TeamFilePath> opponent_path =
         TeamManager::select_random_opponent_with_fallback(
             config.get_opponents_path(), config.file_operation_retries);
-    if (!opponent_path.has_value()) {
-      res.status = 500;
-      res.set_content(make_error_json("No opponents available").dump(),
-                      "application/json");
-      return;
-    }
+    return_if(!opponent_path.has_value(), 500, "No opponents available");
 
     nlohmann::json opponent_team = FileStorage::load_json_from_file_with_retry(
         opponent_path.value(), config.file_operation_retries);
-    if (opponent_team.empty()) {
-      res.status = 500;
-      res.set_content(make_error_json("Failed to load opponent team").dump(),
-                      "application/json");
-      return;
-    }
+    return_if(opponent_team.empty(), 500, "Failed to load opponent team");
 
     // Explicitly not using SeededRng here because
     // this is the real seed generation for the battle
@@ -228,9 +241,7 @@ void BattleAPI::handle_battle_request(const httplib::Request &req,
         FileStorage::save_json_to_file(timeout_filename, timeout_state);
 
         simulator.cleanup_temp_files();
-        res.status = 408;
-        res.set_content(make_error_json("Battle simulation timeout").dump(),
-                        "application/json");
+        set_error_response(res, 408, "Battle simulation timeout");
         return;
       }
 
@@ -279,9 +290,7 @@ void BattleAPI::handle_battle_request(const httplib::Request &req,
 
     if (!FileStorage::check_disk_space(results_path.string(), 1048576)) {
       simulator.cleanup_temp_files();
-      res.status = 507;
-      res.set_content(make_error_json("Insufficient storage space").dump(),
-                      "application/json");
+      set_error_response(res, 507, "Insufficient storage space");
       return;
     }
 
@@ -289,9 +298,7 @@ void BattleAPI::handle_battle_request(const httplib::Request &req,
         (results_path / (timestamp + "_" + battle_id + ".json")).string();
     if (!FileStorage::save_json_to_file(result_filename, result_to_save)) {
       simulator.cleanup_temp_files();
-      res.status = 507;
-      res.set_content(make_error_json("Failed to save battle result").dump(),
-                      "application/json");
+      set_error_response(res, 507, "Failed to save battle result");
       return;
     }
 
@@ -322,7 +329,6 @@ void BattleAPI::handle_battle_request(const httplib::Request &req,
     if (simulator_initialized) {
       simulator.cleanup_temp_files();
     }
-    res.status = 400;
     std::string error_msg =
         get_error_message("Invalid JSON: " + std::string(e.what()));
     nlohmann::json error = {{"error", error_msg}};
@@ -330,13 +336,13 @@ void BattleAPI::handle_battle_request(const httplib::Request &req,
         config.error_detail_level == "info") {
       error["details"] = e.what();
     }
+    res.status = 400;
     res.set_content(error.dump(), "application/json");
     log_error("[{}] Battle API JSON error: {}", request_id, e.what());
   } catch (const std::exception &e) {
     if (simulator_initialized) {
       simulator.cleanup_temp_files();
     }
-    res.status = 500;
     std::string error_msg =
         get_error_message("Server error: " + std::string(e.what()));
     nlohmann::json error = {{"error", error_msg}};
@@ -344,8 +350,133 @@ void BattleAPI::handle_battle_request(const httplib::Request &req,
         config.error_detail_level == "info") {
       error["details"] = e.what();
     }
+    res.status = 500;
     res.set_content(error.dump(), "application/json");
     log_error("[{}] Battle API error: {}", request_id, e.what());
+  }
+}
+
+constexpr const char *SERVER_VERSION = "0.1.0";
+
+std::string
+BattleAPI::compute_game_state_checksum(const nlohmann::json &state) const {
+  return ::compute_game_state_checksum(state);
+}
+
+void BattleAPI::handle_save_game_state(const httplib::Request &req,
+                                       httplib::Response &res) {
+  try {
+    std::string content_type = req.get_header_value("Content-Type");
+    return_if(content_type.find("application/json") == std::string::npos, 415,
+              "Content-Type must be application/json");
+
+    return_if(req.body.empty(), 400, "Request body is empty");
+
+    nlohmann::json request_json = nlohmann::json::parse(req.body);
+
+    return_if(!request_json.contains("userId") ||
+                  !request_json.contains("gameState") ||
+                  !request_json.contains("checksum"),
+              400, "Missing required fields: userId, gameState, checksum");
+
+    std::string userId = request_json["userId"].get<std::string>();
+    nlohmann::json gameState = request_json["gameState"];
+    std::string client_checksum = request_json["checksum"].get<std::string>();
+    uint64_t timestamp = request_json.value(
+        "timestamp",
+        static_cast<uint64_t>(
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now().time_since_epoch())
+                .count()));
+
+    std::string server_checksum = compute_game_state_checksum(gameState);
+
+    auto entry_opt = afterhours::EntityQuery({.force_merge = true})
+                         .whereHasComponent<server::async::TeamPoolEntry>()
+                         .whereLambda([&userId](const afterhours::Entity &e) {
+                           const server::async::TeamPoolEntry &entry =
+                               e.get<server::async::TeamPoolEntry>();
+                           return entry.userId == userId;
+                         })
+                         .gen_first();
+
+    bool match = (client_checksum == server_checksum);
+
+    if (entry_opt) {
+      auto &entry_entity = entry_opt.asE();
+      auto &entry = entry_entity.get<server::async::TeamPoolEntry>();
+
+      if (!entry.gameStateChecksum.empty()) {
+        match = (client_checksum == entry.gameStateChecksum);
+      }
+
+      entry.gameState = gameState;
+      entry.gameStateChecksum = server_checksum;
+      entry.lastSaved = timestamp;
+    } else {
+      auto &new_entity = afterhours::EntityHelper::createEntity();
+      auto &entry = new_entity.addComponent<server::async::TeamPoolEntry>();
+      entry.userId = userId;
+      entry.gameState = gameState;
+      entry.gameStateChecksum = server_checksum;
+      entry.lastSaved = timestamp;
+    }
+
+    nlohmann::json response;
+    response["status"] = "ok";
+    response["match"] = match;
+    response["serverVersion"] = SERVER_VERSION;
+
+    if (!match) {
+      response["gameState"] = gameState;
+    }
+
+    res.set_content(response.dump(), "application/json");
+    res.status = 200;
+  } catch (const nlohmann::json::exception &e) {
+    set_error_response(res, 400, "Invalid JSON: " + std::string(e.what()));
+  } catch (const std::exception &e) {
+    set_error_response(res, 500, "Server error: " + std::string(e.what()));
+  }
+}
+
+void BattleAPI::handle_get_game_state(const httplib::Request &req,
+                                      httplib::Response &res) {
+  try {
+    std::string userId = req.get_param_value("userId");
+    std::string checksum = req.get_param_value("checksum");
+
+    return_if(userId.empty(), 400, "Missing userId parameter");
+    return_if(checksum.empty(), 400, "Missing checksum parameter");
+
+    auto entry_opt = afterhours::EntityQuery({.force_merge = true})
+                         .whereHasComponent<server::async::TeamPoolEntry>()
+                         .whereLambda([&userId](const afterhours::Entity &e) {
+                           const server::async::TeamPoolEntry &entry =
+                               e.get<server::async::TeamPoolEntry>();
+                           return entry.userId == userId;
+                         })
+                         .gen_first();
+
+    return_if(!entry_opt, 404, "Game state not found");
+
+    const auto &entry = entry_opt.asE().get<server::async::TeamPoolEntry>();
+
+    bool match = (checksum == entry.gameStateChecksum);
+
+    nlohmann::json response;
+    response["status"] = "ok";
+    response["match"] = match;
+    response["serverVersion"] = SERVER_VERSION;
+
+    if (!match) {
+      response["gameState"] = entry.gameState;
+    }
+
+    res.set_content(response.dump(), "application/json");
+    res.status = 200;
+  } catch (const std::exception &e) {
+    set_error_response(res, 500, "Server error: " + std::string(e.what()));
   }
 }
 

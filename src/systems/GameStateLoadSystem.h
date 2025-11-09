@@ -5,12 +5,13 @@
 #include "../components/continue_game_request.h"
 #include "../components/dish_level.h"
 #include "../components/game_state_loaded.h"
-#include "../components/has_render_order.h"
 #include "../components/has_tooltip.h"
 #include "../components/is_dish.h"
 #include "../components/is_draggable.h"
 #include "../components/is_drop_slot.h"
 #include "../components/is_inventory_item.h"
+#include "../components/network_info.h"
+#include "../components/render_order.h"
 #include "../components/transform.h"
 #include "../components/user_id.h"
 #include "../dish_types.h"
@@ -26,6 +27,7 @@
 #include <afterhours/ah.h>
 #include <afterhours/src/plugins/texture_manager.h>
 #include <filesystem>
+#include <fmt/format.h>
 #include <fstream>
 #include <httplib.h>
 #include <magic_enum/magic_enum.hpp>
@@ -65,15 +67,14 @@ struct GameStateLoadSystem : afterhours::System<ContinueGameRequest> {
         server::FileStorage::get_game_state_save_path(userId);
 
     if (!std::filesystem::exists(save_file)) {
-      log_error("GAME_STATE_LOAD: Save file not found: {}", save_file.string());
+      log_error("GAME_STATE_LOAD: Save file not found: {}", save_file);
       show_error_and_return();
       return;
     }
 
     std::ifstream file(save_file);
     if (!file.is_open()) {
-      log_error("GAME_STATE_LOAD: Failed to open save file: {}",
-                save_file.string());
+      log_error("GAME_STATE_LOAD: Failed to open save file: {}", save_file);
       show_error_and_return();
       return;
     }
@@ -142,12 +143,15 @@ struct GameStateLoadSystem : afterhours::System<ContinueGameRequest> {
 
 private:
   std::string get_server_url() {
-    auto battle_req_opt =
-        afterhours::EntityHelper::get_singleton<BattleLoadRequest>();
-    if (battle_req_opt.get().has<BattleLoadRequest>()) {
-      return battle_req_opt.get().get<BattleLoadRequest>().serverUrl;
+    // Try to get server URL from NetworkInfo first
+    auto server_addr_opt = NetworkInfo::get_server_address();
+    if (server_addr_opt.has_value()) {
+      const ServerAddress &addr = server_addr_opt.value();
+      return fmt::format("http://{}:{}", addr.ip, addr.port);
     }
-    return "";
+
+    // Fall back to environment variable or default
+    return http_helpers::get_server_url();
   }
 
   nlohmann::json fetch_server_state(const std::string &userId,
@@ -204,7 +208,10 @@ private:
       RerollCost &reroll_cost = reroll_cost_opt.get().get<RerollCost>();
 
       if (gameState.contains("gold")) {
-        wallet.gold = gameState["gold"].get<int>();
+        int gold_value = gameState["gold"].get<int>();
+        wallet.gold = gold_value;
+        log_info("GAME_STATE_LOAD: Set wallet.gold to {} (wallet entity id: {})", 
+                 gold_value, wallet_opt.get().id);
       }
 
       if (gameState.contains("health")) {

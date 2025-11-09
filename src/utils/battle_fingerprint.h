@@ -11,6 +11,9 @@
 #include <afterhours/ah.h>
 #include <algorithm>
 #include <functional>
+#include <iomanip>
+#include <nlohmann/json.hpp>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -101,6 +104,11 @@ struct BattleFingerprint {
     return hash;
   }
 
+  static uint64_t combine_hash(uint64_t hash, uint64_t value) {
+    hash ^= value + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+    return hash;
+  }
+
 private:
   struct DishData {
     int entityId = 0;
@@ -119,9 +127,17 @@ private:
     int persistZing = 0;
     int persistBody = 0;
   };
-
-  static uint64_t combine_hash(uint64_t hash, uint64_t value) {
-    hash ^= value + 0x9e3779b9 + (hash << 6) + (hash >> 2);
-    return hash;
-  }
 };
+
+constexpr const char *GAME_STATE_CLIENT_VERSION = "0.1.0";
+
+inline std::string compute_game_state_checksum(const nlohmann::json &state) {
+  std::string json_str = state.dump();
+  uint64_t hash = 0;
+  for (char c : json_str) {
+    hash = BattleFingerprint::combine_hash(hash, static_cast<uint64_t>(c));
+  }
+  std::stringstream ss;
+  ss << std::hex << std::setfill('0') << std::setw(16) << hash;
+  return ss.str();
+}

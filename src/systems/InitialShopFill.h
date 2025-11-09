@@ -2,6 +2,7 @@
 
 #include <afterhours/ah.h>
 //
+#include "../components/game_state_loaded.h"
 #include "../game_state_manager.h"
 #include "../shop.h"
 
@@ -10,6 +11,12 @@ struct InitialShopFill : afterhours::System<> {
 
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
+
+    auto shop_state_opt = afterhours::EntityHelper::get_singleton<ShopState>();
+    if (shop_state_opt.get().has<GameStateLoaded>()) {
+      filled = true;
+      return false;
+    }
 
     // Only run once when first entering shop screen
     return !filled && gsm.active_screen == GameStateManager::Screen::Shop;

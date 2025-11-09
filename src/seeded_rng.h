@@ -86,4 +86,16 @@ struct SeededRng {
         rect.y + gen_float(0.0f, rect.height),
     };
   }
+
+  /**
+   * Generate a truly random number using random_device (non-seeded)
+   * Use this when you need actual randomness, not deterministic seeded
+   * randomness
+   */
+  static uint64_t get_actually_random_number_random_seed() {
+    std::random_device rd;
+    std::mt19937_64 gen(rd());
+    std::uniform_int_distribution<uint64_t> dis;
+    return dis(gen);
+  }
 };

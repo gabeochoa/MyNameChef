@@ -16,22 +16,6 @@
 #include <string>
 
 namespace test_server_helpers {
-// Get server URL from environment variable or use default
-inline std::string get_server_url() {
-  const char *env = std::getenv("INTEGRATION_SERVER_URL");
-  return env ? std::string(env) : std::string("http://localhost:8080");
-}
-
-// Alias for http_helpers::ServerUrlParts for backward compatibility
-using ServerUrlParts = http_helpers::ServerUrlParts;
-
-// Parse server URL into host and port
-// Returns host and port extracted from URL (e.g., "http://localhost:8080" ->
-// "localhost", 8080)
-// Uses the shared http_helpers::parse_server_url implementation
-inline ServerUrlParts parse_server_url(const std::string &url) {
-  return http_helpers::parse_server_url(url);
-}
 
 // Format BattleFingerprint result as hex string (matching server format)
 inline std::string format_checksum(uint64_t fingerprint) {
@@ -51,7 +35,7 @@ inline void server_integration_test_setup(const std::string &test_name) {
 
   log_info("{}: Setting up BattleLoadRequest with server URL...", test_name);
 
-  std::string server_url = get_server_url();
+  std::string server_url = http_helpers::get_server_url();
   log_info("{}: Using server URL: {}", test_name, server_url);
 
   afterhours::Entity &request_entity = afterhours::EntityHelper::createEntity();

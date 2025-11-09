@@ -4,6 +4,7 @@
 #include "../../components/replay_state.h"
 #include "../../game_state_manager.h"
 #include "../../utils/battle_fingerprint.h"
+#include "../../utils/http_helpers.h"
 #include "../test_app.h"
 #include "../test_macros.h"
 #include "../test_server_helpers.h"
@@ -46,9 +47,8 @@ TEST(validate_server_checksum_match) {
   app.expect_false(checksum_fetched,
                    "server checksum should only be fetched once");
 
-  std::string url = test_server_helpers::get_server_url();
-  test_server_helpers::ServerUrlParts url_parts =
-      test_server_helpers::parse_server_url(url);
+  std::string url = http_helpers::get_server_url();
+  http_helpers::ServerUrlParts url_parts = http_helpers::parse_server_url(url);
   app.expect_true(url_parts.success, "Server URL should parse successfully");
 
   // Build player team JSON

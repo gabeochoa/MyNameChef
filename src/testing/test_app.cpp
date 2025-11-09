@@ -5,6 +5,7 @@
 #include "../components/can_drop_onto.h"
 #include "../components/combat_queue.h"
 #include "../components/combat_stats.h"
+#include "../components/continue_game_request.h"
 #include "../components/dish_battle_state.h"
 #include "../components/dish_level.h"
 #include "../components/is_dish.h"
@@ -16,12 +17,16 @@
 #include "../components/network_info.h"
 #include "../components/replay_state.h"
 #include "../components/transform.h"
+#include "../components/user_id.h"
 #include "../dish_types.h"
 #include "../game_state_manager.h"
 #include "../log.h"
 #include "../query.h"
 #include "../render_backend.h"
+#include "../seeded_rng.h"
+#include "../server/file_storage.h"
 #include "../shop.h"
+#include "../systems/GameStateSaveSystem.h"
 #include "../systems/NetworkSystem.h"
 #include <afterhours/ah.h>
 #include <chrono>
@@ -389,6 +394,44 @@ TestApp &TestApp::create_inventory_item(DishType type, int slot) {
   afterhours::EntityHelper::merge_entity_arrays();
 
   return *this;
+}
+
+int TestApp::read_round() {
+  afterhours::RefEntity round_ref =
+      afterhours::EntityHelper::get_singleton<Round>();
+  if (round_ref.get().has<Round>()) {
+    return round_ref.get().get<Round>().current;
+  }
+  return 1; // Default round if not found
+}
+
+int TestApp::read_shop_tier() {
+  afterhours::RefEntity shop_tier_ref =
+      afterhours::EntityHelper::get_singleton<ShopTier>();
+  if (shop_tier_ref.get().has<ShopTier>()) {
+    return shop_tier_ref.get().get<ShopTier>().current_tier;
+  }
+  fail("ShopTier singleton not found");
+  return 1; // Unreachable
+}
+
+TestApp::RerollCostInfo TestApp::read_reroll_cost() {
+  RerollCostInfo info;
+  afterhours::RefEntity reroll_ref =
+      afterhours::EntityHelper::get_singleton<RerollCost>();
+  if (reroll_ref.get().has<RerollCost>()) {
+    const RerollCost &cost = reroll_ref.get().get<RerollCost>();
+    info.base = cost.base;
+    info.increment = cost.increment;
+    info.current = cost.current;
+    return info;
+  }
+  fail("RerollCost singleton not found");
+  return info; // Unreachable
+}
+
+uint64_t TestApp::read_shop_seed() {
+  return SeededRng::get().seed;
 }
 
 int TestApp::read_player_health() {
@@ -1359,6 +1402,40 @@ TestApp &TestApp::force_network_check() {
   log_info("TEST: Forced NetworkSystem to perform immediate health check");
 
   return *this;
+}
+
+TestApp &TestApp::trigger_game_state_save() {
+  GameStateSaveSystem save_system;
+  auto result = save_system.save_game_state();
+  if (!result.success) {
+    fail("Failed to save game state");
+  }
+  return *this;
+}
+
+TestApp &TestApp::trigger_game_state_load() {
+  auto continue_opt =
+      afterhours::EntityHelper::get_singleton<ContinueGameRequest>();
+  if (!continue_opt.get().has<ContinueGameRequest>()) {
+    continue_opt.get().addComponent<ContinueGameRequest>();
+    afterhours::EntityHelper::registerSingleton<ContinueGameRequest>(
+        continue_opt.get());
+  }
+  continue_opt.get().get<ContinueGameRequest>().requested = true;
+  // Wait a frame for GameStateLoadSystem to process
+  wait_for_frames(1);
+  return *this;
+}
+
+bool TestApp::save_file_exists() {
+  auto userId_opt = afterhours::EntityHelper::get_singleton<UserId>();
+  if (!userId_opt.get().has<UserId>()) {
+    return false;
+  }
+  std::string userId = userId_opt.get().get<UserId>().userId;
+  std::string save_file =
+      server::FileStorage::get_game_state_save_path(userId);
+  return server::FileStorage::file_exists(save_file);
 }
 
 bool TestApp::try_purchase_item(DishType type, int inventory_slot,

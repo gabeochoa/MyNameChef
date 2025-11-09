@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdlib>
 #include <string>
 
 namespace http_helpers {
@@ -10,6 +11,12 @@ struct ServerUrlParts {
   bool success;
 };
 
+// Get server URL from environment variable or use default
+inline std::string get_server_url() {
+  const char *env = std::getenv("INTEGRATION_SERVER_URL");
+  return env ? std::string(env) : std::string("http://localhost:8080");
+}
+
 // Parse server URL into host and port
 // Handles URLs like:
 //   - "http://localhost:8080" -> host="localhost", port=8080
@@ -18,7 +25,7 @@ struct ServerUrlParts {
 //   - "localhost" -> host="localhost", port=8080 (default)
 // Returns ServerUrlParts with success=false if parsing fails
 inline ServerUrlParts parse_server_url(const std::string &server_url,
-                                        int default_port = 8080) {
+                                       int default_port = 8080) {
   ServerUrlParts parts;
   parts.port = default_port;
   parts.success = false;
@@ -69,4 +76,3 @@ inline ServerUrlParts parse_server_url(const std::string &server_url,
 }
 
 } // namespace http_helpers
-
