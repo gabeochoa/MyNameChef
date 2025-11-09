@@ -43,3 +43,9 @@ next.md
 src/testing/.make/*
 src/testing/.xmake/macosx/*
 src/testing/build/.build_cache/*
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
