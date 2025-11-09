@@ -267,13 +267,12 @@ int main(int argc, char *argv[]) {
     // Access test registry directly - static initializers from TEST() macros
     // should have already run when TestSystem.cpp was linked
     // No initialization needed - just list the tests and exit
+    // Output format: one test name per line (for easy parsing)
     auto &registry = TestRegistry::get();
     auto test_list = registry.list_tests();
 
-    std::cout << "Available tests (" << test_list.size()
-              << " total):" << std::endl;
     for (const auto &name : test_list) {
-      std::cout << "  - " << name << std::endl;
+      std::cout << name << std::endl;
     }
 
     return 0;

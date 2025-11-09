@@ -13,17 +13,32 @@
 #include "../log.h"
 #include "test_app.h"
 
+struct TestMetadata {
+  std::vector<std::string> tags;
+  float timeout = 0.0f; // 0.0 means use default
+  bool requires_restart = false;
+
+  TestMetadata() = default;
+  TestMetadata(const std::vector<std::string> &t, float to, bool rr)
+      : tags(t), timeout(to), requires_restart(rr) {}
+};
+
 struct TestCase {
   std::string name;
   std::function<void(TestApp &)> test_fn;
   std::string file;
   int line = 0;
+  TestMetadata metadata;
 
   TestCase() = default;
 
   TestCase(const std::string &n, std::function<void(TestApp &)> fn,
            const std::string &f, int l)
       : name(n), test_fn(std::move(fn)), file(f), line(l) {}
+
+  TestCase(const std::string &n, std::function<void(TestApp &)> fn,
+           const std::string &f, int l, const TestMetadata &m)
+      : name(n), test_fn(std::move(fn)), file(f), line(l), metadata(m) {}
 };
 
 class TestRegistry {
@@ -36,6 +51,12 @@ public:
   void register_test(const std::string &name, std::function<void(TestApp &)> fn,
                      const std::string &file, int line) {
     tests[name] = TestCase(name, fn, file, line);
+  }
+
+  void register_test(const std::string &name, std::function<void(TestApp &)> fn,
+                     const std::string &file, int line,
+                     const TestMetadata &metadata) {
+    tests[name] = TestCase(name, fn, file, line, metadata);
   }
 
   bool run_test(const std::string &name, TestApp &app) {
@@ -138,6 +159,19 @@ private:
   };                                                                           \
   static TestRegistrar_##test_name test_registrar_##test_name;                 \
   void test_##test_name(TestApp &app)
+
+#define TEST_META(test_name, test_tags, test_timeout, test_requires_restart)   \
+  void test_##test_name(TestApp &app);                                         \
+  struct TestRegistrar_##test_name {                                           \
+    TestRegistrar_##test_name() {                                              \
+      auto loc = std::source_location::current();                              \
+      TestMetadata meta(test_tags, test_timeout, test_requires_restart);       \
+      TestRegistry::get().register_test(#test_name, test_##test_name,          \
+                                        loc.file_name(), loc.line(), meta);    \
+    }                                                                          \
+  };                                                                           \
+  static TestRegistrar_##test_name test_registrar_##test_name;                 \
+  void test_##test_name(TestApp &app)
 #else
 #define TEST(test_name)                                                        \
   void test_##test_name(TestApp &app);                                         \
@@ -145,6 +179,18 @@ private:
     TestRegistrar_##test_name() {                                              \
       TestRegistry::get().register_test(#test_name, test_##test_name,          \
                                         __FILE__, __LINE__);                   \
+    }                                                                          \
+  };                                                                           \
+  static TestRegistrar_##test_name test_registrar_##test_name;                 \
+  void test_##test_name(TestApp &app)
+
+#define TEST_META(test_name, test_tags, test_timeout, test_requires_restart)   \
+  void test_##test_name(TestApp &app);                                         \
+  struct TestRegistrar_##test_name {                                           \
+    TestRegistrar_##test_name() {                                              \
+      TestMetadata meta(test_tags, test_timeout, test_requires_restart);       \
+      TestRegistry::get().register_test(#test_name, test_##test_name,          \
+                                        __FILE__, __LINE__, meta);             \
     }                                                                          \
   };                                                                           \
   static TestRegistrar_##test_name test_registrar_##test_name;                 \

@@ -37,6 +37,16 @@ int main(int argc, char *argv[]) {
     return server::test::TestRegistry::get().run_all_tests() ? 0 : 1;
   }
 
+  if (cmdl["--list-tests"]) {
+    // Output format: one test name per line (for easy parsing)
+    auto &registry = server::test::TestRegistry::get();
+    auto test_list = registry.list_tests();
+    for (const auto &name : test_list) {
+      std::cout << name << std::endl;
+    }
+    return 0;
+  }
+
   server::ServerConfig config = server::ServerConfig::defaults();
 
   std::string config_path;
