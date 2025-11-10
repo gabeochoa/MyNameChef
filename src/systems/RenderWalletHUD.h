@@ -36,5 +36,15 @@ struct RenderWalletHUD : System<> {
 
     render_backend::DrawText(health_text.c_str(), 20, 110,
                              static_cast<int>(text_size), raylib::RED);
+
+    auto round_entity = EntityHelper::get_singleton<Round>();
+    if (!round_entity.get().has<Round>())
+      return;
+
+    const auto &round = round_entity.get().get<Round>();
+    std::string round_text = "Round " + std::to_string(round.current);
+
+    render_backend::DrawText(round_text.c_str(), 20, 140,
+                             static_cast<int>(text_size), raylib::WHITE);
   }
 };
