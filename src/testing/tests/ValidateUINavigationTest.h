@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../../dish_types.h"
 #include "../../game_state_manager.h"
 #include "../test_macros.h"
 
@@ -33,6 +34,11 @@ TEST(validate_ui_navigation) {
     // TODO: Validate battle screen elements
     // Expected: Combat display, dish stats, progress indicators
     // Bug: Battle UI may not be complete
+    const auto inventory = app.read_player_inventory();
+    if (inventory.empty()) {
+      app.create_inventory_item(DishType::Potato, 0);
+      app.wait_for_frames(2);
+    }
     app.click("Next Round");
     app.wait_for_screen(GameStateManager::Screen::Battle, 15.0f);
     app.wait_for_ui_exists("Skip to Results", 5.0f);

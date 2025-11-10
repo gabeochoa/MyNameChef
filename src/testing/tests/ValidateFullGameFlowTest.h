@@ -2,6 +2,7 @@
 
 #include "../../components/battle_result.h"
 #include "../../components/dish_battle_state.h"
+#include "../../dish_types.h"
 #include "../../game_state_manager.h"
 #include "../../log.h"
 #include "../test_macros.h"
@@ -21,6 +22,13 @@ TEST(validate_full_game_flow) {
   // Step 3: Validate shop functionality
   app.wait_for_ui_exists("Next Round");
   app.wait_for_ui_exists("Reroll (1)");
+
+  // Step 3.5: Create dishes if inventory is empty
+  const auto inventory = app.read_player_inventory();
+  if (inventory.empty()) {
+    app.create_inventory_item(DishType::Potato, 0);
+    app.wait_for_frames(2);
+  }
 
   // Step 4: Navigate to battle
   app.click("Next Round");

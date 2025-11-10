@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../components/battle_load_request.h"
+#include "../../dish_types.h"
 #include "../../game_state_manager.h"
 #include "../test_app.h"
 #include "../test_macros.h"
@@ -14,6 +15,21 @@ TEST(validate_server_battle_integration) {
   app.click("Play");
   app.wait_for_screen(GameStateManager::Screen::Shop, 10.0f);
   app.wait_for_ui_exists("Next Round");
+
+  // Create dishes in inventory (required to proceed past shop screen)
+  const auto inventory = app.read_player_inventory();
+  if (inventory.empty()) {
+    const auto shop_items = app.read_store_options();
+    if (!shop_items.empty()) {
+      const int item_price = shop_items[0].price;
+      app.set_wallet_gold(item_price + 10);
+      app.purchase_item(shop_items[0].type);
+      app.wait_for_frames(2);
+    } else {
+      app.create_inventory_item(DishType::Potato, 0);
+      app.wait_for_frames(2);
+    }
+  }
 
   // Setup BattleLoadRequest with server URL (only once)
   test_server_helpers::server_integration_test_setup("INTEGRATION_TEST");

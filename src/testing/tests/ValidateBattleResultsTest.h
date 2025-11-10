@@ -104,6 +104,13 @@ TEST(validate_battle_results) {
   app.wait_for_screen(GameStateManager::Screen::Shop, 10.0f);
   app.wait_for_ui_exists("Next Round");
 
+  // Step 2.5: Create dishes in inventory (required to proceed past shop screen)
+  const auto inventory = app.read_player_inventory();
+  if (inventory.empty()) {
+    app.create_inventory_item(DishType::Potato, 0);
+    app.wait_for_frames(2);
+  }
+
   // Step 3: Create BattleLoadRequest and navigate to battle
   auto &requestEntity = afterhours::EntityHelper::createEntity();
   BattleLoadRequest battleRequest;

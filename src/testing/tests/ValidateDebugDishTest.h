@@ -34,6 +34,14 @@ static void navigate_to_battle_screen(TestApp &app) {
     app.click("Play");
     app.wait_for_screen(GameStateManager::Screen::Shop, 10.0f);
     app.wait_for_ui_exists("Next Round");
+    
+    // Create dishes in inventory (required to proceed past shop screen)
+    const auto inventory = app.read_player_inventory();
+    if (inventory.empty()) {
+      app.create_inventory_item(DishType::Potato, 0);
+      app.wait_for_frames(2);
+    }
+    
     app.click("Next Round");
     app.wait_for_screen(GameStateManager::Screen::Battle, 15.0f);
     app.wait_for_ui_exists("Skip to Results", 5.0f);

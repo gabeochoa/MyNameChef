@@ -331,10 +331,16 @@ int TestApp::count_active_opponent_dishes() {
 
 std::vector<TestShopItemInfo> TestApp::read_store_options() {
   std::vector<TestShopItemInfo> result;
-  for (afterhours::Entity &entity : afterhours::EntityQuery()
+  afterhours::EntityHelper::merge_entity_arrays();
+  for (afterhours::Entity &entity : afterhours::EntityQuery({.force_merge = true})
                                         .whereHasComponent<IsShopItem>()
-                                        .whereHasComponent<IsDish>()
                                         .gen()) {
+    if (entity.cleanup) {
+      continue;
+    }
+    if (!entity.has<IsDish>()) {
+      continue;
+    }
     IsShopItem &shop = entity.get<IsShopItem>();
     IsDish &dish = entity.get<IsDish>();
     DishInfo dish_info = get_dish_info(dish.type);
