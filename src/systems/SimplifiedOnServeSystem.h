@@ -39,12 +39,24 @@ struct SimplifiedOnServeSystem : afterhours::System<CombatQueue> {
       return;
     }
 
-    if (!slide_in_complete()) {
+    static int onserve_check_count = 0;
+    onserve_check_count++;
+    
+    bool slide_complete = slide_in_complete();
+    bool has_blocking = hasActiveAnimation();
+    
+    if (!slide_complete) {
+      if (onserve_check_count % 60 == 0 || onserve_check_count <= 30) {
+        log_info("ONSERVE: SlideIn not complete, skipping - call={}", onserve_check_count);
+      }
       return;
     }
 
     // Check for blocking animations - in headless mode hasActiveAnimation() returns false
-    if (hasActiveAnimation()) {
+    if (has_blocking) {
+      if (onserve_check_count % 60 == 0 || onserve_check_count <= 30) {
+        log_info("ONSERVE: Blocking animations active, skipping - call={}", onserve_check_count);
+      }
       return;
     }
 
@@ -61,6 +73,9 @@ struct SimplifiedOnServeSystem : afterhours::System<CombatQueue> {
             .gen();
 
     if (!unfiredDishes.empty()) {
+      if (onserve_check_count <= 30) {
+        log_info("ONSERVE: Firing OnServe for {} dishes - call={}", unfiredDishes.size(), onserve_check_count);
+      }
       for (afterhours::Entity &dish : unfiredDishes) {
         DishBattleState &dbs = dish.get<DishBattleState>();
         fire_onserve_trigger(dish, dbs);
@@ -71,6 +86,8 @@ struct SimplifiedOnServeSystem : afterhours::System<CombatQueue> {
                      ? "Player"
                      : "Opponent");
       }
+    } else if (onserve_check_count <= 30) {
+      log_info("ONSERVE: No unfired dishes found - call={}", onserve_check_count);
     }
 
     // Check if all dishes have fired OnServe

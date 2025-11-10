@@ -60,6 +60,7 @@ struct BattleProcessor : afterhours::BaseComponent {
   // Simulation control
   bool simulationStarted = false;
   float simulationTime = 0.0f;
+  bool finished = false; // Guard against multiple finishBattle() calls
 
   // Constants
   static constexpr float kTickMs = 150.0f / 1000.0f; // 150ms bite cadence

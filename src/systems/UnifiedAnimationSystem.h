@@ -79,33 +79,28 @@ struct AnimationTimerSystem : afterhours::System<AnimationTimer> {
     return true;
   }
 
-  void for_each_with(afterhours::Entity &e, AnimationTimer &timer,
-                     float dt) override {
-    // TODO: Replace headless mode bypass with --disable-animation flag that
-    // calls into vendor library (afterhours::animation) to properly disable
-    // animations at the framework level instead of bypassing timers here
-    if (render_backend::is_headless_mode) {
-      timer.elapsed = timer.duration;
-    } else {
-      timer.elapsed += dt;
-    }
+              void for_each_with(afterhours::Entity &e, AnimationTimer &timer,
+                                 float dt) override {
+                // TODO: Replace headless mode bypass with --disable-animation flag that
+                // calls into vendor library (afterhours::animation) to properly disable
+                // animations at the framework level instead of bypassing timers here
+                if (render_backend::is_headless_mode) {
+                  timer.elapsed = timer.duration;
+                } else {
+                  timer.elapsed += dt;
+                }
 
-    if (timer.elapsed >= timer.duration) {
-      log_info("ANIM complete: Timer-based animation (event id={})", e.id);
+                if (timer.elapsed >= timer.duration) {
+                  log_info("ANIM complete: Timer-based animation (event id={}), elapsed={}, duration={}", 
+                           (int)e.id, timer.elapsed, timer.duration);
 
-      // Clean up animation components
-      e.removeComponent<AnimationEvent>();
-      e.removeComponent<AnimationEventScheduled>();
-      e.removeComponent<AnimationTimer>();
-      e.removeComponent<IsBlockingAnimationEvent>();
-
-      // Clean up animation-specific components
-      if (e.has<AnimationEvent>()) {
-        // AnimationEvent cleanup is handled by removing the AnimationEvent
-        // component itself
-      }
-    }
-  }
+                  // Clean up animation components
+                  e.removeComponent<AnimationEvent>();
+                  e.removeComponent<AnimationEventScheduled>();
+                  e.removeComponent<AnimationTimer>();
+                  e.removeComponent<IsBlockingAnimationEvent>();
+                }
+              }
 };
 
 struct SlideInAnimationDriverSystem

@@ -40,6 +40,9 @@ TEST(validate_three_battles_flow) {
   app.wait_for_battle_initialized(10.0f);
   app.expect_screen_is(GameStateManager::Screen::Battle);
 
+  // Verify combat ticks occurred for Battle 1
+  app.expect_combat_ticks_occurred(1);
+
   log_info("TEST: Battle 1 - Waiting for Skip to Results");
   app.wait_for_ui_exists("Skip to Results", 5.0f);
   log_info("TEST: Battle 1 - Clicking Skip to Results");
@@ -73,6 +76,9 @@ TEST(validate_three_battles_flow) {
   app.wait_for_battle_initialized(10.0f);
   app.expect_screen_is(GameStateManager::Screen::Battle);
 
+  // Verify combat ticks occurred for Battle 2
+  app.expect_combat_ticks_occurred(1);
+
   app.wait_for_ui_exists("Skip to Results", 5.0f);
   app.click("Skip to Results");
   app.wait_for_screen(GameStateManager::Screen::Results, 10.0f);
@@ -99,6 +105,9 @@ TEST(validate_three_battles_flow) {
   app.wait_for_frames(10);
   app.wait_for_battle_initialized(10.0f);
   app.expect_screen_is(GameStateManager::Screen::Battle);
+
+  // Verify combat ticks occurred for Battle 3
+  app.expect_combat_ticks_occurred(1);
 
   app.wait_for_ui_exists("Skip to Results", 5.0f);
   app.click("Skip to Results");

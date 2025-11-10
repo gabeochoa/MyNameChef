@@ -25,8 +25,10 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
     if (isReplayPaused()) {
       return false;
     }
-    // Check for blocking animations - in headless mode hasActiveAnimation() returns false
-    return !hasActiveAnimation();
+    // CRITICAL: Don't check hasActiveAnimation() here - prerequisites_complete() already checks SlideIn
+    // FreshnessChain and StatBoost animations can be active without blocking course start
+    // Only SlideIn needs to complete before starting courses
+    return true;
   }
 
   void for_each_with(afterhours::Entity &, CombatQueue &cq, float) override {
@@ -35,8 +37,7 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
       return;
     }
 
-    bool prereqs = prerequisites_complete();
-    if (!prereqs) {
+    if (!prerequisites_complete()) {
       return;
     }
 
@@ -135,8 +136,6 @@ private:
                         dbs.phase == DishBattleState::Phase::InCombat;
                })
                .gen_count();
-    log_info("COMBAT_START: {} side has {} active dishes (phases: InQueue, Entering, InCombat)", 
-             side == DishBattleState::TeamSide::Player ? "Player" : "Opponent", count);
     return count > 0;
   }
 

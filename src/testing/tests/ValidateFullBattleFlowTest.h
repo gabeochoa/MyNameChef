@@ -60,6 +60,10 @@ TEST(validate_full_battle_flow) {
   int initial_opponent_dishes = app.count_active_opponent_dishes();
 
   app.wait_for_battle_complete(60.0f);
+  
+  // Verify combat ticks occurred
+  app.expect_combat_ticks_occurred(1);
+  
   app.wait_for_results_screen(10.0f);
   app.expect_screen_is(GameStateManager::Screen::Results);
 

@@ -326,9 +326,12 @@ bool hasActiveAnimation() {
   if (render_backend::is_headless_mode) {
     return false;
   }
-  return EntityQuery()
-      .whereHasComponent<IsBlockingAnimationEvent>()
-      .has_values();
+  
+  for (afterhours::Entity &e :
+       EntityQuery().whereHasComponent<IsBlockingAnimationEvent>().gen()) {
+    return true;
+  }
+  return false;
 }
 
 bool isReplayPaused() {

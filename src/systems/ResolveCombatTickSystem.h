@@ -28,7 +28,8 @@ private:
     if (isReplayPaused()) {
       return false;
     }
-    // Check for blocking animations - in headless mode hasActiveAnimation() returns false
+    // Check for blocking animations - in headless mode hasActiveAnimation()
+    // returns false
     return !hasActiveAnimation();
   }
 
@@ -47,14 +48,14 @@ private:
       return;
     afterhours::Entity &opponent = opt_opponent.asE();
 
-    // Hard gate: ensure the SlideIn animation has fully finished for both entities
-    // In headless mode, animations complete instantly so slide values are always 1.0
-    auto sv_player = afterhours::animation::get_value(BattleAnimKey::SlideIn,
-                                                      (size_t)e.id);
-    auto sv_opponent = afterhours::animation::get_value(
-        BattleAnimKey::SlideIn, (size_t)opponent.id);
-    const float slide_player =
-        sv_player.has_value() ? sv_player.value() : 1.0f;
+    // Hard gate: ensure the SlideIn animation has fully finished for both
+    // entities In headless mode, animations complete instantly so slide values
+    // are always 1.0
+    auto sv_player =
+        afterhours::animation::get_value(BattleAnimKey::SlideIn, (size_t)e.id);
+    auto sv_opponent = afterhours::animation::get_value(BattleAnimKey::SlideIn,
+                                                        (size_t)opponent.id);
+    const float slide_player = sv_player.has_value() ? sv_player.value() : 1.0f;
     const float slide_opponent =
         sv_opponent.has_value() ? sv_opponent.value() : 1.0f;
     if (slide_player < 1.0f || slide_opponent < 1.0f) {
@@ -64,7 +65,8 @@ private:
     // On entering InCombat for the first time, start with a pre-pause
     if (!dbs.first_bite_decided) {
       // Do not start cadence until movement animation has fully finished
-      // In headless mode, enter_progress is set to 1.0 immediately, so this check passes
+      // In headless mode, enter_progress is set to 1.0 immediately, so this
+      // check passes
       if (dbs.enter_progress < 1.0f ||
           opponent.get<DishBattleState>().enter_progress < 1.0f) {
         return;
@@ -139,7 +141,8 @@ private:
     }
 
     if (dbs.bite_cadence == DishBattleState::BiteCadence::PostPause) {
-      float scaled_post_pause = kPostPauseMs / render_backend::timing_speed_scale;
+      float scaled_post_pause =
+          kPostPauseMs / render_backend::timing_speed_scale;
       if (dbs.bite_cadence_timer < scaled_post_pause)
         return;
 

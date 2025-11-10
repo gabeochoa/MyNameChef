@@ -105,7 +105,7 @@ void game(const std::optional<std::string> &run_test) {
   }
 
   SystemManager systems;
-  auto &sophie = EntityHelper::createEntity();
+  auto &sophie = EntityHelper::createPermanentEntity(); // CRITICAL: Make sophie permanent so BattleProcessor singleton is never cleaned up
 
   // singleton systems
   {

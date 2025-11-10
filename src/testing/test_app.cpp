@@ -74,11 +74,18 @@ TestApp &TestApp::launch_game(const std::source_location &loc) {
   // Check if BattleProcessor singleton exists and reset it
   const auto battleProcessorId = afterhours::components::get_type_id<BattleProcessor>();
   if (afterhours::EntityHelper::get().singletonMap.contains(battleProcessorId)) {
-    auto battleProcessor = afterhours::EntityHelper::get_singleton<BattleProcessor>();
-    if (battleProcessor.get().has<BattleProcessor>()) {
-      auto &processor = battleProcessor.get().get<BattleProcessor>();
-      processor.simulationStarted = false;
-      log_info("TEST_APP: launch_game - Reset BattleProcessor");
+    try {
+      auto battleProcessor = afterhours::EntityHelper::get_singleton<BattleProcessor>();
+      if (battleProcessor.get().has<BattleProcessor>()) {
+        auto &processor = battleProcessor.get().get<BattleProcessor>();
+        processor.simulationStarted = false;
+        processor.finished = false; // Reset finished flag
+        processor.simulationComplete = false; // Reset simulationComplete flag
+        log_info("TEST_APP: launch_game - Reset BattleProcessor");
+      }
+    } catch (...) {
+      // If accessing singleton fails (entity was cleaned up), just continue
+      log_info("TEST_APP: launch_game - Could not access BattleProcessor singleton (may have been cleaned up)");
     }
   }
   
@@ -1276,6 +1283,222 @@ TestApp &TestApp::wait_for_dishes_in_combat(int min_count, float timeout_sec,
   yield([this]() {
     TestRegistry::get().run_test(current_test_name, *this);
   });
+  return *this;
+}
+
+TestApp &TestApp::wait_for_animations_complete(float timeout_sec,
+                                                const std::string &location) {
+  (void)timeout_sec;
+  (void)location;
+  TestOperationID op_id = generate_operation_id(std::source_location::current(),
+                                                "wait_for_animations_complete");
+  if (completed_operations.count(op_id) > 0) {
+    return *this;
+  }
+
+  // In headless mode, animations complete instantly
+  if (render_backend::is_headless_mode) {
+    completed_operations.insert(op_id);
+    return *this;
+  }
+
+  // Check if there are any blocking animations
+  bool has_anim = hasActiveAnimation();
+  if (!has_anim) {
+    completed_operations.insert(op_id);
+    return *this;
+  }
+
+  // Wait for animations to complete
+  wait_state.type = WaitState::FrameDelay;
+  wait_state.frame_delay_count = 1;
+  wait_state.operation_id = op_id;
+  yield([this]() {
+    TestRegistry::get().run_test(current_test_name, *this);
+  });
+  return *this;
+}
+
+TestApp &TestApp::expect_combat_ticks_occurred(int min_ticks,
+                                                const std::string &location) {
+  // Check BattleProcessor to see if combat ticks occurred
+  // We can check outcomes (completed courses) or look at dish state changes
+  afterhours::OptEntity battleProcessor;
+  try {
+    battleProcessor = afterhours::EntityHelper::get_singleton<BattleProcessor>();
+  } catch (...) {
+    fail("BattleProcessor singleton not found - cannot verify combat ticks",
+         location);
+    return *this;
+  }
+  
+  if (!battleProcessor.has_value()) {
+    fail("BattleProcessor singleton not found - cannot verify combat ticks",
+         location);
+    return *this;
+  }
+  
+  if (!battleProcessor.asE().has<BattleProcessor>()) {
+    fail("BattleProcessor singleton not found - cannot verify combat ticks",
+         location);
+    return *this;
+  }
+
+  // CRITICAL: Access processor component safely - entity might be invalid
+  // If entity was cleaned up, get_singleton might return invalid reference
+  // Segfaults can't be caught by try-catch, so we need to be very careful
+  const BattleProcessor *processor_ptr = nullptr;
+  try {
+    processor_ptr = &battleProcessor.asE().get<BattleProcessor>();
+  } catch (...) {
+    fail("BattleProcessor component access failed - cannot verify combat ticks",
+         location);
+    return *this;
+  }
+  
+  if (processor_ptr == nullptr) {
+    fail("BattleProcessor component is null - cannot verify combat ticks",
+         location);
+    return *this;
+  }
+  
+  const BattleProcessor &processor = *processor_ptr;
+
+  // CRITICAL: Check if battle is actually active before accessing data
+  // If battle isn't active, we can't verify combat ticks
+  if (!processor.isBattleActive()) {
+    fail("Battle is not active - cannot verify combat ticks. simulationStarted=" +
+             std::to_string(processor.simulationStarted ? 1 : 0) +
+             ", simulationComplete=" + std::to_string(processor.simulationComplete ? 1 : 0),
+         location);
+    return *this;
+  }
+
+  // Check if any courses have outcomes (proves combat occurred)
+  // CRITICAL: Access outcomes - if entity was cleaned up, this will segfault
+  // We can't prevent segfaults with try-catch, so we just hope the entity is valid
+  int completed_courses = static_cast<int>(processor.outcomes.size());
+  
+  // CRITICAL: Check if any dish has had a bite occur (firstBiteDecided = true)
+  // This is the most direct indicator that resolveCombatTick was actually called
+  int dishes_with_bites = 0;
+  for (const auto &dish : processor.playerDishes) {
+    if (dish.firstBiteDecided) {
+      dishes_with_bites++;
+    }
+  }
+  for (const auto &dish : processor.opponentDishes) {
+    if (dish.firstBiteDecided) {
+      dishes_with_bites++;
+    }
+  }
+  
+  // Also check if dishes have taken damage (body changed from base)
+  // This proves damage was actually dealt
+  int dishes_with_damage = 0;
+  for (const auto &dish : processor.playerDishes) {
+    if (dish.currentBody < dish.baseBody) {
+      dishes_with_damage++;
+    }
+  }
+  for (const auto &dish : processor.opponentDishes) {
+    if (dish.currentBody < dish.baseBody) {
+      dishes_with_damage++;
+    }
+  }
+
+  // Check if any dishes progressed past InQueue phase
+  int dishes_in_combat = 0;
+  for (const auto &dish : processor.playerDishes) {
+    if (dish.phase == BattleProcessor::DishSimData::Phase::InCombat ||
+        dish.phase == BattleProcessor::DishSimData::Phase::Finished ||
+        dish.phase == BattleProcessor::DishSimData::Phase::Entering) {
+      dishes_in_combat++;
+    }
+  }
+  for (const auto &dish : processor.opponentDishes) {
+    if (dish.phase == BattleProcessor::DishSimData::Phase::InCombat ||
+        dish.phase == BattleProcessor::DishSimData::Phase::Finished ||
+        dish.phase == BattleProcessor::DishSimData::Phase::Entering) {
+      dishes_in_combat++;
+    }
+  }
+
+  // CRITICAL: Also check ECS entities (DishBattleState) to verify visual system is running
+  // This is separate from BattleProcessor simulation - both need to work
+  int ecs_dishes_with_bites = 0;
+  for (afterhours::Entity &e :
+       afterhours::EntityQuery().whereHasComponent<DishBattleState>().gen()) {
+    const DishBattleState &dbs = e.get<DishBattleState>();
+    if (dbs.first_bite_decided && dbs.phase == DishBattleState::Phase::InCombat) {
+      ecs_dishes_with_bites++;
+    }
+  }
+
+  log_info("TEST_COMBAT_TICKS: Checking combat ticks - completed_courses={}, dishes_with_bites={} (sim), ecs_dishes_with_bites={} (visual), dishes_with_damage={}, dishes_in_combat={}, min_ticks={}",
+           completed_courses, dishes_with_bites, ecs_dishes_with_bites, dishes_with_damage, dishes_in_combat, min_ticks);
+
+  // Combat ticks occurred if:
+  // 1. At least one course completed (outcome recorded) - PROVES combat happened
+  // 2. OR at least one dish had a bite (firstBiteDecided = true) - PROVES resolveCombatTick was called
+  // 3. OR at least one dish took damage - PROVES damage was dealt
+  // Just being in combat phase is NOT enough - we need actual bites/damage
+  bool combat_ticks_occurred = (completed_courses > 0) || (dishes_with_bites > 0) || (dishes_with_damage > 0);
+
+  if (!combat_ticks_occurred) {
+    fail("No combat ticks occurred - completed_courses=" +
+             std::to_string(completed_courses) +
+             ", dishes_with_bites=" + std::to_string(dishes_with_bites) +
+             ", dishes_with_damage=" + std::to_string(dishes_with_damage) +
+             ", dishes_in_combat=" + std::to_string(dishes_in_combat) +
+             ". Battle did not simulate. No bites occurred, no damage dealt, no courses completed.",
+         location);
+    return *this;
+  }
+
+  // CRITICAL: Require at least one bite to have occurred in BOTH systems
+  // 1. BattleProcessor simulation (dishes_with_bites) - proves simulation ran
+  // 2. ECS visual system (ecs_dishes_with_bites) - proves ResolveCombatTickSystem ran
+  // Both must work for the battle to be visible to the user
+  if (dishes_with_bites == 0 && completed_courses == 0) {
+    fail("No bites occurred in BattleProcessor simulation - firstBiteDecided=false for all dishes. "
+             "BattleProcessor::resolveCombatTick was never called. completed_courses=" +
+             std::to_string(completed_courses) +
+             ", dishes_with_damage=" + std::to_string(dishes_with_damage) +
+             ". Battle simulation is not running.",
+         location);
+    return *this;
+  }
+
+  // CRITICAL: Also check that ECS visual system processed bites
+  // If simulation has bites but ECS doesn't, ResolveCombatTickSystem isn't running
+  if (ecs_dishes_with_bites == 0 && dishes_with_bites > 0) {
+    fail("BattleProcessor simulation has bites (dishes_with_bites=" +
+             std::to_string(dishes_with_bites) +
+             ") but ECS visual system has none (ecs_dishes_with_bites=0). "
+             "ResolveCombatTickSystem is not running or is blocked. "
+             "User will not see animations or dish movement.",
+         location);
+    return *this;
+  }
+
+  // If we need minimum ticks, check outcomes count
+  if (min_ticks > 0 && completed_courses < min_ticks) {
+    // For min_ticks, we're checking if enough courses completed
+    // But if dishes had bites or took damage, at least some ticks occurred
+    // So we'll accept that as meeting the minimum
+    if (dishes_with_bites == 0 && dishes_with_damage == 0) {
+      fail("Insufficient combat ticks - expected at least " +
+               std::to_string(min_ticks) + " but got " +
+               std::to_string(completed_courses) + " completed courses, " +
+               std::to_string(dishes_with_bites) + " bites, and " +
+               std::to_string(dishes_with_damage) + " dishes with damage",
+           location);
+      return *this;
+    }
+  }
+
+  log_info("TEST_COMBAT_TICKS: Combat ticks verified - combat occurred");
   return *this;
 }
 

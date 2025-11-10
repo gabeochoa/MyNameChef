@@ -276,6 +276,10 @@ struct TestApp {
   TestApp &wait_for_dishes_in_combat(int min_count = 1,
                                      float timeout_sec = 10.0f,
                                      const std::string &location = "");
+  TestApp &wait_for_animations_complete(float timeout_sec = 5.0f,
+                                        const std::string &location = "");
+  TestApp &expect_combat_ticks_occurred(int min_ticks = 1,
+                                        const std::string &location = "");
   TestApp &wait_for_battle_complete(float timeout_sec = 60.0f,
                                     const std::string &location = "");
   TestApp &wait_for_results_screen(float timeout_sec = 10.0f,
