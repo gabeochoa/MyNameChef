@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../battle_timing.h"
 #include "../components/animation_event.h"
 #include "../components/combat_queue.h"
 #include "../components/dish_battle_state.h"
@@ -85,8 +86,7 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
       return;
     }
 
-    const float enter_start_delay = 0.25f;
-    float scaled_enter_start_delay = enter_start_delay / render_backend::timing_speed_scale;
+    float scaled_enter_start_delay = BattleTiming::get_enter_start_delay();
 
     if (player_dbs.phase == DishBattleState::Phase::InQueue &&
         opponent_dbs.phase == DishBattleState::Phase::InQueue) {

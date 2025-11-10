@@ -50,4 +50,7 @@ struct Settings {
 
   translation_manager::Language get_language() const;
   void set_language(translation_manager::Language language);
+
+  float get_battle_speed() const;
+  void set_battle_speed(float speed);
 };

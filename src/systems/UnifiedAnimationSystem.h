@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../battle_timing.h"
 #include "../components/animation_event.h"
 #include "../components/battle_anim_keys.h"
 #include "../components/dish_battle_state.h"
@@ -33,7 +34,7 @@ struct AnimationSchedulerSystem
       log_info("ANIM schedule: SlideIn (event id={})", e.id);
       e.addComponent<AnimationTimer>();
       auto &timer = e.get<AnimationTimer>();
-      timer.duration = 0.27f;
+      timer.duration = BattleTiming::get_slide_in_duration();
       timer.elapsed = 0.0f;
       break;
     }
@@ -44,7 +45,7 @@ struct AnimationSchedulerSystem
       log_info("ANIM schedule: StatBoost (event id={})", e.id);
       e.addComponent<AnimationTimer>();
       auto &timer = e.get<AnimationTimer>();
-      timer.duration = 1.5f;
+      timer.duration = BattleTiming::get_stat_boost_duration();
       timer.elapsed = 0.0f;
       break;
     }
@@ -55,7 +56,7 @@ struct AnimationSchedulerSystem
       log_info("ANIM schedule: FreshnessChain (event id={})", e.id);
       e.addComponent<AnimationTimer>();
       auto &timer = e.get<AnimationTimer>();
-      timer.duration = 2.0f;
+      timer.duration = BattleTiming::get_freshness_chain_duration();
       timer.elapsed = 0.0f;
       break;
     }
@@ -87,7 +88,7 @@ struct AnimationTimerSystem : afterhours::System<AnimationTimer> {
                 if (render_backend::is_headless_mode) {
                   timer.elapsed = timer.duration;
                 } else {
-                  timer.elapsed += dt;
+                  timer.elapsed += dt * render_backend::timing_speed_scale;
                 }
 
                 if (timer.elapsed >= timer.duration) {

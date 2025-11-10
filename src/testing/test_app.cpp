@@ -27,6 +27,7 @@
 #include "../render_backend.h"
 #include "../seeded_rng.h"
 #include "../server/file_storage.h"
+#include "../settings.h"
 #include "../shop.h"
 #include "../systems/GameStateSaveSystem.h"
 #include "../systems/NetworkSystem.h"
@@ -361,6 +362,12 @@ bool TestApp::read_replay_paused() {
   }
   fail("ReplayState singleton not found");
   return false; // Unreachable
+}
+
+TestApp &TestApp::set_battle_speed(float speed) {
+  render_backend::timing_speed_scale = speed;
+  Settings::get().set_battle_speed(speed);
+  return *this;
 }
 
 TestApp &TestApp::set_wallet_gold(int gold, const std::string &location) {

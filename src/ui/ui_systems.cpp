@@ -21,6 +21,7 @@
 #include "../game.h"
 #include "../game_state_manager.h"
 #include "../input_mapping.h"
+#include "../render_backend.h"
 #include "../render_constants.h"
 #include "../seeded_rng.h"
 #include "../server/file_storage.h"
@@ -607,8 +608,8 @@ Screen ScheduleMainMenuUI::battle_screen(Entity &entity,
              SliderHandleValueLabelPosition::OnHandle);
       // Slider is disabled to prevent dragging
 
-      // Speed indicator (text label)
-      std::string speed_text = fmt::format("×{:.1f}", rs.timeScale);
+      // Speed indicator (text label) - show battle speed, not replay timeScale
+      std::string speed_text = fmt::format("×{:.1f}", render_backend::timing_speed_scale);
       imm::div(
           context, mk(replay_bar.ent(), 2),
           ComponentConfig{}
@@ -616,7 +617,87 @@ Screen ScheduleMainMenuUI::battle_screen(Entity &entity,
                                        afterhours::ui::metrics::h720(30.f)})
               .with_debug_name("speed_label")
               .with_label(speed_text));
+
+      // Battle speed control buttons (1x, 2x, 4x)
+      button_labeled<InputAction>(
+          context, replay_bar.ent(), "1x",
+          []() {
+            render_backend::timing_speed_scale = 1.0f;
+            Settings::get().set_battle_speed(1.0f);
+          },
+          3, "battle_speed_1x");
+
+      button_labeled<InputAction>(
+          context, replay_bar.ent(), "2x",
+          []() {
+            render_backend::timing_speed_scale = 2.0f;
+            Settings::get().set_battle_speed(2.0f);
+          },
+          4, "battle_speed_2x");
+
+      button_labeled<InputAction>(
+          context, replay_bar.ent(), "4x",
+          []() {
+            render_backend::timing_speed_scale = 4.0f;
+            Settings::get().set_battle_speed(4.0f);
+          },
+          5, "battle_speed_4x");
     }
+  } else {
+    // Show battle speed controls even when not in replay mode
+    float bar_height = 80.f;
+    auto battle_bar = imm::div(
+        context, mk(elem.ent()),
+        ComponentConfig{}
+            .with_size(ComponentSize{
+                screen_pct(1.f), afterhours::ui::metrics::h720(bar_height)})
+            .with_absolute_position()
+            .with_margin(Margin{.top = screen_pct(1.f - bar_height / 720.f),
+                                .left = pixels(0.f),
+                                .bottom = pixels(0.f),
+                                .right = pixels(0.f)})
+            .with_color_usage(Theme::Usage::Background)
+            .with_padding(Padding{.top = pixels(10.f),
+                                  .left = pixels(20.f),
+                                  .bottom = pixels(10.f),
+                                  .right = pixels(20.f)})
+            .with_flex_direction(FlexDirection::Row)
+            .with_debug_name("battle_bar"));
+
+    // Speed indicator
+    std::string speed_text = fmt::format("×{:.1f}", render_backend::timing_speed_scale);
+    imm::div(
+        context, mk(battle_bar.ent(), 0),
+        ComponentConfig{}
+            .with_size(ComponentSize{afterhours::ui::metrics::w1280(80.f),
+                                     afterhours::ui::metrics::h720(30.f)})
+            .with_debug_name("speed_label")
+            .with_label(speed_text));
+
+    // Battle speed control buttons (1x, 2x, 4x)
+    button_labeled<InputAction>(
+        context, battle_bar.ent(), "1x",
+        []() {
+          render_backend::timing_speed_scale = 1.0f;
+          Settings::get().set_battle_speed(1.0f);
+        },
+        1, "battle_speed_1x");
+
+    button_labeled<InputAction>(
+        context, battle_bar.ent(), "2x",
+        []() {
+          render_backend::timing_speed_scale = 2.0f;
+          Settings::get().set_battle_speed(2.0f);
+        },
+        2, "battle_speed_2x");
+
+    button_labeled<InputAction>(
+        context, battle_bar.ent(), "4x",
+        []() {
+          render_backend::timing_speed_scale = 4.0f;
+          Settings::get().set_battle_speed(4.0f);
+        },
+        3, "battle_speed_4x");
   }
 
   return GameStateManager::get().next_screen.value_or(

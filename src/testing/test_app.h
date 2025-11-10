@@ -169,6 +169,7 @@ struct TestApp {
 
   // Functions to manually manipulate game state for testing
   // These bypass normal game logic to set up specific test scenarios
+  TestApp &set_battle_speed(float speed);
   TestApp &set_wallet_gold(int gold, const std::string &location = "");
   TestApp &create_inventory_item(DishType type, int slot);
   TestApp &trigger_game_state_save();

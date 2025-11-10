@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../battle_timing.h"
 #include "../components/battle_anim_keys.h"
 #include "../components/battle_result.h"
 #include "../components/combat_stats.h"
@@ -15,9 +16,6 @@
 
 struct ResolveCombatTickSystem
     : afterhours::System<DishBattleState, CombatStats> {
-  static constexpr float kTickMs = 150.0f / 1000.0f; // 150ms bite cadence
-  static constexpr float kPrePauseMs = 0.35f;        // pause before damage
-  static constexpr float kPostPauseMs = 0.35f;       // pause after damage
 
 private:
   virtual bool should_run(float) override {
@@ -89,7 +87,7 @@ private:
 
     // Handle cadence state machine
     if (dbs.bite_cadence == DishBattleState::BiteCadence::PrePause) {
-      float scaled_pre_pause = kPrePauseMs / render_backend::timing_speed_scale;
+      float scaled_pre_pause = BattleTiming::get_pre_pause();
       if (dbs.bite_cadence_timer < scaled_pre_pause)
         return;
 
@@ -141,8 +139,7 @@ private:
     }
 
     if (dbs.bite_cadence == DishBattleState::BiteCadence::PostPause) {
-      float scaled_post_pause =
-          kPostPauseMs / render_backend::timing_speed_scale;
+      float scaled_post_pause = BattleTiming::get_post_pause();
       if (dbs.bite_cadence_timer < scaled_post_pause)
         return;
 

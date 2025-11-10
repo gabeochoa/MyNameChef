@@ -44,6 +44,8 @@ struct S_Data {
   translation_manager::Language language =
       translation_manager::Language::English;
 
+  float battle_speed = 1.0f;
+
   // not serialized
   fs::path loaded_from;
 };
@@ -97,6 +99,8 @@ void to_json(nlohmann::json &j, const S_Data &data) {
   to_json(lang_j, data.language);
   j["language"] = lang_j;
   //
+  j["battle_speed"] = data.battle_speed;
+  //
 }
 
 void from_json(const nlohmann::json &j, S_Data &data) {
@@ -115,6 +119,10 @@ void from_json(const nlohmann::json &j, S_Data &data) {
 
   if (j.contains("language")) {
     from_json(j.at("language"), data.language);
+  }
+
+  if (j.contains("battle_speed")) {
+    data.battle_speed = j.at("battle_speed");
   }
 }
 
@@ -260,4 +268,11 @@ translation_manager::Language Settings::get_language() const {
 
 void Settings::set_language(translation_manager::Language language) {
   data->language = language;
+}
+
+float Settings::get_battle_speed() const { return data->battle_speed; }
+
+void Settings::set_battle_speed(float speed) {
+  data->battle_speed = speed;
+  render_backend::timing_speed_scale = speed;
 }

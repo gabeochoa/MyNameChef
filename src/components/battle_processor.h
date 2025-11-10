@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../battle_timing.h"
 #include <afterhours/ah.h>
 #include <nlohmann/json.hpp>
 #include <optional>
@@ -62,9 +63,6 @@ struct BattleProcessor : afterhours::BaseComponent {
   float simulationTime = 0.0f;
   bool finished = false; // Guard against multiple finishBattle() calls
 
-  // Constants
-  static constexpr float kTickMs = 150.0f / 1000.0f; // 150ms bite cadence
-  static constexpr float kEnterDuration = 0.45f;     // Enter animation duration
 
   // Methods
   void startBattle(const BattleInput &input);

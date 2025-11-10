@@ -359,10 +359,11 @@ void BattleProcessor::resolveCombatTick(DishSimData &player,
   player.biteTimer += dt;
   static int early_return_count = 0;
   early_return_count++;
-  if (player.biteTimer < kTickMs) {
+  float tick_duration = BattleTiming::get_tick_duration();
+  if (player.biteTimer < tick_duration) {
     if (early_return_count % 60 == 0 || early_return_count <= 10) {
-      log_info("BATTLE_SIM: resolveCombatTick early return - biteTimer={:.3f} < kTickMs={:.3f}, dt={:.3f}, call={}", 
-               player.biteTimer, kTickMs, dt, early_return_count);
+      log_info("BATTLE_SIM: resolveCombatTick early return - biteTimer={:.3f} < tick_duration={:.3f}, dt={:.3f}, call={}", 
+               player.biteTimer, tick_duration, dt, early_return_count);
     }
     return;
   }
@@ -418,8 +419,9 @@ void BattleProcessor::finishCourse(DishSimData &player, DishSimData &opponent) {
     playerWins++;
   }
 
+  float tick_duration = BattleTiming::get_tick_duration();
   outcome.ticks =
-      static_cast<int>(simulationTime * 1000.0f / kTickMs); // Approximate
+      static_cast<int>(simulationTime / tick_duration); // Approximate
 
   outcomes.push_back(outcome);
 

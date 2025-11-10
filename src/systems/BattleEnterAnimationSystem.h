@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../battle_timing.h"
 #include "../components/dish_battle_state.h"
 #include "../components/pairing_clash_modifiers.h"
 #include "../components/persistent_combat_modifiers.h"
@@ -38,8 +39,7 @@ struct BattleEnterAnimationSystem : afterhours::System<DishBattleState> {
       const float kFallbackDt = 1.0f / 60.0f;
       float effective_dt = dt > 0.0f ? dt : kFallbackDt;
 
-      const float enter_duration = 0.45f; // seconds
-      float scaled_enter_duration = enter_duration / render_backend::timing_speed_scale;
+      float scaled_enter_duration = BattleTiming::get_enter_duration();
       // Support a start delay by allowing enter_progress to begin negative; we
       // count it up to 0 before progressing the visible animation 0..1.
       if (dbs.enter_progress < 0.0f) {

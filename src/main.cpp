@@ -309,16 +309,23 @@ int main(int argc, char *argv[]) {
     log_info("STEP DELAY: {}ms between test steps", step_delay);
   }
 
-  // Parse timing speed scale flag
-  float timing_scale = 1.0f; // Default 1.0 = normal speed
-  cmdl({"--timing-speed-scale"}, 1.0f) >> timing_scale;
-  render_backend::timing_speed_scale = timing_scale;
-  if (timing_scale != 1.0f) {
-    log_info("TIMING SPEED SCALE: {}x", timing_scale);
-  }
-
   // Load savefile first
   Settings::get().load_save_file(screenWidth, screenHeight);
+
+  // Parse timing speed scale flag (overrides settings if provided)
+  float timing_scale = Settings::get().get_battle_speed();
+  if (cmdl({"--timing-speed-scale"}, timing_scale) >> timing_scale) {
+    render_backend::timing_speed_scale = timing_scale;
+    Settings::get().set_battle_speed(timing_scale);
+    if (timing_scale != 1.0f) {
+      log_info("TIMING SPEED SCALE: {}x (from command line)", timing_scale);
+    }
+  } else {
+    render_backend::timing_speed_scale = timing_scale;
+    if (timing_scale != 1.0f) {
+      log_info("TIMING SPEED SCALE: {}x (from settings)", timing_scale);
+    }
+  }
 
   Preload::get() //
       .init("template", headless_mode)
