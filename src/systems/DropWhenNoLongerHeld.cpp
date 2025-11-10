@@ -4,6 +4,7 @@
 #include "../components/is_dish.h"
 #include "../components/is_inventory_item.h"
 #include "../components/is_shop_item.h"
+#include "../dish_types.h"
 #include "../game_state_manager.h"
 #include "../query.h"
 #include "../shop.h"
@@ -144,6 +145,8 @@ bool DropWhenNoLongerHeld::try_purchase_shop_item(Entity &entity,
 
   auto &dish = entity.get<IsDish>();
   if (!charge_for_shop_purchase(dish.type)) {
+    const int price = get_dish_info(dish.type).price;
+    make_toast("Not enough gold! Need " + std::to_string(price) + " gold");
     return false;
   }
 

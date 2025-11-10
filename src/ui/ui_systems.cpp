@@ -498,6 +498,8 @@ Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
 
         int cost = reroll_cost.get_cost();
         if (wallet.gold < cost) {
+          make_toast("Not enough gold for reroll! Need " +
+                     std::to_string(cost) + " gold");
           return;
         }
         wallet.gold -= cost;
