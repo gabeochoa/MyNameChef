@@ -402,6 +402,27 @@ Screen ScheduleMainMenuUI::settings_screen(Entity &entity,
     Settings::get().toggle_post_processing();
   }
 
+  // Battle Speed selector
+  {
+    float current_speed = Settings::get().get_battle_speed();
+    std::string speed_label = fmt::format("Battle Speed: ×{:.0f}", current_speed);
+    button_labeled<InputAction>(
+        context, top_left.ent(), speed_label,
+        []() {
+          float current = Settings::get().get_battle_speed();
+          float next_speed = 1.0f;
+          if (current == 1.0f) {
+            next_speed = 2.0f;
+          } else if (current == 2.0f) {
+            next_speed = 4.0f;
+          } else {
+            next_speed = 1.0f;
+          }
+          Settings::get().set_battle_speed(next_speed);
+        },
+        6, "battle_speed_selector");
+  }
+
   return GameStateManager::get().next_screen.value_or(
       GameStateManager::get().active_screen);
 }
