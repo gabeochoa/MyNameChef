@@ -405,7 +405,8 @@ Screen ScheduleMainMenuUI::settings_screen(Entity &entity,
   // Battle Speed selector
   {
     float current_speed = Settings::get().get_battle_speed();
-    std::string speed_label = fmt::format("Battle Speed: ×{:.0f}", current_speed);
+    std::string speed_label =
+        fmt::format("Battle Speed: ×{:.0f}", current_speed);
     button_labeled<InputAction>(
         context, top_left.ent(), speed_label,
         []() {
@@ -452,6 +453,9 @@ Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
           GameStateManager::get().to_battle();
           // Apply screen transition immediately
           GameStateManager::get().update_screen();
+        } else {
+          make_toast(
+              "You need at least one dish in your team to start a battle");
         }
       },
       1);
@@ -630,7 +634,8 @@ Screen ScheduleMainMenuUI::battle_screen(Entity &entity,
       // Slider is disabled to prevent dragging
 
       // Speed indicator (text label) - show battle speed, not replay timeScale
-      std::string speed_text = fmt::format("×{:.1f}", render_backend::timing_speed_scale);
+      std::string speed_text =
+          fmt::format("×{:.1f}", render_backend::timing_speed_scale);
       imm::div(
           context, mk(replay_bar.ent(), 2),
           ComponentConfig{}
@@ -670,8 +675,8 @@ Screen ScheduleMainMenuUI::battle_screen(Entity &entity,
     auto battle_bar = imm::div(
         context, mk(elem.ent()),
         ComponentConfig{}
-            .with_size(ComponentSize{
-                screen_pct(1.f), afterhours::ui::metrics::h720(bar_height)})
+            .with_size(ComponentSize{screen_pct(1.f),
+                                     afterhours::ui::metrics::h720(bar_height)})
             .with_absolute_position()
             .with_margin(Margin{.top = screen_pct(1.f - bar_height / 720.f),
                                 .left = pixels(0.f),
@@ -686,14 +691,14 @@ Screen ScheduleMainMenuUI::battle_screen(Entity &entity,
             .with_debug_name("battle_bar"));
 
     // Speed indicator
-    std::string speed_text = fmt::format("×{:.1f}", render_backend::timing_speed_scale);
-    imm::div(
-        context, mk(battle_bar.ent(), 0),
-        ComponentConfig{}
-            .with_size(ComponentSize{afterhours::ui::metrics::w1280(80.f),
-                                     afterhours::ui::metrics::h720(30.f)})
-            .with_debug_name("speed_label")
-            .with_label(speed_text));
+    std::string speed_text =
+        fmt::format("×{:.1f}", render_backend::timing_speed_scale);
+    imm::div(context, mk(battle_bar.ent(), 0),
+             ComponentConfig{}
+                 .with_size(ComponentSize{afterhours::ui::metrics::w1280(80.f),
+                                          afterhours::ui::metrics::h720(30.f)})
+                 .with_debug_name("speed_label")
+                 .with_label(speed_text));
 
     // Battle speed control buttons (1x, 2x, 4x)
     button_labeled<InputAction>(
