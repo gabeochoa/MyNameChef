@@ -36,30 +36,78 @@ static DishInfo make_dish(const char *name, FlavorStats flavor,
   return result;
 }
 
-static DishInfo make_salmon() {
-  return dish()
-      .with_name("Salmon")
-      .with_flavor(FlavorStats{.umami = 3, .freshness = 2})
-      .with_sprite(SpriteLocation{6, 7})
-      .with_tier(1)
-      .register_on_serve(
-          ServeEffect()
-              .with_target(TargetScope::SelfAndAdjacent)
-              .if_adjacent_has(FlavorStatType::Freshness)
-              .add_flavor_stat(FlavorStatType::Freshness, 1)
-              .with_animation(AnimationEventType::FreshnessChain))
-      .build();
+static DishInfo make_salmon(int level) {
+  auto builder = dish()
+                     .with_name("Salmon")
+                     .with_flavor(FlavorStats{.umami = 3, .freshness = 2})
+                     .with_sprite(SpriteLocation{6, 7})
+                     .with_tier(1);
+
+  switch (level) {
+  case 1:
+    return builder
+        .register_on_serve(
+            ServeEffect()
+                .with_target(TargetScope::SelfAndAdjacent)
+                .if_adjacent_has(FlavorStatType::Freshness)
+                .add_flavor_stat(FlavorStatType::Freshness, 1)
+                .with_animation(AnimationEventType::FreshnessChain))
+        .build();
+  case 2:
+    return builder
+        .register_on_serve(
+            ServeEffect()
+                .with_target(TargetScope::SelfAndAdjacent)
+                .if_adjacent_has(FlavorStatType::Freshness)
+                .add_flavor_stat(FlavorStatType::Freshness, 2)
+                .with_animation(AnimationEventType::FreshnessChain))
+        .register_on_course_start(
+            OnCourseStartEffect().with_target(TargetScope::Self).add_body(1))
+        .build();
+  case 3:
+  default:
+    return builder
+        .register_on_serve(
+            ServeEffect()
+                .with_target(TargetScope::SelfAndAdjacent)
+                .if_adjacent_has(FlavorStatType::Freshness)
+                .add_flavor_stat(FlavorStatType::Freshness, 3)
+                .with_animation(AnimationEventType::FreshnessChain))
+        .register_on_course_start(
+            OnCourseStartEffect().with_target(TargetScope::Self).add_body(2))
+        .build();
+  }
 }
 
-static DishInfo make_french_fries() {
-  return dish()
-      .with_name("French Fries")
-      .with_flavor(FlavorStats{.satiety = 1, .richness = 1})
-      .with_sprite(SpriteLocation{1, 9})
-      .with_tier(1)
-      .register_on_serve(
-          ServeEffect().with_target(TargetScope::FutureAllies).add_zing(1))
-      .build();
+static DishInfo make_french_fries(int level) {
+  auto builder = dish()
+                     .with_name("French Fries")
+                     .with_flavor(FlavorStats{.satiety = 1, .richness = 1})
+                     .with_sprite(SpriteLocation{1, 9})
+                     .with_tier(1);
+
+  switch (level) {
+  case 1:
+    return builder
+        .register_on_serve(
+            ServeEffect().with_target(TargetScope::FutureAllies).add_zing(1))
+        .build();
+  case 2:
+    return builder
+        .register_on_serve(
+            ServeEffect().with_target(TargetScope::FutureAllies).add_zing(2))
+        .register_on_serve(
+            ServeEffect().with_target(TargetScope::Self).add_zing(1))
+        .build();
+  case 3:
+  default:
+    return builder
+        .register_on_serve(
+            ServeEffect().with_target(TargetScope::FutureAllies).add_zing(3))
+        .register_on_serve(
+            ServeEffect().with_target(TargetScope::Self).add_zing(2))
+        .build();
+  }
 }
 
 static DishInfo make_debug_dish() {
@@ -145,59 +193,180 @@ static DishInfo make_debug_dish() {
       .build();
 }
 
-DishInfo get_dish_info(DishType type) {
-  switch (type) {
-  // Tier 1: Raw/Single Ingredient
-  case DishType::Potato:
-    return dish()
-        .with_name("Potato")
-        .with_flavor(FlavorStats{.satiety = 1})
-        .with_sprite(SpriteLocation{13, 3})
-        .with_tier(1)
+static DishInfo make_potato(int level) {
+  auto builder = dish()
+                     .with_name("Potato")
+                     .with_flavor(FlavorStats{.satiety = 1})
+                     .with_sprite(SpriteLocation{13, 3})
+                     .with_tier(1);
+
+  switch (level) {
+  case 1:
+  case 2:
+    return builder.build();
+  case 3:
+  default:
+    return builder
+        .register_on_serve(ServeEffect()
+                               .with_target(TargetScope::Self)
+                               .add_flavor_stat(FlavorStatType::Satiety, 1))
         .build();
-  case DishType::Salmon:
-    return make_salmon();
-  case DishType::Bagel:
-    return dish()
-        .with_name("Bagel")
-        .with_flavor(FlavorStats{.satiety = 1})
-        .with_sprite(SpriteLocation{13, 0})
-        .with_tier(1)
+  }
+}
+
+static DishInfo make_bagel(int level) {
+  auto builder = dish()
+                     .with_name("Bagel")
+                     .with_flavor(FlavorStats{.satiety = 1})
+                     .with_sprite(SpriteLocation{13, 0})
+                     .with_tier(1);
+
+  switch (level) {
+  case 1:
+    return builder
         .register_on_serve(ServeEffect()
                                .with_target(TargetScope::DishesAfterSelf)
                                .add_flavor_stat(FlavorStatType::Richness, 1))
         .build();
-  case DishType::Baguette:
-    return dish()
-        .with_name("Baguette")
-        .with_flavor(FlavorStats{.satiety = 1})
-        .with_sprite(SpriteLocation{1, 0})
-        .with_tier(1)
+  case 2:
+    return builder
+        .register_on_serve(ServeEffect()
+                               .with_target(TargetScope::DishesAfterSelf)
+                               .add_flavor_stat(FlavorStatType::Richness, 2))
+        .register_on_serve(ServeEffect()
+                               .with_target(TargetScope::Self)
+                               .add_flavor_stat(FlavorStatType::Richness, 1))
+        .build();
+  case 3:
+  default:
+    return builder
+        .register_on_serve(ServeEffect()
+                               .with_target(TargetScope::DishesAfterSelf)
+                               .add_flavor_stat(FlavorStatType::Richness, 3))
+        .register_on_serve(ServeEffect()
+                               .with_target(TargetScope::Self)
+                               .add_flavor_stat(FlavorStatType::Richness, 2))
+        .build();
+  }
+}
+
+static DishInfo make_baguette(int level) {
+  auto builder = dish()
+                     .with_name("Baguette")
+                     .with_flavor(FlavorStats{.satiety = 1})
+                     .with_sprite(SpriteLocation{1, 0})
+                     .with_tier(1);
+
+  switch (level) {
+  case 1:
+    return builder
         .register_on_serve(
             ServeEffect().with_target(TargetScope::Opponent).remove_zing(1))
         .build();
-  case DishType::GarlicBread:
-    return dish()
-        .with_name("Garlic Bread")
-        .with_flavor(FlavorStats{.satiety = 1, .richness = 1})
-        .with_sprite(SpriteLocation{0, 9})
-        .with_tier(1)
+  case 2:
+    return builder
+        .register_on_serve(
+            ServeEffect().with_target(TargetScope::Opponent).remove_zing(2))
+        .register_on_course_start(
+            OnCourseStartEffect().with_target(TargetScope::Self).add_body(1))
+        .build();
+  case 3:
+  default:
+    return builder
+        .register_on_serve(
+            ServeEffect().with_target(TargetScope::Opponent).remove_zing(3))
+        .register_on_course_start(
+            OnCourseStartEffect().with_target(TargetScope::Self).add_body(2))
+        .build();
+  }
+}
+
+static DishInfo make_garlic_bread(int level) {
+  auto builder = dish()
+                     .with_name("Garlic Bread")
+                     .with_flavor(FlavorStats{.satiety = 1, .richness = 1})
+                     .with_sprite(SpriteLocation{0, 9})
+                     .with_tier(1);
+
+  switch (level) {
+  case 1:
+    return builder
         .register_on_serve(ServeEffect()
                                .with_target(TargetScope::FutureAllies)
                                .add_flavor_stat(FlavorStatType::Spice, 1))
         .build();
-  case DishType::FriedEgg:
-    return dish()
-        .with_name("Fried Egg")
-        .with_flavor(FlavorStats{.richness = 1})
-        .with_sprite(SpriteLocation{2, 7})
-        .with_tier(1)
+  case 2:
+    return builder
+        .register_on_serve(ServeEffect()
+                               .with_target(TargetScope::FutureAllies)
+                               .add_flavor_stat(FlavorStatType::Spice, 2))
+        .register_on_serve(ServeEffect()
+                               .with_target(TargetScope::Self)
+                               .add_flavor_stat(FlavorStatType::Spice, 1))
+        .build();
+  case 3:
+  default:
+    return builder
+        .register_on_serve(ServeEffect()
+                               .with_target(TargetScope::FutureAllies)
+                               .add_flavor_stat(FlavorStatType::Spice, 3))
+        .register_on_serve(ServeEffect()
+                               .with_target(TargetScope::Self)
+                               .add_flavor_stat(FlavorStatType::Spice, 2))
+        .build();
+  }
+}
+
+static DishInfo make_fried_egg(int level) {
+  auto builder = dish()
+                     .with_name("Fried Egg")
+                     .with_flavor(FlavorStats{.richness = 1})
+                     .with_sprite(SpriteLocation{2, 7})
+                     .with_tier(1);
+
+  switch (level) {
+  case 1:
+    return builder
         .register_on_dish_finished(OnDishFinishedEffect()
                                        .with_target(TargetScope::AllAllies)
                                        .add_body(2))
         .build();
+  case 2:
+    return builder
+        .register_on_dish_finished(OnDishFinishedEffect()
+                                       .with_target(TargetScope::AllAllies)
+                                       .add_body(4))
+        .register_on_serve(
+            ServeEffect().with_target(TargetScope::Self).add_body(1))
+        .build();
+  case 3:
+  default:
+    return builder
+        .register_on_dish_finished(OnDishFinishedEffect()
+                                       .with_target(TargetScope::AllAllies)
+                                       .add_body(6))
+        .register_on_serve(
+            ServeEffect().with_target(TargetScope::Self).add_body(2))
+        .build();
+  }
+}
+
+DishInfo get_dish_info(DishType type, int level) {
+  switch (type) {
+  case DishType::Potato:
+    return make_potato(level);
+  case DishType::Salmon:
+    return make_salmon(level);
+  case DishType::Bagel:
+    return make_bagel(level);
+  case DishType::Baguette:
+    return make_baguette(level);
+  case DishType::GarlicBread:
+    return make_garlic_bread(level);
+  case DishType::FriedEgg:
+    return make_fried_egg(level);
   case DishType::FrenchFries:
-    return make_french_fries();
+    return make_french_fries(level);
 
   // Tier 2: Simple 2-ingredient items
   case DishType::Pancakes:

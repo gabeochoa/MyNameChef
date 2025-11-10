@@ -53,7 +53,11 @@ private:
     }
 
     const auto &dish = src_opt->get<IsDish>();
-    const auto &info = get_dish_info(dish.type);
+    int level = 1;
+    if (src_opt->has<DishLevel>()) {
+      level = src_opt->get<DishLevel>().level;
+    }
+    const auto &info = get_dish_info(dish.type, level);
 
     for (const auto &effect : info.effects) {
       if (effect.triggerHook == ev.hook) {

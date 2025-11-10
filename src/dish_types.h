@@ -85,7 +85,7 @@ struct DishInfo {
   std::vector<DishEffect> effects;
 };
 
-DishInfo get_dish_info(DishType type);
+DishInfo get_dish_info(DishType type, int level = 1);
 
 // Shared pool of dishes used in shop and battle systems
 const std::vector<DishType> &get_default_dish_pool();
