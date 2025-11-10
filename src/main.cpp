@@ -258,6 +258,27 @@ int main(int argc, char *argv[]) {
   // if nothing else ends up using this, we should move into preload.cpp
   argh::parser cmdl(argc, argv, argh::parser::PREFER_PARAM_FOR_UNREG_OPTION);
 
+  if (cmdl["--help"]) {
+    std::cout << "My Name Chef - Battle cooking game\n\n";
+    std::cout << "Usage: my_name_chef [OPTIONS]\n\n";
+    std::cout << "Options:\n";
+    std::cout << "  --help                        Show this help message\n";
+    std::cout << "  -w, --width <pixels>          Screen width (default: 1280)\n";
+    std::cout << "  -h, --height <pixels>         Screen height (default: 720)\n";
+    std::cout << "  --list-tests                  List all available tests\n";
+    std::cout << "  --run-test <name>             Run a specific test\n";
+    std::cout << "  --headless                    Enable headless mode (no rendering)\n";
+    std::cout << "  --audit-strict                Enable strict side effect auditing\n";
+    std::cout << "  --step-delay <ms>             Delay between test steps in milliseconds (default: 500)\n";
+    std::cout << "  --timing-speed-scale <scale>  Battle timing speed multiplier (default: 1.0)\n";
+    std::cout << "\n";
+    std::cout << "Examples:\n";
+    std::cout << "  my_name_chef --run-test validate_survivor_carryover --headless\n";
+    std::cout << "  my_name_chef --width 1920 --height 1080\n";
+    std::cout << "  my_name_chef --timing-speed-scale 2.0\n";
+    return 0;
+  }
+
   int screenWidth, screenHeight;
   cmdl({"-w", "--width"}, 1280) >> screenWidth;
   cmdl({"-h", "--height"}, 720) >> screenHeight;

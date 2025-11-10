@@ -21,6 +21,21 @@ bool running = true;
 int main(int argc, char *argv[]) {
   argh::parser cmdl(argc, argv);
 
+  if (cmdl[{"--help", "-h"}]) {
+    std::cout << "Battle Server - HTTP API server for battle simulation\n\n";
+    std::cout << "Usage: battle_server [OPTIONS]\n\n";
+    std::cout << "Options:\n";
+    std::cout << "  -h, --help              Show this help message\n";
+    std::cout << "  -t, --run-tests         Run server unit tests\n";
+    std::cout << "  --list-tests            List all available tests\n";
+    std::cout << "  -c, --config <path>     Load configuration from JSON file\n";
+    std::cout << "\n";
+    std::cout << "Examples:\n";
+    std::cout << "  battle_server --config server_config.json\n";
+    std::cout << "  battle_server --run-tests\n";
+    return 0;
+  }
+
   // Initialize Preload once for the entire server process
   // This must be done before creating ServerContext instances (tests or API)
   Preload::get().init("battle_server", true).make_singleton();
