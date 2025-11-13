@@ -12,6 +12,8 @@
 - **Level Scaling Bug Fix**: ✅ Complete (commit 0c0aa8e - fixed to use 2x per level instead of 2^(level-1))
 - **Static Dish Pool Replacement**: ✅ Complete (uses magic_enum::enum_values internally)
 - **Effect Info in Tooltips**: ✅ Complete (commit c93e68e - tooltips now display effect descriptions with triggers, targets, and stat changes)
+- **Tags and SynergyCountingSystem**: ✅ Complete (all tag components exist, SynergyCountingSystem counts tags, tooltips display tags and synergy counts)
+- **Dish Merging System**: ✅ Complete (merge system implemented, 2 level N dishes make 1 level N+1, uses DishLevel.contribution_value())
 
 ---
 
@@ -38,11 +40,18 @@
 ### Task 1: Add Survivor Carryover Test
 **Files**: Create `src/testing/tests/ValidateSurvivorCarryoverTest.h`
 - **Goal**: Test that dishes that survive a course carry over to the next course correctly
+- **Key Behaviors to Test**:
+  - When a dish survives (has remaining Body after opponent finishes), it should retarget the next opponent
+  - The dish stays in the same slot position, but the opponent moves forward (next opponent in queue)
+  - Transform position should update correctly: both visual position (dish appears in correct spot) AND internal slot index should be correct
+  - This is important for future features where dishes spawn other dishes - we need to verify spawned dishes are in the right spots too
+  - Multiple survivors should handle correctly (each retargets appropriately)
+  - Battle should only complete when one team has no active dishes (not when a single course finishes)
 - **Test Cases**:
-  - Dish with remaining Body after opponent finishes should retarget next opponent
-  - Transform position should update correctly on retarget
-  - Multiple survivors should handle correctly
-  - Battle should only complete when one team has no active dishes
+  1. Single survivor retargets next opponent correctly
+  2. Transform position (visual and index) updates correctly on retarget
+  3. Multiple survivors all retarget correctly
+  4. Battle completion only occurs when one team exhausted
 - **Validation Steps**:
   1. Create test file with survivor carryover scenarios
   2. **MANDATORY CHECKPOINT**: Build: `xmake`
@@ -57,54 +66,32 @@
 
 ## Tier 2: Core Gameplay Features (4-8hrs each)
 
-### Task 2: Implement Tags and SynergyCountingSystem
-**Files**: Create tag components, `src/systems/SynergyCountingSystem.h`
-- **Components Needed**:
-  - `CourseTag` (Appetizer, Soup, Fish, Meat, Drink, PalateCleanser, Dessert, Mignardise)
-  - `CuisineTag` (Thai, Italian, Japanese, Mexican, French, etc.)
-  - `BrandTag` (McDonalds, LocalFarm, StreetFood, etc.)
-  - `DietaryTag` (Vegan, GlutenFree, Halal, Kosher, Keto)
-  - `DishArchetypeTag` (Bread, Dairy, Beverage, Wine, Coffee, Tea, Side, Sauce)
-  - `SynergyCounts` singleton (tracks counts per tag type)
-- **System**: Scan inventory on Shop screen, count tags, compute set thresholds (2/4/6)
-- **UI**: Update tooltips to show tags and current synergy counts
-- **Fun Ideas**:
-  - Visual indicators on dishes showing active synergies
-  - Synergy meter that fills as you add matching dishes
-  - Tooltip shows "2/4 Thai dishes" with progress bar
-- **Validation Steps**:
-  1. Create tag component files (`src/components/course_tag.h`, etc.)
-  2. Add tags to dish definitions in `dish_types.cpp`
-  3. Create `SynergyCountingSystem` to scan and count
-  4. Update tooltip system to display tags and counts
-  5. **MANDATORY CHECKPOINT**: Build: `xmake`
-  6. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
-  7. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
-  8. Verify tags display, counts update correctly, tooltips show synergies (manual test)
-  9. **MANDATORY CHECKPOINT**: Commit: `git commit -m "implement tags and SynergyCountingSystem"`
-  10. **Only after successful commit, proceed to Task 3**
-- **Estimated**: 4-6 hours
-
-### Task 3: Replace random_device with SeededRng in Server
+### Task 2: Replace random_device with SeededRng in Server
 **Files**: `src/server/battle_api.cpp`, `src/server/async/systems/ProcessCommandQueueSystem.h`
 - **Issue**: Server code still uses `std::random_device` instead of `SeededRng` for deterministic RNG
 - **Locations**:
   - `battle_api.cpp:195` - Battle seed generation
   - `ProcessCommandQueueSystem.h:213` - Command processing
 - **Fix**: Replace `std::random_device` calls with `SeededRng::get()` calls
+- **Verification Method**: Run the same battle twice with the same seed and compare outputs. Verify:
+  - Order of effects is identical
+  - Order of dishes entering combat is identical
+  - All RNG-dependent behavior is identical
+  - Any other deterministic aspects match
 - **Validation Steps**:
   1. Replace random_device in battle_api.cpp with SeededRng
   2. Replace random_device in ProcessCommandQueueSystem.h with SeededRng
   3. Ensure seeds are properly set before use
-  4. **MANDATORY CHECKPOINT**: Build: `xmake`
-  5. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
-  6. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
-  7. Verify server determinism works correctly (test with same seed produces same results)
-  8. **MANDATORY CHECKPOINT**: Commit: `git commit -m "be - replace random_device with SeededRng in server code"`
-  9. **Only after successful commit, proceed to Task 4**
+  4. Create test that runs same battle twice with same seed and compares outputs
+  5. **MANDATORY CHECKPOINT**: Build: `xmake`
+  6. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
+  7. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
+  8. Verify server determinism works correctly (test with same seed produces same results)
+  9. **MANDATORY CHECKPOINT**: Commit: `git commit -m "be - replace random_device with SeededRng in server code"`
+  10. **Only after successful commit, proceed to Task 3**
 - **Estimated**: 1-2 hours
 
-### Task 4: Implement BattleReport Persistence
+### Task 3: Implement BattleReport Persistence
 **Files**: Create/update `src/components/battle_report.h`, add JSON serialization
 - **Architecture**: Server-authoritative battle system
   - Server returns JSON: `{ seed, opponentId, outcomes[], events[] }`
@@ -112,131 +99,139 @@
   - Store reports locally for later replay
 - **Components**: `BattleReport{ opponentId, seed, outcomes[], events[], receivedFromServer, timestamp }`
 - **Storage**: Write to `output/battles/results/*.json` on Results screen
+- **File Naming**: Same as server format: `YYYYMMDD_HHMMSS_<battle_id>.json`
+- **When to Save**: Auto-save after every battle completes (on Results screen)
+- **File Retention**: Keep only the last 20 battle reports (delete oldest when limit reached)
+- **Future Enhancement**: Will add "History" button on main menu to show last 20 battles and allow replaying simulations
+- **Note**: Server already saves results to `output/battles/results/` with format `YYYYMMDD_HHMMSS_<battle_id>.json`. Client should be able to load these files.
 - **Fun Ideas**:
-  - Battle history viewer showing past matches
+  - Battle history viewer showing past matches (future: main menu "History" button)
   - "Replay Last Battle" quick button
   - Share battle results (export JSON)
 - **Validation Steps**:
   1. Create BattleReport component
   2. Add JSON serialization/deserialization (server format compatible)
-  3. Integrate with Results screen to save reports
-  4. **MANDATORY CHECKPOINT**: Build: `xmake`
-  5. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
-  6. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
-  7. Verify reports saved and can be loaded (check output/battles/results/ directory)
-  8. **MANDATORY CHECKPOINT**: Commit: `git commit -m "implement BattleReport persistence with JSON serialization"`
-  9. **Only after successful commit, proceed to Task 5**
+  3. Integrate with Results screen to auto-save reports (format: `YYYYMMDD_HHMMSS_<battle_id>.json`)
+  4. Implement file retention (keep last 20, delete oldest when limit reached)
+  5. **MANDATORY CHECKPOINT**: Build: `xmake`
+  6. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
+  7. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
+  8. Verify reports saved and can be loaded (check output/battles/results/ directory)
+  9. **MANDATORY CHECKPOINT**: Commit: `git commit -m "implement BattleReport persistence with JSON serialization"`
+  10. **Only after successful commit, proceed to Task 4**
 - **Estimated**: 4-5 hours
 
 ---
 
 ## Tier 3: Enhanced Features & Polish (6-12hrs each)
 
-### Task 5: Verify/Fix Deterministic Turn Alternation
-**Files**: `src/systems/ResolveCombatTickSystem.h`
-- **Status**: ✅ Verified - No static variables found, system uses deterministic simultaneous attack cadence
-- **Finding**: ResolveCombatTickSystem uses a cadence-based approach with simultaneous attacks (both dishes attack at the same time), which is fully deterministic. No static `player_turn` variable exists.
-- **Note**: System is already deterministic - no changes needed. This task can be considered complete.
-- **Estimated**: 0 hours (verification only)
-
-### Task 6: Enhance Replay System
+### Task 4: Enhance Replay System
 **Files**: Enhance `src/systems/ReplayControllerSystem.h`, create `src/systems/ReplayUISystem.h`
 - **Current State**: Basic ReplayState exists, pause/play works
 - **Enhancements Needed**:
-  - Speed controls (0.5x/1x/2x/4x) - partially exists, needs UI
-  - Seek to course (jump to specific course in battle)
-  - Load BattleReport from saved JSON files
-  - Event log viewer (show all events in battle)
+  - Speed controls (0.5x/1x/2x/4x) - partially exists, needs UI buttons
+  - Load BattleReport from saved JSON files (from Task 3)
+- **Removed Features** (not needed):
+  - Seek to course (skip this feature)
+  - Event log viewer (not needed)
+- **UI Implementation**: Add UI buttons for speed controls (0.5x, 1x, 2x, 4x) on screen during replay
 - **Fun Ideas**:
   - Timeline scrubber showing battle progress
   - Slow-motion replay for epic moments
   - "Watch Again" button on Results screen
   - Battle highlights (auto-detect exciting moments)
 - **Validation Steps**:
-  1. Enhance ReplayControllerSystem with seek functionality
-  2. Create ReplayUISystem for controls (speed, seek, pause)
-  3. Add BattleReport loading from JSON
-  4. Integrate with Results screen
-  5. **MANDATORY CHECKPOINT**: Build: `xmake`
-  6. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
-  7. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
-  8. Verify can replay any saved battle, seek works, speed controls work (manual test)
-  9. **MANDATORY CHECKPOINT**: Commit: `git commit -m "enhance replay system with seek, speed controls, and battle history"`
-  10. **Only after successful commit, proceed to Task 7**
-- **Estimated**: 6-8 hours
+  1. Create ReplayUISystem for speed control buttons (0.5x/1x/2x/4x)
+  2. Add BattleReport loading from JSON (integrate with Task 3)
+  3. Integrate with Results screen
+  4. **MANDATORY CHECKPOINT**: Build: `xmake`
+  5. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
+  6. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
+  7. Verify can replay any saved battle, speed controls work (manual test)
+  8. **MANDATORY CHECKPOINT**: Commit: `git commit -m "enhance replay system with speed controls and battle history"`
+  9. **Only after successful commit, proceed to Task 5**
+- **Estimated**: 4-6 hours
 
-### Task 7: Implement Set Bonus Effects
+### Task 5: Implement Set Bonus Effects
 **Files**: Extend `ApplyPairingsAndClashesSystem.h`, create set bonus definitions
 - **Goal**: Apply bonuses when synergy thresholds are reached (2/4/6)
-- **Examples**:
-  - 2 Thai dishes: +1 spice cap, +0.5 freshness
-  - 4 Thai dishes: +2 spice cap, +1 freshness, unlock "Herb Garden" trigger
-  - 6 Thai dishes: +3 spice cap, +2 freshness, +1 umami, "Herb Garden" enhanced
 - **Implementation**:
-  - Read SynergyCounts singleton
+  - Read SynergyCounts singleton (already exists)
   - Apply bonuses to PreBattleModifiers based on thresholds
   - Visual feedback when thresholds reached
   - Display active synergies in battle as totals in a legend box (shows current synergy counts and thresholds)
+- **Set Bonus Definition Location**: Hardcoded in code (data structure, e.g., `struct SetBonusDefinitions`)
+- **Scope**: Start with one tag type as proof of concept (e.g., CuisineTag)
+- **Bonus Design**: ⚠️ **NEEDS DESIGN PLANNING** - Decide what bonuses actually are:
+  - Are bonuses just stat bonuses (extra Zing/Body)?
+  - Or do bonuses unlock new effects/triggers?
+  - Or both (stat bonuses at 2/4, effect unlocks at 6)?
+  - Need to think through balance and design before implementing
+- **Battle Synergy Legend Box**: Should only show synergies that have reached at least 2/4/6 threshold (not "almost there" indicators)
+- **Note**: Skip "Herb Garden" example for now - focus on stat bonuses first
 - **Fun Ideas**:
   - Celebration animation when hitting 4-piece or 6-piece bonus
   - Set bonus tooltips showing what you'll get
-  - "Almost there!" indicators (1 away from next threshold)
   - Battle synergy legend box showing active synergies with counts (e.g., "American: 4/6", "Bread: 2/4")
 - **Validation Steps**:
-  1. Create set bonus definition system (JSON or code)
-  2. Extend ApplyPairingsAndClashesSystem to read SynergyCounts
-  3. Apply bonuses to PreBattleModifiers
-  4. Add visual feedback for threshold achievements
-  5. **MANDATORY CHECKPOINT**: Build: `xmake`
-  6. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
-  7. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
-  8. Verify set bonuses apply correctly, visual feedback works (manual test)
-  9. **MANDATORY CHECKPOINT**: Commit: `git commit -m "implement set bonus effects with threshold system"`
-  10. **Only after successful commit, proceed to Task 8**
+  1. **DESIGN PHASE**: Plan set bonus design (what bonuses are - stats vs effects vs both)
+  2. Create set bonus definitions in code (hardcoded data structure) for one tag type (e.g., CuisineTag)
+  3. Extend ApplyPairingsAndClashesSystem to read SynergyCounts
+  4. Apply bonuses to PreBattleModifiers when thresholds reached
+  5. Add battle synergy legend box (only shows active synergies at threshold)
+  6. Add visual feedback for threshold achievements
+  7. **MANDATORY CHECKPOINT**: Build: `xmake`
+  8. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
+  9. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
+  10. Verify set bonuses apply correctly, visual feedback works (manual test)
+  11. **MANDATORY CHECKPOINT**: Commit: `git commit -m "implement set bonus effects with threshold system"`
+  12. **Only after successful commit, proceed to Task 6**
 - **Estimated**: 6-8 hours
 
-### Task 8: Enhanced Shop UX
+### Task 6: Enhanced Shop UX
 **Files**: Update shop systems and UI
 - **Features**:
-  - Show price on shop items (hover or always visible)
-  - "Frozen" badge on frozen items
-  - Faint highlight on legal drop targets
+  - Show price in shop (all items cost 3 gold, so display this in shop UI, not on each item)
+  - Note: Eventually drinks will cost 1 gold and get paired with dishes, but not implementing that yet
+  - Faint highlight on legal drop targets (empty inventory slots, or slots where dish can merge)
   - Reroll cost display (current cost, increment)
-  - Freeze toggle with visual feedback
+- **Removed Features** (already implemented):
+  - "Frozen" badge on frozen items (already done)
+  - Freeze toggle (already done, no changes needed)
 - **Fun Ideas**:
   - Item rarity glow (tier 1-5 different colors)
   - "Recommended" tag for dishes that synergize with current team
   - Shop refresh animation
   - Sound effects for purchase/sell
 - **Validation Steps**:
-  1. Add price display to shop items
-  2. Add freeze badge and toggle
-  3. Add drop target highlighting
-  4. Update reroll cost display
-  5. **MANDATORY CHECKPOINT**: Build: `xmake`
-  6. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
-  7. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
-  8. Verify all UX improvements work correctly (manual test)
-  9. **MANDATORY CHECKPOINT**: Commit: `git commit -m "ui - enhance shop UX with prices, freeze badges, and drop highlights"`
-  10. **Only after successful commit, proceed to Task 9**
-- **Estimated**: 4-6 hours
+  1. Add price display to shop UI (show "3 gold" somewhere visible)
+  2. Add drop target highlighting (faint highlight on empty slots or merge targets)
+  3. Update reroll cost display
+  4. **MANDATORY CHECKPOINT**: Build: `xmake`
+  5. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
+  6. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
+  7. Verify all UX improvements work correctly (manual test)
+  8. **MANDATORY CHECKPOINT**: Commit: `git commit -m "ui - enhance shop UX with prices, drop highlights, and reroll cost"`
+  9. **Only after successful commit, proceed to Task 7**
+- **Estimated**: 3-4 hours
 
-### Task 9: Update Font Across the Game
+### Task 7: Update Font Across the Game
 **Files**: `src/font_info.h`, `src/render_utils.h`, all UI rendering systems
-- **Goal**: Standardize and improve font usage across all game screens
+- **Goal**: Standardize font usage across all game screens
 - **Implementation**:
   - Review current font usage and identify inconsistencies
-  - Select appropriate font(s) for different UI contexts (UI text, tooltips, combat text, etc.)
+  - Start with single font for everything (standardize on one font)
   - Update font loading and management system
   - Replace hardcoded font references with centralized font system
   - Ensure font rendering is consistent across all screens (Shop, Battle, Results, etc.)
-- **Fun Ideas**:
+- **Future Enhancement**: Later we can add different fonts for different contexts (e.g., decorative font for titles, readable font for tooltips), but start simple
+- **Fun Ideas** (for later):
   - Different fonts for different contexts (e.g., decorative font for titles, readable font for tooltips)
   - Font size scaling for different screen resolutions
   - Font fallback system for missing glyphs
 - **Validation Steps**:
   1. Audit current font usage across all systems
-  2. Update font_info.h with standardized font definitions
+  2. Update font_info.h with standardized font definitions (single font to start)
   3. Replace hardcoded font references with centralized system
   4. Update all UI rendering systems to use new font system
   5. **MANDATORY CHECKPOINT**: Build: `xmake`
@@ -244,37 +239,39 @@
   7. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
   8. Verify fonts render correctly across all screens (manual test)
   9. **MANDATORY CHECKPOINT**: Commit: `git commit -m "ui - standardize font usage across game"`
-  10. **Only after successful commit, proceed to Task 10**
+  10. **Only after successful commit, proceed to Task 8**
 - **Estimated**: 3-5 hours
 
-### Task 10: Better System for Coloring Text
-**Files**: Create `src/ui/text_color.h`, update all text rendering systems
-- **Goal**: Create a centralized, maintainable system for text coloring throughout the game
+### Task 8: Better System for Text Formatting
+**Files**: Create `src/ui/text_formatting.h`, update all text rendering systems
+- **Goal**: Create a centralized, maintainable system for text formatting throughout the game
+- **Focus**: More interested in formatting (bold, italic, colors, structure) than just colors
 - **Implementation**:
-  - Create text color system with semantic color names (e.g., `TEXT_COLOR_PRIMARY`, `TEXT_COLOR_SECONDARY`, `TEXT_COLOR_WARNING`, `TEXT_COLOR_SUCCESS`, etc.)
-  - Define color palette for different contexts (UI, combat, tooltips, etc.)
-  - Replace hardcoded color values with semantic color system
-  - Support for color themes/variants
-  - Ensure consistent color usage across all screens
+  - Create text formatting system with semantic formatting names
+  - Support for formatting codes (e.g., `[BOLD]`, `[ITALIC]`, `[COLOR:red]`)
+  - Define formatting palette for different contexts (UI, combat, tooltips, etc.)
+  - Replace hardcoded formatting with semantic formatting system
+  - Ensure consistent formatting usage across all screens
+- **Note**: Color system can be part of this, but focus is on overall formatting structure
 - **Fun Ideas**:
   - Color-coded stat changes (green for positive, red for negative)
-  - Contextual colors (e.g., dish rarity colors, synergy colors)
-  - Smooth color transitions for dynamic text
+  - Contextual formatting (e.g., dish rarity colors, synergy colors)
+  - Rich text formatting support
   - Accessibility: ensure sufficient contrast ratios
 - **Validation Steps**:
-  1. Create text_color.h with color system and semantic names
-  2. Define color palette for different contexts
-  3. Replace hardcoded colors with semantic color system across all UI
-  4. Update text rendering utilities to use new color system
+  1. Create text_formatting.h with formatting system and semantic names
+  2. Define formatting palette for different contexts
+  3. Replace hardcoded formatting with semantic formatting system across all UI
+  4. Update text rendering utilities to use new formatting system
   5. **MANDATORY CHECKPOINT**: Build: `xmake`
   6. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
   7. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
-  8. Verify text colors are consistent and appropriate across all screens (manual test)
-  9. **MANDATORY CHECKPOINT**: Commit: `git commit -m "ui - implement centralized text coloring system"`
-  10. **Only after successful commit, proceed to Task 11**
+  8. Verify text formatting is consistent and appropriate across all screens (manual test)
+  9. **MANDATORY CHECKPOINT**: Commit: `git commit -m "ui - implement centralized text formatting system"`
+  10. **Only after successful commit, proceed to Task 9**
 - **Estimated**: 3-4 hours
 
-### Task 11: Fix Tooltip Offscreen Positioning
+### Task 9: Fix Tooltip Offscreen Positioning
 **Files**: `src/systems/TooltipSystem.h`
 - **Goal**: Ensure tooltips are always fully visible on screen by repositioning them when they would go offscreen
 - **Implementation**:
@@ -285,16 +282,16 @@
     - If tooltip extends past left edge: shift right
     - If tooltip extends past bottom edge: move above cursor/target
     - If tooltip extends past top edge: move below cursor/target
+  - **Priority**: Prefer keeping tooltip near cursor when possible (shift left/right/up/down as needed to stay near cursor)
   - Ensure entire tooltip box is visible and readable
   - Handle edge cases (very large tooltips, screen corners)
 - **Fun Ideas**:
   - Smooth animation when tooltip repositions
   - Visual indicator when tooltip is repositioned (subtle fade)
-  - Smart positioning that prefers keeping tooltip near cursor when possible
 - **Validation Steps**:
   1. Update TooltipSystem to calculate tooltip box dimensions accurately
   2. Add screen boundary detection logic
-  3. Implement repositioning algorithm (check all edges)
+  3. Implement repositioning algorithm (check all edges, prefer staying near cursor)
   4. Test with tooltips near screen edges (all four corners)
   5. Test with very long tooltip text that would overflow
   6. **MANDATORY CHECKPOINT**: Build: `xmake`
@@ -302,62 +299,117 @@
   8. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
   9. Verify tooltips never go offscreen, all text is readable (manual test at screen edges)
   10. **MANDATORY CHECKPOINT**: Commit: `git commit -m "ui - fix tooltip offscreen positioning"`
-  11. **Only after successful commit, proceed to Task 12**
+  11. **Only after successful commit, proceed to Task 10**
 - **Estimated**: 2-3 hours
 
 ---
 
 ## Tier 4: Advanced Systems (10+ hours each)
 
-### Task 12: Advanced Effect System Extensions
-**Files**: Extend `EffectResolutionSystem.h`, create status effect components
-- **Advanced Features**:
-  - Status effects (PalateCleanser, Heat, SweetTooth, Fatigue)
-  - Duration-based effects (effects that last N courses)
-  - Effect chains and dependencies
-  - Conditional effects with complex logic
+### Task 10: Implement Status Effects
+**Files**: Create status effect components, extend `EffectResolutionSystem.h`
+- **Goal**: Implement status effects system (e.g., PalateCleanser, Heat, SweetTooth, Fatigue)
+- **Implementation**:
+  - Create status effect components
+  - Define status effect types
+  - Extend EffectResolutionSystem to apply and track status effects
+  - Add visual indicators for status effects (small badges on dishes)
+- **Status Effect Design**: ⚠️ **NEEDS FULL DESIGN PLAN** - Consider:
+  - **Source**: Maybe drinks and synergies will both give status effects
+  - **Distinction**: Need to think through what kinds of things will be dish effects vs status effects
+  - **Mechanics**: Status effects can do both:
+    - Stat modifiers (e.g., Heat = +1 Spice)
+    - Behavior modifiers (e.g., PalateCleanser = reset flavor stats)
+  - **System Design**: Need to plan how status effects interact with dish effects, when they apply, how they stack, etc.
 - **Fun Ideas**:
   - Status effect icons on dishes (small badges)
   - Effect tooltips explaining what each status does
-  - Chain reaction animations when effects trigger other effects
 - **Validation Steps**:
-  1. Create status effect components
-  2. Extend EffectResolutionSystem with duration tracking
-  3. Implement effect chains
+  1. **DESIGN PHASE**: Create full design plan for status effects:
+     - What are status effects vs dish effects?
+     - How do drinks and synergies give status effects?
+     - What status effects exist and what do they do?
+     - How do stat modifiers vs behavior modifiers work?
+  2. Create status effect components based on design
+  3. Extend EffectResolutionSystem with status effect tracking
   4. Add visual indicators for status effects
   5. **MANDATORY CHECKPOINT**: Build: `xmake`
   6. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
   7. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
-  8. Verify complex effects work correctly, no edge cases (extensive manual testing)
-  9. **MANDATORY CHECKPOINT**: Commit: `git commit -m "extend EffectResolutionSystem with status effects and duration tracking"`
-  10. **Only after successful commit, proceed to Task 13**
-- **Estimated**: 10-15 hours
+  8. Verify status effects work correctly (manual test)
+  9. **MANDATORY CHECKPOINT**: Commit: `git commit -m "implement status effects system"`
+  10. **Only after successful commit, proceed to Task 11**
+- **Estimated**: 6-8 hours
 
-### Task 13: Combine Duplicates into Levels
-**Files**: Create `src/systems/CombineDuplicatesSystem.h`, update level system
-- **Goal**: When 3 of the same DishType are in inventory, merge into one entity with Level+1
+### Task 11: Implement Duration-Based Effects
+**Files**: Extend `EffectResolutionSystem.h`
+- **Goal**: Implement effects that last N courses (duration-based effects)
 - **Implementation**:
-  - Detect 3+ duplicates in inventory
-  - Merge into single entity with boosted stats/cost
-  - Remove the other entities
-  - Visual feedback (merge animation)
+  - Add duration tracking to effects
+  - Effects expire after N courses
+  - Track which course an effect was applied
+  - Remove effects when duration expires
+- **Validation Steps**:
+  1. Extend EffectResolutionSystem with duration tracking
+  2. Add course tracking for effects
+  3. Implement expiration logic
+  4. **MANDATORY CHECKPOINT**: Build: `xmake`
+  5. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
+  6. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
+  7. Verify duration-based effects work correctly (manual test)
+  8. **MANDATORY CHECKPOINT**: Commit: `git commit -m "implement duration-based effects"`
+  9. **Only after successful commit, proceed to Task 12**
+- **Estimated**: 4-6 hours
+
+### Task 12: Implement Effect Chains and Dependencies
+**Files**: Extend `EffectResolutionSystem.h`
+- **Goal**: Implement effect chains where one effect can trigger another effect
+- **Implementation**:
+  - Add effect dependency tracking
+  - Implement effect chains (effect A triggers effect B)
+  - Handle conditional effects with complex logic
+- **Fun Ideas**:
+  - Chain reaction animations when effects trigger other effects
+- **Validation Steps**:
+  1. Design effect chain system
+  2. Implement effect dependency tracking
+  3. Add effect chain resolution logic
+  4. **MANDATORY CHECKPOINT**: Build: `xmake`
+  5. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
+  6. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
+  7. Verify effect chains work correctly (manual test)
+  8. **MANDATORY CHECKPOINT**: Commit: `git commit -m "implement effect chains and dependencies"`
+  9. **Only after successful commit, proceed to Task 13**
+- **Estimated**: 6-8 hours
+
+### Task 13: Visual Enhancements for Dish Merging
+**Files**: Update rendering systems
+- **Goal**: Add visual feedback for dish merging (merge system already implemented)
+- **Note**: Dish merging is already implemented (2 level N dishes make 1 level N+1). This task is just visual polish.
+- **Level Scaling**: Uses existing 2x per level system (level 2 = 2x, level 3 = 4x, level 4 = 8x). See `ComputeCombatStatsSystem.h` lines 95-104.
+- **Merge Trigger**: Already implemented - user drags dish onto another dish of same type to merge. See `DropWhenNoLongerHeld.cpp` merge_dishes function.
+- **Implementation**:
+  - Add merge animation showing dishes combining
+  - Add level-up sound effect
+  - Add "Ready to merge!" indicator when you have 2/3 (visual hint)
+  - Add level display on dishes (small number badge showing level)
 - **Fun Ideas**:
   - Merge animation showing dishes combining
   - Level-up sound effect
   - "Ready to merge!" indicator when you have 2/3
   - Level display on dishes (small number badge)
 - **Validation Steps**:
-  1. Create CombineDuplicatesSystem
-  2. Detect duplicates in inventory
-  3. Merge logic with stat/cost scaling
-  4. Add merge animation
+  1. Add merge animation
+  2. Add level-up sound effect
+  3. Add "Ready to merge!" visual indicator
+  4. Add level display badge on dishes
   5. **MANDATORY CHECKPOINT**: Build: `xmake`
   6. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
   7. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
-  8. Verify merging works correctly, stats scale properly (manual test)
-  9. **MANDATORY CHECKPOINT**: Commit: `git commit -m "implement combine duplicates system with level scaling"`
+  8. Verify visual enhancements work correctly (manual test)
+  9. **MANDATORY CHECKPOINT**: Commit: `git commit -m "ui - add visual enhancements for dish merging"`
   10. **Task complete - all tasks finished!**
-- **Estimated**: 8-10 hours
+- **Estimated**: 4-6 hours
 
 ---
 
@@ -490,16 +542,16 @@ These are potential enhancements to the tooltip system that can be implemented a
 ## Priority Recommendations
 
 **Immediate (This Week)**:
-- Tier 1: Survivor carryover test, server determinism fixes (3-5 hours)
-- Tier 2: Start with Tags/Synergy system (foundation for other features)
+- Tier 1: Survivor carryover test (2-3 hours)
+- Tier 2: Server determinism fixes (1-2 hours)
 
 **Short Term (Next 2 Weeks)**:
-- Tier 2: Complete tags, tier 1 effects, and BattleReport persistence (12-17 hours)
-- Tier 3: Start replay enhancements and shop UX (10-14 hours)
+- Tier 2: BattleReport persistence (4-5 hours)
+- Tier 3: Replay enhancements and shop UX (7-10 hours)
 
 **Medium Term (Next Month)**:
-- Tier 3: Complete set bonuses, replay system, shop UX (16-22 hours)
-- Tier 4: Start advanced effects and combine system (18-25 hours)
+- Tier 3: Set bonuses, font standardization, text formatting, tooltip positioning (14-20 hours)
+- Tier 4: Start advanced effects (status effects, duration, chains) (16-22 hours)
 
 **Long Term (Future)**:
 - Tier 4: Complete advanced systems
@@ -550,5 +602,5 @@ These are potential enhancements to the tooltip system that can be implemented a
 
 **Implementation Order**:
 1. First ensure deterministic simulation works with local seeds ✅
-2. Then add server JSON deserialization (Task 5)
+2. Then add server JSON deserialization (Task 3)
 3. Finally add HTTP client for server communication (future task)
