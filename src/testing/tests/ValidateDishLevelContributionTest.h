@@ -54,25 +54,21 @@ void perform_merge(TestApp &app, afterhours::Entity &donor,
 
   target_slot.addComponent<CanDropOnto>(true);
 
-  afterhours::EntityHelper::merge_entity_arrays();
+  // Wait a frame for entities to be merged by system loop
+  app.wait_for_frames(1);
 
-  auto donor_ptr_opt = EQ().whereID(donor_id).gen_first();
-  app.expect_true(donor_ptr_opt.has_value(), "donor entity found after merge");
-  afterhours::Entity &donor_entity = donor_ptr_opt.asE();
+  // Use donor reference directly instead of querying by ID
+  afterhours::Entity &donor_entity = donor;
   app.expect_true(donor_entity.has<IsHeld>(), "donor has IsHeld");
   app.expect_true(donor_entity.has<Transform>(), "donor has Transform");
 
   target_slot.get<IsDropSlot>().occupied = true;
 
-  afterhours::EntityHelper::merge_entity_arrays();
+  // Wait a frame for occupied flag to be processed
+  app.wait_for_frames(1);
 
-  auto item_in_slot_opt = EQ().whereID(target_id).gen_first();
-  app.expect_true(item_in_slot_opt.has_value(),
-                  "target entity found after merge");
-  app.expect_eq(item_in_slot_opt.asE().id, target_id,
-                "target entity ID matches");
-
-  afterhours::Entity &item_in_slot = item_in_slot_opt.asE();
+  // Use target reference directly instead of querying by ID
+  afterhours::Entity &item_in_slot = target;
 
   app.expect_true(donor_entity.has<IsDish>(), "donor has IsDish after merge");
   app.expect_true(item_in_slot.has<IsDish>(), "target has IsDish after merge");
@@ -126,7 +122,6 @@ TEST(validate_dish_level_contribution) {
   // Test 1: Verify level 1 contribution value
   app.create_inventory_item(DishType::Potato, 0);
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
   auto dish1_opt = app.find_inventory_item_by_slot(0);
   app.expect_true(dish1_opt.has_value(), "dish1 found in slot 0");
@@ -139,7 +134,6 @@ TEST(validate_dish_level_contribution) {
   // Test 2: Merge 2 level 1s → should create level 2
   app.create_inventory_item(DishType::Potato, 1);
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
   auto dish2_opt = app.find_inventory_item_by_slot(1);
   app.expect_true(dish2_opt.has_value(), "dish2 found in slot 1");
@@ -152,9 +146,9 @@ TEST(validate_dish_level_contribution) {
   perform_merge(app, dish2, dish1);
 
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
-  auto merged1_opt = EQ().whereID(target_id).gen_first();
+  // Use force_merge to query immediately after merge
+  auto merged1_opt = EQ({.force_merge = true}).whereID(target_id).gen_first();
   app.expect_true(merged1_opt.has_value(),
                   "merged dish exists after first merge");
   afterhours::Entity &merged1 = merged1_opt.asE();
@@ -166,7 +160,6 @@ TEST(validate_dish_level_contribution) {
 
   app.create_inventory_item(DishType::Potato, 1);
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
   auto dish3_opt = app.find_inventory_item_by_slot(1);
   app.expect_true(dish3_opt.has_value(), "dish3 found in slot 1");
@@ -174,9 +167,9 @@ TEST(validate_dish_level_contribution) {
   perform_merge(app, dish3, merged1);
 
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
-  auto merged2_opt = EQ().whereID(target_id).gen_first();
+  // Use force_merge to query immediately after merge
+  auto merged2_opt = EQ({.force_merge = true}).whereID(target_id).gen_first();
   app.expect_true(merged2_opt.has_value(),
                   "merged dish exists after second merge");
   afterhours::Entity &merged2 = merged2_opt.asE();
@@ -191,7 +184,6 @@ TEST(validate_dish_level_contribution) {
   app.create_inventory_item(DishType::Potato, 2);
   app.create_inventory_item(DishType::Potato, 3);
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
   auto dish4_opt = app.find_inventory_item_by_slot(2);
   auto dish5_opt = app.find_inventory_item_by_slot(3);
@@ -205,9 +197,9 @@ TEST(validate_dish_level_contribution) {
   perform_merge(app, dish4, dish5);
 
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
-  auto dish5_merged1_opt = EQ().whereID(dish5_id).gen_first();
+  // Use force_merge to query immediately after merge
+  auto dish5_merged1_opt = EQ({.force_merge = true}).whereID(dish5_id).gen_first();
   app.expect_true(dish5_merged1_opt.has_value(),
                   "dish5 exists after first merge");
   afterhours::Entity &dish5_merged1 = dish5_merged1_opt.asE();
@@ -217,7 +209,6 @@ TEST(validate_dish_level_contribution) {
 
   app.create_inventory_item(DishType::Potato, 2);
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
   auto dish6_opt = app.find_inventory_item_by_slot(2);
   app.expect_true(dish6_opt.has_value(), "dish6 found");
@@ -225,9 +216,9 @@ TEST(validate_dish_level_contribution) {
   perform_merge(app, dish6, dish5_merged1);
 
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
-  auto merged3_opt = EQ().whereID(dish5_id).gen_first();
+  // Use force_merge to query immediately after merge
+  auto merged3_opt = EQ({.force_merge = true}).whereID(dish5_id).gen_first();
   app.expect_true(merged3_opt.has_value(), "merged level 2 dish exists");
   afterhours::Entity &merged3 = merged3_opt.asE();
   DishLevel &merged3_level = merged3.get<DishLevel>();
@@ -238,9 +229,9 @@ TEST(validate_dish_level_contribution) {
   perform_merge(app, merged3, merged2);
 
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
-  auto merged4_opt = EQ().whereID(target2_id).gen_first();
+  // Use force_merge to query immediately after merge
+  auto merged4_opt = EQ({.force_merge = true}).whereID(target2_id).gen_first();
   app.expect_true(merged4_opt.has_value(), "merged level 3 dish exists");
   afterhours::Entity &merged4 = merged4_opt.asE();
   DishLevel &merged4_level = merged4.get<DishLevel>();
@@ -254,7 +245,6 @@ TEST(validate_dish_level_contribution) {
   app.create_inventory_item(DishType::Salmon, 5);
   app.create_inventory_item(DishType::Salmon, 6);
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
   auto salmon1_opt = app.find_inventory_item_by_slot(4);
   auto salmon2_opt = app.find_inventory_item_by_slot(5);
@@ -271,9 +261,9 @@ TEST(validate_dish_level_contribution) {
 
   perform_merge(app, salmon2, salmon1);
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
-  auto salmon_merged1_opt = EQ().whereID(salmon_target_id).gen_first();
+  // Use force_merge to query immediately after merge
+  auto salmon_merged1_opt = EQ({.force_merge = true}).whereID(salmon_target_id).gen_first();
   app.expect_true(salmon_merged1_opt.has_value(), "salmon merged 1 exists");
   afterhours::Entity &salmon_merged1 = salmon_merged1_opt.asE();
   DishLevel &salmon_level1 = salmon_merged1.get<DishLevel>();
@@ -283,9 +273,9 @@ TEST(validate_dish_level_contribution) {
 
   perform_merge(app, salmon3, salmon_merged1);
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
-  auto salmon_merged2_opt = EQ().whereID(salmon_target_id).gen_first();
+  // Use force_merge to query immediately after merge
+  auto salmon_merged2_opt = EQ({.force_merge = true}).whereID(salmon_target_id).gen_first();
   app.expect_true(salmon_merged2_opt.has_value(), "salmon merged 2 exists");
   afterhours::Entity &salmon_merged2 = salmon_merged2_opt.asE();
   DishLevel &salmon_level2 = salmon_merged2.get<DishLevel>();
@@ -295,7 +285,6 @@ TEST(validate_dish_level_contribution) {
 
   app.create_inventory_item(DishType::Salmon, 0);
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
   auto salmon4_opt = app.find_inventory_item_by_slot(0);
   app.expect_true(salmon4_opt.has_value(), "salmon4 found");
@@ -303,9 +292,9 @@ TEST(validate_dish_level_contribution) {
 
   perform_merge(app, salmon4, salmon_merged2);
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
-  auto salmon_merged3_opt = EQ().whereID(salmon_target_id).gen_first();
+  // Use force_merge to query immediately after merge
+  auto salmon_merged3_opt = EQ({.force_merge = true}).whereID(salmon_target_id).gen_first();
   app.expect_true(salmon_merged3_opt.has_value(), "salmon merged 3 exists");
   afterhours::Entity &salmon_merged3 = salmon_merged3_opt.asE();
   DishLevel &salmon_level3_check = salmon_merged3.get<DishLevel>();
@@ -315,7 +304,6 @@ TEST(validate_dish_level_contribution) {
 
   app.create_inventory_item(DishType::Salmon, 1);
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
   auto salmon5_opt = app.find_inventory_item_by_slot(1);
   app.expect_true(salmon5_opt.has_value(), "salmon5 found");
@@ -323,9 +311,9 @@ TEST(validate_dish_level_contribution) {
 
   perform_merge(app, salmon5, salmon_merged3);
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
-  auto salmon_final_opt = EQ().whereID(salmon_target_id).gen_first();
+  // Use force_merge to query immediately after merge
+  auto salmon_final_opt = EQ({.force_merge = true}).whereID(salmon_target_id).gen_first();
   app.expect_true(salmon_final_opt.has_value(), "salmon final exists");
   afterhours::Entity &salmon_final = salmon_final_opt.asE();
   DishLevel &salmon_final_level = salmon_final.get<DishLevel>();
