@@ -20,14 +20,11 @@ TEST(validate_dish_selling) {
 
   app.set_wallet_gold(0);
 
-  afterhours::EntityHelper::merge_entity_arrays();
-
   int test_slot = app.find_free_inventory_slot();
   app.expect_true(test_slot >= 0, "found free inventory slot");
 
   app.create_inventory_item(DishType::Potato, test_slot);
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
   auto item_opt = app.find_inventory_item_by_slot(test_slot);
   app.expect_true(item_opt.has_value(), "created inventory item found");
@@ -41,9 +38,9 @@ TEST(validate_dish_selling) {
   app.expect_true(sell_succeeded, "sell simulation succeeded");
 
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
-  auto sold_item_opt = EQ().whereID(item_id).gen_first();
+  // Use force_merge for immediate query
+  auto sold_item_opt = EQ({.force_merge = true}).whereID(item_id).gen_first();
   bool item_removed = !sold_item_opt.has_value() ||
                        (sold_item_opt.has_value() && sold_item_opt.asE().cleanup);
   app.expect_true(item_removed, "sold item was removed or marked for cleanup");
@@ -61,13 +58,11 @@ TEST(validate_dish_selling) {
   
   app.create_inventory_item(DishType::Potato, test_slot);
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
   int free_slot_2 = app.find_free_inventory_slot();
   app.expect_true(free_slot_2 >= 0, "found second free inventory slot");
   app.create_inventory_item(DishType::Salmon, free_slot_2);
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
   auto item1_opt = app.find_inventory_item_by_slot(test_slot);
   auto item2_opt = app.find_inventory_item_by_slot(free_slot_2);
@@ -81,7 +76,6 @@ TEST(validate_dish_selling) {
   app.expect_true(sell1_succeeded, "first sell succeeded");
 
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
   int gold_after_first = app.read_wallet_gold();
   app.expect_eq(gold_after_first, gold_before_multiple + 1,
@@ -91,7 +85,6 @@ TEST(validate_dish_selling) {
   app.expect_true(sell2_succeeded, "second sell succeeded");
 
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
   int gold_after_second = app.read_wallet_gold();
   app.expect_eq(gold_after_second, gold_before_multiple + 2,
@@ -102,7 +95,6 @@ TEST(validate_dish_selling) {
   app.expect_true(free_shop_slot >= 0, "found free shop slot");
 
   afterhours::Entity &shop_item = make_shop_item(free_shop_slot, DishType::Potato);
-  afterhours::EntityHelper::merge_entity_arrays();
   afterhours::EntityID shop_item_id = shop_item.id;
 
   bool shop_sell_attempted = app.simulate_sell(shop_item);
@@ -110,9 +102,9 @@ TEST(validate_dish_selling) {
                    "shop items cannot be sold (should return false)");
 
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
-  auto shop_item_after_opt = EQ().whereID(shop_item_id).gen_first();
+  // Use force_merge for immediate query
+  auto shop_item_after_opt = EQ({.force_merge = true}).whereID(shop_item_id).gen_first();
   app.expect_true(shop_item_after_opt.has_value(),
                   "shop item still exists after sell attempt");
 }

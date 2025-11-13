@@ -80,14 +80,8 @@ bool simulate_drag_and_drop(afterhours::Entity &donor,
     target_slot.addComponent<CanDropOnto>(true);
   }
 
-  afterhours::EntityHelper::merge_entity_arrays();
-
-  // Re-query donor after merge
-  auto donor_ptr_opt = find_entity_by_id(donor_id);
-  if (!donor_ptr_opt) {
-    return false;
-  }
-  afterhours::Entity &donor_entity = donor_ptr_opt.asE();
+  // Use donor reference directly instead of re-querying
+  afterhours::Entity &donor_entity = donor;
   if (!donor_entity.has<IsHeld>() || !donor_entity.has<Transform>()) {
     return false;
   }
@@ -99,16 +93,8 @@ bool simulate_drag_and_drop(afterhours::Entity &donor,
     target_slot.get<IsDropSlot>().occupied = true;
   }
 
-  afterhours::EntityHelper::merge_entity_arrays();
-
-  // Re-query target after merge
-  auto item_in_slot_opt = find_entity_by_id(target_id);
-  if (!item_in_slot_opt || item_in_slot_opt.asE().id != target_id) {
-    donor_entity.removeComponent<IsHeld>();
-    return false;
-  }
-
-  afterhours::Entity &item_in_slot = item_in_slot_opt.asE();
+  // Use target reference directly instead of re-querying
+  afterhours::Entity &item_in_slot = target;
 
   // Re-validate merge conditions
   if (!donor_entity.has<IsDish>() || !item_in_slot.has<IsDish>() ||
@@ -179,8 +165,8 @@ TEST(validate_dish_merging) {
   app.create_inventory_item(DishType::Potato, 4);
   app.create_inventory_item(DishType::Potato, 5);
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
+  // Entities merged by system loop, use force_merge for immediate query if needed
   afterhours::EntityQuery eq_merged({.force_merge = true});
   auto dish0_opt = app.find_inventory_item_by_slot(4);
   auto dish1_opt = app.find_inventory_item_by_slot(5);
@@ -204,10 +190,9 @@ TEST(validate_dish_merging) {
   app.expect_true(merge_simulated, "merge simulation succeeded");
 
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
-  // Verify merge result
-  auto merged_dish_opt = find_entity_by_id(target_id);
+  // Verify merge result - use force_merge for immediate query
+  auto merged_dish_opt = EQ({.force_merge = true}).whereID(target_id).gen_first();
   bool donor_removed = true;
   for (afterhours::Entity &entity :
        eq_merged.whereHasComponent<IsInventoryItem>()
@@ -259,9 +244,9 @@ TEST(validate_dish_merging) {
   app.expect_true(second_merge_simulated, "second merge simulation succeeded");
 
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
-  auto merged_dish_opt_2 = find_entity_by_id(target_id);
+  // Use force_merge for immediate query
+  auto merged_dish_opt_2 = EQ({.force_merge = true}).whereID(target_id).gen_first();
   app.expect_true(merged_dish_opt_2.has_value(),
                   "merged dish found after second merge");
   afterhours::Entity &merged_dish_final = merged_dish_opt_2.asE();
@@ -276,7 +261,6 @@ TEST(validate_dish_merging) {
   int gold_before = app.read_wallet_gold();
   DishType merge_test_type = DishType::Salmon;
   app.wait_for_frames(10);
-  afterhours::EntityHelper::merge_entity_arrays();
 
   // Clear a shop slot to make room for our test item
   int free_slot = -1;
@@ -296,7 +280,6 @@ TEST(validate_dish_merging) {
     free_slot = slot;
     break;
   }
-  afterhours::EntityHelper::merge_entity_arrays();
   app.expect_true(free_slot >= 0, "No free shop slot available");
 
   // Clear an inventory slot for the shop merge test
@@ -319,17 +302,14 @@ TEST(validate_dish_merging) {
       }
     }
   }
-  afterhours::EntityHelper::merge_entity_arrays();
   app.expect_true(inv_slot_for_shop_merge >= 0,
                   "No free inventory slot available for shop merge");
 
   afterhours::Entity &shop_entity = make_shop_item(free_slot, merge_test_type);
-  afterhours::EntityHelper::merge_entity_arrays();
   afterhours::EntityID shop_entity_id = shop_entity.id;
 
   app.create_inventory_item(merge_test_type, inv_slot_for_shop_merge);
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
   auto shop_item_opt = app.find_shop_item(shop_entity_id, free_slot);
   auto inventory_item_opt =
@@ -355,7 +335,6 @@ TEST(validate_dish_merging) {
   app.expect_true(shop_merge_simulated, "shop merge simulation succeeded");
 
   app.wait_for_frames(5);
-  afterhours::EntityHelper::merge_entity_arrays();
 
   int gold_after = app.read_wallet_gold();
   app.expect_eq(gold_after, gold_before - price,
