@@ -135,7 +135,6 @@ struct ServerBattleRequestSystem : afterhours::System<BattleLoadRequest> {
     replay.timeScale = 1.0f;
 
     afterhours::EntityHelper::registerSingleton<ReplayState>(replay_entity);
-    afterhours::EntityHelper::merge_entity_arrays();
 
     log_info("SERVER_BATTLE_REQUEST: Server request complete");
     log_info("  Player file: {}", request.playerJsonPath);

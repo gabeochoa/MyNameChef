@@ -132,10 +132,9 @@ struct InitCombatState : afterhours::System<CombatQueue> {
       e.cleanup = true;
       animation_events_cleaned++;
     }
-    // CRITICAL: Merge entity arrays IMMEDIATELY after marking for cleanup
-    // This ensures the cleanup happens before we create new animations
+    // Cleanup will happen automatically when system loop runs
     if (animation_events_cleaned > 0) {
-      afterhours::EntityHelper::merge_entity_arrays();
+      log_info("COMBAT: Marked {} animation events for cleanup", animation_events_cleaned);
     }
     
     // Reset combat queue
@@ -178,7 +177,6 @@ struct InitCombatState : afterhours::System<CombatQueue> {
 
     log_info("COMBAT: Creating SlideIn animation at battle start");
     auto &anim_entity = make_animation_event(AnimationEventType::SlideIn, true);
-    afterhours::EntityHelper::merge_entity_arrays();
 
     if (auto tq = afterhours::EntityHelper::get_singleton<TriggerQueue>();
         tq.get().has<TriggerQueue>()) {

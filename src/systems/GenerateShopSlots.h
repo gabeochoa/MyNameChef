@@ -42,11 +42,11 @@ struct GenerateShopSlots : System<> {
               calculate_slot_position(i, SHOP_START_X, SHOP_START_Y);
           make_drop_slot(i, position, vec2{SLOT_SIZE, SLOT_SIZE}, false, true);
           // TODO: Add UI labels to shop slots for better testability
-          // Expected: Each shop slot should have a UI label like "Shop Slot 1", "Shop Slot 2", etc.
-          // This would allow UITestHelpers::visible_ui_exists("Shop Slot 1") to work
+          // Expected: Each shop slot should have a UI label like "Shop Slot 1",
+          // "Shop Slot 2", etc. This would allow
+          // UITestHelpers::visible_ui_exists("Shop Slot 1") to work
         }
 
-        EntityHelper::merge_entity_arrays();
         log_info("Generated shop slots for shop screen");
       }
     }

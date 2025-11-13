@@ -42,7 +42,6 @@ private:
     for (int slot : free_slots) {
       make_shop_item(slot, get_random_dish_for_tier(current_tier));
     }
-    afterhours::EntityHelper::merge_entity_arrays();
     log_info("Store refilled with {} new items at tier {}", free_slots.size(),
              current_tier);
   }

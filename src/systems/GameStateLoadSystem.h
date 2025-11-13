@@ -281,7 +281,6 @@ private:
             }
           }
         }
-        afterhours::EntityHelper::merge_entity_arrays();
       }
 
       int round_value = round_opt.get().has<Round>()

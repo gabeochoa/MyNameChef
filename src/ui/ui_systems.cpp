@@ -546,7 +546,6 @@ Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
             make_shop_item(slot, get_random_dish_for_tier(current_tier));
           }
         }
-        afterhours::EntityHelper::merge_entity_arrays();
 
         // Increment reroll cost after successful reroll
         reroll_cost.apply_reroll();

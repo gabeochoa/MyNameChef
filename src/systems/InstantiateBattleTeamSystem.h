@@ -64,7 +64,6 @@ struct InstantiateBattleTeamSystem : afterhours::System<CombatQueue> {
 
     if (player_ready && opponent_ready) {
       instantiated = true;
-      afterhours::EntityHelper::merge_entity_arrays();
     }
   }
 

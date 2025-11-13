@@ -47,7 +47,6 @@ struct BattleTeamLoaderSystem : afterhours::System<> {
   }
 
   void once(float) override {
-    afterhours::EntityHelper::merge_entity_arrays();
     tag_battle_entities();
     tagged = true;
   }

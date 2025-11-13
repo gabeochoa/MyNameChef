@@ -62,7 +62,6 @@ struct GenerateInventorySlots : System<> {
                          false);
         }
 
-        EntityHelper::merge_entity_arrays();
         log_info("Generated inventory slots for shop screen");
       }
     }

@@ -64,7 +64,5 @@ struct GenerateDishesGallery : afterhours::System<> {
           render_constants::kDishSpriteScale, raylib::WHITE);
       e.addComponent<HasTooltip>(generate_dish_tooltip(dish));
     }
-
-    afterhours::EntityHelper::merge_entity_arrays();
   }
 };

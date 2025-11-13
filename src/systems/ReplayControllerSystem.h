@@ -119,8 +119,6 @@ private:
       request.loaded = false;
     }
 
-    afterhours::EntityHelper::merge_entity_arrays();
-
     auto tq = afterhours::EntityHelper::get_singleton<TriggerQueue>();
     if (tq.get().has<TriggerQueue>()) {
       tq.get().get<TriggerQueue>().clear();
