@@ -893,7 +893,7 @@ static void test_modifier_persistence_when_entering_combat() {
       expectedBodyInCombat);
 }
 
-static void test_salmon_neighbor_freshness_persists_to_combat() {
+static void test_salmon_neighbor_freshness_persists_to_combat(TestApp &app) {
   log_info("EFFECT_TEST: Testing Salmon neighbor Freshness persists into "
            "combat (Bagel,Salmon,Salmon,Bagel)");
 
@@ -1076,7 +1076,7 @@ TEST(validate_effect_system) {
   test_deferred_flavor_mods_consumption();
   test_modifier_persistence_after_dish_finishes();
   test_modifier_persistence_when_entering_combat();
-  test_salmon_neighbor_freshness_persists_to_combat();
+  test_salmon_neighbor_freshness_persists_to_combat(app);
 
   log_info("EFFECT_TEST: All tests completed");
 }
@@ -1087,5 +1087,5 @@ TEST(validate_salmon_persistence) {
   log_info("EFFECT_TEST: Running salmon persistence test only");
 
   app.launch_game();
-  test_salmon_neighbor_freshness_persists_to_combat();
+  test_salmon_neighbor_freshness_persists_to_combat(app);
 }

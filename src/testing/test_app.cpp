@@ -430,7 +430,9 @@ TestApp &TestApp::create_inventory_item(DishType type, int slot) {
   if (target_slot->get<IsDropSlot>().occupied) {
     // Find and remove the existing item in this slot
     for (afterhours::Entity &entity :
-         afterhours::EntityQuery({.force_merge = true}).whereHasComponent<IsInventoryItem>().gen()) {
+         afterhours::EntityQuery({.force_merge = true})
+             .whereHasComponent<IsInventoryItem>()
+             .gen()) {
       if (entity.get<IsInventoryItem>().slot == slot_id) {
         entity.cleanup = true;
         break;
@@ -2166,18 +2168,25 @@ bool TestApp::simulate_sell(afterhours::Entity &inventory_item) {
 
   // Use force_merge to query immediately
   auto item_ptr_opt = EQ({.force_merge = true}).whereID(item_id).gen_first();
-  app.expect_true(item_ptr_opt.has_value(), "item found after marking cleanup");
+  if (!item_ptr_opt.has_value()) {
+    return false;
+  }
   afterhours::Entity &item_entity = item_ptr_opt.asE();
 
-  app.expect_true(item_entity.has<IsHeld>(), "item has IsHeld component");
-  app.expect_true(item_entity.has<Transform>(), "item has Transform component");
+  if (!item_entity.has<IsHeld>() || !item_entity.has<Transform>()) {
+    return false;
+  }
 
   auto original_slot_opt = find_drop_slot(original_slot_id);
-  app.expect_true(original_slot_opt.has_value(), "original slot found for sell");
+  if (!original_slot_opt.has_value()) {
+    return false;
+  }
   original_slot_opt.asE().get<IsDropSlot>().occupied = false;
 
   auto wallet_entity = afterhours::EntityHelper::get_singleton<Wallet>();
-  app.expect_true(wallet_entity.get().has<Wallet>(), "Wallet singleton exists");
+  if (!wallet_entity.get().has<Wallet>()) {
+    return false;
+  }
   auto &wallet = wallet_entity.get().get<Wallet>();
   wallet.gold += 1;
 

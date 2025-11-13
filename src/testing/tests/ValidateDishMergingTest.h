@@ -52,7 +52,7 @@ bool simulate_drag_and_drop(afterhours::Entity &donor,
     return false;
   }
 
-  auto target_slot_opt = EQ().whereHasComponent<IsDropSlot>()
+  auto target_slot_opt = EQ({.force_merge = true}).whereHasComponent<IsDropSlot>()
                              .whereSlotID(target_slot_id)
                              .gen_first();
   if (!target_slot_opt) {
@@ -138,7 +138,7 @@ bool simulate_drag_and_drop(afterhours::Entity &donor,
   donor_entity.removeComponent<IsHeld>();
 
   if (original_slot_id >= 0) {
-    auto original_slot_opt = EQ().whereHasComponent<IsDropSlot>()
+    auto original_slot_opt = EQ({.force_merge = true}).whereHasComponent<IsDropSlot>()
                                  .whereSlotID(original_slot_id)
                                  .gen_first();
     if (original_slot_opt) {
