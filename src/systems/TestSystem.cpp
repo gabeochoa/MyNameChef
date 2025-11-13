@@ -23,10 +23,12 @@ std::unordered_map<std::string, std::function<void()>> g_test_continuations;
 #include "../testing/tests/ValidateBattleResultsTest.h"
 #include "../testing/tests/ValidateCombatSystemTest.h"
 #include "../testing/tests/ValidateDebugDishTest.h"
+#include "../testing/tests/ValidateDishLevelContributionTest.h"
 #include "../testing/tests/ValidateDishMergingTest.h"
 #include "../testing/tests/ValidateDishOrderingTest.h"
 #include "../testing/tests/ValidateDishSellingTest.h"
 #include "../testing/tests/ValidateDishSystemTest.h"
+#include "../testing/tests/ValidateDoubleBattleFlowTest.h"
 #include "../testing/tests/ValidateEffectSystemTest.h"
 #include "../testing/tests/ValidateFullBattleFlowTest.h"
 #include "../testing/tests/ValidateFullGameFlowTest.h"
@@ -56,7 +58,6 @@ std::unordered_map<std::string, std::function<void()>> g_test_continuations;
 #include "../testing/tests/ValidateShopPurchaseTest.h"
 #include "../testing/tests/ValidateShopPurchaseWrongScreenTest.h"
 #include "../testing/tests/ValidateThreeBattlesFlowTest.h"
-#include "../testing/tests/ValidateDoubleBattleFlowTest.h"
 #include "../testing/tests/ValidateToastSystemTest.h"
 #include "../testing/tests/ValidateTriggerOrderingTest.h"
 #include "../testing/tests/ValidateTriggerSystemComponentsTest.h"
@@ -152,7 +153,8 @@ void TestSystem::register_test_cases() {
         }
 
         // Check if we're still waiting for something
-        if (test_app_ptr && test_app_ptr->wait_state.type != TestApp::WaitState::None) {
+        if (test_app_ptr &&
+            test_app_ptr->wait_state.type != TestApp::WaitState::None) {
           // Still waiting - don't complete yet
           return;
         }

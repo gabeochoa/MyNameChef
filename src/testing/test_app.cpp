@@ -1,5 +1,4 @@
 #include "test_app.h"
-#include "test_macros.h"
 #include "../components/battle_load_request.h"
 #include "../components/battle_processor.h"
 #include "../components/battle_result.h"
@@ -10,6 +9,7 @@
 #include "../components/continue_game_request.h"
 #include "../components/dish_battle_state.h"
 #include "../components/dish_level.h"
+#include "../components/has_tooltip.h"
 #include "../components/is_dish.h"
 #include "../components/is_draggable.h"
 #include "../components/is_drop_slot.h"
@@ -17,6 +17,7 @@
 #include "../components/is_inventory_item.h"
 #include "../components/is_shop_item.h"
 #include "../components/network_info.h"
+#include "../components/render_order.h"
 #include "../components/replay_state.h"
 #include "../components/transform.h"
 #include "../components/user_id.h"
@@ -25,13 +26,17 @@
 #include "../log.h"
 #include "../query.h"
 #include "../render_backend.h"
+#include "../render_constants.h"
 #include "../seeded_rng.h"
 #include "../server/file_storage.h"
 #include "../settings.h"
 #include "../shop.h"
 #include "../systems/GameStateSaveSystem.h"
 #include "../systems/NetworkSystem.h"
+#include "../tooltip.h"
+#include "test_macros.h"
 #include <afterhours/ah.h>
+#include <afterhours/src/plugins/texture_manager.h>
 #include <chrono>
 #include <magic_enum/magic_enum.hpp>
 #include <raylib/raylib.h>
@@ -56,13 +61,16 @@ TestApp &TestApp::launch_game(const std::source_location &loc) {
   if (completed_operations.count(op_id) > 0) {
     return *this;
   }
-  
+
   log_info("TEST_APP: launch_game - Cleaning up battle state");
-  
+
   // Check if BattleLoadRequest singleton exists and reset it
-  const auto battleLoadRequestId = afterhours::components::get_type_id<BattleLoadRequest>();
-  if (afterhours::EntityHelper::get().singletonMap.contains(battleLoadRequestId)) {
-    auto battleRequest = afterhours::EntityHelper::get_singleton<BattleLoadRequest>();
+  const auto battleLoadRequestId =
+      afterhours::components::get_type_id<BattleLoadRequest>();
+  if (afterhours::EntityHelper::get().singletonMap.contains(
+          battleLoadRequestId)) {
+    auto battleRequest =
+        afterhours::EntityHelper::get_singleton<BattleLoadRequest>();
     if (battleRequest.get().has<BattleLoadRequest>()) {
       auto &req = battleRequest.get().get<BattleLoadRequest>();
       req.loaded = false;
@@ -71,31 +79,37 @@ TestApp &TestApp::launch_game(const std::source_location &loc) {
       log_info("TEST_APP: launch_game - Reset BattleLoadRequest");
     }
   }
-  
+
   // Check if BattleProcessor singleton exists and reset it
-  const auto battleProcessorId = afterhours::components::get_type_id<BattleProcessor>();
-  if (afterhours::EntityHelper::get().singletonMap.contains(battleProcessorId)) {
+  const auto battleProcessorId =
+      afterhours::components::get_type_id<BattleProcessor>();
+  if (afterhours::EntityHelper::get().singletonMap.contains(
+          battleProcessorId)) {
     try {
-      auto battleProcessor = afterhours::EntityHelper::get_singleton<BattleProcessor>();
+      auto battleProcessor =
+          afterhours::EntityHelper::get_singleton<BattleProcessor>();
       if (battleProcessor.get().has<BattleProcessor>()) {
         auto &processor = battleProcessor.get().get<BattleProcessor>();
         processor.simulationStarted = false;
-        processor.finished = false; // Reset finished flag
+        processor.finished = false;           // Reset finished flag
         processor.simulationComplete = false; // Reset simulationComplete flag
         log_info("TEST_APP: launch_game - Reset BattleProcessor");
       }
     } catch (...) {
       // If accessing singleton fails (entity was cleaned up), just continue
-      log_info("TEST_APP: launch_game - Could not access BattleProcessor singleton (may have been cleaned up)");
+      log_info("TEST_APP: launch_game - Could not access BattleProcessor "
+               "singleton (may have been cleaned up)");
     }
   }
-  
+
   GameStateManager &gsm = GameStateManager::get();
   gsm.set_next_screen(GameStateManager::Screen::Main);
   gsm.next_screen = std::nullopt; // Clear any pending screen transition
   gsm.update_screen();
-  log_info("TEST_APP: launch_game - Set screen to Main, active_screen={}, next_screen={}", 
-           (int)gsm.active_screen, gsm.next_screen.has_value() ? (int)gsm.next_screen.value() : -1);
+  log_info("TEST_APP: launch_game - Set screen to Main, active_screen={}, "
+           "next_screen={}",
+           (int)gsm.active_screen,
+           gsm.next_screen.has_value() ? (int)gsm.next_screen.value() : -1);
   game_launched = true;
   completed_operations.insert(op_id);
   if (step_delay()) {
@@ -135,7 +149,7 @@ TestApp &TestApp::click(const std::string &button_label,
   }
 
   click_clickable(*entity);
-  
+
   completed_operations.insert(op_id);
 
   if (step_delay()) {
@@ -332,9 +346,10 @@ int TestApp::count_active_opponent_dishes() {
 std::vector<TestShopItemInfo> TestApp::read_store_options() {
   std::vector<TestShopItemInfo> result;
   afterhours::EntityHelper::merge_entity_arrays();
-  for (afterhours::Entity &entity : afterhours::EntityQuery({.force_merge = true})
-                                        .whereHasComponent<IsShopItem>()
-                                        .gen()) {
+  for (afterhours::Entity &entity :
+       afterhours::EntityQuery({.force_merge = true})
+           .whereHasComponent<IsShopItem>()
+           .gen()) {
     if (entity.cleanup) {
       continue;
     }
@@ -440,6 +455,18 @@ TestApp &TestApp::create_inventory_item(DishType type, int slot) {
 
   // Add components needed for inventory items (matching GenerateInventorySlots)
   dish.addComponent<IsDraggable>(true);
+  dish.addComponent<HasRenderOrder>(RenderOrder::InventoryItems,
+                                    RenderScreen::Shop);
+
+  // Add sprite component for rendering
+  auto dish_info = get_dish_info(type);
+  const auto frame = afterhours::texture_manager::idx_to_sprite_frame(
+      dish_info.sprite.i, dish_info.sprite.j);
+  dish.addComponent<afterhours::texture_manager::HasSprite>(
+      position, vec2{80.0f, 80.0f}, 0.f, frame,
+      render_constants::kDishSpriteScale, raylib::WHITE);
+
+  dish.addComponent<HasTooltip>(generate_dish_tooltip(type));
 
   // Mark slot as occupied BEFORE merging (important!)
   target_slot->get<IsDropSlot>().occupied = true;
@@ -484,9 +511,7 @@ TestApp::RerollCostInfo TestApp::read_reroll_cost() {
   return info; // Unreachable
 }
 
-uint64_t TestApp::read_shop_seed() {
-  return SeededRng::get().seed;
-}
+uint64_t TestApp::read_shop_seed() { return SeededRng::get().seed; }
 
 int TestApp::read_player_health() {
   afterhours::RefEntity health_ref =
@@ -544,9 +569,7 @@ TestApp &TestApp::wait_for_ui_exists(const std::string &label,
     return *this;
   }
 
-  yield([this]() {
-    TestRegistry::get().run_test(current_test_name, *this);
-  });
+  yield([this]() { TestRegistry::get().run_test(current_test_name, *this); });
   return *this;
 }
 
@@ -633,8 +656,7 @@ bool TestApp::check_wait_conditions() {
     GameStateManager &gsm = GameStateManager::get();
     gsm.update_screen();
     GameStateManager::Screen current_screen = gsm.active_screen;
-    
-    
+
     if (current_screen == wait_state.target_screen) {
       // Screen has transitioned, but we need to ensure the UI system has
       // had a chance to create the UI elements for this screen. Merge entity
@@ -681,11 +703,12 @@ bool TestApp::check_wait_conditions() {
     if (ms.count() > static_cast<int>(wait_state.timeout_sec * 1000.0f)) {
       GameStateManager &gsm = GameStateManager::get();
       gsm.update_screen();
-      // For Battle screen, if we're on Shop or Results, that might be acceptable
-      // (battle might have completed instantly or not started)
+      // For Battle screen, if we're on Shop or Results, that might be
+      // acceptable (battle might have completed instantly or not started)
       if (wait_state.target_screen == GameStateManager::Screen::Battle) {
         if (gsm.active_screen == GameStateManager::Screen::Results) {
-          // Accept Results as success for Battle wait (battle completed instantly)
+          // Accept Results as success for Battle wait (battle completed
+          // instantly)
           TestOperationID op_id = wait_state.operation_id;
           wait_state.type = WaitState::None;
           if (op_id != 0) {
@@ -696,7 +719,8 @@ bool TestApp::check_wait_conditions() {
       }
       fail("Timeout waiting for screen: " +
                std::to_string(static_cast<int>(wait_state.target_screen)) +
-               " (current: " + std::to_string(static_cast<int>(gsm.active_screen)) + ")",
+               " (current: " +
+               std::to_string(static_cast<int>(gsm.active_screen)) + ")",
            wait_state.location);
       return true; // Timeout - fail
     }
@@ -791,9 +815,7 @@ TestApp &TestApp::wait_for_screen(GameStateManager::Screen screen,
     return *this;
   }
 
-  yield([this]() {
-    TestRegistry::get().run_test(current_test_name, *this);
-  });
+  yield([this]() { TestRegistry::get().run_test(current_test_name, *this); });
   return *this;
 }
 
@@ -836,9 +858,7 @@ TestApp &TestApp::wait_for_frames(int frames, const std::source_location &loc) {
     return *this;
   }
 
-  yield([this]() {
-    TestRegistry::get().run_test(current_test_name, *this);
-  });
+  yield([this]() { TestRegistry::get().run_test(current_test_name, *this); });
   return *this;
 }
 
@@ -1242,12 +1262,14 @@ TestApp &TestApp::wait_for_battle_initialized(float timeout_sec,
   }
 
   if (check_count % 60 == 0) {
-    log_info("BATTLE_INIT_CHECK: check_count={}, phases: InQueue={}, Entering={}, InCombat={}, Finished={}", 
+    log_info("BATTLE_INIT_CHECK: check_count={}, phases: InQueue={}, "
+             "Entering={}, InCombat={}, Finished={}",
              check_count, in_queue, entering, in_combat, finished);
   }
 
   if (in_combat > 0 || entering > 0) {
-    log_info("BATTLE_INIT_CHECK: Battle initialized - Entering={}, InCombat={}", entering, in_combat);
+    log_info("BATTLE_INIT_CHECK: Battle initialized - Entering={}, InCombat={}",
+             entering, in_combat);
     completed_operations.insert(op_id);
     check_count = 0;
     return *this;
@@ -1260,9 +1282,7 @@ TestApp &TestApp::wait_for_battle_initialized(float timeout_sec,
   wait_state.type = WaitState::FrameDelay;
   wait_state.frame_delay_count = 1;
   wait_state.operation_id = op_id;
-  yield([this]() {
-    TestRegistry::get().run_test(current_test_name, *this);
-  });
+  yield([this]() { TestRegistry::get().run_test(current_test_name, *this); });
   return *this;
 }
 
@@ -1293,14 +1313,12 @@ TestApp &TestApp::wait_for_dishes_in_combat(int min_count, float timeout_sec,
   wait_state.type = WaitState::FrameDelay;
   wait_state.frame_delay_count = 1;
   wait_state.operation_id = op_id;
-  yield([this]() {
-    TestRegistry::get().run_test(current_test_name, *this);
-  });
+  yield([this]() { TestRegistry::get().run_test(current_test_name, *this); });
   return *this;
 }
 
 TestApp &TestApp::wait_for_animations_complete(float timeout_sec,
-                                                const std::string &location) {
+                                               const std::string &location) {
   (void)timeout_sec;
   (void)location;
   TestOperationID op_id = generate_operation_id(std::source_location::current(),
@@ -1326,31 +1344,30 @@ TestApp &TestApp::wait_for_animations_complete(float timeout_sec,
   wait_state.type = WaitState::FrameDelay;
   wait_state.frame_delay_count = 1;
   wait_state.operation_id = op_id;
-  yield([this]() {
-    TestRegistry::get().run_test(current_test_name, *this);
-  });
+  yield([this]() { TestRegistry::get().run_test(current_test_name, *this); });
   return *this;
 }
 
 TestApp &TestApp::expect_combat_ticks_occurred(int min_ticks,
-                                                const std::string &location) {
+                                               const std::string &location) {
   // Check BattleProcessor to see if combat ticks occurred
   // We can check outcomes (completed courses) or look at dish state changes
   afterhours::OptEntity battleProcessor;
   try {
-    battleProcessor = afterhours::EntityHelper::get_singleton<BattleProcessor>();
+    battleProcessor =
+        afterhours::EntityHelper::get_singleton<BattleProcessor>();
   } catch (...) {
     fail("BattleProcessor singleton not found - cannot verify combat ticks",
          location);
     return *this;
   }
-  
+
   if (!battleProcessor.has_value()) {
     fail("BattleProcessor singleton not found - cannot verify combat ticks",
          location);
     return *this;
   }
-  
+
   if (!battleProcessor.asE().has<BattleProcessor>()) {
     fail("BattleProcessor singleton not found - cannot verify combat ticks",
          location);
@@ -1368,32 +1385,36 @@ TestApp &TestApp::expect_combat_ticks_occurred(int min_ticks,
          location);
     return *this;
   }
-  
+
   if (processor_ptr == nullptr) {
     fail("BattleProcessor component is null - cannot verify combat ticks",
          location);
     return *this;
   }
-  
+
   const BattleProcessor &processor = *processor_ptr;
 
   // CRITICAL: Check if battle is actually active before accessing data
   // If battle isn't active, we can't verify combat ticks
   if (!processor.isBattleActive()) {
-    fail("Battle is not active - cannot verify combat ticks. simulationStarted=" +
+    fail("Battle is not active - cannot verify combat ticks. "
+         "simulationStarted=" +
              std::to_string(processor.simulationStarted ? 1 : 0) +
-             ", simulationComplete=" + std::to_string(processor.simulationComplete ? 1 : 0),
+             ", simulationComplete=" +
+             std::to_string(processor.simulationComplete ? 1 : 0),
          location);
     return *this;
   }
 
   // Check if any courses have outcomes (proves combat occurred)
   // CRITICAL: Access outcomes - if entity was cleaned up, this will segfault
-  // We can't prevent segfaults with try-catch, so we just hope the entity is valid
+  // We can't prevent segfaults with try-catch, so we just hope the entity is
+  // valid
   int completed_courses = static_cast<int>(processor.outcomes.size());
-  
+
   // CRITICAL: Check if any dish has had a bite occur (firstBiteDecided = true)
-  // This is the most direct indicator that resolveCombatTick was actually called
+  // This is the most direct indicator that resolveCombatTick was actually
+  // called
   int dishes_with_bites = 0;
   for (const auto &dish : processor.playerDishes) {
     if (dish.firstBiteDecided) {
@@ -1405,7 +1426,7 @@ TestApp &TestApp::expect_combat_ticks_occurred(int min_ticks,
       dishes_with_bites++;
     }
   }
-  
+
   // Also check if dishes have taken damage (body changed from base)
   // This proves damage was actually dealt
   int dishes_with_damage = 0;
@@ -1437,26 +1458,35 @@ TestApp &TestApp::expect_combat_ticks_occurred(int min_ticks,
     }
   }
 
-  // CRITICAL: Also check ECS entities (DishBattleState) to verify visual system is running
-  // This is separate from BattleProcessor simulation - both need to work
+  // CRITICAL: Also check ECS entities (DishBattleState) to verify visual system
+  // is running This is separate from BattleProcessor simulation - both need to
+  // work
   int ecs_dishes_with_bites = 0;
   for (afterhours::Entity &e :
        afterhours::EntityQuery().whereHasComponent<DishBattleState>().gen()) {
     const DishBattleState &dbs = e.get<DishBattleState>();
-    if (dbs.first_bite_decided && dbs.phase == DishBattleState::Phase::InCombat) {
+    if (dbs.first_bite_decided &&
+        dbs.phase == DishBattleState::Phase::InCombat) {
       ecs_dishes_with_bites++;
     }
   }
 
-  log_info("TEST_COMBAT_TICKS: Checking combat ticks - completed_courses={}, dishes_with_bites={} (sim), ecs_dishes_with_bites={} (visual), dishes_with_damage={}, dishes_in_combat={}, min_ticks={}",
-           completed_courses, dishes_with_bites, ecs_dishes_with_bites, dishes_with_damage, dishes_in_combat, min_ticks);
+  log_info("TEST_COMBAT_TICKS: Checking combat ticks - completed_courses={}, "
+           "dishes_with_bites={} (sim), ecs_dishes_with_bites={} (visual), "
+           "dishes_with_damage={}, dishes_in_combat={}, min_ticks={}",
+           completed_courses, dishes_with_bites, ecs_dishes_with_bites,
+           dishes_with_damage, dishes_in_combat, min_ticks);
 
   // Combat ticks occurred if:
-  // 1. At least one course completed (outcome recorded) - PROVES combat happened
-  // 2. OR at least one dish had a bite (firstBiteDecided = true) - PROVES resolveCombatTick was called
+  // 1. At least one course completed (outcome recorded) - PROVES combat
+  // happened
+  // 2. OR at least one dish had a bite (firstBiteDecided = true) - PROVES
+  // resolveCombatTick was called
   // 3. OR at least one dish took damage - PROVES damage was dealt
   // Just being in combat phase is NOT enough - we need actual bites/damage
-  bool combat_ticks_occurred = (completed_courses > 0) || (dishes_with_bites > 0) || (dishes_with_damage > 0);
+  bool combat_ticks_occurred = (completed_courses > 0) ||
+                               (dishes_with_bites > 0) ||
+                               (dishes_with_damage > 0);
 
   if (!combat_ticks_occurred) {
     fail("No combat ticks occurred - completed_courses=" +
@@ -1464,18 +1494,22 @@ TestApp &TestApp::expect_combat_ticks_occurred(int min_ticks,
              ", dishes_with_bites=" + std::to_string(dishes_with_bites) +
              ", dishes_with_damage=" + std::to_string(dishes_with_damage) +
              ", dishes_in_combat=" + std::to_string(dishes_in_combat) +
-             ". Battle did not simulate. No bites occurred, no damage dealt, no courses completed.",
+             ". Battle did not simulate. No bites occurred, no damage dealt, "
+             "no courses completed.",
          location);
     return *this;
   }
 
   // CRITICAL: Require at least one bite to have occurred in BOTH systems
   // 1. BattleProcessor simulation (dishes_with_bites) - proves simulation ran
-  // 2. ECS visual system (ecs_dishes_with_bites) - proves ResolveCombatTickSystem ran
-  // Both must work for the battle to be visible to the user
+  // 2. ECS visual system (ecs_dishes_with_bites) - proves
+  // ResolveCombatTickSystem ran Both must work for the battle to be visible to
+  // the user
   if (dishes_with_bites == 0 && completed_courses == 0) {
-    fail("No bites occurred in BattleProcessor simulation - firstBiteDecided=false for all dishes. "
-             "BattleProcessor::resolveCombatTick was never called. completed_courses=" +
+    fail("No bites occurred in BattleProcessor simulation - "
+         "firstBiteDecided=false for all dishes. "
+         "BattleProcessor::resolveCombatTick was never called. "
+         "completed_courses=" +
              std::to_string(completed_courses) +
              ", dishes_with_damage=" + std::to_string(dishes_with_damage) +
              ". Battle simulation is not running.",
@@ -1484,7 +1518,8 @@ TestApp &TestApp::expect_combat_ticks_occurred(int min_ticks,
   }
 
   // CRITICAL: Also check that ECS visual system processed bites
-  // If simulation has bites but ECS doesn't, ResolveCombatTickSystem isn't running
+  // If simulation has bites but ECS doesn't, ResolveCombatTickSystem isn't
+  // running
   if (ecs_dishes_with_bites == 0 && dishes_with_bites > 0) {
     fail("BattleProcessor simulation has bites (dishes_with_bites=" +
              std::to_string(dishes_with_bites) +
@@ -1598,9 +1633,7 @@ TestApp &TestApp::wait_for_battle_complete(float timeout_sec,
   wait_state.type = WaitState::FrameDelay;
   wait_state.frame_delay_count = 2;
   wait_state.operation_id = op_id;
-  yield([this]() {
-    TestRegistry::get().run_test(current_test_name, *this);
-  });
+  yield([this]() { TestRegistry::get().run_test(current_test_name, *this); });
   return *this;
 }
 
@@ -1735,8 +1768,7 @@ bool TestApp::save_file_exists() {
     return false;
   }
   std::string userId = userId_opt.get().get<UserId>().userId;
-  std::string save_file =
-      server::FileStorage::get_game_state_save_path(userId);
+  std::string save_file = server::FileStorage::get_game_state_save_path(userId);
   return server::FileStorage::file_exists(save_file);
 }
 
