@@ -345,7 +345,7 @@ int TestApp::count_active_opponent_dishes() {
 
 std::vector<TestShopItemInfo> TestApp::read_store_options() {
   std::vector<TestShopItemInfo> result;
-  afterhours::EntityHelper::merge_entity_arrays();
+  // force_merge in query handles merging automatically
   for (afterhours::Entity &entity :
        afterhours::EntityQuery({.force_merge = true})
            .whereHasComponent<IsShopItem>()
@@ -430,14 +430,13 @@ TestApp &TestApp::create_inventory_item(DishType type, int slot) {
   if (target_slot->get<IsDropSlot>().occupied) {
     // Find and remove the existing item in this slot
     for (afterhours::Entity &entity :
-         afterhours::EntityQuery().whereHasComponent<IsInventoryItem>().gen()) {
+         afterhours::EntityQuery({.force_merge = true}).whereHasComponent<IsInventoryItem>().gen()) {
       if (entity.get<IsInventoryItem>().slot == slot_id) {
         entity.cleanup = true;
         break;
       }
     }
-    // Merge to ensure cleanup happens
-    afterhours::EntityHelper::merge_entity_arrays();
+    // Cleanup will happen when system loop runs
   }
 
   // Create the dish entity
@@ -468,12 +467,10 @@ TestApp &TestApp::create_inventory_item(DishType type, int slot) {
 
   dish.addComponent<HasTooltip>(generate_dish_tooltip(type));
 
-  // Mark slot as occupied BEFORE merging (important!)
+  // Mark slot as occupied
   target_slot->get<IsDropSlot>().occupied = true;
 
-  // Merge entity arrays
-  afterhours::EntityHelper::merge_entity_arrays();
-
+  // Entity will be merged by system loop automatically
   return *this;
 }
 
@@ -594,9 +591,7 @@ bool TestApp::check_wait_conditions() {
   }
 
   if (wait_state.type == WaitState::UI) {
-    // Merge entity arrays to ensure UI entities are available
-    afterhours::EntityHelper::merge_entity_arrays();
-
+    // force_merge in query handles merging automatically
     // Check if UI element exists (use EntityQuery like UITestHelpers does)
     for (afterhours::Entity &entity :
          afterhours::EntityQuery({.force_merge = true})
@@ -659,10 +654,8 @@ bool TestApp::check_wait_conditions() {
 
     if (current_screen == wait_state.target_screen) {
       // Screen has transitioned, but we need to ensure the UI system has
-      // had a chance to create the UI elements for this screen. Merge entity
-      // arrays to ensure we can see the new UI elements.
-      afterhours::EntityHelper::merge_entity_arrays();
-
+      // had a chance to create the UI elements for this screen.
+      // force_merge in queries handles merging automatically
       // For Shop screen, verify that shop-specific UI exists before
       // considering the transition complete
       if (wait_state.target_screen == GameStateManager::Screen::Shop) {
@@ -917,8 +910,7 @@ afterhours::EntityID TestDishBuilder::commit() {
     entity.addComponent<IsOpponentTeamItem>();
   }
 
-  afterhours::EntityHelper::merge_entity_arrays();
-
+  // Entity will be merged by system loop automatically
   return entity.id;
 }
 
@@ -1877,9 +1869,7 @@ bool TestApp::try_purchase_item(DishType type, int inventory_slot,
     }
   }
 
-  // Merge entity arrays to ensure changes are visible
-  afterhours::EntityHelper::merge_entity_arrays();
-
+  // Changes will be visible after system loop runs
   return true; // Purchase succeeded
 }
 
@@ -1925,9 +1915,7 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
   const int max_attempts = 5;
 
   for (int attempt = 0; attempt < max_attempts && !target_slot; attempt++) {
-    // Merge entity arrays to ensure all slots are available
-    afterhours::EntityHelper::merge_entity_arrays();
-
+    // force_merge in queries handles merging automatically
     if (inventory_slot >= 0) {
       // Use specified slot
       for (afterhours::Entity &entity :
@@ -1967,8 +1955,7 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
 
   // Final check after all attempts
   if (!target_slot) {
-    // Re-merge and count for final error message
-    afterhours::EntityHelper::merge_entity_arrays();
+    // force_merge in query handles merging automatically
     int final_occupied = 0;
     int final_total = 0;
     for (afterhours::Entity &entity :
@@ -2051,9 +2038,7 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
     }
   }
 
-  // Merge entity arrays to ensure changes are visible
-  afterhours::EntityHelper::merge_entity_arrays();
-
+  // Changes will be visible after system loop runs
   // Verify purchase succeeded
   const int new_gold = read_wallet_gold();
   if (new_gold != initial_gold - price) {
@@ -2090,7 +2075,7 @@ afterhours::OptEntity TestApp::find_drop_slot(int slot_id) {
 }
 
 int TestApp::find_free_shop_slot() {
-  afterhours::EntityHelper::merge_entity_arrays();
+  // force_merge in query handles merging automatically
   for (int i = 0; i < SHOP_SLOTS; ++i) {
     bool slot_taken = false;
     for (afterhours::Entity &entity :
@@ -2110,7 +2095,7 @@ int TestApp::find_free_shop_slot() {
 }
 
 int TestApp::find_free_inventory_slot() {
-  afterhours::EntityHelper::merge_entity_arrays();
+  // force_merge in query handles merging automatically
   for (int i = 0; i < INVENTORY_SLOTS; ++i) {
     bool slot_occupied =
         EQ({.force_merge = true})
@@ -2179,33 +2164,26 @@ bool TestApp::simulate_sell(afterhours::Entity &inventory_item) {
     sell_slot.addComponent<CanDropOnto>(true);
   }
 
-  afterhours::EntityHelper::merge_entity_arrays();
-
-  auto item_ptr_opt = EQ().whereID(item_id).gen_first();
-  if (!item_ptr_opt) {
-    return false;
-  }
+  // Use force_merge to query immediately
+  auto item_ptr_opt = EQ({.force_merge = true}).whereID(item_id).gen_first();
+  app.expect_true(item_ptr_opt.has_value(), "item found after marking cleanup");
   afterhours::Entity &item_entity = item_ptr_opt.asE();
 
-  if (!item_entity.has<IsHeld>() || !item_entity.has<Transform>()) {
-    return false;
-  }
+  app.expect_true(item_entity.has<IsHeld>(), "item has IsHeld component");
+  app.expect_true(item_entity.has<Transform>(), "item has Transform component");
 
   auto original_slot_opt = find_drop_slot(original_slot_id);
-  if (original_slot_opt) {
-    original_slot_opt.asE().get<IsDropSlot>().occupied = false;
-  }
+  app.expect_true(original_slot_opt.has_value(), "original slot found for sell");
+  original_slot_opt.asE().get<IsDropSlot>().occupied = false;
 
   auto wallet_entity = afterhours::EntityHelper::get_singleton<Wallet>();
-  if (wallet_entity.get().has<Wallet>()) {
-    auto &wallet = wallet_entity.get().get<Wallet>();
-    wallet.gold += 1;
-  }
+  app.expect_true(wallet_entity.get().has<Wallet>(), "Wallet singleton exists");
+  auto &wallet = wallet_entity.get().get<Wallet>();
+  wallet.gold += 1;
 
   item_entity.cleanup = true;
   item_entity.removeComponent<IsHeld>();
 
-  afterhours::EntityHelper::merge_entity_arrays();
-
+  // Cleanup will happen when system loop runs
   return true;
 }
