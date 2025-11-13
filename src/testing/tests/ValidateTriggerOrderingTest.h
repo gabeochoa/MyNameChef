@@ -75,7 +75,8 @@ TEST(validate_trigger_ordering) {
       add_dish_to_menu(DishType::Salmon, DishBattleState::TeamSide::Opponent, 1,
                        DishBattleState::Phase::InQueue); // 5 zing
 
-  afterhours::EntityHelper::merge_entity_arrays();
+  // Wait a frame for entities to be merged by system loop
+  app.wait_for_frames(1);
 
   // Run ComputeCombatStatsSystem to calculate baseZing
   ComputeCombatStatsSystem computeStats;

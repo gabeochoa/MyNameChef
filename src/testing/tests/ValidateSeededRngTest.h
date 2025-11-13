@@ -36,7 +36,7 @@ TEST(validate_seeded_rng_determinism) {
     ref.get().cleanup = true;
   }
   afterhours::EntityHelper::cleanup();
-  afterhours::EntityHelper::merge_entity_arrays();
+  // Cleanup will be processed by system loop
   app.wait_for_frames(5);
 
   // Test 1: Verify same seed produces same shop items
@@ -51,7 +51,7 @@ TEST(validate_seeded_rng_determinism) {
   for (int slot : free_slots) {
     make_shop_item(slot, get_random_dish_for_tier(1));
   }
-  afterhours::EntityHelper::merge_entity_arrays();
+  // Entities will be merged by system loop
   app.wait_for_frames(5);
   
   std::vector<DishType> first_run = get_shop_items();
@@ -64,7 +64,7 @@ TEST(validate_seeded_rng_determinism) {
     ref.get().cleanup = true;
   }
   afterhours::EntityHelper::cleanup();
-  afterhours::EntityHelper::merge_entity_arrays();
+  // Cleanup will be processed by system loop
   app.wait_for_frames(5);
 
   // Reset seed to same value and generate again (round 2)
@@ -74,7 +74,7 @@ TEST(validate_seeded_rng_determinism) {
   for (int slot : free_slots) {
     make_shop_item(slot, get_random_dish_for_tier(1));
   }
-  afterhours::EntityHelper::merge_entity_arrays();
+  // Entities will be merged by system loop
   app.wait_for_frames(5);
   
   std::vector<DishType> second_run = get_shop_items();
@@ -99,7 +99,7 @@ TEST(validate_seeded_rng_determinism) {
     ref.get().cleanup = true;
   }
   afterhours::EntityHelper::cleanup();
-  afterhours::EntityHelper::merge_entity_arrays();
+  // Cleanup will be processed by system loop
   app.wait_for_frames(5);
 
   // Generate with different seed
@@ -107,7 +107,7 @@ TEST(validate_seeded_rng_determinism) {
   for (int slot : free_slots) {
     make_shop_item(slot, get_random_dish_for_tier(1));
   }
-  afterhours::EntityHelper::merge_entity_arrays();
+  // Entities will be merged by system loop
   app.wait_for_frames(5);
   
   std::vector<DishType> different_seed_run = get_shop_items();

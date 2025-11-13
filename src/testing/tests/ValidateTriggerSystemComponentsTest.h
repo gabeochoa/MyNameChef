@@ -194,7 +194,8 @@ TEST(validate_onserve_trigger) {
       add_dish_to_menu(DishType::Bagel, DishBattleState::TeamSide::Player, 2,
                        DishBattleState::Phase::InQueue, true);
 
-  afterhours::EntityHelper::merge_entity_arrays();
+  // Wait a frame for entities to be merged by system loop
+  app.wait_for_frames(1);
 
   auto &tq_entity = get_or_create_trigger_queue();
   auto &queue = tq_entity.get<TriggerQueue>();

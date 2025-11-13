@@ -130,7 +130,8 @@ TEST(validate_debug_dish_onserve_flavor_stats) {
       add_dish_to_menu(DishType::DebugDish, DishBattleState::TeamSide::Player,
                        0, DishBattleState::Phase::Entering);
 
-  afterhours::EntityHelper::merge_entity_arrays();
+  // Wait a frame for entity to be merged by system loop
+  app.wait_for_frames(1);
 
   auto &tq_entity = get_or_create_trigger_queue();
   auto &queue = tq_entity.get<TriggerQueue>();
