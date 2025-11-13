@@ -176,10 +176,12 @@
   - Read SynergyCounts singleton
   - Apply bonuses to PreBattleModifiers based on thresholds
   - Visual feedback when thresholds reached
+  - Display active synergies in battle as totals in a legend box (shows current synergy counts and thresholds)
 - **Fun Ideas**:
   - Celebration animation when hitting 4-piece or 6-piece bonus
   - Set bonus tooltips showing what you'll get
   - "Almost there!" indicators (1 away from next threshold)
+  - Battle synergy legend box showing active synergies with counts (e.g., "American: 4/6", "Bread: 2/4")
 - **Validation Steps**:
   1. Create set bonus definition system (JSON or code)
   2. Extend ApplyPairingsAndClashesSystem to read SynergyCounts
