@@ -12,6 +12,9 @@ TEST(validate_shop_purchase) {
   // Wait for systems to create inventory slots and shop items
   app.wait_for_frames(10);
   
+  // Ensure wallet is initialized with default gold
+  app.set_wallet_gold(10);
+  
   const auto shop_items = app.read_store_options();
   app.expect_not_empty(shop_items, "shop items");
   

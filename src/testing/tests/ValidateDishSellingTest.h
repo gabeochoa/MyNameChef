@@ -39,8 +39,8 @@ TEST(validate_dish_selling) {
 
   app.wait_for_frames(5);
 
-  // Use force_merge for immediate query
-  auto sold_item_opt = EQ({.force_merge = true}).whereID(item_id).gen_first();
+  // Entities merged by system loop, regular query is sufficient
+  auto sold_item_opt = EQ().whereID(item_id).gen_first();
   bool item_removed = !sold_item_opt.has_value() ||
                        (sold_item_opt.has_value() && sold_item_opt.asE().cleanup);
   app.expect_true(item_removed, "sold item was removed or marked for cleanup");
@@ -103,8 +103,8 @@ TEST(validate_dish_selling) {
 
   app.wait_for_frames(5);
 
-  // Use force_merge for immediate query
-  auto shop_item_after_opt = EQ({.force_merge = true}).whereID(shop_item_id).gen_first();
+  // Entities merged by system loop, regular query is sufficient
+  auto shop_item_after_opt = EQ().whereID(shop_item_id).gen_first();
   app.expect_true(shop_item_after_opt.has_value(),
                   "shop item still exists after sell attempt");
 }

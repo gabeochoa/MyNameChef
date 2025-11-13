@@ -166,8 +166,8 @@ TEST(validate_dish_merging) {
   app.create_inventory_item(DishType::Potato, 5);
   app.wait_for_frames(5);
 
-  // Entities merged by system loop, use force_merge for immediate query if needed
-  afterhours::EntityQuery eq_merged({.force_merge = true});
+  // Entities merged by system loop, regular query is sufficient
+  afterhours::EntityQuery eq_merged;
   auto dish0_opt = app.find_inventory_item_by_slot(4);
   auto dish1_opt = app.find_inventory_item_by_slot(5);
 
@@ -191,8 +191,8 @@ TEST(validate_dish_merging) {
 
   app.wait_for_frames(5);
 
-  // Verify merge result - use force_merge for immediate query
-  auto merged_dish_opt = EQ({.force_merge = true}).whereID(target_id).gen_first();
+  // Entities merged by system loop, regular query is sufficient
+  auto merged_dish_opt = EQ().whereID(target_id).gen_first();
   bool donor_removed = true;
   for (afterhours::Entity &entity :
        eq_merged.whereHasComponent<IsInventoryItem>()
@@ -224,13 +224,21 @@ TEST(validate_dish_merging) {
   // Test 2: Second merge to level up
   app.create_inventory_item(DishType::Potato, 6);
   app.wait_for_frames(5);
+  
+  // Wait a bit more to ensure all entities from first merge are fully processed
+  app.wait_for_frames(2);
+  
   auto dish0_opt_2 = app.find_inventory_item_by_slot(6);
   app.expect_true(dish0_opt_2.has_value(),
                   "dish0 found in slot 6 for second merge");
-  app.expect_true(merged_dish_opt.has_value(), "merged dish still exists");
+  
+  // Re-query merged dish to get fresh reference after first merge
+  // Entities already merged by system loop from wait_for_frames above
+  auto merged_dish_opt_refresh = EQ().whereID(target_id).gen_first();
+  app.expect_true(merged_dish_opt_refresh.has_value(), "merged dish still exists");
 
-  // merged_dish already exists from above, get a fresh reference
-  afterhours::Entity &merged_dish_ref = merged_dish_opt.asE();
+  // Get fresh references for both entities
+  afterhours::Entity &merged_dish_ref = merged_dish_opt_refresh.asE();
   afterhours::Entity &dish0_new = dish0_opt_2.asE();
 
   DishLevel &target_level = merged_dish_ref.get<DishLevel>();
@@ -239,14 +247,17 @@ TEST(validate_dish_merging) {
   app.expect_eq(target_level.merge_progress, 1,
                 "merged dish has progress 1 before second merge");
 
+  // Wait one more frame before second merge to ensure entities are fully merged
+  app.wait_for_frames(1);
+  
   bool second_merge_simulated =
       simulate_drag_and_drop(dish0_new, merged_dish_ref);
   app.expect_true(second_merge_simulated, "second merge simulation succeeded");
 
   app.wait_for_frames(5);
 
-  // Use force_merge for immediate query
-  auto merged_dish_opt_2 = EQ({.force_merge = true}).whereID(target_id).gen_first();
+  // Entities merged by system loop, regular query is sufficient
+  auto merged_dish_opt_2 = EQ().whereID(target_id).gen_first();
   app.expect_true(merged_dish_opt_2.has_value(),
                   "merged dish found after second merge");
   afterhours::Entity &merged_dish_final = merged_dish_opt_2.asE();

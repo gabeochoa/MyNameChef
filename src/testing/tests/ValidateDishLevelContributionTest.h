@@ -147,8 +147,8 @@ TEST(validate_dish_level_contribution) {
 
   app.wait_for_frames(5);
 
-  // Use force_merge to query immediately after merge
-  auto merged1_opt = EQ({.force_merge = true}).whereID(target_id).gen_first();
+  // Entities merged by system loop, regular query is sufficient
+  auto merged1_opt = EQ().whereID(target_id).gen_first();
   app.expect_true(merged1_opt.has_value(),
                   "merged dish exists after first merge");
   afterhours::Entity &merged1 = merged1_opt.asE();
@@ -199,7 +199,8 @@ TEST(validate_dish_level_contribution) {
   app.wait_for_frames(5);
 
   // Use force_merge to query immediately after merge
-  auto dish5_merged1_opt = EQ({.force_merge = true}).whereID(dish5_id).gen_first();
+  auto dish5_merged1_opt =
+      EQ({.force_merge = true}).whereID(dish5_id).gen_first();
   app.expect_true(dish5_merged1_opt.has_value(),
                   "dish5 exists after first merge");
   afterhours::Entity &dish5_merged1 = dish5_merged1_opt.asE();
@@ -263,7 +264,8 @@ TEST(validate_dish_level_contribution) {
   app.wait_for_frames(5);
 
   // Use force_merge to query immediately after merge
-  auto salmon_merged1_opt = EQ({.force_merge = true}).whereID(salmon_target_id).gen_first();
+  auto salmon_merged1_opt =
+      EQ({.force_merge = true}).whereID(salmon_target_id).gen_first();
   app.expect_true(salmon_merged1_opt.has_value(), "salmon merged 1 exists");
   afterhours::Entity &salmon_merged1 = salmon_merged1_opt.asE();
   DishLevel &salmon_level1 = salmon_merged1.get<DishLevel>();
@@ -275,7 +277,8 @@ TEST(validate_dish_level_contribution) {
   app.wait_for_frames(5);
 
   // Use force_merge to query immediately after merge
-  auto salmon_merged2_opt = EQ({.force_merge = true}).whereID(salmon_target_id).gen_first();
+  auto salmon_merged2_opt =
+      EQ({.force_merge = true}).whereID(salmon_target_id).gen_first();
   app.expect_true(salmon_merged2_opt.has_value(), "salmon merged 2 exists");
   afterhours::Entity &salmon_merged2 = salmon_merged2_opt.asE();
   DishLevel &salmon_level2 = salmon_merged2.get<DishLevel>();
@@ -294,7 +297,8 @@ TEST(validate_dish_level_contribution) {
   app.wait_for_frames(5);
 
   // Use force_merge to query immediately after merge
-  auto salmon_merged3_opt = EQ({.force_merge = true}).whereID(salmon_target_id).gen_first();
+  auto salmon_merged3_opt =
+      EQ({.force_merge = true}).whereID(salmon_target_id).gen_first();
   app.expect_true(salmon_merged3_opt.has_value(), "salmon merged 3 exists");
   afterhours::Entity &salmon_merged3 = salmon_merged3_opt.asE();
   DishLevel &salmon_level3_check = salmon_merged3.get<DishLevel>();
@@ -313,7 +317,8 @@ TEST(validate_dish_level_contribution) {
   app.wait_for_frames(5);
 
   // Use force_merge to query immediately after merge
-  auto salmon_final_opt = EQ({.force_merge = true}).whereID(salmon_target_id).gen_first();
+  auto salmon_final_opt =
+      EQ({.force_merge = true}).whereID(salmon_target_id).gen_first();
   app.expect_true(salmon_final_opt.has_value(), "salmon final exists");
   afterhours::Entity &salmon_final = salmon_final_opt.asE();
   DishLevel &salmon_final_level = salmon_final.get<DishLevel>();

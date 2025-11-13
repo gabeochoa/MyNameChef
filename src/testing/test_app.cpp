@@ -292,12 +292,14 @@ TestApp &TestApp::navigate_to_battle(const std::source_location &loc) {
 
 std::vector<TestDishInfo> TestApp::read_player_inventory() {
   std::vector<TestDishInfo> result;
-  for (afterhours::Entity &entity : afterhours::EntityQuery()
-                                        .whereHasComponent<IsInventoryItem>()
-                                        .whereHasComponent<IsDish>()
-                                        .gen()) {
-    // Exclude entities that are shop items (they shouldn't be in inventory)
-    if (entity.has<IsShopItem>()) {
+  // Use force_merge to ensure all entities are included
+  for (afterhours::Entity &entity :
+       afterhours::EntityQuery({.force_merge = true})
+           .whereHasComponent<IsInventoryItem>()
+           .whereHasComponent<IsDish>()
+           .gen()) {
+    // Exclude cleanup entities and shop items (they shouldn't be in inventory)
+    if (entity.cleanup || entity.has<IsShopItem>()) {
       continue;
     }
     IsInventoryItem &inv = entity.get<IsInventoryItem>();
@@ -2062,7 +2064,9 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
 }
 
 afterhours::OptEntity TestApp::find_inventory_item_by_slot(int slot_index) {
-  return EQ()
+  // Use force_merge since this might be called immediately after entity
+  // creation
+  return EQ({.force_merge = true})
       .whereHasComponent<IsInventoryItem>()
       .whereHasComponent<IsDish>()
       .whereLambda([slot_index](const afterhours::Entity &e) {

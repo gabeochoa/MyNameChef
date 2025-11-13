@@ -32,8 +32,8 @@ TEST(validate_entity_query_without_manual_merge) {
   // Use reference directly - no merge or query needed
   app.expect_true(dish.has<IsDish>(), "dish has IsDish component");
   app.expect_true(dish.has<Transform>(), "dish has Transform component");
-  app.expect_eq(static_cast<int>(dish.get<IsDish>().type), static_cast<int>(DishType::Potato),
-                 "dish type is Potato");
+  app.expect_eq(static_cast<int>(dish.get<IsDish>().type),
+                static_cast<int>(DishType::Potato), "dish type is Potato");
 
   log_info("VALIDATION_TEST: Test 1 PASSED - Reference works directly");
 
@@ -92,8 +92,7 @@ TEST(validate_entity_query_without_manual_merge) {
   BattleTeamDataOpponent opponent_data;
   opponent_data.team.push_back({DishType::Potato, 0, 1});
   opponent_data.instantiated = false;
-  cq_entity.addComponent<BattleTeamDataOpponent>(
-      std::move(opponent_data));
+  cq_entity.addComponent<BattleTeamDataOpponent>(std::move(opponent_data));
 
   // Wait for systems to instantiate teams
   app.wait_for_frames(5);
@@ -171,8 +170,8 @@ TEST(validate_entity_query_without_manual_merge) {
   auto found_opt =
       EQ({.force_merge = true}).whereID(force_merge_test_id).gen_first();
   app.expect_true(found_opt.has_value(), "entity found with force_merge");
-  app.expect_eq(static_cast<int>(found_opt.asE().get<IsDish>().type), static_cast<int>(DishType::Salmon),
-                 "entity type matches");
+  app.expect_eq(static_cast<int>(found_opt.asE().get<IsDish>().type),
+                static_cast<int>(DishType::Salmon), "entity type matches");
 
   log_info("VALIDATION_TEST: Test 6 PASSED - force_merge works");
 
