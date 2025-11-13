@@ -54,11 +54,11 @@ public:
       const auto &level = entity.get<DishLevel>();
       tooltip_text = generate_dish_tooltip_with_level(
           dish.type, level.level, level.merge_progress, level.merges_needed);
-      
+
       // Add tags and synergy information
       std::ostringstream tag_info;
       bool has_tags = false;
-      
+
       if (entity.has<CourseTag>()) {
         const auto &tag = entity.get<CourseTag>();
         bool first = true;
@@ -78,7 +78,7 @@ public:
           has_tags = true;
         }
       }
-      
+
       if (entity.has<CuisineTag>()) {
         const auto &tag = entity.get<CuisineTag>();
         bool first = true;
@@ -98,13 +98,15 @@ public:
         if (!first) {
           tag_info << "\n";
           has_tags = true;
-          
+
           // Add synergy count for first cuisine tag with all thresholds
-          auto synergy_entity = afterhours::EntityHelper::get_singleton<SynergyCounts>();
+          auto synergy_entity =
+              afterhours::EntityHelper::get_singleton<SynergyCounts>();
           if (synergy_entity.get().has<SynergyCounts>()) {
             const auto &synergy = synergy_entity.get().get<SynergyCounts>();
             int count = synergy.get_count(first_cuisine);
-            std::vector<int> thresholds = synergy.get_all_thresholds(first_cuisine);
+            std::vector<int> thresholds =
+                synergy.get_all_thresholds(first_cuisine);
             tag_info << "[CYAN]Synergy: [WHITE]" << count << " dishes (";
             bool first_threshold = true;
             for (int threshold : thresholds) {
@@ -124,7 +126,7 @@ public:
           }
         }
       }
-      
+
       if (entity.has<BrandTag>()) {
         const auto &tag = entity.get<BrandTag>();
         bool first = true;
@@ -144,13 +146,15 @@ public:
         if (!first) {
           tag_info << "\n";
           has_tags = true;
-          
+
           // Add synergy count for first brand tag
-          auto synergy_entity = afterhours::EntityHelper::get_singleton<SynergyCounts>();
+          auto synergy_entity =
+              afterhours::EntityHelper::get_singleton<SynergyCounts>();
           if (synergy_entity.get().has<SynergyCounts>()) {
             const auto &synergy = synergy_entity.get().get<SynergyCounts>();
             int count = synergy.get_count(first_brand);
-            std::vector<int> thresholds = synergy.get_all_thresholds(first_brand);
+            std::vector<int> thresholds =
+                synergy.get_all_thresholds(first_brand);
             tag_info << "[CYAN]Synergy: [WHITE]" << count << " dishes (";
             bool first_threshold = true;
             for (int threshold : thresholds) {
@@ -168,7 +172,7 @@ public:
           }
         }
       }
-      
+
       if (entity.has<DishArchetypeTag>()) {
         const auto &tag = entity.get<DishArchetypeTag>();
         bool first = true;
@@ -188,13 +192,15 @@ public:
         if (!first) {
           tag_info << "\n";
           has_tags = true;
-          
+
           // Add synergy count for first archetype tag
-          auto synergy_entity = afterhours::EntityHelper::get_singleton<SynergyCounts>();
+          auto synergy_entity =
+              afterhours::EntityHelper::get_singleton<SynergyCounts>();
           if (synergy_entity.get().has<SynergyCounts>()) {
             const auto &synergy = synergy_entity.get().get<SynergyCounts>();
             int count = synergy.get_count(first_archetype);
-            std::vector<int> thresholds = synergy.get_all_thresholds(first_archetype);
+            std::vector<int> thresholds =
+                synergy.get_all_thresholds(first_archetype);
             tag_info << "[CYAN]Synergy: [WHITE]" << count << " dishes (";
             bool first_threshold = true;
             for (int threshold : thresholds) {
@@ -212,38 +218,85 @@ public:
           }
         }
       }
-      
+
       if (has_tags) {
         tooltip_text += tag_info.str();
       }
     }
 
+    // Color mapping (defined early for use in width calculation and rendering)
+    std::map<std::string, raylib::Color> color_map = {
+        {"[GOLD]", raylib::GOLD},     {"[RED]", raylib::RED},
+        {"[GREEN]", raylib::GREEN},   {"[BLUE]", raylib::BLUE},
+        {"[ORANGE]", raylib::ORANGE}, {"[PURPLE]", raylib::PURPLE},
+        {"[CYAN]", raylib::SKYBLUE},  {"[YELLOW]", raylib::YELLOW},
+        {"[WHITE]", raylib::WHITE},   {"[GRAY]", raylib::GRAY}};
+
     float tooltip_x = mouse_pos.x + 10; // Offset from mouse
     float tooltip_y = mouse_pos.y - 30; // Above mouse
 
-    // Measure text to calculate tooltip size
-    float text_width = raylib::MeasureText(tooltip_text.c_str(),
-                                           static_cast<int>(tooltip.font_size));
-    float tooltip_width = text_width + tooltip.padding * 2;
+    // Calculate tooltip dimensions by measuring each line separately
+    std::istringstream measure_stream(tooltip_text);
+    std::string measure_line;
+    float max_line_width = 0.0f;
+    int line_count = 0;
 
-    // Calculate height based on number of lines
-    int line_count = 1; // Start with 1 for the first line
-    for (char c : tooltip_text) {
-      if (c == '\n') {
-        line_count++;
+    while (std::getline(measure_stream, measure_line)) {
+      line_count++;
+      // Remove color markers for width calculation
+      std::string clean_line = measure_line;
+      for (const auto &[marker, color] : color_map) {
+        size_t pos = 0;
+        while ((pos = clean_line.find(marker, pos)) != std::string::npos) {
+          clean_line.erase(pos, marker.length());
+        }
+      }
+      float line_width = raylib::MeasureText(
+          clean_line.c_str(), static_cast<int>(tooltip.font_size));
+      if (line_width > max_line_width) {
+        max_line_width = line_width;
       }
     }
+
+    float tooltip_width = max_line_width + tooltip.padding * 2;
     float tooltip_height =
         (tooltip.font_size * line_count) + tooltip.padding * 2;
 
-    // Keep tooltip on screen
-    float screen_width = raylib::GetScreenWidth();
+    // Get screen dimensions
+    float screen_width = static_cast<float>(raylib::GetScreenWidth());
+    float screen_height = static_cast<float>(raylib::GetScreenHeight());
+    const float edge_margin = 10.0f;
 
-    if (tooltip_x + tooltip_width > screen_width) {
-      tooltip_x = screen_width - tooltip_width - 10;
+    // Reposition tooltip to fit within screen bounds
+    // Priority: Keep tooltip near cursor when possible
+
+    // Check right edge: shift left if tooltip extends past right
+    if (tooltip_x + tooltip_width > screen_width - edge_margin) {
+      tooltip_x = screen_width - tooltip_width - edge_margin;
     }
-    if (tooltip_y < 0) {
-      tooltip_y = mouse_pos.y + 20; // Below mouse if no space above
+
+    // Check left edge: shift right if tooltip extends past left
+    if (tooltip_x < edge_margin) {
+      tooltip_x = edge_margin;
+    }
+
+    // Check bottom edge: move above cursor if tooltip extends past bottom
+    if (tooltip_y + tooltip_height > screen_height - edge_margin) {
+      tooltip_y = mouse_pos.y - tooltip_height - 20;
+    }
+
+    // Check top edge: move below cursor if tooltip extends past top
+    if (tooltip_y < edge_margin) {
+      tooltip_y = mouse_pos.y + 20;
+    }
+
+    // Final validation: ensure tooltip is fully on screen
+    // If tooltip is still too large for screen, clamp to edges
+    if (tooltip_width > screen_width - edge_margin * 2) {
+      tooltip_x = edge_margin;
+    }
+    if (tooltip_height > screen_height - edge_margin * 2) {
+      tooltip_y = edge_margin;
     }
 
     // Draw tooltip background
@@ -262,14 +315,6 @@ public:
     float current_y = tooltip_y + tooltip.padding;
     std::istringstream text_stream(tooltip_text);
     std::string line;
-
-    // Color mapping
-    std::map<std::string, raylib::Color> color_map = {
-        {"[GOLD]", raylib::GOLD},     {"[RED]", raylib::RED},
-        {"[GREEN]", raylib::GREEN},   {"[BLUE]", raylib::BLUE},
-        {"[ORANGE]", raylib::ORANGE}, {"[PURPLE]", raylib::PURPLE},
-        {"[CYAN]", raylib::SKYBLUE},  {"[YELLOW]", raylib::YELLOW},
-        {"[WHITE]", raylib::WHITE},   {"[GRAY]", raylib::GRAY}};
 
     while (std::getline(text_stream, line)) {
       float current_x = tooltip_x + tooltip.padding;
@@ -306,7 +351,7 @@ public:
                            static_cast<int>(current_y),
                            static_cast<int>(tooltip.font_size), current_color);
           current_x += raylib::MeasureText(segment.c_str(),
-                                            static_cast<int>(tooltip.font_size));
+                                           static_cast<int>(tooltip.font_size));
         }
 
         // Update position and color for next segment
