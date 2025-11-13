@@ -3,13 +3,17 @@
 #include "../components/combat_queue.h"
 #include "../components/combat_stats.h"
 #include "../components/dish_battle_state.h"
+#include "../components/transform.h"
 #include "../components/trigger_event.h"
 #include "../components/trigger_queue.h"
 #include "../game_state_manager.h"
 #include "../query.h"
+#include "../render_backend.h"
+#include "../render_constants.h"
 #include "../shop.h"
 #include "../utils/battle_fingerprint.h"
 #include <afterhours/ah.h>
+#include <afterhours/src/plugins/texture_manager.h>
 
 struct AdvanceCourseSystem : afterhours::System<CombatQueue> {
   virtual bool should_run(float) override {
@@ -221,6 +225,18 @@ private:
                                                              : "Opponent",
                    dish.id, dbs.queue_index, new_index);
           dbs.queue_index = new_index;
+
+          if (dish.has<Transform>()) {
+            float y = (side == DishBattleState::TeamSide::Player) ? 150.0f : 500.0f;
+            float x = 120.0f + new_index * 100.0f;
+            Transform &transform = dish.get<Transform>();
+            transform.position = afterhours::vec2{x, y};
+
+            if (dish.has<afterhours::texture_manager::HasSprite>()) {
+              dish.get<afterhours::texture_manager::HasSprite>().update_transform(
+                  transform.position, transform.size, transform.angle);
+            }
+          }
         }
 
         if (dbs.phase == DishBattleState::Phase::Entering) {

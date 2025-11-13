@@ -412,7 +412,7 @@ TestApp &TestApp::create_inventory_item(DishType type, int slot) {
   // If slot is already occupied, this will overwrite/replace it
 
   // Find the inventory slot
-  int slot_id = INVENTORY_SLOT_OFFSET + slot;
+  int slot_id = slot;
 
   afterhours::Entity *target_slot = nullptr;
   for (afterhours::Entity &entity :
@@ -454,7 +454,7 @@ TestApp &TestApp::create_inventory_item(DishType type, int slot) {
   dish.addComponent<IsDish>(type);
   dish.addComponent<DishLevel>(1);
   IsInventoryItem &inv_item = dish.addComponent<IsInventoryItem>();
-  inv_item.slot = slot_id;
+  inv_item.slot = slot;
 
   // Add components needed for inventory items (matching GenerateInventorySlots)
   dish.addComponent<IsDraggable>(true);
@@ -2070,8 +2070,7 @@ afterhours::OptEntity TestApp::find_inventory_item_by_slot(int slot_index) {
       .whereHasComponent<IsInventoryItem>()
       .whereHasComponent<IsDish>()
       .whereLambda([slot_index](const afterhours::Entity &e) {
-        return e.get<IsInventoryItem>().slot ==
-               INVENTORY_SLOT_OFFSET + slot_index;
+        return e.get<IsInventoryItem>().slot == slot_index;
       })
       .gen_first();
 }
@@ -2103,13 +2102,12 @@ int TestApp::find_free_shop_slot() {
 int TestApp::find_free_inventory_slot() {
   // force_merge in query handles merging automatically
   for (int i = 0; i < INVENTORY_SLOTS; ++i) {
-    bool slot_occupied =
-        EQ({.force_merge = true})
-            .template whereHasComponent<IsInventoryItem>()
-            .whereLambda([i](const afterhours::Entity &e) {
-              return e.get<IsInventoryItem>().slot == INVENTORY_SLOT_OFFSET + i;
-            })
-            .has_values();
+    bool slot_occupied = EQ({.force_merge = true})
+                             .template whereHasComponent<IsInventoryItem>()
+                             .whereLambda([i](const afterhours::Entity &e) {
+                               return e.get<IsInventoryItem>().slot == i;
+                             })
+                             .has_values();
     if (!slot_occupied) {
       return i;
     }

@@ -7,8 +7,8 @@
 #include "../../dish_types.h"
 #include "../../query.h"
 #include "../../shop.h"
-#include "../test_macros.h"
 #include "../test_app.h"
+#include "../test_macros.h"
 
 TEST(validate_dish_selling) {
   (void)app;
@@ -41,21 +41,22 @@ TEST(validate_dish_selling) {
 
   // Entities merged by system loop, regular query is sufficient
   auto sold_item_opt = EQ().whereID(item_id).gen_first();
-  bool item_removed = !sold_item_opt.has_value() ||
-                       (sold_item_opt.has_value() && sold_item_opt.asE().cleanup);
+  bool item_removed =
+      !sold_item_opt.has_value() ||
+      (sold_item_opt.has_value() && sold_item_opt.asE().cleanup);
   app.expect_true(item_removed, "sold item was removed or marked for cleanup");
 
   int gold_after = app.read_wallet_gold();
   app.expect_eq(gold_after, gold_before + 1, "gold increased by 1 after sell");
 
-  auto original_slot_opt = app.find_drop_slot(INVENTORY_SLOT_OFFSET + test_slot);
+  auto original_slot_opt = app.find_drop_slot(test_slot);
   app.expect_true(original_slot_opt.has_value(), "original slot found");
   afterhours::Entity &original_slot = original_slot_opt.asE();
   app.expect_false(original_slot.get<IsDropSlot>().occupied,
                    "original slot freed after sell");
 
   int gold_before_multiple = app.read_wallet_gold();
-  
+
   app.create_inventory_item(DishType::Potato, test_slot);
   app.wait_for_frames(5);
 
@@ -94,7 +95,8 @@ TEST(validate_dish_selling) {
   int free_shop_slot = app.find_free_shop_slot();
   app.expect_true(free_shop_slot >= 0, "found free shop slot");
 
-  afterhours::Entity &shop_item = make_shop_item(free_shop_slot, DishType::Potato);
+  afterhours::Entity &shop_item =
+      make_shop_item(free_shop_slot, DishType::Potato);
   afterhours::EntityID shop_item_id = shop_item.id;
 
   bool shop_sell_attempted = app.simulate_sell(shop_item);
@@ -108,4 +110,3 @@ TEST(validate_dish_selling) {
   app.expect_true(shop_item_after_opt.has_value(),
                   "shop item still exists after sell attempt");
 }
-

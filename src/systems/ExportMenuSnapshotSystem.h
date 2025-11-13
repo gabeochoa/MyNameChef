@@ -38,7 +38,6 @@ public:
       return "";
     }
 
-    // Sort by slot and normalize slots (100-106 -> 0-6)
     std::sort(inventory_dishes.begin(), inventory_dishes.end(),
               [](const std::reference_wrapper<afterhours::Entity> &a,
                  const std::reference_wrapper<afterhours::Entity> &b) {
@@ -46,15 +45,14 @@ public:
                        b.get().get<IsInventoryItem>().slot;
               });
 
-    // Build team array
     nlohmann::json team = nlohmann::json::array();
+    int slot_index = 0;
     for (const auto &entity_ref : inventory_dishes) {
       auto &entity = entity_ref.get();
-      auto &inventory_item = entity.get<IsInventoryItem>();
       auto &dish = entity.get<IsDish>();
 
       nlohmann::json dish_entry;
-      dish_entry["slot"] = inventory_item.slot - 100; // Normalize to 0-6
+      dish_entry["slot"] = slot_index++;
       dish_entry["dishType"] = magic_enum::enum_name(dish.type);
       team.push_back(dish_entry);
     }

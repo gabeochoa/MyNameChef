@@ -65,7 +65,6 @@ constexpr int SHOP_START_X = 100;
 constexpr int SHOP_START_Y = 200;
 constexpr int INVENTORY_START_X = 100;
 constexpr int INVENTORY_START_Y = 500;
-constexpr int INVENTORY_SLOT_OFFSET = 100;
 
 // Sell slot constants
 constexpr int SELL_SLOT_ID = 999;

@@ -19,7 +19,8 @@
 #include <vector>
 
 // Local type aliases to avoid conflicts
-using GameStateOptEntity = std::optional<std::reference_wrapper<afterhours::Entity>>;
+using GameStateOptEntity =
+    std::optional<std::reference_wrapper<afterhours::Entity>>;
 using GameStateRefEntity = std::reference_wrapper<afterhours::Entity>;
 
 struct GameStateSaveSystem : afterhours::System<> {
@@ -33,7 +34,8 @@ struct GameStateSaveSystem : afterhours::System<> {
     SaveResult result;
     result.success = false;
 
-    GameStateOptEntity userId_opt = afterhours::EntityHelper::get_singleton<UserId>();
+    GameStateOptEntity userId_opt =
+        afterhours::EntityHelper::get_singleton<UserId>();
     if (!userId_opt.has_value() || !userId_opt->get().has<UserId>()) {
       log_error("GAME_STATE_SAVE: UserId singleton not found");
       return result;
@@ -61,7 +63,7 @@ struct GameStateSaveSystem : afterhours::System<> {
       IsDish &dish = entity.get<IsDish>();
 
       nlohmann::json dish_entry;
-      dish_entry["slot"] = inventory_item.slot - 100;
+      dish_entry["slot"] = inventory_item.slot;
       dish_entry["dishType"] = std::string(magic_enum::enum_name(dish.type));
 
       int level = 1;
@@ -73,9 +75,12 @@ struct GameStateSaveSystem : afterhours::System<> {
       inventory.push_back(dish_entry);
     }
 
-    GameStateOptEntity wallet_opt = afterhours::EntityHelper::get_singleton<Wallet>();
-    GameStateOptEntity health_opt = afterhours::EntityHelper::get_singleton<Health>();
-    GameStateOptEntity round_opt = afterhours::EntityHelper::get_singleton<Round>();
+    GameStateOptEntity wallet_opt =
+        afterhours::EntityHelper::get_singleton<Wallet>();
+    GameStateOptEntity health_opt =
+        afterhours::EntityHelper::get_singleton<Health>();
+    GameStateOptEntity round_opt =
+        afterhours::EntityHelper::get_singleton<Round>();
     GameStateOptEntity shop_tier_opt =
         afterhours::EntityHelper::get_singleton<ShopTier>();
     GameStateOptEntity reroll_cost_opt =

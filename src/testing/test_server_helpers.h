@@ -86,7 +86,7 @@ inline nlohmann::json team_to_json() {
     const IsDish &dish = entity.get<IsDish>();
 
     nlohmann::json dish_entry;
-    dish_entry["slot"] = inv.slot - 100;
+    dish_entry["slot"] = inv.slot;
     dish_entry["dishType"] = std::string(magic_enum::enum_name(dish.type));
     dish_entry["level"] = 1;
     team_array.push_back(dish_entry);

@@ -52,7 +52,8 @@ bool simulate_drag_and_drop(afterhours::Entity &donor,
     return false;
   }
 
-  auto target_slot_opt = EQ({.force_merge = true}).whereHasComponent<IsDropSlot>()
+  auto target_slot_opt = EQ({.force_merge = true})
+                             .whereHasComponent<IsDropSlot>()
                              .whereSlotID(target_slot_id)
                              .gen_first();
   if (!target_slot_opt) {
@@ -138,7 +139,8 @@ bool simulate_drag_and_drop(afterhours::Entity &donor,
   donor_entity.removeComponent<IsHeld>();
 
   if (original_slot_id >= 0) {
-    auto original_slot_opt = EQ({.force_merge = true}).whereHasComponent<IsDropSlot>()
+    auto original_slot_opt = EQ({.force_merge = true})
+                                 .whereHasComponent<IsDropSlot>()
                                  .whereSlotID(original_slot_id)
                                  .gen_first();
     if (original_slot_opt) {
@@ -215,7 +217,7 @@ TEST(validate_dish_merging) {
                 "merged dish has progress 1 after first merge");
 
   // Verify donor slot is freed
-  auto donor_slot_opt = app.find_drop_slot(INVENTORY_SLOT_OFFSET + 4);
+  auto donor_slot_opt = app.find_drop_slot(4);
   app.expect_true(donor_slot_opt.has_value(), "donor slot found");
   afterhours::Entity &donor_slot = donor_slot_opt.asE();
   app.expect_false(donor_slot.get<IsDropSlot>().occupied,
@@ -224,18 +226,19 @@ TEST(validate_dish_merging) {
   // Test 2: Second merge to level up
   app.create_inventory_item(DishType::Potato, 6);
   app.wait_for_frames(5);
-  
+
   // Wait a bit more to ensure all entities from first merge are fully processed
   app.wait_for_frames(2);
-  
+
   auto dish0_opt_2 = app.find_inventory_item_by_slot(6);
   app.expect_true(dish0_opt_2.has_value(),
                   "dish0 found in slot 6 for second merge");
-  
+
   // Re-query merged dish to get fresh reference after first merge
   // Entities already merged by system loop from wait_for_frames above
   auto merged_dish_opt_refresh = EQ().whereID(target_id).gen_first();
-  app.expect_true(merged_dish_opt_refresh.has_value(), "merged dish still exists");
+  app.expect_true(merged_dish_opt_refresh.has_value(),
+                  "merged dish still exists");
 
   // Get fresh references for both entities
   afterhours::Entity &merged_dish_ref = merged_dish_opt_refresh.asE();
@@ -249,7 +252,7 @@ TEST(validate_dish_merging) {
 
   // Wait one more frame before second merge to ensure entities are fully merged
   app.wait_for_frames(1);
-  
+
   bool second_merge_simulated =
       simulate_drag_and_drop(dish0_new, merged_dish_ref);
   app.expect_true(second_merge_simulated, "second merge simulation succeeded");
@@ -300,54 +303,51 @@ TEST(validate_dish_merging) {
            .template whereHasComponent<IsInventoryItem>()
            .gen()) {
     int slot = entity.get<IsInventoryItem>().slot;
-    if (slot >= INVENTORY_SLOT_OFFSET) {
-      int slot_index = slot - INVENTORY_SLOT_OFFSET;
-      if (slot_index >= 4 && slot_index <= 6) {
-        entity.cleanup = true;
-        auto slot_entity_opt = app.find_drop_slot(slot);
-        if (slot_entity_opt) {
-          slot_entity_opt.asE().get<IsDropSlot>().occupied = false;
-        }
-        inv_slot_for_shop_merge = slot_index;
-        break;
+    if (slot >= 4 && slot <= 6) {
+      entity.cleanup = true;
+      auto slot_entity_opt = app.find_drop_slot(slot);
+      if (slot_entity_opt) {
+        slot_entity_opt.asE().get<IsDropSlot>().occupied = false;
       }
+      inv_slot_for_shop_merge = slot;
+      break;
     }
   }
-  app.expect_true(inv_slot_for_shop_merge >= 0,
-                  "No free inventory slot available for shop merge");
+app.expect_true(inv_slot_for_shop_merge >= 0,
+                "No free inventory slot available for shop merge");
 
-  afterhours::Entity &shop_entity = make_shop_item(free_slot, merge_test_type);
-  afterhours::EntityID shop_entity_id = shop_entity.id;
+afterhours::Entity &shop_entity = make_shop_item(free_slot, merge_test_type);
+afterhours::EntityID shop_entity_id = shop_entity.id;
 
-  app.create_inventory_item(merge_test_type, inv_slot_for_shop_merge);
-  app.wait_for_frames(5);
+app.create_inventory_item(merge_test_type, inv_slot_for_shop_merge);
+app.wait_for_frames(5);
 
-  auto shop_item_opt = app.find_shop_item(shop_entity_id, free_slot);
-  auto inventory_item_opt =
-      app.find_inventory_item_by_slot(inv_slot_for_shop_merge);
+auto shop_item_opt = app.find_shop_item(shop_entity_id, free_slot);
+auto inventory_item_opt =
+    app.find_inventory_item_by_slot(inv_slot_for_shop_merge);
 
-  app.expect_true(shop_item_opt.has_value(), "shop item found");
-  app.expect_true(inventory_item_opt.has_value(), "inventory item found");
+app.expect_true(shop_item_opt.has_value(), "shop item found");
+app.expect_true(inventory_item_opt.has_value(), "inventory item found");
 
-  afterhours::Entity &shop_item = shop_item_opt.asE();
-  afterhours::Entity &inventory_item = inventory_item_opt.asE();
+afterhours::Entity &shop_item = shop_item_opt.asE();
+afterhours::Entity &inventory_item = inventory_item_opt.asE();
 
-  DishType shop_type = shop_item.get<IsDish>().type;
-  DishType inv_type = inventory_item.get<IsDish>().type;
+DishType shop_type = shop_item.get<IsDish>().type;
+DishType inv_type = inventory_item.get<IsDish>().type;
 
-  app.expect_eq(static_cast<int>(shop_type), static_cast<int>(inv_type),
-                "shop and inventory items are same type");
-  app.expect_eq(static_cast<int>(shop_type), static_cast<int>(merge_test_type),
-                "shop item is correct type");
+app.expect_eq(static_cast<int>(shop_type), static_cast<int>(inv_type),
+              "shop and inventory items are same type");
+app.expect_eq(static_cast<int>(shop_type), static_cast<int>(merge_test_type),
+              "shop item is correct type");
 
-  int price = get_dish_info(shop_type).price;
+int price = get_dish_info(shop_type).price;
 
-  bool shop_merge_simulated = simulate_drag_and_drop(shop_item, inventory_item);
-  app.expect_true(shop_merge_simulated, "shop merge simulation succeeded");
+bool shop_merge_simulated = simulate_drag_and_drop(shop_item, inventory_item);
+app.expect_true(shop_merge_simulated, "shop merge simulation succeeded");
 
-  app.wait_for_frames(5);
+app.wait_for_frames(5);
 
-  int gold_after = app.read_wallet_gold();
-  app.expect_eq(gold_after, gold_before - price,
-                "wallet charged for shop dish merge");
+int gold_after = app.read_wallet_gold();
+app.expect_eq(gold_after, gold_before - price,
+              "wallet charged for shop dish merge");
 }

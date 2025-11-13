@@ -210,8 +210,9 @@ private:
       if (gameState.contains("gold")) {
         int gold_value = gameState["gold"].get<int>();
         wallet.gold = gold_value;
-        log_info("GAME_STATE_LOAD: Set wallet.gold to {} (wallet entity id: {})", 
-                 gold_value, wallet_opt.get().id);
+        log_info(
+            "GAME_STATE_LOAD: Set wallet.gold to {} (wallet entity id: {})",
+            gold_value, wallet_opt.get().id);
       }
 
       if (gameState.contains("health")) {
@@ -240,14 +241,13 @@ private:
       if (gameState.contains("inventory") &&
           gameState["inventory"].is_array()) {
         for (const auto &dish_entry : gameState["inventory"]) {
-          int slot = dish_entry["slot"].get<int>() + 100;
+          int slot = dish_entry["slot"].get<int>();
           std::string dish_type_str = dish_entry["dishType"].get<std::string>();
           int level = dish_entry.value("level", 1);
 
           auto dish_type_opt = magic_enum::enum_cast<DishType>(dish_type_str);
           if (dish_type_opt.has_value()) {
-            auto position =
-                calculate_inventory_position(slot - INVENTORY_SLOT_OFFSET);
+            auto position = calculate_inventory_position(slot);
             auto &dish_entity = afterhours::EntityHelper::createEntity();
 
             dish_entity.addComponent<Transform>(position,

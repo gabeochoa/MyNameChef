@@ -198,13 +198,13 @@ private:
               });
 
     nlohmann::json team = nlohmann::json::array();
+    int slot_index = 0;
     for (const auto &entity_ref : inventory_dishes) {
       afterhours::Entity &entity = entity_ref.get();
-      IsInventoryItem &inventory_item = entity.get<IsInventoryItem>();
       IsDish &dish = entity.get<IsDish>();
 
       nlohmann::json dish_entry;
-      dish_entry["slot"] = inventory_item.slot - 100;
+      dish_entry["slot"] = slot_index++;
       dish_entry["dishType"] = magic_enum::enum_name(dish.type);
       dish_entry["level"] = 1;
       team.push_back(dish_entry);

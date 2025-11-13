@@ -46,8 +46,7 @@ struct GenerateInventorySlots : System<> {
       if (!inventory_slots_exist) {
         for (int i = 0; i < INVENTORY_SLOTS; ++i) {
           auto position = calculate_inventory_position(i);
-          make_drop_slot(INVENTORY_SLOT_OFFSET + i, position,
-                         vec2{SLOT_SIZE, SLOT_SIZE}, true, true);
+          make_drop_slot(i, position, vec2{SLOT_SIZE, SLOT_SIZE}, true, true);
           // TODO: Add UI labels to inventory slots for better testability
           // Expected: Each inventory slot should have a UI label like
           // "Inventory Slot 1", "Inventory Slot 2", etc. This would allow

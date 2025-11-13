@@ -21,6 +21,7 @@ std::unordered_map<std::string, std::function<void()>> g_test_continuations;
 #include "../testing/tests/GotoBattleTest.h"
 #include "../testing/tests/PlayNavigatesToShopTest.h"
 #include "../testing/tests/ValidateBattleResultsTest.h"
+#include "../testing/tests/ValidateBattleSlotCompactionTest.h"
 #include "../testing/tests/ValidateCombatSystemTest.h"
 #include "../testing/tests/ValidateDebugDishTest.h"
 #include "../testing/tests/ValidateDishLevelContributionTest.h"
