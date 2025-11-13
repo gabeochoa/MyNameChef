@@ -900,10 +900,11 @@ static void test_salmon_neighbor_freshness_persists_to_combat() {
   // Clean up any leftover entities from previous tests to avoid query
   // conflicts This ensures queries only find entities created in this test
   for (auto &ref :
-       EQ({.ignore_temp_warning = true}).whereHasComponent<IsDish>().gen()) {
+       EQ({.force_merge = true}).whereHasComponent<IsDish>().gen()) {
     ref.get().cleanup = true;
   }
-  afterhours::EntityHelper::merge_entity_arrays();
+  // Wait a frame for cleanup to process
+  app.wait_for_frames(1);
 
   GameStateManager::get().to_battle();
   GameStateManager::get().update_screen();
@@ -924,8 +925,8 @@ static void test_salmon_neighbor_freshness_persists_to_combat() {
 
   (void)bagel3; // silence unused warning
 
-  // Merge into main array so queries can find them
-  afterhours::EntityHelper::merge_entity_arrays();
+  // Wait a frame for entities to be merged by system loop
+  app.wait_for_frames(1);
 
   // Fire OnServe for both Salmon via TriggerQueue → TriggerDispatchSystem
   // Note: Salmon effect uses legacy onServe callback (not DishEffect), so
@@ -937,20 +938,12 @@ static void test_salmon_neighbor_freshness_persists_to_combat() {
   queue.add_event(TriggerHook::OnServe, salmon2.id, 2,
                   DishBattleState::TeamSide::Player);
 
-  // Merge again after creating trigger queue (in case it created new
-  // entities)
-  afterhours::EntityHelper::merge_entity_arrays();
+  // Wait a frame for trigger queue entity to be merged
+  app.wait_for_frames(1);
 
-  // CRITICAL: In production, the game loop calls merge_entity_arrays() after
-  // each system. We need to simulate this by merging right before dispatch so
-  // that when the handler's EQ() queries are constructed, they capture a
-  // complete entity list.
-  afterhours::EntityHelper::merge_entity_arrays();
-
-  // Verify entities are accessible before dispatch (they should be after
-  // merge)
+  // Verify entities are accessible before dispatch using force_merge
   auto pre_check =
-      EQ({.ignore_temp_warning = true})
+      EQ({.force_merge = true})
           .whereHasComponent<IsDish>()
           .whereHasComponent<DishBattleState>()
           .whereLambda([](const afterhours::Entity &e) {
@@ -967,7 +960,7 @@ static void test_salmon_neighbor_freshness_persists_to_combat() {
   // Run ComputeCombatStatsSystem first to ensure all dishes have CombatStats
   // before TriggerDispatchSystem tries to order events
   ComputeCombatStatsSystem computeStats;
-  for (afterhours::Entity &e : EQ({.ignore_temp_warning = true})
+  for (afterhours::Entity &e : EQ({.force_merge = true})
                                    .whereHasComponent<IsDish>()
                                    .whereHasComponent<DishLevel>()
                                    .gen()) {
@@ -983,9 +976,8 @@ static void test_salmon_neighbor_freshness_persists_to_combat() {
     dispatch.for_each_with(tq_entity, queue, 1.0f / 60.0f);
   }
 
-  // Merge after dispatch in case handler created new entities or components
-  // (matching production behavior where merge happens after each system)
-  afterhours::EntityHelper::merge_entity_arrays();
+  // Wait a frame for systems to process (system loop merges automatically)
+  app.wait_for_frames(1);
 
   // EffectResolutionSystem processes effects from DishEffect (not legacy
   // onServe) Note: TriggerDispatchSystem clears the queue after processing, so
@@ -1000,18 +992,11 @@ static void test_salmon_neighbor_freshness_persists_to_combat() {
     effectSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
   }
 
-  // Merge again after effect resolution
-  afterhours::EntityHelper::merge_entity_arrays();
+  // Wait a frame for effect resolution to complete
+  app.wait_for_frames(1);
 
-  // Re-query bagel0 after merge to ensure we have the correct reference
-  auto bagel0_ref =
-      EQ({.ignore_temp_warning = true}).whereID(bagel0.id).gen_first();
-  if (!bagel0_ref.has_value()) {
-    log_error(
-        "EFFECT_TEST: FAILED - Could not find Bagel(0) entity after merge");
-    return;
-  }
-  afterhours::Entity &bagel0_entity = *bagel0_ref.value();
+  // Use bagel0 reference directly instead of querying by ID
+  afterhours::Entity &bagel0_entity = bagel0;
 
   // Verify left Bagel received +1 Freshness via DeferredFlavorMods
   if (!bagel0_entity.has<DeferredFlavorMods>()) {
@@ -1030,6 +1015,10 @@ static void test_salmon_neighbor_freshness_persists_to_combat() {
 
   // Compute stats while InQueue
   ComputeCombatStatsSystem compute;
+  if (!bagel0_entity.has<IsDish>() || !bagel0_entity.has<DishLevel>()) {
+    log_error("EFFECT_TEST: FAILED - Bagel(0) missing required components");
+    return;
+  }
   compute.for_each_with(bagel0_entity, bagel0_entity.get<IsDish>(),
                         bagel0_entity.get<DishLevel>(), 1.0f / 60.0f);
   int baseFlavorBody = get_dish_info(DishType::Bagel).flavor.body();
