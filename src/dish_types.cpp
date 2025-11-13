@@ -3,7 +3,11 @@
 #include <vector>
 
 #include "components/animation_event.h"
+#include "components/brand_tag.h"
+#include "components/course_tag.h"
+#include "components/cuisine_tag.h"
 #include "components/deferred_flavor_mods.h"
+#include "components/dish_archetype_tag.h"
 #include "components/dish_battle_state.h"
 #include "components/dish_effect.h"
 #include "components/is_dish.h"
@@ -552,4 +556,139 @@ const std::vector<DishType> &get_dishes_for_tier(int max_tier) {
   }
 
   return tier_pool;
+}
+
+void add_dish_tags(afterhours::Entity &entity, DishType type) {
+  switch (type) {
+  case DishType::Potato:
+    // No course tag - raw ingredient
+    entity.addComponent<CuisineTag>(CuisineTagType::American);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Side);
+    break;
+  case DishType::FriedEgg:
+    entity.addComponent<CourseTag>(CourseTagType::Entree);
+    entity.addComponent<CuisineTag>(CuisineTagType::American);
+    entity.addComponent<BrandTag>(BrandTagType::Homemade);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Protein);
+    break;
+  case DishType::FrenchFries:
+    entity.addComponent<CourseTag>(CourseTagType::Topping);
+    entity.addComponent<CuisineTag>(CuisineTagType::American);
+    entity.addComponent<BrandTag>(BrandTagType::FastFood);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Vegetable);
+    break;
+  case DishType::Salmon:
+    entity.addComponent<CourseTag>(CourseTagType::Entree);
+    // TODO maybe add different kinds of salmon?
+    // entity.addComponent<CuisineTag>(CuisineTagType::Japanese);
+    entity.addComponent<BrandTag>(BrandTagType::LocalFarm);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Protein);
+    break;
+  case DishType::Ramen:
+    entity.addComponent<CourseTag>(CourseTagType::Soup);
+    entity.addComponent<CuisineTag>(CuisineTagType::Japanese);
+    entity.addComponent<BrandTag>(BrandTagType::Restaurant);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Grain);
+    break;
+  case DishType::Sushi:
+    entity.addComponent<CourseTag>(CourseTagType::Appetizer);
+    entity.addComponent<CuisineTag>(CuisineTagType::Japanese);
+    entity.addComponent<BrandTag>(BrandTagType::Restaurant);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Protein);
+    break;
+  case DishType::Pizza:
+    entity.addComponent<CourseTag>(CourseTagType::Entree);
+    entity.addComponent<CuisineTag>(CuisineTagType::Italian);
+    entity.addComponent<BrandTag>(BrandTagType::FastFood);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Grain);
+    break;
+  case DishType::Spaghetti:
+    entity.addComponent<CourseTag>(CourseTagType::Entree);
+    entity.addComponent<CuisineTag>(CuisineTagType::Italian);
+    entity.addComponent<BrandTag>(BrandTagType::Restaurant);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Grain);
+    break;
+  case DishType::Taco:
+    entity.addComponent<CourseTag>(CourseTagType::Entree);
+    entity.addComponent<CuisineTag>(CuisineTagType::Mexican);
+    entity.addComponent<BrandTag>(BrandTagType::StreetFood);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Grain);
+    break;
+  case DishType::Burrito:
+    entity.addComponent<CourseTag>(CourseTagType::Entree);
+    entity.addComponent<CuisineTag>(CuisineTagType::Mexican);
+    entity.addComponent<BrandTag>(BrandTagType::FastFood);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Grain);
+    break;
+  case DishType::Dumplings:
+    entity.addComponent<CourseTag>(CourseTagType::Appetizer);
+    entity.addComponent<CuisineTag>(CuisineTagType::Chinese);
+    entity.addComponent<BrandTag>(BrandTagType::Restaurant);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Grain);
+    break;
+  case DishType::Bagel:
+    entity.addComponent<CourseTag>(CourseTagType::Entree);
+    entity.addComponent<CuisineTag>(CuisineTagType::American);
+    entity.addComponent<BrandTag>(BrandTagType::Bakery);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Bread);
+    break;
+  case DishType::Baguette:
+    entity.addComponent<CourseTag>(CourseTagType::Appetizer);
+    entity.addComponent<CuisineTag>(CuisineTagType::French);
+    entity.addComponent<BrandTag>(BrandTagType::Bakery);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Bread);
+    break;
+  case DishType::GarlicBread:
+    entity.addComponent<CourseTag>(CourseTagType::Appetizer);
+    entity.addComponent<CuisineTag>(CuisineTagType::Italian);
+    entity.addComponent<BrandTag>(BrandTagType::Restaurant);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Bread);
+    break;
+  case DishType::IceCream:
+    entity.addComponent<CourseTag>(CourseTagType::Dessert);
+    entity.addComponent<BrandTag>(BrandTagType::Homemade);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Dairy);
+    break;
+  case DishType::Cheesecake:
+    entity.addComponent<CourseTag>(CourseTagType::Dessert);
+    entity.addComponent<BrandTag>(BrandTagType::Bakery);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Dairy);
+    break;
+  case DishType::Donut:
+    entity.addComponent<CourseTag>(CourseTagType::Dessert);
+    entity.addComponent<BrandTag>(BrandTagType::Bakery);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Bread);
+    break;
+  case DishType::LemonPie:
+    entity.addComponent<CourseTag>(CourseTagType::Dessert);
+    entity.addComponent<BrandTag>(BrandTagType::Bakery);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Bread);
+    break;
+  // Higher tier dishes - commented for future implementation
+  // case DishType::MacNCheese:
+  //   // Starts as Side archetype, levels up to also be Entree course
+  //   entity.addComponent<CourseTag>(CourseTagType::Side); // Level 1
+  //   // entity.addComponent<CourseTag>(CourseTagType::Entree); // Level 2+
+  //   entity.addComponent<CuisineTag>(CuisineTagType::American);
+  //   entity.addComponent<BrandTag>(BrandTagType::Homemade);
+  //   entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Side);
+  //   entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Grain);
+  //   break;
+  // case DishType::Meatball:
+  //   entity.addComponent<CourseTag>(CourseTagType::Appetizer);
+  //   // entity.addComponent<CourseTag>(CourseTagType::Side); // Level 2+
+  //   entity.addComponent<CuisineTag>(CuisineTagType::Italian);
+  //   entity.addComponent<BrandTag>(BrandTagType::Restaurant);
+  //   entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Protein);
+  //   break;
+  // case DishType::Burger:
+  //   entity.addComponent<CourseTag>(CourseTagType::Entree);
+  //   entity.addComponent<CuisineTag>(CuisineTagType::American);
+  //   entity.addComponent<BrandTag>(BrandTagType::FastFood);
+  //   entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Protein);
+  //   entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Grain);
+  //   break;
+  default:
+    break;
+  }
 }

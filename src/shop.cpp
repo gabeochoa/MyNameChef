@@ -14,6 +14,7 @@
 #include "components/render_order.h"
 #include "components/replay_state.h"
 #include "components/side_effect_tracker.h"
+#include "components/synergy_counts.h"
 #include "components/toast_message.h"
 #include "components/transform.h"
 #include "components/trigger_queue.h"
@@ -27,6 +28,7 @@
 #include "systems/GenerateInventorySlots.h"
 #include "systems/GenerateShopSlots.h"
 #include "systems/NetworkSystem.h"
+#include "systems/SynergyCountingSystem.h"
 #include "tooltip.h"
 #include <afterhours/src/plugins/color.h>
 #include <afterhours/src/plugins/texture_manager.h>
@@ -96,6 +98,7 @@ Entity &make_shop_manager(Entity &sophie) {
   sophie.addComponentIfMissing<ShopTier>();
   sophie.addComponentIfMissing<RerollCost>(
       1, 0); // base=1, increment=0 (cost stays 1 initially)
+  sophie.addComponentIfMissing<SynergyCounts>();
 
   // Register singletons only if not already registered
   // This prevents overwriting existing singletons with new entities/components
@@ -137,6 +140,13 @@ Entity &make_shop_manager(Entity &sophie) {
     EntityHelper::registerSingleton<RerollCost>(sophie);
   } else {
     sophie.addComponentIfMissing<RerollCost>(1, 0);
+  }
+
+  const auto synergy_counts_id = get_type_id<SynergyCounts>();
+  if (singleton_map.find(synergy_counts_id) == singleton_map.end()) {
+    EntityHelper::registerSingleton<SynergyCounts>(sophie);
+  } else {
+    sophie.addComponentIfMissing<SynergyCounts>();
   }
   return sophie;
 }
@@ -226,6 +236,7 @@ Entity &make_shop_item(int slot, DishType type) {
   e.addComponent<IsDraggable>(true);
   e.addComponent<Freezeable>(false);
   e.addComponent<HasRenderOrder>(RenderOrder::ShopItems, RenderScreen::Shop);
+  add_dish_tags(e, type);
   // Attach sprite using dish atlas grid indices
   {
     const auto frame = afterhours::texture_manager::idx_to_sprite_frame(
@@ -292,6 +303,7 @@ void register_shop_update_systems(afterhours::SystemManager &systems) {
   systems.register_update_system(std::make_unique<GenerateShopSlots>());
   systems.register_update_system(std::make_unique<GenerateInventorySlots>());
   systems.register_update_system(std::make_unique<ScreenTransitionSystem>());
+  systems.register_update_system(std::make_unique<SynergyCountingSystem>());
 }
 
 void register_shop_render_systems(afterhours::SystemManager &) {}
@@ -326,7 +338,7 @@ bool hasActiveAnimation() {
   if (render_backend::is_headless_mode) {
     return false;
   }
-  
+
   for (afterhours::Entity &e :
        EntityQuery().whereHasComponent<IsBlockingAnimationEvent>().gen()) {
     return true;

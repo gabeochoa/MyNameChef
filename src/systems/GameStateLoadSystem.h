@@ -247,6 +247,7 @@ private:
 
           auto dish_type_opt = magic_enum::enum_cast<DishType>(dish_type_str);
           if (dish_type_opt.has_value()) {
+            auto dish_type = dish_type_opt.value();
             auto position = calculate_inventory_position(slot);
             auto &dish_entity = afterhours::EntityHelper::createEntity();
 
@@ -254,6 +255,7 @@ private:
                                                 vec2{SLOT_SIZE, SLOT_SIZE});
             dish_entity.addComponent<IsDish>(dish_type_opt.value());
             dish_entity.addComponent<DishLevel>(level);
+            add_dish_tags(dish_entity, dish_type);
             dish_entity.addComponent<IsInventoryItem>();
             dish_entity.get<IsInventoryItem>().slot = slot;
             dish_entity.addComponent<IsDraggable>(true);

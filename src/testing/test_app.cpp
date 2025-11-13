@@ -452,6 +452,7 @@ TestApp &TestApp::create_inventory_item(DishType type, int slot) {
 
   dish.addComponent<Transform>(position, vec2{80.0f, 80.0f});
   dish.addComponent<IsDish>(type);
+  add_dish_tags(dish, type);
   dish.addComponent<DishLevel>(1);
   IsInventoryItem &inv_item = dish.addComponent<IsInventoryItem>();
   inv_item.slot = slot;

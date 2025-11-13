@@ -92,3 +92,6 @@ const std::vector<DishType> &get_default_dish_pool();
 
 // Get dishes available at a specific tier or lower
 const std::vector<DishType> &get_dishes_for_tier(int max_tier);
+
+// Add tag components to a dish entity based on its DishType
+void add_dish_tags(afterhours::Entity &entity, DishType type);

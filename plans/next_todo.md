@@ -11,6 +11,7 @@
 - **Legacy Judging Systems Removal**: ✅ Complete (commits 75a6323, 9568e3f, 2730127 - all legacy judging removed)
 - **Level Scaling Bug Fix**: ✅ Complete (commit 0c0aa8e - fixed to use 2x per level instead of 2^(level-1))
 - **Static Dish Pool Replacement**: ✅ Complete (uses magic_enum::enum_values internally)
+- **Effect Info in Tooltips**: ✅ Complete (commit c93e68e - tooltips now display effect descriptions with triggers, targets, and stat changes)
 
 ---
 
@@ -34,27 +35,7 @@
 
 ## Tier 1: Critical Bug Fixes & Test Coverage (2-4hrs each)
 
-### Task 1: Add Effect Info to Tooltips
-**Files**: `src/tooltip.h`, `src/systems/TooltipSystem.h`
-- **Status**: Effects are implemented but tooltips don't show effect descriptions
-- **Goal**: Display effect information in dish tooltips so players can see what each dish does
-- **Implementation**:
-  - Update `generate_dish_tooltip()` and `generate_dish_tooltip_with_level()` functions
-  - Read `DishInfo.effects` vector to get effect data
-  - Format effect descriptions: "Effect: [Trigger] → [Description]"
-  - Show trigger conditions (OnServe, OnDishFinished, etc.)
-  - Display effect targets and stat changes (e.g., "+1 freshness to adjacent dishes")
-- **Validation Steps**:
-  1. Update tooltip generation functions to include effect info
-  2. **MANDATORY CHECKPOINT**: Build: `xmake`
-  3. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
-  4. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
-  5. Verify tooltips show effect descriptions correctly (manual test - hover over dishes)
-  6. **MANDATORY CHECKPOINT**: Commit: `git commit -m "ui - add effect descriptions to dish tooltips"`
-  7. **Only after successful commit, proceed to Task 2**
-- **Estimated**: 2-3 hours
-
-### Task 2: Add Survivor Carryover Test
+### Task 1: Add Survivor Carryover Test
 **Files**: Create `src/testing/tests/ValidateSurvivorCarryoverTest.h`
 - **Goal**: Test that dishes that survive a course carry over to the next course correctly
 - **Test Cases**:
@@ -69,14 +50,14 @@
   4. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
   5. Verify test passes and survivor carryover works correctly
   6. **MANDATORY CHECKPOINT**: Commit: `git commit -m "add survivor carryover test coverage"`
-  7. **Only after successful commit, proceed to Task 3**
+  7. **Only after successful commit, proceed to Task 2**
 - **Estimated**: 2-3 hours
 
 ---
 
 ## Tier 2: Core Gameplay Features (4-8hrs each)
 
-### Task 3: Implement Tags and SynergyCountingSystem
+### Task 2: Implement Tags and SynergyCountingSystem
 **Files**: Create tag components, `src/systems/SynergyCountingSystem.h`
 - **Components Needed**:
   - `CourseTag` (Appetizer, Soup, Fish, Meat, Drink, PalateCleanser, Dessert, Mignardise)
@@ -101,10 +82,10 @@
   7. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
   8. Verify tags display, counts update correctly, tooltips show synergies (manual test)
   9. **MANDATORY CHECKPOINT**: Commit: `git commit -m "implement tags and SynergyCountingSystem"`
-  10. **Only after successful commit, proceed to Task 4**
+  10. **Only after successful commit, proceed to Task 3**
 - **Estimated**: 4-6 hours
 
-### Task 4: Replace random_device with SeededRng in Server
+### Task 3: Replace random_device with SeededRng in Server
 **Files**: `src/server/battle_api.cpp`, `src/server/async/systems/ProcessCommandQueueSystem.h`
 - **Issue**: Server code still uses `std::random_device` instead of `SeededRng` for deterministic RNG
 - **Locations**:
@@ -120,10 +101,10 @@
   6. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
   7. Verify server determinism works correctly (test with same seed produces same results)
   8. **MANDATORY CHECKPOINT**: Commit: `git commit -m "be - replace random_device with SeededRng in server code"`
-  9. **Only after successful commit, proceed to Task 5**
+  9. **Only after successful commit, proceed to Task 4**
 - **Estimated**: 1-2 hours
 
-### Task 5: Implement BattleReport Persistence
+### Task 4: Implement BattleReport Persistence
 **Files**: Create/update `src/components/battle_report.h`, add JSON serialization
 - **Architecture**: Server-authoritative battle system
   - Server returns JSON: `{ seed, opponentId, outcomes[], events[] }`
@@ -144,21 +125,21 @@
   6. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
   7. Verify reports saved and can be loaded (check output/battles/results/ directory)
   8. **MANDATORY CHECKPOINT**: Commit: `git commit -m "implement BattleReport persistence with JSON serialization"`
-  9. **Only after successful commit, proceed to Task 6**
+  9. **Only after successful commit, proceed to Task 5**
 - **Estimated**: 4-5 hours
 
 ---
 
 ## Tier 3: Enhanced Features & Polish (6-12hrs each)
 
-### Task 6: Verify/Fix Deterministic Turn Alternation
+### Task 5: Verify/Fix Deterministic Turn Alternation
 **Files**: `src/systems/ResolveCombatTickSystem.h`
 - **Status**: ✅ Verified - No static variables found, system uses deterministic simultaneous attack cadence
 - **Finding**: ResolveCombatTickSystem uses a cadence-based approach with simultaneous attacks (both dishes attack at the same time), which is fully deterministic. No static `player_turn` variable exists.
 - **Note**: System is already deterministic - no changes needed. This task can be considered complete.
 - **Estimated**: 0 hours (verification only)
 
-### Task 7: Enhance Replay System
+### Task 6: Enhance Replay System
 **Files**: Enhance `src/systems/ReplayControllerSystem.h`, create `src/systems/ReplayUISystem.h`
 - **Current State**: Basic ReplayState exists, pause/play works
 - **Enhancements Needed**:
@@ -181,10 +162,10 @@
   7. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
   8. Verify can replay any saved battle, seek works, speed controls work (manual test)
   9. **MANDATORY CHECKPOINT**: Commit: `git commit -m "enhance replay system with seek, speed controls, and battle history"`
-  10. **Only after successful commit, proceed to Task 8**
+  10. **Only after successful commit, proceed to Task 7**
 - **Estimated**: 6-8 hours
 
-### Task 8: Implement Set Bonus Effects
+### Task 7: Implement Set Bonus Effects
 **Files**: Extend `ApplyPairingsAndClashesSystem.h`, create set bonus definitions
 - **Goal**: Apply bonuses when synergy thresholds are reached (2/4/6)
 - **Examples**:
@@ -209,10 +190,10 @@
   7. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
   8. Verify set bonuses apply correctly, visual feedback works (manual test)
   9. **MANDATORY CHECKPOINT**: Commit: `git commit -m "implement set bonus effects with threshold system"`
-  10. **Only after successful commit, proceed to Task 9**
+  10. **Only after successful commit, proceed to Task 8**
 - **Estimated**: 6-8 hours
 
-### Task 9: Enhanced Shop UX
+### Task 8: Enhanced Shop UX
 **Files**: Update shop systems and UI
 - **Features**:
   - Show price on shop items (hover or always visible)
@@ -235,14 +216,98 @@
   7. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
   8. Verify all UX improvements work correctly (manual test)
   9. **MANDATORY CHECKPOINT**: Commit: `git commit -m "ui - enhance shop UX with prices, freeze badges, and drop highlights"`
-  10. **Only after successful commit, proceed to Task 10**
+  10. **Only after successful commit, proceed to Task 9**
 - **Estimated**: 4-6 hours
+
+### Task 9: Update Font Across the Game
+**Files**: `src/font_info.h`, `src/render_utils.h`, all UI rendering systems
+- **Goal**: Standardize and improve font usage across all game screens
+- **Implementation**:
+  - Review current font usage and identify inconsistencies
+  - Select appropriate font(s) for different UI contexts (UI text, tooltips, combat text, etc.)
+  - Update font loading and management system
+  - Replace hardcoded font references with centralized font system
+  - Ensure font rendering is consistent across all screens (Shop, Battle, Results, etc.)
+- **Fun Ideas**:
+  - Different fonts for different contexts (e.g., decorative font for titles, readable font for tooltips)
+  - Font size scaling for different screen resolutions
+  - Font fallback system for missing glyphs
+- **Validation Steps**:
+  1. Audit current font usage across all systems
+  2. Update font_info.h with standardized font definitions
+  3. Replace hardcoded font references with centralized system
+  4. Update all UI rendering systems to use new font system
+  5. **MANDATORY CHECKPOINT**: Build: `xmake`
+  6. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
+  7. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
+  8. Verify fonts render correctly across all screens (manual test)
+  9. **MANDATORY CHECKPOINT**: Commit: `git commit -m "ui - standardize font usage across game"`
+  10. **Only after successful commit, proceed to Task 10**
+- **Estimated**: 3-5 hours
+
+### Task 10: Better System for Coloring Text
+**Files**: Create `src/ui/text_color.h`, update all text rendering systems
+- **Goal**: Create a centralized, maintainable system for text coloring throughout the game
+- **Implementation**:
+  - Create text color system with semantic color names (e.g., `TEXT_COLOR_PRIMARY`, `TEXT_COLOR_SECONDARY`, `TEXT_COLOR_WARNING`, `TEXT_COLOR_SUCCESS`, etc.)
+  - Define color palette for different contexts (UI, combat, tooltips, etc.)
+  - Replace hardcoded color values with semantic color system
+  - Support for color themes/variants
+  - Ensure consistent color usage across all screens
+- **Fun Ideas**:
+  - Color-coded stat changes (green for positive, red for negative)
+  - Contextual colors (e.g., dish rarity colors, synergy colors)
+  - Smooth color transitions for dynamic text
+  - Accessibility: ensure sufficient contrast ratios
+- **Validation Steps**:
+  1. Create text_color.h with color system and semantic names
+  2. Define color palette for different contexts
+  3. Replace hardcoded colors with semantic color system across all UI
+  4. Update text rendering utilities to use new color system
+  5. **MANDATORY CHECKPOINT**: Build: `xmake`
+  6. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
+  7. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
+  8. Verify text colors are consistent and appropriate across all screens (manual test)
+  9. **MANDATORY CHECKPOINT**: Commit: `git commit -m "ui - implement centralized text coloring system"`
+  10. **Only after successful commit, proceed to Task 11**
+- **Estimated**: 3-4 hours
+
+### Task 11: Fix Tooltip Offscreen Positioning
+**Files**: `src/systems/TooltipSystem.h`
+- **Goal**: Ensure tooltips are always fully visible on screen by repositioning them when they would go offscreen
+- **Implementation**:
+  - Detect when tooltip box would extend beyond screen boundaries (left, right, top, bottom)
+  - Calculate tooltip dimensions (width and height) including all text content
+  - Reposition tooltip to fit within screen bounds:
+    - If tooltip extends past right edge: shift left
+    - If tooltip extends past left edge: shift right
+    - If tooltip extends past bottom edge: move above cursor/target
+    - If tooltip extends past top edge: move below cursor/target
+  - Ensure entire tooltip box is visible and readable
+  - Handle edge cases (very large tooltips, screen corners)
+- **Fun Ideas**:
+  - Smooth animation when tooltip repositions
+  - Visual indicator when tooltip is repositioned (subtle fade)
+  - Smart positioning that prefers keeping tooltip near cursor when possible
+- **Validation Steps**:
+  1. Update TooltipSystem to calculate tooltip box dimensions accurately
+  2. Add screen boundary detection logic
+  3. Implement repositioning algorithm (check all edges)
+  4. Test with tooltips near screen edges (all four corners)
+  5. Test with very long tooltip text that would overflow
+  6. **MANDATORY CHECKPOINT**: Build: `xmake`
+  7. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
+  8. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
+  9. Verify tooltips never go offscreen, all text is readable (manual test at screen edges)
+  10. **MANDATORY CHECKPOINT**: Commit: `git commit -m "ui - fix tooltip offscreen positioning"`
+  11. **Only after successful commit, proceed to Task 12**
+- **Estimated**: 2-3 hours
 
 ---
 
 ## Tier 4: Advanced Systems (10+ hours each)
 
-### Task 10: Advanced Effect System Extensions
+### Task 12: Advanced Effect System Extensions
 **Files**: Extend `EffectResolutionSystem.h`, create status effect components
 - **Advanced Features**:
   - Status effects (PalateCleanser, Heat, SweetTooth, Fatigue)
@@ -263,10 +328,10 @@
   7. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
   8. Verify complex effects work correctly, no edge cases (extensive manual testing)
   9. **MANDATORY CHECKPOINT**: Commit: `git commit -m "extend EffectResolutionSystem with status effects and duration tracking"`
-  10. **Only after successful commit, proceed to Task 11**
+  10. **Only after successful commit, proceed to Task 13**
 - **Estimated**: 10-15 hours
 
-### Task 11: Combine Duplicates into Levels
+### Task 13: Combine Duplicates into Levels
 **Files**: Create `src/systems/CombineDuplicatesSystem.h`, update level system
 - **Goal**: When 3 of the same DishType are in inventory, merge into one entity with Level+1
 - **Implementation**:
@@ -291,6 +356,71 @@
   9. **MANDATORY CHECKPOINT**: Commit: `git commit -m "implement combine duplicates system with level scaling"`
   10. **Task complete - all tasks finished!**
 - **Estimated**: 8-10 hours
+
+---
+
+## Tier 5: Tooltip Enhancements (Future Improvements)
+
+### Tooltip Improvement Ideas
+
+These are potential enhancements to the tooltip system that can be implemented as needed:
+
+#### 1. Level Comparison & Progression Preview
+- Show stat/effect changes between current level and next level
+- Example: "Level 2: +2 Freshness (Level 3: +3 Freshness)"
+- Highlight which effects unlock at higher levels
+- **Files**: `src/tooltip.h`
+- **Estimated**: 2-3 hours
+
+#### 2. Tags & Synergy Integration (Requires Task 2)
+- Display dish tags (Course, Cuisine, Brand, etc.) in tooltips
+- Show synergy progress: "Thai: 2/4 dishes (1 away from bonus)"
+- Indicate which synergies this dish contributes to
+- **Files**: `src/tooltip.h`, `src/systems/TooltipSystem.h`
+- **Estimated**: 2-3 hours
+
+#### 3. Combat Stats Preview
+- Show calculated Zing/Body from flavor stats in tooltip
+- Example: "Combat Stats: Zing: 8, Body: 12"
+- Include level scaling: "Body: 12 (base 6 × level 2)"
+- **Files**: `src/tooltip.h`
+- **Estimated**: 1-2 hours
+
+#### 4. Effect Formatting Improvements
+- Group effects by trigger type (OnServe, OnBiteTaken, etc.)
+- Better conditional formatting: "If adjacent has Freshness ≥ 2: +1 Spice"
+- Visual separators between sections
+- **Files**: `src/tooltip.h`
+- **Estimated**: 2-3 hours
+
+#### 5. Multi-Level Effect Preview
+- Show all effects across all levels in one tooltip
+- Indicate which effects unlock at which level
+- Example: "Level 1: No effects | Level 2: +1 Freshness | Level 3: +2 Freshness + Chain"
+- **Files**: `src/tooltip.h`
+- **Estimated**: 3-4 hours
+
+#### 6. Tooltip Positioning Enhancements
+- Better edge detection (currently basic left/right/up/down)
+- Multi-line width calculation (currently uses single-line width which is incorrect)
+- Smart positioning to avoid UI elements
+- **Files**: `src/systems/TooltipSystem.h`
+- **Estimated**: 2-3 hours
+
+#### 7. Rich Formatting Support
+- Bold/italic for emphasis
+- Icons for effect types
+- Progress bars for synergy counts
+- Better color coding for stat types
+- **Files**: `src/tooltip.h`, `src/systems/TooltipSystem.h`
+- **Estimated**: 4-6 hours
+
+#### 8. Context-Aware Tooltips
+- Shop context: Show price, purchase info, synergy hints
+- Battle context: Show current combat stats with modifiers
+- Inventory context: Show merge progress, level info
+- **Files**: `src/tooltip.h`, `src/systems/TooltipSystem.h`
+- **Estimated**: 3-4 hours
 
 ---
 
@@ -358,7 +488,7 @@
 ## Priority Recommendations
 
 **Immediate (This Week)**:
-- Tier 1: Add effect tooltips, survivor carryover test, server determinism fixes (4-7 hours)
+- Tier 1: Survivor carryover test, server determinism fixes (3-5 hours)
 - Tier 2: Start with Tags/Synergy system (foundation for other features)
 
 **Short Term (Next 2 Weeks)**:

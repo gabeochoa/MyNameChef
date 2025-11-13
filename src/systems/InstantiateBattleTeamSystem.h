@@ -95,7 +95,7 @@ private:
     entity.addComponent<Transform>(afterhours::vec2{x, y},
                                    afterhours::vec2{80.0f, 80.0f});
     entity.addComponent<IsDish>(spec.dishType);
-
+    add_dish_tags(entity, spec.dishType);
     entity.addComponent<DishLevel>(spec.level);
 
     auto &dbs = entity.addComponent<DishBattleState>();
