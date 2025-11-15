@@ -75,10 +75,10 @@ TEST(validate_set_bonus_american_2_piece) {
   // Follow production flow: create dishes in Shop, then navigate to battle
   app.launch_game();
   navigate_to_shop(app);
-  
+
   // Wait for shop to initialize and ensure inventory is empty
   app.wait_for_frames(5);
-  
+
   // Clear any existing inventory items to ensure clean state
   for (afterhours::Entity &entity :
        afterhours::EntityQuery({.force_merge = true})
@@ -159,10 +159,10 @@ TEST(validate_set_bonus_american_4_piece) {
   // Follow production flow: create dishes in Shop, then navigate to battle
   app.launch_game();
   navigate_to_shop(app);
-  
+
   // Wait for shop to initialize and ensure inventory is empty
   app.wait_for_frames(5);
-  
+
   // Clear any existing inventory items
   for (afterhours::Entity &entity :
        afterhours::EntityQuery({.force_merge = true})
@@ -194,8 +194,9 @@ TEST(validate_set_bonus_american_4_piece) {
 
   // Validate modifiers: 2-piece (+1) + 4-piece (+2) = +3 Body total
   // Note: In production, bonuses are applied once when entering battle.
-  // The actual value might be higher if other systems add modifiers (pairings, effects, etc.)
-  // For this test, we'll validate that the modifier is at least the expected set bonus amount
+  // The actual value might be higher if other systems add modifiers (pairings,
+  // effects, etc.) For this test, we'll validate that the modifier is at least
+  // the expected set bonus amount
   for (afterhours::Entity &entity :
        afterhours::EntityQuery({.force_merge = true})
            .whereHasComponent<IsDish>()
@@ -211,7 +212,8 @@ TEST(validate_set_bonus_american_4_piece) {
         // Set bonus should give at least +3 Body (2-piece +1, 4-piece +2)
         // But other systems (pairings, effects) may add more, so check >= 3
         app.expect_true(mod.bodyDelta >= 3,
-                       "American dish should have at least +3 Body from set bonuses (2-piece + 4-piece)");
+                        "American dish should have at least +3 Body from set "
+                        "bonuses (2-piece + 4-piece)");
         // Zing should be 0 from set bonuses (American bonuses only give Body)
         // But other systems may add Zing, so we don't validate it here
       }
@@ -225,10 +227,10 @@ TEST(validate_set_bonus_american_6_piece) {
   // Follow production flow: create dishes in Shop, then navigate to battle
   app.launch_game();
   navigate_to_shop(app);
-  
+
   // Wait for shop to initialize and ensure inventory is empty
   app.wait_for_frames(5);
-  
+
   // Clear any existing inventory items
   for (afterhours::Entity &entity :
        afterhours::EntityQuery({.force_merge = true})
@@ -274,10 +276,12 @@ TEST(validate_set_bonus_american_6_piece) {
                       "American dish should have PersistentCombatModifiers");
       if (entity.has<PersistentCombatModifiers>()) {
         const auto &mod = entity.get<PersistentCombatModifiers>();
-        // Set bonus should give at least +6 Body (2-piece +1, 4-piece +2, 6-piece +3)
-        // But other systems (pairings, effects) may add more, so check >= 6
+        // Set bonus should give at least +6 Body (2-piece +1, 4-piece +2,
+        // 6-piece +3) But other systems (pairings, effects) may add more, so
+        // check >= 6
         app.expect_true(mod.bodyDelta >= 6,
-                       "American dish should have at least +6 Body from set bonuses (2-piece + 4-piece + 6-piece)");
+                        "American dish should have at least +6 Body from set "
+                        "bonuses (2-piece + 4-piece + 6-piece)");
         // Zing should be 0 from set bonuses (American bonuses only give Body)
         // But other systems may add Zing, so we don't validate it here
       }
@@ -291,10 +295,10 @@ TEST(validate_set_bonus_no_synergy) {
   // Follow production flow: create dishes in Shop, then navigate to battle
   app.launch_game();
   navigate_to_shop(app);
-  
+
   // Wait for shop to initialize and ensure inventory is empty
   app.wait_for_frames(5);
-  
+
   // Clear any existing inventory items
   for (afterhours::Entity &entity :
        afterhours::EntityQuery({.force_merge = true})

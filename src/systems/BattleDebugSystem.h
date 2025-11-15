@@ -23,10 +23,22 @@ struct BattleDebugSystem : afterhours::System<> {
       return false;
     }
 
-    // Only run if BattleLoadRequest exists
-    auto battleRequest =
-        afterhours::EntityHelper::get_singleton<BattleLoadRequest>();
-    return battleRequest.get().has<BattleLoadRequest>();
+    // Only run if BattleLoadRequest exists - check singleton map first to avoid crash
+    // get_singleton() will crash if the singleton doesn't exist, so we must check first
+    const auto componentId =
+        afterhours::components::get_type_id<BattleLoadRequest>();
+    auto &singletonMap = afterhours::EntityHelper::get().singletonMap;
+    auto it = singletonMap.find(componentId);
+    if (it == singletonMap.end() || it->second == nullptr) {
+      return false;
+    }
+
+    // Safe to access now - use the entity pointer we found
+    afterhours::Entity *entity = it->second;
+    if (entity == nullptr) {
+      return false;
+    }
+    return entity->has<BattleLoadRequest>();
   }
 
   void once(float) override {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../../components/battle_load_request.h"
 #include "../../components/combat_stats.h"
 #include "../../components/deferred_flavor_mods.h"
 #include "../../components/dish_battle_state.h"
@@ -33,6 +34,23 @@ static afterhours::Entity &get_or_create_trigger_queue() {
   return tq_entity;
 }
 
+static void ensure_battle_load_request_exists() {
+  // When tests use to_battle() directly, BattleLoadRequest might not exist
+  // This helper ensures it exists to prevent crashes in systems that expect it
+  const auto componentId =
+      afterhours::components::get_type_id<BattleLoadRequest>();
+  auto &singletonMap = afterhours::EntityHelper::get().singletonMap;
+  if (!singletonMap.contains(componentId)) {
+    auto &requestEntity = afterhours::EntityHelper::createEntity();
+    BattleLoadRequest request;
+    request.playerJsonPath = "";
+    request.opponentJsonPath = "";
+    request.loaded = false;
+    requestEntity.addComponent<BattleLoadRequest>(std::move(request));
+    afterhours::EntityHelper::registerSingleton<BattleLoadRequest>(requestEntity);
+  }
+}
+
 static bool validate_pending_mod(afterhours::Entity *entity, int expectedZing,
                                  int expectedBody) {
   if (!entity || !entity->has<PendingCombatMods>()) {
@@ -53,6 +71,7 @@ static void test_french_fries_effect(TestApp &app) {
   log_info("EFFECT_TEST: Testing French Fries effect (FutureAllies +1 Zing)");
 
   // Setup: Create battle state - use direct to_battle for ECS tests
+  ensure_battle_load_request_exists();
   GameStateManager::get().to_battle();
   app.wait_for_frames(1); // Ensure screen state is synced
 
