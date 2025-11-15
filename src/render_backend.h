@@ -1,12 +1,16 @@
 #pragma once
 
+#include "font_info.h"
 #include "rl.h"
+#include <afterhours/ah.h>
+#include <afterhours/src/plugins/autolayout.h>
 
 namespace render_backend {
 extern bool is_headless_mode;
 extern int step_delay_ms; // Delay between test steps in non-headless mode
                           // (milliseconds)
-extern float timing_speed_scale; // Scale factor for timing-based waits and animations (1.0 = normal speed)
+extern float timing_speed_scale; // Scale factor for timing-based waits and
+                                 // animations (1.0 = normal speed)
 
 // Drawing context management
 inline void BeginDrawing() {
@@ -121,6 +125,49 @@ inline void DrawTextEx(raylib::Font font, const char *text,
                        raylib::Color tint) {
   if (!is_headless_mode)
     raylib::DrawTextEx(font, text, position, fontSize, spacing, tint);
+}
+
+inline void DrawTextWithActiveFont(const char *text, int posX, int posY,
+                                   float fontSize, raylib::Color color) {
+  if (is_headless_mode)
+    return;
+
+  afterhours::Entity &font_manager_opt =
+      afterhours::EntityHelper::get_singleton<afterhours::ui::FontManager>();
+  if (!font_manager_opt.has<afterhours::ui::FontManager>()) {
+    raylib::DrawText(text, posX, posY, static_cast<int>(fontSize), color);
+    return;
+  }
+
+  afterhours::ui::FontManager &fm =
+      font_manager_opt.get<afterhours::ui::FontManager>();
+  std::string font_name = get_active_font_name();
+  fm.set_active(font_name);
+  raylib::Font font = fm.get_active_font();
+  raylib::DrawTextEx(
+      font, text,
+      raylib::Vector2{static_cast<float>(posX), static_cast<float>(posY)},
+      fontSize, 1.0f, color);
+}
+
+inline float MeasureTextWithActiveFont(const char *text, float fontSize) {
+  if (is_headless_mode)
+    return 0.0f;
+
+  afterhours::Entity &font_manager_opt =
+      afterhours::EntityHelper::get_singleton<afterhours::ui::FontManager>();
+  if (!font_manager_opt.has<afterhours::ui::FontManager>()) {
+    return static_cast<float>(
+        raylib::MeasureText(text, static_cast<int>(fontSize)));
+  }
+
+  afterhours::ui::FontManager &fm =
+      font_manager_opt.get<afterhours::ui::FontManager>();
+  std::string font_name = get_active_font_name();
+  fm.set_active(font_name);
+  raylib::Font font = fm.get_active_font();
+  raylib::Vector2 size = raylib::MeasureTextEx(font, text, fontSize, 1.0f);
+  return size.x;
 }
 
 // Triangle drawing

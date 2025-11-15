@@ -106,18 +106,20 @@ Preload &Preload::init(const char *title, bool headless) {
   }
 
   // TODO how safe is the path combination here esp for mac vs windows
-  if (!headless) Files::get().for_resources_in_folder(
-      "images", "controls/keyboard_default",
-      [](const std::string &name, const std::string &filename) {
-        TextureLibrary::get().load(filename.c_str(), name.c_str());
-      });
+  if (!headless)
+    Files::get().for_resources_in_folder(
+        "images", "controls/keyboard_default",
+        [](const std::string &name, const std::string &filename) {
+          TextureLibrary::get().load(filename.c_str(), name.c_str());
+        });
 
   // TODO how safe is the path combination here esp for mac vs windows
-  if (!headless) Files::get().for_resources_in_folder(
-      "images", "controls/xbox_default",
-      [](const std::string &name, const std::string &filename) {
-        TextureLibrary::get().load(filename.c_str(), name.c_str());
-      });
+  if (!headless)
+    Files::get().for_resources_in_folder(
+        "images", "controls/xbox_default",
+        [](const std::string &name, const std::string &filename) {
+          TextureLibrary::get().load(filename.c_str(), name.c_str());
+        });
 
   // TODO add to spritesheet
   if (!headless) {
@@ -133,14 +135,26 @@ Preload &Preload::init(const char *title, bool headless) {
 }
 
 void setup_fonts(Entity &sophie) {
-  sophie.get<ui::FontManager>().load_font(
+  auto &font_manager = sophie.get<ui::FontManager>();
+
+  font_manager.load_font(
       get_font_name(FontID::English),
       Files::get()
           .fetch_resource_path("", get_font_name(FontID::English))
           .c_str());
 
-  // Load CJK fonts using our helper function
-  auto &font_manager = sophie.get<ui::FontManager>();
+  font_manager.load_font(
+      get_font_name(FontID::Korean),
+      Files::get()
+          .fetch_resource_path("", get_font_name(FontID::Korean))
+          .c_str());
+
+  font_manager.load_font(
+      get_font_name(FontID::Japanese),
+      Files::get()
+          .fetch_resource_path("", get_font_name(FontID::Japanese))
+          .c_str());
+
   std::string font_file =
       Files::get()
           .fetch_resource_path("", get_font_name(FontID::Korean))
@@ -184,7 +198,7 @@ Preload &Preload::make_singleton() {
     sophie.addComponent<ui::UIComponent>(sophie.id)
         .set_desired_width(afterhours::ui::screen_pct(1.f))
         .set_desired_height(afterhours::ui::screen_pct(1.f))
-        .enable_font(get_font_name(FontID::English), 75.f);
+        .enable_font(get_active_font_name(), 75.f);
 
     // Navigation stack singleton for consistent UI navigation
     add_ui_singleton_components(sophie);

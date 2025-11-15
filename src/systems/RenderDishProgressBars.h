@@ -4,7 +4,9 @@
 #include "../components/is_dish.h"
 #include "../components/is_inventory_item.h"
 #include "../components/transform.h"
+#include "../font_info.h"
 #include "../game_state_manager.h"
+#include "../render_backend.h"
 #include "../render_constants.h"
 #include "../rl.h"
 #include <afterhours/ah.h>
@@ -50,9 +52,9 @@ struct RenderDishProgressBars : System<IsDish, DishLevel, Transform> {
     // Draw level text if above level 1 (make it more visible)
     if (level.level > 1) {
       std::string level_text = "L" + std::to_string(level.level);
-      DrawText(level_text.c_str(), static_cast<int>(center.x - 10),
-               static_cast<int>(bar_position.y - 25), 16,
-               Color{255, 255, 0, 255}); // Bright yellow for visibility
+      render_backend::DrawTextWithActiveFont(level_text.c_str(), static_cast<int>(center.x - 10),
+                                            static_cast<int>(bar_position.y - 25), font_sizes::Normal,
+                                            Color{255, 255, 0, 255}); // Bright yellow for visibility
     }
   }
 };

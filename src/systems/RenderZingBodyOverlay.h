@@ -12,7 +12,9 @@
 #include "../components/render_order.h"
 #include "../components/transform.h"
 #include "../dish_types.h"
+#include "../font_info.h"
 #include "../game_state_manager.h"
+#include "../render_backend.h"
 #include "../rl.h"
 #include <afterhours/ah.h>
 #include <afterhours/src/plugins/animation.h>
@@ -186,12 +188,12 @@ struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
         diamond, vec2{badgeSize * 0.5f, badgeSize * 0.5f}, 45.0f, zingColor);
 
     // Zing number (supports up to two digits)
-    const int fontSize = static_cast<int>(badgeSize * 0.72f);
+    const float fontSize = badgeSize * 0.72f;
     const std::string zingText = std::to_string(zing);
-    const int zw = raylib::MeasureText(zingText.c_str(), fontSize);
-    render_backend::DrawText(zingText.c_str(), static_cast<int>(zx - zw / 2.0f),
-                             static_cast<int>(zy - fontSize / 2.0f), fontSize,
-                             raylib::BLACK);
+    const float zw = render_backend::MeasureTextWithActiveFont(zingText.c_str(), fontSize);
+    render_backend::DrawTextWithActiveFont(zingText.c_str(), static_cast<int>(zx - zw / 2.0f),
+                                          static_cast<int>(zy - fontSize / 2.0f), fontSize,
+                                          raylib::BLACK);
 
     // Body: pale yellow square top-right
     const float bx = rect.x + rect.width - padding - badgeSize;
@@ -203,10 +205,10 @@ struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
                                   static_cast<int>(badgeSize), bodyColor);
 
     const std::string bodyText = std::to_string(body);
-    const int bw = raylib::MeasureText(bodyText.c_str(), fontSize);
-    const int bh = fontSize;
-    render_backend::DrawText(bodyText.c_str(),
-                             static_cast<int>(bx + (badgeSize - bw) * 0.5f),
+    const float bw = render_backend::MeasureTextWithActiveFont(bodyText.c_str(), fontSize);
+    const float bh = fontSize;
+    render_backend::DrawTextWithActiveFont(bodyText.c_str(),
+                                          static_cast<int>(bx + (badgeSize - bw) * 0.5f),
                              static_cast<int>(by + (badgeSize - bh) * 0.5f),
                              fontSize, raylib::BLACK);
   }

@@ -3,7 +3,9 @@
 #include "../components/animation_event.h"
 #include "../components/dish_battle_state.h"
 #include "../components/transform.h"
+#include "../font_info.h"
 #include "../game_state_manager.h"
+#include "../render_backend.h"
 #include "../rl.h"
 #include <afterhours/ah.h>
 
@@ -105,11 +107,11 @@ private:
 
     // +1 text
     std::string boostText = "+1";
-    int fontSize = static_cast<int>(overlaySize * 0.4f);
-    int textWidth = raylib::MeasureText(boostText.c_str(), fontSize);
+    float fontSize = overlaySize * 0.4f;
+    float textWidth = render_backend::MeasureTextWithActiveFont(boostText.c_str(), fontSize);
 
     raylib::Color textColor = raylib::Color{0, 0, 0, (unsigned char)alpha};
-    render_backend::DrawText(
+    render_backend::DrawTextWithActiveFont(
         boostText.c_str(), static_cast<int>(centerX - textWidth / 2.0f),
         static_cast<int>(bounceY - fontSize / 2.0f), fontSize, textColor);
 
@@ -122,9 +124,9 @@ private:
     }
 
     if (!statType.empty()) {
-      int smallFontSize = static_cast<int>(overlaySize * 0.2f);
-      int smallTextWidth = raylib::MeasureText(statType.c_str(), smallFontSize);
-      render_backend::DrawText(
+      float smallFontSize = overlaySize * 0.2f;
+      float smallTextWidth = render_backend::MeasureTextWithActiveFont(statType.c_str(), smallFontSize);
+      render_backend::DrawTextWithActiveFont(
           statType.c_str(), static_cast<int>(centerX - smallTextWidth / 2.0f),
           static_cast<int>(bounceY + overlaySize / 2.0f + 5.0f), smallFontSize,
           textColor);
@@ -225,8 +227,8 @@ private:
       // Draw "+1 Freshness" text
       raylib::Color textColor =
           raylib::Color{255, 255, 255, (unsigned char)alpha};
-      render_backend::DrawText("+1", static_cast<int>(centerX - 10),
-                               static_cast<int>(bounceY - 5), 12, textColor);
+      render_backend::DrawTextWithActiveFont("+1", static_cast<int>(centerX - 10),
+                                            static_cast<int>(bounceY - 5), font_sizes::Small, textColor);
     }
   }
 

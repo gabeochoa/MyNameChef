@@ -4,6 +4,7 @@
 #include "../components/battle_synergy_counts.h"
 #include "../components/cuisine_tag.h"
 #include "../components/set_bonus_definitions.h"
+#include "../font_info.h"
 #include "../game_state_manager.h"
 #include "../rl.h"
 #include "../shop.h"
@@ -30,7 +31,7 @@ struct RenderBattleSynergyLegend : afterhours::System<> {
     float start_y = 170.0f;
     float line_height = 25.0f;
     float x = 20.0f;
-    float text_size = 16.0f;
+    float text_size = font_sizes::Normal;
     int line_count = 0;
 
     for (const auto &[cuisine, count] : battle_synergy.player_cuisine_counts) {
@@ -63,9 +64,9 @@ struct RenderBattleSynergyLegend : afterhours::System<> {
                           std::to_string(next_threshold);
 
       float y = start_y + (line_count * line_height);
-      render_backend::DrawText(label.c_str(), static_cast<int>(x),
-                               static_cast<int>(y), static_cast<int>(text_size),
-                               raylib::WHITE);
+      render_backend::DrawTextWithActiveFont(label.c_str(), static_cast<int>(x),
+                                             static_cast<int>(y), text_size,
+                                             raylib::WHITE);
 
       line_count++;
     }

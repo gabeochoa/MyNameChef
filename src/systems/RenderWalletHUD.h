@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../font_info.h"
 #include "../game_state_manager.h"
 #include "../shop.h"
 #include <afterhours/ah.h>
@@ -19,14 +20,13 @@ struct RenderWalletHUD : System<> {
 
     const auto &wallet = wallet_entity.get().get<Wallet>();
     std::string wallet_text = std::to_string(wallet.gold) + " gold";
-    float text_size = 20.f;
 
     // TODO: Convert wallet display to UI element with label for better
     // testability Expected: Wallet should be a UI element with label "Gold:
     // 100" or similar This would allow
     // UITestHelpers::visible_ui_exists("Gold:") to work
-    render_backend::DrawText(wallet_text.c_str(), 20, 80,
-                             static_cast<int>(text_size), raylib::GOLD);
+    render_backend::DrawTextWithActiveFont(wallet_text.c_str(), 20, 80,
+                                           font_sizes::Medium, raylib::GOLD);
 
     auto health_entity = EntityHelper::get_singleton<Health>();
     if (!health_entity.get().has<Health>())
@@ -36,8 +36,8 @@ struct RenderWalletHUD : System<> {
     std::string health_text = std::to_string(health.current) + "/" +
                               std::to_string(health.max) + " health";
 
-    render_backend::DrawText(health_text.c_str(), 20, 110,
-                             static_cast<int>(text_size), raylib::RED);
+    render_backend::DrawTextWithActiveFont(health_text.c_str(), 20, 110,
+                                           font_sizes::Medium, raylib::RED);
 
     auto round_entity = EntityHelper::get_singleton<Round>();
     if (!round_entity.get().has<Round>())
@@ -46,7 +46,7 @@ struct RenderWalletHUD : System<> {
     const auto &round = round_entity.get().get<Round>();
     std::string round_text = "Round " + std::to_string(round.current);
 
-    render_backend::DrawText(round_text.c_str(), 20, 140,
-                             static_cast<int>(text_size), raylib::WHITE);
+    render_backend::DrawTextWithActiveFont(round_text.c_str(), 20, 140,
+                                           font_sizes::Medium, raylib::WHITE);
   }
 };

@@ -3,7 +3,9 @@
 #include "../components/dish_battle_state.h"
 #include "../components/is_dish.h"
 #include "../components/transform.h"
+#include "../font_info.h"
 #include "../game_state_manager.h"
+#include "../render_backend.h"
 #include "../rl.h"
 #include <afterhours/ah.h>
 #include <afterhours/src/plugins/animation.h>
@@ -126,23 +128,23 @@ struct RenderBattleTeams : afterhours::System<Transform, IsDish> {
 
     // Draw dish name above the rectangle
     std::string dishName = dish.name();
-    float textWidth = raylib::MeasureText(dishName.c_str(), 16);
+    float textWidth = render_backend::MeasureTextWithActiveFont(dishName.c_str(), font_sizes::Normal);
     float textX =
         transform.position.x + offset_x + (transform.size.x - textWidth) / 2.0f;
     float textY = transform.position.y + offset_y + present_offset_y - 25.0f;
 
-    raylib::DrawText(dishName.c_str(), (int)textX, (int)textY, 16,
-                     raylib::WHITE);
+    render_backend::DrawTextWithActiveFont(dishName.c_str(), (int)textX, (int)textY, font_sizes::Normal,
+                                          raylib::WHITE);
 
     // Draw team label
     std::string teamLabel = isPlayer ? "PLAYER" : "OPPONENT";
-    float labelWidth = raylib::MeasureText(teamLabel.c_str(), 12);
+    float labelWidth = render_backend::MeasureTextWithActiveFont(teamLabel.c_str(), font_sizes::Small);
     float labelX = transform.position.x + offset_x +
                    (transform.size.x - labelWidth) / 2.0f;
     float labelY = transform.position.y + offset_y + present_offset_y +
                    transform.size.y + 5.0f;
 
-    raylib::DrawText(teamLabel.c_str(), (int)labelX, (int)labelY, 12,
-                     borderColor);
+    render_backend::DrawTextWithActiveFont(teamLabel.c_str(), (int)labelX, (int)labelY, font_sizes::Small,
+                                          borderColor);
   }
 };

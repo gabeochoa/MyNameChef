@@ -3,6 +3,7 @@
 #include "../components/render_order.h"
 #include "../components/toast_message.h"
 #include "../components/transform.h"
+#include "../font_info.h"
 #include "../game_state_manager.h"
 #include "../render_backend.h"
 #include <afterhours/ah.h>
@@ -31,18 +32,16 @@ struct RenderToastSystem
     raylib::Color bgColor = hasColor.color();
     render_backend::DrawRectangleRounded(rect, 0.3f, 8, bgColor);
 
-    const float fontSize = 20.0f;
-    float textWidth =
-        raylib::MeasureText(toast.message.c_str(), static_cast<int>(fontSize));
+    const float fontSize = font_sizes::Medium;
+    float textWidth = render_backend::MeasureTextWithActiveFont(toast.message.c_str(), fontSize);
     float textX = transform.position.x + (transform.size.x - textWidth) / 2.0f;
     float textY = transform.position.y + (transform.size.y - fontSize) / 2.0f;
 
     raylib::Color textColor = raylib::WHITE;
     textColor.a = bgColor.a;
 
-    render_backend::DrawText(toast.message.c_str(), static_cast<int>(textX),
-                             static_cast<int>(textY),
-                             static_cast<int>(fontSize), textColor);
+    render_backend::DrawTextWithActiveFont(toast.message.c_str(), static_cast<int>(textX),
+                                           static_cast<int>(textY), fontSize, textColor);
   }
 
 private:

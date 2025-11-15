@@ -10,7 +10,9 @@
 #include "../components/render_order.h"
 #include "../components/synergy_counts.h"
 #include "../components/transform.h"
+#include "../font_info.h"
 #include "../game_state_manager.h"
+#include "../render_backend.h"
 #include "../rl.h"
 #include "../tooltip.h"
 #include <afterhours/ah.h>
@@ -251,8 +253,8 @@ public:
           clean_line.erase(pos, marker.length());
         }
       }
-      float line_width = raylib::MeasureText(
-          clean_line.c_str(), static_cast<int>(tooltip.font_size));
+      float line_width = render_backend::MeasureTextWithActiveFont(
+          clean_line.c_str(), tooltip.font_size);
       if (line_width > max_line_width) {
         max_line_width = line_width;
       }
@@ -347,11 +349,11 @@ public:
 
         // Draw the segment if it's not empty
         if (!segment.empty()) {
-          raylib::DrawText(segment.c_str(), static_cast<int>(current_x),
-                           static_cast<int>(current_y),
-                           static_cast<int>(tooltip.font_size), current_color);
-          current_x += raylib::MeasureText(segment.c_str(),
-                                           static_cast<int>(tooltip.font_size));
+          render_backend::DrawTextWithActiveFont(segment.c_str(), static_cast<int>(current_x),
+                                                 static_cast<int>(current_y),
+                                                 tooltip.font_size, current_color);
+          current_x += render_backend::MeasureTextWithActiveFont(segment.c_str(),
+                                                                 tooltip.font_size);
         }
 
         // Update position and color for next segment

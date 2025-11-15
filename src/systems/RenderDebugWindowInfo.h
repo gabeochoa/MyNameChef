@@ -1,8 +1,11 @@
 #pragma once
 
+#include "../font_info.h"
 #include "../game_state_manager.h"
 #include "../input_mapping.h"
+#include "../render_backend.h"
 #include <afterhours/ah.h>
+#include <fmt/format.h>
 #include <magic_enum/magic_enum.hpp>
 
 struct RenderDebugWindowInfo
@@ -43,22 +46,22 @@ struct RenderDebugWindowInfo
     const int y1 = 36;
     const int y2 = 54;
     const int y3 = 72;
-    const int font = 14;
+    const float font_size = 14.0f;
     const raylib::Color col = raylib::WHITE;
 
-    raylib::DrawText(fmt::format("win {}x{}", window_w, window_h).c_str(), x,
-                     y0, font, col);
-    raylib::DrawText(fmt::format("game {}x{}", rez.width, rez.height).c_str(),
-                     x, y1, font, col);
+    render_backend::DrawTextWithActiveFont(fmt::format("win {}x{}", window_w, window_h).c_str(), x,
+                                          y0, font_size, col);
+    render_backend::DrawTextWithActiveFont(fmt::format("game {}x{}", rez.width, rez.height).c_str(),
+                                          x, y1, font_size, col);
 
     // Add game state and screen information
     std::string state_name =
         std::string(magic_enum::enum_name(gsm.current_state));
     std::string screen_name =
         std::string(magic_enum::enum_name(gsm.active_screen));
-    raylib::DrawText(fmt::format("state: {}", state_name).c_str(), x, y2, font,
-                     col);
-    raylib::DrawText(fmt::format("screen: {}", screen_name).c_str(), x, y3,
-                     font, col);
+    render_backend::DrawTextWithActiveFont(fmt::format("state: {}", state_name).c_str(), x, y2, font_size,
+                                          col);
+    render_backend::DrawTextWithActiveFont(fmt::format("screen: {}", screen_name).c_str(), x, y3,
+                                          font_size, col);
   }
 };
