@@ -1,7 +1,9 @@
 #include "shop.h"
 #include "components/animation_event.h"
+#include "components/applied_set_bonuses.h"
 #include "components/battle_processor.h"
 #include "components/battle_session_registry.h"
+#include "components/battle_synergy_counts.h"
 #include "components/can_drop_onto.h"
 #include "components/combat_queue.h"
 #include "components/dish_level.h"
@@ -181,6 +183,10 @@ Entity &make_network_manager(Entity &sophie) {
 Entity &make_combat_manager(Entity &sophie) {
   sophie.addComponentIfMissing<CombatQueue>();
   EntityHelper::registerSingleton<CombatQueue>(sophie);
+  sophie.addComponentIfMissing<BattleSynergyCounts>();
+  EntityHelper::registerSingleton<BattleSynergyCounts>(sophie);
+  sophie.addComponentIfMissing<AppliedSetBonuses>();
+  EntityHelper::registerSingleton<AppliedSetBonuses>(sophie);
   return sophie;
 }
 

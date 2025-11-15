@@ -3,10 +3,12 @@
 #include "AdvanceCourseSystem.h"
 #include "ApplyPairingsAndClashesSystem.h"
 #include "ApplyPendingCombatModsSystem.h"
+#include "ApplySetBonusesSystem.h"
 #include "AuditSystem.h"
 #include "BattleDebugSystem.h"
 #include "BattleEnterAnimationSystem.h"
 #include "BattleProcessorSystem.h"
+#include "BattleSynergyCountingSystem.h"
 #include "BattleTeamFileLoaderSystem.h"
 #include "BattleTeamLoaderSystem.h"
 #include "CleanupBattleEntities.h"
@@ -39,6 +41,9 @@ void register_battle_systems(afterhours::SystemManager &systems) {
       std::make_unique<BattleTeamFileLoaderSystem>());
   systems.register_update_system(
       std::make_unique<InstantiateBattleTeamSystem>());
+  systems.register_update_system(
+      std::make_unique<BattleSynergyCountingSystem>());
+  systems.register_update_system(std::make_unique<ApplySetBonusesSystem>());
   systems.register_update_system(std::make_unique<TagTeamEntitiesSystem>());
   systems.register_update_system(std::make_unique<BattleTeamLoaderSystem>());
   systems.register_update_system(std::make_unique<BattleDebugSystem>());

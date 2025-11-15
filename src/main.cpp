@@ -43,6 +43,7 @@ backward::SignalHandling sh;
 #include "systems/ProcessBattleRewards.h"
 #include "systems/RenderAnimations.h"
 #include "systems/RenderBattleResults.h"
+#include "systems/RenderBattleSynergyLegend.h"
 #include "systems/RenderBattleTeams.h"
 #include "systems/RenderDebugWindowInfo.h"
 #include "systems/RenderDishProgressBars.h"
@@ -105,7 +106,10 @@ void game(const std::optional<std::string> &run_test) {
   }
 
   SystemManager systems;
-  auto &sophie = EntityHelper::createPermanentEntity(); // CRITICAL: Make sophie permanent so BattleProcessor singleton is never cleaned up
+  auto &sophie =
+      EntityHelper::createPermanentEntity(); // CRITICAL: Make sophie permanent
+                                             // so BattleProcessor singleton is
+                                             // never cleaned up
 
   // singleton systems
   {
@@ -202,6 +206,8 @@ void game(const std::optional<std::string> &run_test) {
         systems.register_render_system(
             std::make_unique<RenderDishProgressBars>());
         systems.register_render_system(std::make_unique<RenderWalletHUD>());
+        systems.register_render_system(
+            std::make_unique<RenderBattleSynergyLegend>());
         systems.register_render_system(std::make_unique<EndCameraMode>());
         // (UI moved to pass 2 so it is after tag shader)
       }
@@ -263,17 +269,24 @@ int main(int argc, char *argv[]) {
     std::cout << "Usage: my_name_chef [OPTIONS]\n\n";
     std::cout << "Options:\n";
     std::cout << "  --help                        Show this help message\n";
-    std::cout << "  -w, --width <pixels>          Screen width (default: 1280)\n";
-    std::cout << "  -h, --height <pixels>         Screen height (default: 720)\n";
+    std::cout
+        << "  -w, --width <pixels>          Screen width (default: 1280)\n";
+    std::cout
+        << "  -h, --height <pixels>         Screen height (default: 720)\n";
     std::cout << "  --list-tests                  List all available tests\n";
     std::cout << "  --run-test <name>             Run a specific test\n";
-    std::cout << "  --headless                    Enable headless mode (no rendering)\n";
-    std::cout << "  --audit-strict                Enable strict side effect auditing\n";
-    std::cout << "  --step-delay <ms>             Delay between test steps in milliseconds (default: 500)\n";
-    std::cout << "  --timing-speed-scale <scale>  Battle timing speed multiplier (default: 1.0)\n";
+    std::cout << "  --headless                    Enable headless mode (no "
+                 "rendering)\n";
+    std::cout << "  --audit-strict                Enable strict side effect "
+                 "auditing\n";
+    std::cout << "  --step-delay <ms>             Delay between test steps in "
+                 "milliseconds (default: 500)\n";
+    std::cout << "  --timing-speed-scale <scale>  Battle timing speed "
+                 "multiplier (default: 1.0)\n";
     std::cout << "\n";
     std::cout << "Examples:\n";
-    std::cout << "  my_name_chef --run-test validate_survivor_carryover --headless\n";
+    std::cout
+        << "  my_name_chef --run-test validate_survivor_carryover --headless\n";
     std::cout << "  my_name_chef --width 1920 --height 1080\n";
     std::cout << "  my_name_chef --timing-speed-scale 2.0\n";
     return 0;

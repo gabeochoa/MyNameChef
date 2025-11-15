@@ -6,6 +6,7 @@
 #include "../components/dish_effect.h"
 #include "../components/is_dish.h"
 #include "../components/pending_combat_mods.h"
+#include "../components/synergy_bonus_effects.h"
 #include "../components/trigger_event.h"
 #include "../components/trigger_queue.h"
 #include "../dish_types.h"
@@ -62,6 +63,15 @@ private:
     for (const auto &effect : info.effects) {
       if (effect.triggerHook == ev.hook) {
         apply_effect(effect, ev);
+      }
+    }
+
+    if (src_opt->has<SynergyBonusEffects>()) {
+      const auto &synergy_effects = src_opt->get<SynergyBonusEffects>();
+      for (const auto &effect : synergy_effects.effects) {
+        if (effect.triggerHook == ev.hook) {
+          apply_effect(effect, ev);
+        }
       }
     }
   }
