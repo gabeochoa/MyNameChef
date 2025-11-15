@@ -176,7 +176,7 @@ TEST(validate_game_state_save_resume_basic) {
     entity.cleanup = true;
   }
   afterhours::EntityHelper::cleanup();
-  afterhours::EntityHelper::merge_entity_arrays();
+  app.wait_for_frames(1); // Entities will be merged by system loop
   app.wait_for_frames(5);
 
   // Reset gold and health - but don't reset gold to 0, just set it to a different value

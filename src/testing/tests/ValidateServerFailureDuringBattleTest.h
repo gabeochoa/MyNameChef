@@ -32,7 +32,7 @@ TEST(validate_server_failure_during_battle) {
   // Verify we're still on Battle screen (should not navigate)
   // With new behavior, we never navigate away from Battle screen on disconnection
   // However, if battle completed very quickly with timing speed scale, we might be on Results
-  GameStateManager::get().update_screen();
+  app.wait_for_frames(1); // Ensure screen state is synced
   GameStateManager::Screen current_screen = GameStateManager::get().active_screen;
   if (current_screen == GameStateManager::Screen::Results) {
     // Battle completed before server was killed, which is acceptable

@@ -88,7 +88,7 @@ TEST(validate_battle_results) {
   // Step 1: Create mock opponent JSON file
   create_mock_opponent_json();
 
-  GameStateManager::get().update_screen();
+  app.wait_for_frames(1); // Ensure screen state is synced
   auto &gsm = GameStateManager::get();
   if (gsm.active_screen == GameStateManager::Screen::Results) {
     app.wait_for_ui_exists("Back to Shop", 5.0f);

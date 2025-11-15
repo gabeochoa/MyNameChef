@@ -36,7 +36,7 @@ TEST(validate_trigger_ordering) {
 
   app.launch_game();
   GameStateManager::get().to_battle();
-  GameStateManager::get().update_screen();
+  app.wait_for_frames(1); // Ensure screen state is synced
 
   // Create test scenario:
   // Player team: 2 dishes (higher total Zing = 10)
@@ -72,18 +72,8 @@ TEST(validate_trigger_ordering) {
   // Wait a frame for entities to be merged by system loop
   app.wait_for_frames(1);
 
-  // Run ComputeCombatStatsSystem to calculate baseZing
-  ComputeCombatStatsSystem computeStats;
-  for (afterhours::Entity &e : EQ({.ignore_temp_warning = true})
-                                   .whereHasComponent<IsDish>()
-                                   .whereHasComponent<DishLevel>()
-                                   .gen()) {
-    if (computeStats.should_run(1.0f / 60.0f)) {
-      IsDish &dish = e.get<IsDish>();
-      DishLevel &lvl = e.get<DishLevel>();
-      computeStats.for_each_with(e, dish, lvl, 1.0f / 60.0f);
-    }
-  }
+  // Let game loop run systems to calculate baseZing
+  app.wait_for_frames(1);
 
   // Verify CombatStats were calculated
   for (afterhours::Entity &e :
@@ -112,11 +102,8 @@ TEST(validate_trigger_ordering) {
   queue.add_event(TriggerHook::OnServe, opponent_dish1_id, 0,
                   DishBattleState::TeamSide::Opponent);
 
-  // Run TriggerDispatchSystem to order events
-  TriggerDispatchSystem dispatch;
-  if (dispatch.should_run(1.0f / 60.0f)) {
-    dispatch.for_each_with(tq_entity, queue, 1.0f / 60.0f);
-  }
+  // Let game loop run TriggerDispatchSystem to order events
+  app.wait_for_frames(1);
 
   // Verify ordering:
   // Expected order:

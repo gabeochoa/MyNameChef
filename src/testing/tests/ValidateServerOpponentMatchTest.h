@@ -106,7 +106,7 @@ TEST(validate_server_opponent_match) {
            expected_dishes.size());
 
   // Query actual opponent dishes in battle
-  afterhours::EntityHelper::merge_entity_arrays();
+  app.wait_for_frames(1); // Entities will be merged by system loop
   std::unordered_map<int, DishType> actual_dishes;
   std::vector<DishType> actual_types;
   int actual_dish_count = 0;

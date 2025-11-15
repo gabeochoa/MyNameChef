@@ -25,7 +25,7 @@ namespace ValidateDebugDishTestHelpers {
 // Helper to navigate to battle screen using TestApp navigation
 static void navigate_to_battle_screen(TestApp &app) {
   // Check if we're already on Battle screen (from a previous test iteration)
-  GameStateManager::get().update_screen();
+  app.wait_for_frames(1); // Ensure screen state is synced
   auto &gsm = GameStateManager::get();
   if (gsm.active_screen == GameStateManager::Screen::Battle) {
     app.wait_for_ui_exists("Skip to Results", 5.0f);
@@ -46,9 +46,6 @@ static void navigate_to_battle_screen(TestApp &app) {
     app.click("Next Round");
     app.wait_for_screen(GameStateManager::Screen::Battle, 15.0f);
     app.wait_for_ui_exists("Skip to Results", 5.0f);
-
-    // Ensure screen is updated after navigation
-    GameStateManager::get().update_screen();
   }
 }
 
@@ -120,10 +117,8 @@ TEST(validate_debug_dish_onserve_flavor_stats) {
   queue.add_event(TriggerHook::OnServe, debug_dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
-  EffectResolutionSystem effectSystem;
-  if (effectSystem.should_run(1.0f / 60.0f)) {
-    effectSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
-  }
+  // Let game loop run systems naturally
+  app.wait_for_frames(1);
 
   auto *debug_dish = app.find_entity_by_id(debug_dish_id);
   if (!debug_dish) {
@@ -198,10 +193,8 @@ TEST(validate_debug_dish_onserve_target_scopes) {
   queue.add_event(TriggerHook::OnServe, debug_dish_id, 1,
                   DishBattleState::TeamSide::Player);
 
-  EffectResolutionSystem effectSystem;
-  if (effectSystem.should_run(1.0f / 60.0f)) {
-    effectSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
-  }
+  // Let game loop run systems naturally
+  app.wait_for_frames(1);
 
   auto *future_ally = app.find_entity_by_id(future_ally_id);
   auto *ally_after = app.find_entity_by_id(ally_after_id);
@@ -268,10 +261,8 @@ TEST(validate_debug_dish_onserve_combat_mods) {
   queue.add_event(TriggerHook::OnServe, debug_dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
-  EffectResolutionSystem effectSystem;
-  if (effectSystem.should_run(1.0f / 60.0f)) {
-    effectSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
-  }
+  // Let game loop run systems naturally
+  app.wait_for_frames(1);
 
   auto *debug_dish = app.find_entity_by_id(debug_dish_id);
   auto *ally = app.find_entity_by_id(ally_id);
@@ -343,10 +334,8 @@ TEST(validate_debug_dish_onstartbattle) {
   queue.add_event(TriggerHook::OnStartBattle, debug_dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
-  EffectResolutionSystem effectSystem;
-  if (effectSystem.should_run(1.0f / 60.0f)) {
-    effectSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
-  }
+  // Let game loop run systems naturally
+  app.wait_for_frames(1);
 
   auto *debug_dish = app.find_entity_by_id(debug_dish_id);
   auto *ally = app.find_entity_by_id(ally_id);
@@ -407,10 +396,8 @@ TEST(validate_debug_dish_oncoursestart) {
   queue.add_event(TriggerHook::OnCourseStart, debug_dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
-  EffectResolutionSystem effectSystem;
-  if (effectSystem.should_run(1.0f / 60.0f)) {
-    effectSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
-  }
+  // Let game loop run systems naturally
+  app.wait_for_frames(1);
 
   auto *debug_dish = app.find_entity_by_id(debug_dish_id);
   auto *ally = app.find_entity_by_id(ally_id);
@@ -463,10 +450,8 @@ TEST(validate_debug_dish_onbitetaken) {
   queue.add_event(TriggerHook::OnBiteTaken, debug_dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
-  EffectResolutionSystem effectSystem;
-  if (effectSystem.should_run(1.0f / 60.0f)) {
-    effectSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
-  }
+  // Let game loop run systems naturally
+  app.wait_for_frames(1);
 
   auto *debug_dish = app.find_entity_by_id(debug_dish_id);
   auto *ally = app.find_entity_by_id(ally_id);
@@ -520,10 +505,8 @@ TEST(validate_debug_dish_ondishfinished) {
   queue.add_event(TriggerHook::OnDishFinished, debug_dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
-  EffectResolutionSystem effectSystem;
-  if (effectSystem.should_run(1.0f / 60.0f)) {
-    effectSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
-  }
+  // Let game loop run systems naturally
+  app.wait_for_frames(1);
 
   auto *ally = app.find_entity_by_id(ally_id);
 
@@ -578,10 +561,8 @@ TEST(validate_debug_dish_oncoursecomplete) {
   queue.add_event(TriggerHook::OnCourseComplete, debug_dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
-  EffectResolutionSystem effectSystem;
-  if (effectSystem.should_run(1.0f / 60.0f)) {
-    effectSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
-  }
+  // Let game loop run systems naturally
+  app.wait_for_frames(1);
 
   auto *ally = app.find_entity_by_id(ally_id);
 

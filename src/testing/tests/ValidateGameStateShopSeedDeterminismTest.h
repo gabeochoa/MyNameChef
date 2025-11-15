@@ -66,7 +66,7 @@ TEST(validate_game_state_shop_seed_determinism) {
     entity.cleanup = true;
   }
   afterhours::EntityHelper::cleanup();
-  afterhours::EntityHelper::merge_entity_arrays();
+  app.wait_for_frames(1); // Entities will be merged by system loop
   app.wait_for_frames(5);
 
   // Verify shop is empty

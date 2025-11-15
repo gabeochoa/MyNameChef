@@ -48,7 +48,6 @@ TEST(validate_game_state_new_team_vs_continue) {
 
   // Navigate back to main menu
   GameStateManager::get().set_next_screen(GameStateManager::Screen::Main);
-  GameStateManager::get().update_screen();
   app.wait_for_screen(GameStateManager::Screen::Main, 5.0f);
   app.wait_for_frames(10);
 
@@ -81,7 +80,6 @@ TEST(validate_game_state_new_team_vs_continue) {
 
   // Navigate back to main menu
   GameStateManager::get().set_next_screen(GameStateManager::Screen::Main);
-  GameStateManager::get().update_screen();
   app.wait_for_screen(GameStateManager::Screen::Main, 5.0f);
   app.wait_for_frames(10);
 

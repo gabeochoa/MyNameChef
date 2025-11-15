@@ -5,7 +5,7 @@
 #include "../test_macros.h"
 
 TEST(goto_battle) {
-  GameStateManager::get().update_screen();
+  app.wait_for_frames(1); // Ensure screen state is synced
   auto &gsm = GameStateManager::get();
   if (gsm.active_screen == GameStateManager::Screen::Battle) {
     app.wait_for_ui_exists("Skip to Results", 5.0f);

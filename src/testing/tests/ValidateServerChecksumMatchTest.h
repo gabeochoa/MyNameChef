@@ -90,7 +90,7 @@ TEST(validate_server_checksum_match) {
   app.wait_for_results_screen(10.0f);
 
   // Compute client checksum
-  afterhours::EntityHelper::merge_entity_arrays();
+  app.wait_for_frames(1); // Entities will be merged by system loop
   uint64_t client_fingerprint = BattleFingerprint::compute();
   std::string client_checksum =
       test_server_helpers::format_checksum(client_fingerprint);

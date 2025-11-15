@@ -75,7 +75,7 @@ TEST(validate_entity_query_without_manual_merge) {
 
   // Create battle team data
   GameStateManager::get().to_battle();
-  GameStateManager::get().update_screen();
+  app.wait_for_frames(1); // Ensure screen state is synced
 
   // Create mock battle team data
   auto cq_ref = EntityHelper::get_singleton<CombatQueue>();
@@ -120,7 +120,7 @@ TEST(validate_entity_query_without_manual_merge) {
 
   // Navigate to shop screen (triggers GenerateInventorySlots)
   GameStateManager::get().set_next_screen(GameStateManager::Screen::Shop);
-  GameStateManager::get().update_screen();
+  app.wait_for_screen(GameStateManager::Screen::Shop, 5.0f);
   app.wait_for_frames(2); // Wait for systems to generate slots
 
   // Query for inventory slots

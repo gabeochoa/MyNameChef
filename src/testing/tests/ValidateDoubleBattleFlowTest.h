@@ -68,7 +68,7 @@ TEST(validate_double_battle_flow) {
   }
 
   // Wait for dishes to actually enter combat (verify battle is running)
-  GameStateManager::get().update_screen();
+  app.wait_for_frames(1); // Ensure screen state is synced
   GameStateManager::Screen battle1_screen =
       GameStateManager::get().active_screen;
 
@@ -181,7 +181,7 @@ TEST(validate_double_battle_flow) {
   }
 
   // Check current screen - battle might have completed instantly
-  GameStateManager::get().update_screen();
+  app.wait_for_frames(1); // Ensure screen state is synced
   GameStateManager::Screen current = GameStateManager::get().active_screen;
 
   if (current == GameStateManager::Screen::Results) {

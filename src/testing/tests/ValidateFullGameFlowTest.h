@@ -35,7 +35,7 @@ TEST(validate_full_game_flow) {
   app.wait_for_screen(GameStateManager::Screen::Battle, 15.0f);
   // With timing speed scale, battle might complete very quickly, so check
   // current screen
-  GameStateManager::get().update_screen();
+  app.wait_for_frames(1); // Ensure screen state is synced
   GameStateManager::Screen current_screen =
       GameStateManager::get().active_screen;
   if (current_screen != GameStateManager::Screen::Battle &&
@@ -49,7 +49,7 @@ TEST(validate_full_game_flow) {
   log_info("TEST: Battle initialized");
 
   // Check screen - might be Battle or Results if battle completed very quickly
-  GameStateManager::get().update_screen();
+  app.wait_for_frames(1); // Ensure screen state is synced
   GameStateManager::Screen screen_after_init =
       GameStateManager::get().active_screen;
   if (screen_after_init == GameStateManager::Screen::Results) {
@@ -62,7 +62,7 @@ TEST(validate_full_game_flow) {
   int initial_player_dishes = 0;
   int initial_opponent_dishes = 0;
   // Only count dishes if we're still on Battle screen
-  GameStateManager::get().update_screen();
+  app.wait_for_frames(1); // Ensure screen state is synced
   if (GameStateManager::get().active_screen ==
       GameStateManager::Screen::Battle) {
     initial_player_dishes = app.count_active_player_dishes();
@@ -78,7 +78,7 @@ TEST(validate_full_game_flow) {
   }
 
   // Step 5: Wait for battle to complete naturally or skip to results
-  GameStateManager::get().update_screen();
+  app.wait_for_frames(1); // Ensure screen state is synced
   if (GameStateManager::get().active_screen !=
       GameStateManager::Screen::Results) {
     log_info("TEST: Waiting for Skip to Results button...");

@@ -37,7 +37,7 @@ TEST(validate_trigger_system_components) {
 
   app.launch_game();
   GameStateManager::get().to_battle();
-  GameStateManager::get().update_screen();
+  app.wait_for_frames(1); // Ensure screen state is synced
 
   log_info("TRIGGER_COMPONENTS_TEST: Test 1 - Validate TriggerEvent component");
   TriggerEvent ev(TriggerHook::OnServe, 123, 1,
@@ -80,11 +80,10 @@ TEST(validate_trigger_system_components) {
   log_info("TRIGGER_COMPONENTS_TEST: Trigger hooks PASSED");
 
   log_info("TRIGGER_COMPONENTS_TEST: Test 4 - Validate TriggerDispatchSystem");
-  TriggerDispatchSystem dispatchSystem;
-  if (dispatchSystem.should_run(1.0f / 60.0f)) {
-    dispatchSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
-    if (!queue.empty()) {
-      log_error("TRIGGER_COMPONENTS_TEST: TriggerDispatchSystem did not clear queue");
+  // Let game loop run systems naturally
+  app.wait_for_frames(1);
+  if (!queue.empty()) {
+    log_error("TRIGGER_COMPONENTS_TEST: TriggerDispatchSystem did not clear queue");
       return;
     }
   }
@@ -162,7 +161,7 @@ TEST(validate_onserve_trigger) {
 
   app.launch_game();
   GameStateManager::get().to_battle();
-  GameStateManager::get().update_screen();
+  app.wait_for_frames(1); // Ensure screen state is synced
 
   auto source_id = app.create_dish(DishType::FrenchFries)
                        .on_team(DishBattleState::TeamSide::Player)
@@ -192,10 +191,8 @@ TEST(validate_onserve_trigger) {
   queue.add_event(TriggerHook::OnServe, source_id, 0,
                   DishBattleState::TeamSide::Player);
 
-  EffectResolutionSystem effectSystem;
-  if (effectSystem.should_run(1.0f / 60.0f)) {
-    effectSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
-  }
+  // Let game loop run systems naturally
+  app.wait_for_frames(1);
 
   auto *ally1 = app.find_entity_by_id(ally1_id);
   auto *ally2 = app.find_entity_by_id(ally2_id);
@@ -225,7 +222,7 @@ TEST(validate_onbittetaken_trigger) {
 
   app.launch_game();
   GameStateManager::get().to_battle();
-  GameStateManager::get().update_screen();
+  app.wait_for_frames(1); // Ensure screen state is synced
 
   auto source_id = app.create_dish(DishType::Potato)
                        .on_team(DishBattleState::TeamSide::Player)
@@ -260,14 +257,8 @@ TEST(validate_onbittetaken_trigger) {
                   DishBattleState::TeamSide::Player);
   queue.events.back().payloadInt = 2;
 
-  TriggerDispatchSystem dispatchSystem;
-  EffectResolutionSystem effectSystem;
-  if (dispatchSystem.should_run(1.0f / 60.0f)) {
-    dispatchSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
-  }
-  if (effectSystem.should_run(1.0f / 60.0f)) {
-    effectSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
-  }
+  // Let game loop run systems naturally
+  app.wait_for_frames(1);
 
   log_info("TRIGGER_HOOK_TEST: OnBiteTaken trigger PASSED (no effects configured for test dish)");
 }
@@ -278,7 +269,7 @@ TEST(validate_ondishfinished_trigger) {
 
   app.launch_game();
   GameStateManager::get().to_battle();
-  GameStateManager::get().update_screen();
+  app.wait_for_frames(1); // Ensure screen state is synced
 
   auto source_id = app.create_dish(DishType::FriedEgg)
                        .on_team(DishBattleState::TeamSide::Player)
@@ -307,10 +298,8 @@ TEST(validate_ondishfinished_trigger) {
   queue.add_event(TriggerHook::OnDishFinished, source_id, 0,
                   DishBattleState::TeamSide::Player);
 
-  EffectResolutionSystem effectSystem;
-  if (effectSystem.should_run(1.0f / 60.0f)) {
-    effectSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
-  }
+  // Let game loop run systems naturally
+  app.wait_for_frames(1);
 
   auto *ally1 = app.find_entity_by_id(ally1_id);
   auto *ally2 = app.find_entity_by_id(ally2_id);
@@ -340,7 +329,7 @@ TEST(validate_oncoursestart_trigger) {
 
   app.launch_game();
   GameStateManager::get().to_battle();
-  GameStateManager::get().update_screen();
+  app.wait_for_frames(1); // Ensure screen state is synced
 
   auto dish_id = app.create_dish(DishType::Potato)
                      .on_team(DishBattleState::TeamSide::Player)
@@ -356,14 +345,8 @@ TEST(validate_oncoursestart_trigger) {
   queue.add_event(TriggerHook::OnCourseStart, dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
-  TriggerDispatchSystem dispatchSystem;
-  EffectResolutionSystem effectSystem;
-  if (dispatchSystem.should_run(1.0f / 60.0f)) {
-    dispatchSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
-  }
-  if (effectSystem.should_run(1.0f / 60.0f)) {
-    effectSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
-  }
+  // Let game loop run systems naturally
+  app.wait_for_frames(1);
 
   log_info("TRIGGER_HOOK_TEST: OnCourseStart trigger PASSED (no effects configured for test dish)");
 }
@@ -374,7 +357,7 @@ TEST(validate_onstartbattle_trigger) {
 
   app.launch_game();
   GameStateManager::get().to_battle();
-  GameStateManager::get().update_screen();
+  app.wait_for_frames(1); // Ensure screen state is synced
 
   auto dish_id = app.create_dish(DishType::Potato)
                      .on_team(DishBattleState::TeamSide::Player)
@@ -390,14 +373,8 @@ TEST(validate_onstartbattle_trigger) {
   queue.add_event(TriggerHook::OnStartBattle, dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
-  TriggerDispatchSystem dispatchSystem;
-  EffectResolutionSystem effectSystem;
-  if (dispatchSystem.should_run(1.0f / 60.0f)) {
-    dispatchSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
-  }
-  if (effectSystem.should_run(1.0f / 60.0f)) {
-    effectSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
-  }
+  // Let game loop run systems naturally
+  app.wait_for_frames(1);
 
   log_info("TRIGGER_HOOK_TEST: OnStartBattle trigger PASSED (no effects configured for test dish)");
 }
@@ -408,7 +385,7 @@ TEST(validate_oncoursecomplete_trigger) {
 
   app.launch_game();
   GameStateManager::get().to_battle();
-  GameStateManager::get().update_screen();
+  app.wait_for_frames(1); // Ensure screen state is synced
 
   auto dish_id = app.create_dish(DishType::Potato)
                      .on_team(DishBattleState::TeamSide::Player)
@@ -424,14 +401,8 @@ TEST(validate_oncoursecomplete_trigger) {
   queue.add_event(TriggerHook::OnCourseComplete, dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
-  TriggerDispatchSystem dispatchSystem;
-  EffectResolutionSystem effectSystem;
-  if (dispatchSystem.should_run(1.0f / 60.0f)) {
-    dispatchSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
-  }
-  if (effectSystem.should_run(1.0f / 60.0f)) {
-    effectSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
-  }
+  // Let game loop run systems naturally
+  app.wait_for_frames(1);
 
   log_info("TRIGGER_HOOK_TEST: OnCourseComplete trigger PASSED (no effects configured for test dish)");
 }

@@ -57,7 +57,7 @@ static void reset_test_state() {
 
 static void navigate_to_battle_screen(TestApp &app) {
   // Check if already on Battle screen
-  GameStateManager::get().update_screen();
+  app.wait_for_frames(1); // Ensure screen state is synced
   auto &gsm = GameStateManager::get();
   if (gsm.active_screen == GameStateManager::Screen::Battle) {
     return; // Already on battle screen
@@ -124,7 +124,7 @@ static void clear_existing_battle_dishes() {
     entity.cleanup = true;
   }
   afterhours::EntityHelper::cleanup();
-  afterhours::EntityHelper::merge_entity_arrays();
+  app.wait_for_frames(1); // Entities will be merged by system loop
 }
 
 } // namespace ValidateSetBonusSystemTestHelpers
@@ -157,8 +157,8 @@ TEST(validate_set_bonus_american_2_piece) {
                       .at_slot(2)
                       .commit();
 
-  // Merge entities and trigger synergy systems
-  afterhours::EntityHelper::merge_entity_arrays();
+  // Wait for entities to be merged by system loop, then trigger synergy systems
+  app.wait_for_frames(1);
   trigger_synergy_systems();
 
   app.wait_for_frames(5);
@@ -205,8 +205,8 @@ TEST(validate_set_bonus_american_4_piece) {
                       .with_cuisine_tag(CuisineTagType::American)
                       .commit();
 
-  // Merge entities and trigger synergy systems
-  afterhours::EntityHelper::merge_entity_arrays();
+  // Wait for entities to be merged by system loop, then trigger synergy systems
+  app.wait_for_frames(1);
   trigger_synergy_systems();
 
   app.wait_for_frames(5);
@@ -267,8 +267,8 @@ TEST(validate_set_bonus_american_6_piece) {
                       .with_cuisine_tag(CuisineTagType::American)
                       .commit();
 
-  // Merge entities and trigger synergy systems
-  afterhours::EntityHelper::merge_entity_arrays();
+  // Wait for entities to be merged by system loop, then trigger synergy systems
+  app.wait_for_frames(1);
   trigger_synergy_systems();
 
   app.wait_for_frames(5);
@@ -312,8 +312,8 @@ TEST(validate_set_bonus_no_synergy) {
                           .with_cuisine_tag(CuisineTagType::Thai)
                           .commit();
 
-  // Merge entities and trigger synergy systems
-  afterhours::EntityHelper::merge_entity_arrays();
+  // Wait for entities to be merged by system loop, then trigger synergy systems
+  app.wait_for_frames(1);
   trigger_synergy_systems();
 
   app.wait_for_frames(5);
