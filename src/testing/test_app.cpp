@@ -153,6 +153,16 @@ TestApp &TestApp::launch_game(const std::source_location &loc) {
            .gen()) {
     entity.cleanup = true;
   }
+  
+  // Clear inventory items to ensure clean state for tests
+  for (afterhours::Entity &entity :
+       afterhours::EntityQuery({.force_merge = true})
+           .whereHasComponent<IsInventoryItem>()
+           .whereHasComponent<IsDish>()
+           .gen()) {
+    entity.cleanup = true;
+  }
+  
   afterhours::EntityHelper::cleanup();
   wait_for_frames(1); // Let cleanup complete
 
