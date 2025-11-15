@@ -396,6 +396,10 @@ def categorize_tests(tests: List[str]) -> Tuple[List[str], List[str]]:
     """
     # Client tests that need the shared server (from bash script)
     CLIENT_TESTS = [
+        "validate_set_bonus_american_2_piece",
+        "validate_set_bonus_american_4_piece",
+        "validate_set_bonus_american_6_piece",
+        "validate_set_bonus_no_synergy",
         "validate_main_menu",
         "validate_dish_system",
         "validate_debug_dish_creation",

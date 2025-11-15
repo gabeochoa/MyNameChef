@@ -45,6 +45,7 @@ std::unordered_map<std::string, std::function<void()>> g_test_continuations;
 #include "../testing/tests/ValidateSeededRngTest.h"
 #include "../testing/tests/ValidateServerBattleIntegrationTest.h"
 #include "../testing/tests/ValidateServerChecksumMatchTest.h"
+#include "../testing/tests/ValidateSetBonusSystemTest.h"
 #include "../testing/tests/ValidateServerFailureDuringBattleTest.h"
 #include "../testing/tests/ValidateServerFailureDuringPendingRequestTest.h"
 #include "../testing/tests/ValidateServerFailureDuringShopTest.h"
