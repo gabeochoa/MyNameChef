@@ -185,7 +185,8 @@ struct TestApp {
   // These bypass normal game logic to set up specific test scenarios
   TestApp &set_battle_speed(float speed);
   TestApp &set_wallet_gold(int gold, const std::string &location = "");
-  TestApp &create_inventory_item(DishType type, int slot);
+  TestApp &create_inventory_item(DishType type, int slot,
+                                 std::optional<CuisineTagType> cuisine_tag = std::nullopt);
   TestApp &trigger_game_state_save();
   TestApp &trigger_game_state_load();
   bool save_file_exists();

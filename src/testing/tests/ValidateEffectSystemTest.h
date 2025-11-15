@@ -549,21 +549,20 @@ static void test_modifier_persistence_after_dish_finishes(TestApp &app) {
   // Actually run ApplyPairingsAndClashesSystem - let game loop run it naturally
   app.wait_for_frames(1);
   if (target->has<IsDish>() && target->has<DishBattleState>()) {
-      if (target->has<PairingClashModifiers>()) {
-        auto &pcmTmp = target->get<PairingClashModifiers>();
-        log_info("EFFECT_TEST: After running ApplyPairingsAndClashesSystem - "
-                 "PairingClashModifiers: zingDelta={}, bodyDelta={}",
-                 pcmTmp.zingDelta, pcmTmp.bodyDelta);
-      }
+    if (target->has<PairingClashModifiers>()) {
+      auto &pcmTmp = target->get<PairingClashModifiers>();
+      log_info("EFFECT_TEST: After running ApplyPairingsAndClashesSystem - "
+               "PairingClashModifiers: zingDelta={}, bodyDelta={}",
+               pcmTmp.zingDelta, pcmTmp.bodyDelta);
+    }
 
-      // Check if it overwrote our modifier mirror (PreBattleModifiers)
-      if (target->has<PreBattleModifiers>()) {
-        if (target->get<PreBattleModifiers>().zingDelta != 1) {
-          log_error("EFFECT_TEST: ApplyPairingsAndClashesSystem OVERWROTE "
-                    "modifier! Expected zingDelta=1, got {}",
-                    target->get<PreBattleModifiers>().zingDelta);
-          return;
-        }
+    // Check if it overwrote our modifier mirror (PreBattleModifiers)
+    if (target->has<PreBattleModifiers>()) {
+      if (target->get<PreBattleModifiers>().zingDelta != 1) {
+        log_error("EFFECT_TEST: ApplyPairingsAndClashesSystem OVERWROTE "
+                  "modifier! Expected zingDelta=1, got {}",
+                  target->get<PreBattleModifiers>().zingDelta);
+        return;
       }
     }
   }

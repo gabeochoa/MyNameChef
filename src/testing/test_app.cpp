@@ -107,6 +107,55 @@ TestApp &TestApp::launch_game(const std::source_location &loc) {
     }
   }
 
+  // Clear battle-related singletons to ensure clean state
+  // Clear BattleSynergyCounts
+  const auto synergyCountsId =
+      afterhours::components::get_type_id<BattleSynergyCounts>();
+  if (afterhours::EntityHelper::get().singletonMap.contains(synergyCountsId)) {
+    try {
+      auto synergyEntity =
+          afterhours::EntityHelper::get_singleton<BattleSynergyCounts>();
+      if (synergyEntity.get().has<BattleSynergyCounts>()) {
+        auto &counts = synergyEntity.get().get<BattleSynergyCounts>();
+        counts.player_cuisine_counts.clear();
+        counts.opponent_cuisine_counts.clear();
+        log_info("TEST_APP: launch_game - Cleared BattleSynergyCounts");
+      }
+    } catch (...) {
+      log_info("TEST_APP: launch_game - Could not access BattleSynergyCounts "
+               "singleton");
+    }
+  }
+
+  // Clear AppliedSetBonuses
+  const auto appliedBonusesId =
+      afterhours::components::get_type_id<AppliedSetBonuses>();
+  if (afterhours::EntityHelper::get().singletonMap.contains(appliedBonusesId)) {
+    try {
+      auto appliedEntity =
+          afterhours::EntityHelper::get_singleton<AppliedSetBonuses>();
+      if (appliedEntity.get().has<AppliedSetBonuses>()) {
+        auto &applied = appliedEntity.get().get<AppliedSetBonuses>();
+        applied.applied_cuisine.clear();
+        log_info("TEST_APP: launch_game - Cleared AppliedSetBonuses");
+      }
+    } catch (...) {
+      log_info("TEST_APP: launch_game - Could not access AppliedSetBonuses "
+               "singleton");
+    }
+  }
+
+  // Clear all battle-related entities
+  for (afterhours::Entity &entity :
+       afterhours::EntityQuery({.force_merge = true})
+           .whereHasComponent<IsDish>()
+           .whereHasComponent<DishBattleState>()
+           .gen()) {
+    entity.cleanup = true;
+  }
+  afterhours::EntityHelper::cleanup();
+  wait_for_frames(1); // Let cleanup complete
+
   GameStateManager &gsm = GameStateManager::get();
   gsm.set_next_screen(GameStateManager::Screen::Main);
   gsm.next_screen = std::nullopt; // Clear any pending screen transition
@@ -115,6 +164,10 @@ TestApp &TestApp::launch_game(const std::source_location &loc) {
            "next_screen={}",
            (int)gsm.active_screen,
            gsm.next_screen.has_value() ? (int)gsm.next_screen.value() : -1);
+  
+  // Wait for screen transition to complete (important in visible mode)
+  wait_for_screen(GameStateManager::Screen::Main, 5.0f);
+  
   game_launched = true;
   completed_operations.insert(op_id);
   if (step_delay()) {
@@ -411,7 +464,8 @@ TestApp &TestApp::set_wallet_gold(int gold, const std::string &location) {
   return *this;
 }
 
-TestApp &TestApp::create_inventory_item(DishType type, int slot) {
+TestApp &TestApp::create_inventory_item(DishType type, int slot,
+                                        std::optional<CuisineTagType> cuisine_tag) {
   // Manually create an item in a specific inventory slot
   // Bypasses normal purchase logic - used for testing scenarios
   // If slot is already occupied, this will overwrite/replace it
@@ -458,6 +512,16 @@ TestApp &TestApp::create_inventory_item(DishType type, int slot) {
   dish.addComponent<Transform>(position, vec2{80.0f, 80.0f});
   dish.addComponent<IsDish>(type);
   add_dish_tags(dish, type);
+  
+  // Override cuisine tag if specified
+  if (cuisine_tag.has_value()) {
+    // Remove existing CuisineTag if present and add the specified one
+    if (dish.has<CuisineTag>()) {
+      dish.removeComponent<CuisineTag>();
+    }
+    dish.addComponent<CuisineTag>(cuisine_tag.value());
+  }
+  
   dish.addComponent<DishLevel>(1);
   IsInventoryItem &inv_item = dish.addComponent<IsInventoryItem>();
   inv_item.slot = slot;

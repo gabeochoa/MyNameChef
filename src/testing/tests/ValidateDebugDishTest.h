@@ -23,30 +23,36 @@
 namespace ValidateDebugDishTestHelpers {
 
 // Helper to navigate to battle screen using TestApp navigation
+// Assumes app.launch_game() should be called first to reset state
 static void navigate_to_battle_screen(TestApp &app) {
-  // Check if we're already on Battle screen (from a previous test iteration)
   app.wait_for_frames(1); // Ensure screen state is synced
   auto &gsm = GameStateManager::get();
+  
   if (gsm.active_screen == GameStateManager::Screen::Battle) {
+    // Already on battle screen, just wait for UI to be ready
     app.wait_for_ui_exists("Skip to Results", 5.0f);
-  } else {
-    app.launch_game();
-    app.wait_for_ui_exists("Play");
+    return;
+  }
+  
+  // Navigate from Main to Shop
+  if (gsm.active_screen != GameStateManager::Screen::Shop) {
+    app.wait_for_ui_exists("Play", 5.0f);
     app.click("Play");
     app.wait_for_screen(GameStateManager::Screen::Shop, 10.0f);
-    app.wait_for_ui_exists("Next Round");
-    
-    // Create dishes in inventory (required to proceed past shop screen)
-    const auto inventory = app.read_player_inventory();
-    if (inventory.empty()) {
-      app.create_inventory_item(DishType::Potato, 0);
-      app.wait_for_frames(2);
-    }
-    
-    app.click("Next Round");
-    app.wait_for_screen(GameStateManager::Screen::Battle, 15.0f);
-    app.wait_for_ui_exists("Skip to Results", 5.0f);
   }
+  
+  // Ensure inventory has dishes (required to proceed)
+  const auto inventory = app.read_player_inventory();
+  if (inventory.empty()) {
+    app.create_inventory_item(DishType::Potato, 0);
+    app.wait_for_frames(2);
+  }
+  
+  // Navigate to battle
+  app.wait_for_ui_exists("Next Round", 5.0f);
+  app.click("Next Round");
+  app.wait_for_screen(GameStateManager::Screen::Battle, 15.0f);
+  app.wait_for_ui_exists("Skip to Results", 5.0f);
 }
 
 static afterhours::Entity &get_or_create_trigger_queue() {
@@ -99,6 +105,7 @@ TEST(validate_debug_dish_creation) {
 TEST(validate_debug_dish_onserve_flavor_stats) {
   using namespace ValidateDebugDishTestHelpers;
 
+  app.launch_game();
   navigate_to_battle_screen(app);
 
   log_info("DEBUG_DISH_TEST: Testing DebugDish OnServe flavor stat effects");
@@ -155,6 +162,7 @@ TEST(validate_debug_dish_onserve_flavor_stats) {
 TEST(validate_debug_dish_onserve_target_scopes) {
   using namespace ValidateDebugDishTestHelpers;
 
+  app.launch_game();
   navigate_to_battle_screen(app);
 
   log_info("DEBUG_DISH_TEST: Testing DebugDish OnServe target scopes");
@@ -236,6 +244,7 @@ TEST(validate_debug_dish_onserve_target_scopes) {
 TEST(validate_debug_dish_onserve_combat_mods) {
   using namespace ValidateDebugDishTestHelpers;
 
+  app.launch_game();
   navigate_to_battle_screen(app);
 
   log_info("DEBUG_DISH_TEST: Testing DebugDish OnServe combat mods");
@@ -309,6 +318,7 @@ TEST(validate_debug_dish_onserve_combat_mods) {
 TEST(validate_debug_dish_onstartbattle) {
   using namespace ValidateDebugDishTestHelpers;
 
+  app.launch_game();
   navigate_to_battle_screen(app);
 
   log_info("DEBUG_DISH_TEST: Testing DebugDish OnStartBattle effects");
@@ -371,6 +381,7 @@ TEST(validate_debug_dish_onstartbattle) {
 TEST(validate_debug_dish_oncoursestart) {
   using namespace ValidateDebugDishTestHelpers;
 
+  app.launch_game();
   navigate_to_battle_screen(app);
 
   log_info("DEBUG_DISH_TEST: Testing DebugDish OnCourseStart effects");
@@ -425,6 +436,7 @@ TEST(validate_debug_dish_oncoursestart) {
 TEST(validate_debug_dish_onbitetaken) {
   using namespace ValidateDebugDishTestHelpers;
 
+  app.launch_game();
   navigate_to_battle_screen(app);
 
   log_info("DEBUG_DISH_TEST: Testing DebugDish OnBiteTaken effects");
@@ -480,6 +492,7 @@ TEST(validate_debug_dish_onbitetaken) {
 TEST(validate_debug_dish_ondishfinished) {
   using namespace ValidateDebugDishTestHelpers;
 
+  app.launch_game();
   navigate_to_battle_screen(app);
 
   log_info("DEBUG_DISH_TEST: Testing DebugDish OnDishFinished effects");
@@ -536,6 +549,7 @@ TEST(validate_debug_dish_ondishfinished) {
 TEST(validate_debug_dish_oncoursecomplete) {
   using namespace ValidateDebugDishTestHelpers;
 
+  app.launch_game();
   navigate_to_battle_screen(app);
 
   log_info("DEBUG_DISH_TEST: Testing DebugDish OnCourseComplete effects");

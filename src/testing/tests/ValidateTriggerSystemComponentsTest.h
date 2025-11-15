@@ -84,8 +84,7 @@ TEST(validate_trigger_system_components) {
   app.wait_for_frames(1);
   if (!queue.empty()) {
     log_error("TRIGGER_COMPONENTS_TEST: TriggerDispatchSystem did not clear queue");
-      return;
-    }
+    return;
   }
   log_info("TRIGGER_COMPONENTS_TEST: TriggerDispatchSystem PASSED");
 

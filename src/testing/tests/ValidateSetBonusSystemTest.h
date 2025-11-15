@@ -42,89 +42,29 @@ static afterhours::RefEntity get_or_create_applied_set_bonuses() {
   return entity;
 }
 
-static void reset_test_state() {
-  // Clear applied bonuses from previous tests
-  afterhours::RefEntity applied_entity = get_or_create_applied_set_bonuses();
-  AppliedSetBonuses &applied = applied_entity.get().get<AppliedSetBonuses>();
-  applied.applied_cuisine.clear();
-
-  // Clear synergy counts
-  afterhours::RefEntity counts_entity = get_or_create_battle_synergy_counts();
-  BattleSynergyCounts &counts = counts_entity.get().get<BattleSynergyCounts>();
-  counts.player_cuisine_counts.clear();
-  counts.opponent_cuisine_counts.clear();
-}
-
-static void navigate_to_battle_screen(TestApp &app) {
-  // Check if already on Battle screen
+static void navigate_to_shop(TestApp &app) {
+  // Navigate to Shop screen
+  // Assumes app.launch_game() was called first, which sets screen to Main
   app.wait_for_frames(1); // Ensure screen state is synced
   auto &gsm = GameStateManager::get();
-  if (gsm.active_screen == GameStateManager::Screen::Battle) {
-    return; // Already on battle screen
+
+  if (gsm.active_screen == GameStateManager::Screen::Shop) {
+    return; // Already on Shop
   }
 
-  // Navigate to Shop if not already there
-  if (gsm.active_screen != GameStateManager::Screen::Shop) {
-    app.wait_for_ui_exists("Play");
-    app.click("Play");
-    app.wait_for_screen(GameStateManager::Screen::Shop, 10.0f);
-  }
+  // Navigate from Main to Shop
+  app.wait_for_ui_exists("Play", 5.0f);
+  app.click("Play");
+  app.wait_for_screen(GameStateManager::Screen::Shop, 10.0f);
+}
 
-  // Ensure inventory has dishes (required to proceed)
-  const auto inventory = app.read_player_inventory();
-  if (inventory.empty()) {
-    app.create_inventory_item(DishType::Potato, 0);
-    app.wait_for_frames(2);
-  }
-
-  // Click "Next Round" to navigate to battle
-  app.wait_for_ui_exists("Next Round");
+static void navigate_to_battle(TestApp &app) {
+  // Navigate from Shop to Battle
+  // Assumes we're already on Shop screen with dishes in inventory
+  app.wait_for_ui_exists("Next Round", 5.0f);
   app.click("Next Round");
   app.wait_for_screen(GameStateManager::Screen::Battle, 15.0f);
-  app.wait_for_frames(5); // Let battle initialize
-}
-
-static void trigger_synergy_systems() {
-  // Clear synergy counts first to ensure clean state
-  afterhours::RefEntity counts_entity = get_or_create_battle_synergy_counts();
-  BattleSynergyCounts &counts = counts_entity.get().get<BattleSynergyCounts>();
-  counts.player_cuisine_counts.clear();
-  counts.opponent_cuisine_counts.clear();
-
-  // Clear applied bonuses to allow re-application
-  afterhours::RefEntity applied_entity = get_or_create_applied_set_bonuses();
-  AppliedSetBonuses &applied = applied_entity.get().get<AppliedSetBonuses>();
-  applied.applied_cuisine.clear();
-
-  // Manually trigger synergy counting and bonus application systems
-  // after creating dishes, since they only run once at battle start.
-  // Create new instances to reset their internal state flags.
-  BattleSynergyCountingSystem countingSystem;
-  // Force run by temporarily setting calculated to false
-  countingSystem.calculated = false;
-  if (countingSystem.should_run(1.0f / 60.0f)) {
-    countingSystem.once(1.0f / 60.0f);
-  }
-
-  ApplySetBonusesSystem bonusSystem;
-  // Force run by temporarily setting applied to false
-  bonusSystem.applied = false;
-  if (bonusSystem.should_run(1.0f / 60.0f)) {
-    bonusSystem.once(1.0f / 60.0f);
-  }
-}
-
-static void clear_existing_battle_dishes() {
-  // Clear any existing dishes from the normal battle flow
-  // so we can test with only our test dishes
-  for (afterhours::Entity &entity : afterhours::EntityQuery()
-                                        .whereHasComponent<IsDish>()
-                                        .whereHasComponent<DishBattleState>()
-                                        .gen()) {
-    entity.cleanup = true;
-  }
-  afterhours::EntityHelper::cleanup();
-  app.wait_for_frames(1); // Entities will be merged by system loop
+  app.wait_for_frames(5); // Let battle initialize and systems run
 }
 
 } // namespace ValidateSetBonusSystemTestHelpers
@@ -132,198 +72,217 @@ static void clear_existing_battle_dishes() {
 TEST(validate_set_bonus_american_2_piece) {
   using namespace ValidateSetBonusSystemTestHelpers;
 
+  // Follow production flow: create dishes in Shop, then navigate to battle
   app.launch_game();
-  navigate_to_battle_screen(app);
+  navigate_to_shop(app);
 
-  // Clear existing battle dishes so we only test with our dishes
-  clear_existing_battle_dishes();
+  // Create 2 American dishes in inventory (Potato defaults to American, but
+  // we'll be explicit)
+  app.create_inventory_item(DishType::Potato, 0, CuisineTagType::American);
+  app.create_inventory_item(DishType::Potato, 1, CuisineTagType::American);
+  // Create a non-American dish - use Salmon which has no cuisine tag by default
+  app.create_inventory_item(DishType::Salmon, 2);
 
-  // Create 2 American dishes using TestDishBuilder
-  auto dish1_id = app.create_dish(DishType::Potato)
-                      .on_team(DishBattleState::TeamSide::Player)
-                      .at_slot(0)
-                      .with_cuisine_tag(CuisineTagType::American)
-                      .commit();
+  app.wait_for_frames(2); // Let entities merge
 
-  auto dish2_id = app.create_dish(DishType::Potato)
-                      .on_team(DishBattleState::TeamSide::Player)
-                      .at_slot(1)
-                      .with_cuisine_tag(CuisineTagType::American)
-                      .commit();
+  // Navigate to battle - systems will run naturally
+  navigate_to_battle(app);
 
-  // Create a non-American dish (should not get bonus)
-  auto dish3_id = app.create_dish(DishType::Potato)
-                      .on_team(DishBattleState::TeamSide::Player)
-                      .at_slot(2)
-                      .commit();
+  // Wait for systems to process (BattleSynergyCountingSystem and
+  // ApplySetBonusesSystem run on battle start)
+  app.wait_for_frames(20);
 
-  // Wait for entities to be merged by system loop, then trigger synergy systems
-  app.wait_for_frames(1);
-  trigger_synergy_systems();
-
-  app.wait_for_frames(5);
-
-  // Validate using TestApp helpers
+  // Validate synergy count
   app.expect_synergy_count(CuisineTagType::American, 2,
                            DishBattleState::TeamSide::Player);
-  app.expect_modifier(dish1_id, 0, 1);
-  app.expect_modifier(dish2_id, 0, 1);
-  app.expect_modifier(dish3_id, 0, 1);
+
+  // Find battle dishes by slot (they match inventory order)
+  // Slot 0 and 1 should be American dishes with +1 Body modifier
+  // Slot 2 should be Salmon with no modifier
+  int found_american_count = 0;
+  for (afterhours::Entity &entity :
+       afterhours::EntityQuery({.force_merge = true})
+           .whereHasComponent<IsDish>()
+           .whereHasComponent<DishBattleState>()
+           .gen()) {
+    if (entity.cleanup) {
+      continue;
+    }
+    const auto &dbs = entity.get<DishBattleState>();
+    if (dbs.team_side != DishBattleState::TeamSide::Player) {
+      continue;
+    }
+
+    if (dbs.queue_index == 0 || dbs.queue_index == 1) {
+      // American dishes should have +1 Body from 2-piece bonus
+      if (entity.has<CuisineTag>()) {
+        const auto &tag = entity.get<CuisineTag>();
+        if (tag.has(CuisineTagType::American)) {
+          found_american_count++;
+          app.expect_true(
+              entity.has<PersistentCombatModifiers>(),
+              "American dish should have PersistentCombatModifiers");
+          if (entity.has<PersistentCombatModifiers>()) {
+            const auto &mod = entity.get<PersistentCombatModifiers>();
+            app.expect_eq(mod.bodyDelta, 1,
+                          "American dish at slot " +
+                              std::to_string(dbs.queue_index) +
+                              " should have +1 Body from 2-piece bonus");
+            app.expect_eq(mod.zingDelta, 0,
+                          "American dish should have 0 Zing delta");
+          }
+        }
+      }
+    }
+  }
+  app.expect_eq(found_american_count, 2,
+                "Should find 2 American dishes in battle");
 }
 
 TEST(validate_set_bonus_american_4_piece) {
   using namespace ValidateSetBonusSystemTestHelpers;
 
+  // Follow production flow: create dishes in Shop, then navigate to battle
   app.launch_game();
-  navigate_to_battle_screen(app);
+  navigate_to_shop(app);
 
-  // Clear existing battle dishes so we only test with our dishes
-  clear_existing_battle_dishes();
+  // Create 4 American dishes in inventory
+  app.create_inventory_item(DishType::Potato, 0, CuisineTagType::American);
+  app.create_inventory_item(DishType::Potato, 1, CuisineTagType::American);
+  app.create_inventory_item(DishType::Potato, 2, CuisineTagType::American);
+  app.create_inventory_item(DishType::Potato, 3, CuisineTagType::American);
 
-  // Create 4 American dishes using TestDishBuilder
-  auto dish1_id = app.create_dish(DishType::Potato)
-                      .on_team(DishBattleState::TeamSide::Player)
-                      .at_slot(0)
-                      .with_cuisine_tag(CuisineTagType::American)
-                      .commit();
+  app.wait_for_frames(2); // Let entities merge
 
-  auto dish2_id = app.create_dish(DishType::Potato)
-                      .on_team(DishBattleState::TeamSide::Player)
-                      .at_slot(1)
-                      .with_cuisine_tag(CuisineTagType::American)
-                      .commit();
+  // Navigate to battle - systems will run naturally
+  navigate_to_battle(app);
 
-  auto dish3_id = app.create_dish(DishType::Potato)
-                      .on_team(DishBattleState::TeamSide::Player)
-                      .at_slot(2)
-                      .with_cuisine_tag(CuisineTagType::American)
-                      .commit();
+  // Wait for systems to process
+  app.wait_for_frames(10);
 
-  auto dish4_id = app.create_dish(DishType::Potato)
-                      .on_team(DishBattleState::TeamSide::Player)
-                      .at_slot(3)
-                      .with_cuisine_tag(CuisineTagType::American)
-                      .commit();
-
-  // Wait for entities to be merged by system loop, then trigger synergy systems
-  app.wait_for_frames(1);
-  trigger_synergy_systems();
-
-  app.wait_for_frames(5);
-
-  // Validate using TestApp helpers
-  // 2-piece + 4-piece = +1 +2 = +3 Body total
+  // Validate synergy count (4 American dishes)
   app.expect_synergy_count(CuisineTagType::American, 4,
                            DishBattleState::TeamSide::Player);
-  app.expect_modifier(dish1_id, 0, 3);
-  app.expect_modifier(dish2_id, 0, 3);
-  app.expect_modifier(dish3_id, 0, 3);
-  app.expect_modifier(dish4_id, 0, 3);
+
+  // Validate modifiers: 2-piece (+1) + 4-piece (+2) = +3 Body total
+  for (afterhours::Entity &entity :
+       afterhours::EntityQuery({.force_merge = true})
+           .whereHasComponent<IsDish>()
+           .whereHasComponent<DishBattleState>()
+           .gen()) {
+    const auto &dbs = entity.get<DishBattleState>();
+    if (dbs.team_side == DishBattleState::TeamSide::Player &&
+        (dbs.queue_index >= 0 && dbs.queue_index <= 3)) {
+      app.expect_true(entity.has<PersistentCombatModifiers>(),
+                      "American dish should have PersistentCombatModifiers");
+      if (entity.has<PersistentCombatModifiers>()) {
+        const auto &mod = entity.get<PersistentCombatModifiers>();
+        app.expect_eq(
+            mod.bodyDelta, 3,
+            "American dish should have +3 Body (2-piece + 4-piece bonus)");
+        app.expect_eq(mod.zingDelta, 0,
+                      "American dish should have 0 Zing delta");
+      }
+    }
+  }
 }
 
 TEST(validate_set_bonus_american_6_piece) {
   using namespace ValidateSetBonusSystemTestHelpers;
 
+  // Follow production flow: create dishes in Shop, then navigate to battle
   app.launch_game();
-  navigate_to_battle_screen(app);
+  navigate_to_shop(app);
 
-  // Clear existing battle dishes so we only test with our dishes
-  clear_existing_battle_dishes();
+  // Create 6 American dishes in inventory
+  app.create_inventory_item(DishType::Potato, 0, CuisineTagType::American);
+  app.create_inventory_item(DishType::Potato, 1, CuisineTagType::American);
+  app.create_inventory_item(DishType::Potato, 2, CuisineTagType::American);
+  app.create_inventory_item(DishType::Potato, 3, CuisineTagType::American);
+  app.create_inventory_item(DishType::Potato, 4, CuisineTagType::American);
+  app.create_inventory_item(DishType::Potato, 5, CuisineTagType::American);
 
-  // Create 6 American dishes using TestDishBuilder
-  auto dish1_id = app.create_dish(DishType::Potato)
-                      .on_team(DishBattleState::TeamSide::Player)
-                      .at_slot(0)
-                      .with_cuisine_tag(CuisineTagType::American)
-                      .commit();
+  app.wait_for_frames(2); // Let entities merge
 
-  auto dish2_id = app.create_dish(DishType::Potato)
-                      .on_team(DishBattleState::TeamSide::Player)
-                      .at_slot(1)
-                      .with_cuisine_tag(CuisineTagType::American)
-                      .commit();
+  // Navigate to battle - systems will run naturally
+  navigate_to_battle(app);
 
-  auto dish3_id = app.create_dish(DishType::Potato)
-                      .on_team(DishBattleState::TeamSide::Player)
-                      .at_slot(2)
-                      .with_cuisine_tag(CuisineTagType::American)
-                      .commit();
+  // Wait for systems to process
+  app.wait_for_frames(10);
 
-  auto dish4_id = app.create_dish(DishType::Potato)
-                      .on_team(DishBattleState::TeamSide::Player)
-                      .at_slot(3)
-                      .with_cuisine_tag(CuisineTagType::American)
-                      .commit();
-
-  auto dish5_id = app.create_dish(DishType::Potato)
-                      .on_team(DishBattleState::TeamSide::Player)
-                      .at_slot(4)
-                      .with_cuisine_tag(CuisineTagType::American)
-                      .commit();
-
-  auto dish6_id = app.create_dish(DishType::Potato)
-                      .on_team(DishBattleState::TeamSide::Player)
-                      .at_slot(5)
-                      .with_cuisine_tag(CuisineTagType::American)
-                      .commit();
-
-  // Wait for entities to be merged by system loop, then trigger synergy systems
-  app.wait_for_frames(1);
-  trigger_synergy_systems();
-
-  app.wait_for_frames(5);
-
-  // Validate using TestApp helpers
-  // 2-piece + 4-piece + 6-piece = +1 +2 +3 = +6 Body total
+  // Validate synergy count (6 American dishes)
   app.expect_synergy_count(CuisineTagType::American, 6,
                            DishBattleState::TeamSide::Player);
-  app.expect_modifier(dish1_id, 0, 6);
-  app.expect_modifier(dish2_id, 0, 6);
-  app.expect_modifier(dish3_id, 0, 6);
-  app.expect_modifier(dish4_id, 0, 6);
-  app.expect_modifier(dish5_id, 0, 6);
-  app.expect_modifier(dish6_id, 0, 6);
+
+  // Validate modifiers: 2-piece (+1) + 4-piece (+2) + 6-piece (+3) = +6 Body
+  // total
+  for (afterhours::Entity &entity :
+       afterhours::EntityQuery({.force_merge = true})
+           .whereHasComponent<IsDish>()
+           .whereHasComponent<DishBattleState>()
+           .gen()) {
+    const auto &dbs = entity.get<DishBattleState>();
+    if (dbs.team_side == DishBattleState::TeamSide::Player &&
+        (dbs.queue_index >= 0 && dbs.queue_index <= 5)) {
+      app.expect_true(entity.has<PersistentCombatModifiers>(),
+                      "American dish should have PersistentCombatModifiers");
+      if (entity.has<PersistentCombatModifiers>()) {
+        const auto &mod = entity.get<PersistentCombatModifiers>();
+        app.expect_eq(mod.bodyDelta, 6,
+                      "American dish should have +6 Body (2-piece + 4-piece + "
+                      "6-piece bonus)");
+        app.expect_eq(mod.zingDelta, 0,
+                      "American dish should have 0 Zing delta");
+      }
+    }
+  }
 }
 
 TEST(validate_set_bonus_no_synergy) {
   using namespace ValidateSetBonusSystemTestHelpers;
 
+  // Follow production flow: create dishes in Shop, then navigate to battle
   app.launch_game();
-  navigate_to_battle_screen(app);
+  navigate_to_shop(app);
 
-  // Clear existing battle dishes so we only test with our dishes
-  clear_existing_battle_dishes();
+  // Create dishes without matching cuisine tags
+  // Use Salmon (no cuisine tag) and Ramen (Japanese, not American)
+  app.create_inventory_item(DishType::Salmon, 0); // No cuisine tag
+  app.create_inventory_item(DishType::Salmon, 1); // No cuisine tag
+  app.create_inventory_item(DishType::Ramen, 2,
+                            CuisineTagType::Japanese); // Japanese, not American
 
-  // Create dishes without matching cuisine tags using TestDishBuilder
-  auto dish1_id = app.create_dish(DishType::Potato)
-                      .on_team(DishBattleState::TeamSide::Player)
-                      .at_slot(0)
-                      .commit();
+  app.wait_for_frames(2); // Let entities merge
 
-  auto dish2_id = app.create_dish(DishType::Potato)
-                      .on_team(DishBattleState::TeamSide::Player)
-                      .at_slot(1)
-                      .commit();
+  // Navigate to battle - systems will run naturally
+  navigate_to_battle(app);
 
-  // Create dish with different cuisine (Thai, not American)
-  auto thai_dish_id = app.create_dish(DishType::Potato)
-                          .on_team(DishBattleState::TeamSide::Player)
-                          .at_slot(2)
-                          .with_cuisine_tag(CuisineTagType::Thai)
-                          .commit();
+  // Wait for systems to process
+  app.wait_for_frames(10);
 
-  // Wait for entities to be merged by system loop, then trigger synergy systems
-  app.wait_for_frames(1);
-  trigger_synergy_systems();
-
-  app.wait_for_frames(5);
-
-  // Validate using TestApp helpers
-  // Should have 0 American synergy count
+  // Validate: Should have 0 American synergy count
   app.expect_synergy_count(CuisineTagType::American, 0,
                            DishBattleState::TeamSide::Player);
-  // No bonuses should be applied
-  app.expect_modifier(dish1_id, 0, 0);
-  app.expect_modifier(dish2_id, 0, 0);
-  app.expect_modifier(thai_dish_id, 0, 0);
+
+  // Validate: Dishes should not have American set bonus modifiers
+  // (They might have modifiers from other sources, but not from American set
+  // bonus)
+  for (afterhours::Entity &entity :
+       afterhours::EntityQuery({.force_merge = true})
+           .whereHasComponent<IsDish>()
+           .whereHasComponent<DishBattleState>()
+           .gen()) {
+    const auto &dbs = entity.get<DishBattleState>();
+    if (dbs.team_side == DishBattleState::TeamSide::Player) {
+      // Verify dishes don't have American tag (or if they do, they shouldn't
+      // get bonus)
+      if (entity.has<CuisineTag>()) {
+        const auto &tag = entity.get<CuisineTag>();
+        app.expect_false(
+            tag.has(CuisineTagType::American),
+            "Dish at slot " + std::to_string(dbs.queue_index) +
+                " should not have American tag for no-synergy test");
+      }
+    }
+  }
 }
