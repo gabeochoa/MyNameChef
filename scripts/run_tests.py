@@ -498,12 +498,28 @@ def main():
                        help="Skip battle endpoint verification")
     parser.add_argument("--client-only", action="store_true",
                        help="Skip server tests and endpoint verification")
+    parser.add_argument("--skip-lint", action="store_true",
+                       help="Skip test linting")
     
     args = parser.parse_args()
     
     print(f"{Colors.BLUE}🧪 My Name Chef - Test Suite Runner{Colors.NC}")
     print(f"{Colors.BLUE}{'=' * 35}{Colors.NC}")
     print("")
+    
+    # Run test linter
+    if not args.skip_lint:
+        print(f"{Colors.BLUE}Running test linter...{Colors.NC}")
+        lint_script = BASE_DIR / "scripts" / "lint_tests.py"
+        if lint_script.exists():
+            import subprocess
+            result = subprocess.run([sys.executable, str(lint_script)], cwd=BASE_DIR)
+            if result.returncode != 0:
+                print(f"{Colors.YELLOW}Warning: Test linter found violations (continuing anyway){Colors.NC}")
+                print("")
+        else:
+            print(f"{Colors.YELLOW}Warning: Lint script not found, skipping{Colors.NC}")
+            print("")
     
     # Check if executables exist
     if not os.path.exists(EXECUTABLE):

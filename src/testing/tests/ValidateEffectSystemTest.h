@@ -17,30 +17,10 @@
 #include "../../systems/ComputeCombatStatsSystem.h"
 #include "../../systems/EffectResolutionSystem.h"
 #include "../../systems/TriggerDispatchSystem.h"
+#include "../test_app.h"
 #include "../test_macros.h"
 
 namespace ValidateEffectSystemTestHelpers {
-
-static afterhours::Entity &
-add_dish_to_menu(DishType type, DishBattleState::TeamSide team_side,
-                 int queue_index = -1,
-                 DishBattleState::Phase phase = DishBattleState::Phase::InQueue,
-                 bool has_combat_stats = false) {
-  auto &dish = afterhours::EntityHelper::createEntity();
-  dish.addComponent<IsDish>(type);
-  dish.addComponent<DishLevel>(1);
-
-  auto &dbs = dish.addComponent<DishBattleState>();
-  dbs.queue_index = (queue_index >= 0) ? queue_index : 0;
-  dbs.team_side = team_side;
-  dbs.phase = phase;
-
-  if (has_combat_stats) {
-    dish.addComponent<CombatStats>();
-  }
-
-  return dish;
-}
 
 static afterhours::Entity &get_or_create_trigger_queue() {
   afterhours::RefEntity tq_ref =
@@ -53,13 +33,13 @@ static afterhours::Entity &get_or_create_trigger_queue() {
   return tq_entity;
 }
 
-static bool validate_pending_mod(afterhours::Entity &entity, int expectedZing,
+static bool validate_pending_mod(afterhours::Entity *entity, int expectedZing,
                                  int expectedBody) {
-  if (!entity.has<PendingCombatMods>()) {
-    log_error("EFFECT_TEST: Missing PendingCombatMods on entity {}", entity.id);
+  if (!entity || !entity->has<PendingCombatMods>()) {
+    log_error("EFFECT_TEST: Missing PendingCombatMods on entity");
     return false;
   }
-  auto &mod = entity.get<PendingCombatMods>();
+  auto &mod = entity->get<PendingCombatMods>();
   if (mod.zingDelta != expectedZing || mod.bodyDelta != expectedBody) {
     log_error("EFFECT_TEST: Wrong mod values - expected zing={} body={}, got "
               "zing={} body={}",
@@ -69,13 +49,7 @@ static bool validate_pending_mod(afterhours::Entity &entity, int expectedZing,
   return true;
 }
 
-static afterhours::Entity &create_test_dish(DishType type, int queue_index,
-                                            DishBattleState::TeamSide side,
-                                            DishBattleState::Phase phase) {
-  return add_dish_to_menu(type, side, queue_index, phase, false);
-}
-
-static void test_french_fries_effect() {
+static void test_french_fries_effect(TestApp &app) {
   log_info("EFFECT_TEST: Testing French Fries effect (FutureAllies +1 Zing)");
 
   // Setup: Create battle state - use direct to_battle for ECS tests
@@ -83,25 +57,33 @@ static void test_french_fries_effect() {
   GameStateManager::get().update_screen();
 
   // Create source dish (French Fries)
-  auto &source =
-      add_dish_to_menu(DishType::FrenchFries, DishBattleState::TeamSide::Player,
-                       0, DishBattleState::Phase::Entering);
+  auto source_id = app.create_dish(DishType::FrenchFries)
+                       .on_team(DishBattleState::TeamSide::Player)
+                       .at_slot(0)
+                       .in_phase(DishBattleState::Phase::Entering)
+                       .commit();
 
   // Create future ally dishes (InQueue)
-  auto &ally1 =
-      add_dish_to_menu(DishType::Potato, DishBattleState::TeamSide::Player, 1,
-                       DishBattleState::Phase::InQueue, true);
-  auto &ally2 =
-      add_dish_to_menu(DishType::Bagel, DishBattleState::TeamSide::Player, 2,
-                       DishBattleState::Phase::InQueue, true);
+  auto ally1_id = app.create_dish(DishType::Potato)
+                      .on_team(DishBattleState::TeamSide::Player)
+                      .at_slot(1)
+                      .in_phase(DishBattleState::Phase::InQueue)
+                      .with_combat_stats()
+                      .commit();
 
-  // Merge temp entities into main array so queries can find them
-  afterhours::EntityHelper::merge_entity_arrays();
+  auto ally2_id = app.create_dish(DishType::Bagel)
+                       .on_team(DishBattleState::TeamSide::Player)
+                       .at_slot(2)
+                       .in_phase(DishBattleState::Phase::InQueue)
+                       .with_combat_stats()
+                       .commit();
+
+  app.wait_for_frames(1);
 
   // Get TriggerQueue and fire trigger
   auto &tq_entity = get_or_create_trigger_queue();
   auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnServe, source.id, 0,
+  queue.add_event(TriggerHook::OnServe, source_id, 0,
                   DishBattleState::TeamSide::Player);
 
   // Process effect
@@ -111,8 +93,9 @@ static void test_french_fries_effect() {
   }
 
   // Verify: Future allies should have PendingCombatMods with +1 zingDelta
-  bool valid =
-      validate_pending_mod(ally1, 1, 0) && validate_pending_mod(ally2, 1, 0);
+  auto *ally1 = app.find_entity_by_id(ally1_id);
+  auto *ally2 = app.find_entity_by_id(ally2_id);
+  bool valid = validate_pending_mod(ally1, 1, 0) && validate_pending_mod(ally2, 1, 0);
   if (valid) {
     log_info("EFFECT_TEST: French Fries effect PASSED");
   } else {
@@ -120,32 +103,38 @@ static void test_french_fries_effect() {
   }
 }
 
-static void test_bagel_effect() {
+static void test_bagel_effect(TestApp &app) {
   log_info("EFFECT_TEST: Testing Bagel effect (DishesAfterSelf +1 Richness)");
 
   GameStateManager::get().to_battle();
   GameStateManager::get().update_screen();
 
   // Create Bagel at slot 1
-  auto &bagel =
-      add_dish_to_menu(DishType::Bagel, DishBattleState::TeamSide::Player, 1,
-                       DishBattleState::Phase::Entering);
+  auto bagel_id = app.create_dish(DishType::Bagel)
+                      .on_team(DishBattleState::TeamSide::Player)
+                      .at_slot(1)
+                      .in_phase(DishBattleState::Phase::Entering)
+                      .commit();
 
   // Create dishes after Bagel (slots 2, 3)
-  auto &after1 =
-      add_dish_to_menu(DishType::Potato, DishBattleState::TeamSide::Player, 2,
-                       DishBattleState::Phase::InQueue);
-  auto &after2 =
-      add_dish_to_menu(DishType::Potato, DishBattleState::TeamSide::Player, 3,
-                       DishBattleState::Phase::InQueue);
+  auto after1_id = app.create_dish(DishType::Potato)
+                       .on_team(DishBattleState::TeamSide::Player)
+                       .at_slot(2)
+                       .in_phase(DishBattleState::Phase::InQueue)
+                       .commit();
 
-  // Merge temp entities into main array so queries can find them
-  afterhours::EntityHelper::merge_entity_arrays();
+  auto after2_id = app.create_dish(DishType::Potato)
+                       .on_team(DishBattleState::TeamSide::Player)
+                       .at_slot(3)
+                       .in_phase(DishBattleState::Phase::InQueue)
+                       .commit();
+
+  app.wait_for_frames(1);
 
   // Get TriggerQueue and fire trigger
   auto &tq_entity = get_or_create_trigger_queue();
   auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnServe, bagel.id, 1,
+  queue.add_event(TriggerHook::OnServe, bagel_id, 1,
                   DishBattleState::TeamSide::Player);
 
   EffectResolutionSystem effectSystem;
@@ -154,12 +143,20 @@ static void test_bagel_effect() {
   }
 
   // Verify: Dishes after should have DeferredFlavorMods with +1 richness
-  bool after1_has_mod = after1.has<DeferredFlavorMods>();
-  bool after2_has_mod = after2.has<DeferredFlavorMods>();
+  auto *after1 = app.find_entity_by_id(after1_id);
+  auto *after2 = app.find_entity_by_id(after2_id);
+
+  if (!after1 || !after2) {
+    log_error("EFFECT_TEST: Failed to find entities");
+    return;
+  }
+
+  bool after1_has_mod = after1->has<DeferredFlavorMods>();
+  bool after2_has_mod = after2->has<DeferredFlavorMods>();
 
   if (after1_has_mod && after2_has_mod) {
-    auto &mod1 = after1.get<DeferredFlavorMods>();
-    auto &mod2 = after2.get<DeferredFlavorMods>();
+    auto &mod1 = after1->get<DeferredFlavorMods>();
+    auto &mod2 = after2->get<DeferredFlavorMods>();
     if (mod1.richness == 1 && mod2.richness == 1) {
       log_info("EFFECT_TEST: Bagel effect PASSED");
     } else {
@@ -171,30 +168,40 @@ static void test_bagel_effect() {
   }
 }
 
-static void test_baguette_effect() {
+static void test_baguette_effect(TestApp &app) {
   log_info("EFFECT_TEST: Testing Baguette effect (Opponent -1 Zing)");
 
   GameStateManager::get().to_battle();
   GameStateManager::get().update_screen();
 
   // Create Baguette at slot 0
-  auto &baguette =
-      add_dish_to_menu(DishType::Baguette, DishBattleState::TeamSide::Player, 0,
-                       DishBattleState::Phase::Entering);
+  auto baguette_id = app.create_dish(DishType::Baguette)
+                         .on_team(DishBattleState::TeamSide::Player)
+                         .at_slot(0)
+                         .in_phase(DishBattleState::Phase::Entering)
+                         .commit();
 
   // Create opponent at same slot
-  auto &opponent =
-      add_dish_to_menu(DishType::Potato, DishBattleState::TeamSide::Opponent, 0,
-                       DishBattleState::Phase::InCombat, true);
-  opponent.get<CombatStats>().currentZing = 2; // Start with 2 Zing
+  auto opponent_id = app.create_dish(DishType::Potato)
+                         .on_team(DishBattleState::TeamSide::Opponent)
+                         .at_slot(0)
+                         .in_phase(DishBattleState::Phase::InCombat)
+                         .with_combat_stats()
+                         .commit();
 
-  // Merge temp entities into main array so queries can find them
-  afterhours::EntityHelper::merge_entity_arrays();
+  app.wait_for_frames(1);
+
+  auto *opponent = app.find_entity_by_id(opponent_id);
+  if (!opponent) {
+    log_error("EFFECT_TEST: Failed to find opponent entity");
+    return;
+  }
+  opponent->get<CombatStats>().currentZing = 2; // Start with 2 Zing
 
   // Get TriggerQueue and fire trigger
   auto &tq_entity = get_or_create_trigger_queue();
   auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnServe, baguette.id, 0,
+  queue.add_event(TriggerHook::OnServe, baguette_id, 0,
                   DishBattleState::TeamSide::Player);
 
   EffectResolutionSystem effectSystem;
@@ -211,29 +218,32 @@ static void test_baguette_effect() {
   }
 }
 
-static void test_garlic_bread_effect() {
+static void test_garlic_bread_effect(TestApp &app) {
   log_info("EFFECT_TEST: Testing Garlic Bread effect (FutureAllies +1 Spice)");
 
   GameStateManager::get().to_battle();
   GameStateManager::get().update_screen();
 
   // Create Garlic Bread
-  auto &garlic =
-      add_dish_to_menu(DishType::GarlicBread, DishBattleState::TeamSide::Player,
-                       0, DishBattleState::Phase::Entering);
+  auto garlic_id = app.create_dish(DishType::GarlicBread)
+                       .on_team(DishBattleState::TeamSide::Player)
+                       .at_slot(0)
+                       .in_phase(DishBattleState::Phase::Entering)
+                       .commit();
 
   // Create future allies
-  auto &future =
-      add_dish_to_menu(DishType::Potato, DishBattleState::TeamSide::Player, 1,
-                       DishBattleState::Phase::InQueue);
+  auto future_id = app.create_dish(DishType::Potato)
+                       .on_team(DishBattleState::TeamSide::Player)
+                       .at_slot(1)
+                       .in_phase(DishBattleState::Phase::InQueue)
+                       .commit();
 
-  // Merge temp entities into main array so queries can find them
-  afterhours::EntityHelper::merge_entity_arrays();
+  app.wait_for_frames(1);
 
   // Get TriggerQueue and fire trigger
   auto &tq_entity = get_or_create_trigger_queue();
   auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnServe, garlic.id, 0,
+  queue.add_event(TriggerHook::OnServe, garlic_id, 0,
                   DishBattleState::TeamSide::Player);
 
   EffectResolutionSystem effectSystem;
@@ -242,8 +252,14 @@ static void test_garlic_bread_effect() {
   }
 
   // Verify: Future ally should have DeferredFlavorMods with +1 spice
-  if (future.has<DeferredFlavorMods>()) {
-    auto &mod = future.get<DeferredFlavorMods>();
+  auto *future = app.find_entity_by_id(future_id);
+  if (!future) {
+    log_error("EFFECT_TEST: Failed to find future entity");
+    return;
+  }
+
+  if (future->has<DeferredFlavorMods>()) {
+    auto &mod = future->get<DeferredFlavorMods>();
     if (mod.spice == 1) {
       log_info("EFFECT_TEST: Garlic Bread effect PASSED");
     } else {
@@ -256,7 +272,7 @@ static void test_garlic_bread_effect() {
   }
 }
 
-static void test_fried_egg_effect() {
+static void test_fried_egg_effect(TestApp &app) {
   log_info("EFFECT_TEST: Testing Fried Egg effect (OnDishFinished → "
            "AllAllies +2 Body)");
 
@@ -264,25 +280,33 @@ static void test_fried_egg_effect() {
   GameStateManager::get().update_screen();
 
   // Create Fried Egg (source)
-  auto &egg =
-      add_dish_to_menu(DishType::FriedEgg, DishBattleState::TeamSide::Player, 0,
-                       DishBattleState::Phase::Finished);
+  auto egg_id = app.create_dish(DishType::FriedEgg)
+                    .on_team(DishBattleState::TeamSide::Player)
+                    .at_slot(0)
+                    .in_phase(DishBattleState::Phase::Finished)
+                    .commit();
 
   // Create allies
-  auto &ally1 =
-      add_dish_to_menu(DishType::Potato, DishBattleState::TeamSide::Player, 1,
-                       DishBattleState::Phase::InCombat, true);
-  auto &ally2 =
-      add_dish_to_menu(DishType::Bagel, DishBattleState::TeamSide::Player, 2,
-                       DishBattleState::Phase::Finished, true);
+  auto ally1_id = app.create_dish(DishType::Potato)
+                      .on_team(DishBattleState::TeamSide::Player)
+                      .at_slot(1)
+                      .in_phase(DishBattleState::Phase::InCombat)
+                      .with_combat_stats()
+                      .commit();
 
-  // Merge temp entities into main array so queries can find them
-  afterhours::EntityHelper::merge_entity_arrays();
+  auto ally2_id = app.create_dish(DishType::Bagel)
+                       .on_team(DishBattleState::TeamSide::Player)
+                       .at_slot(2)
+                       .in_phase(DishBattleState::Phase::Finished)
+                       .with_combat_stats()
+                       .commit();
+
+  app.wait_for_frames(1);
 
   // Get TriggerQueue and fire trigger
   auto &tq_entity = get_or_create_trigger_queue();
   auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnDishFinished, egg.id, 0,
+  queue.add_event(TriggerHook::OnDishFinished, egg_id, 0,
                   DishBattleState::TeamSide::Player);
 
   EffectResolutionSystem effectSystem;
@@ -291,8 +315,9 @@ static void test_fried_egg_effect() {
   }
 
   // Verify: All allies should have PendingCombatMods with +2 bodyDelta
-  bool valid =
-      validate_pending_mod(ally1, 0, 2) && validate_pending_mod(ally2, 0, 2);
+  auto *ally1 = app.find_entity_by_id(ally1_id);
+  auto *ally2 = app.find_entity_by_id(ally2_id);
+  bool valid = validate_pending_mod(ally1, 0, 2) && validate_pending_mod(ally2, 0, 2);
   if (valid) {
     log_info("EFFECT_TEST: Fried Egg effect PASSED");
   } else {
@@ -313,7 +338,7 @@ static void test_targeting_scope(afterhours::Entity & /*source*/,
   log_info("EFFECT_TEST: Targeting scope test - system structure validated");
 }
 
-static void test_targeting_scopes() {
+static void test_targeting_scopes(TestApp &app) {
   log_info("EFFECT_TEST: Testing targeting scopes");
 
   GameStateManager::get().to_battle();
@@ -323,61 +348,93 @@ static void test_targeting_scopes() {
   // Player team: slots 0, 1, 2
   // Opponent team: slot 0
 
-  auto &player0 =
-      add_dish_to_menu(DishType::FrenchFries, DishBattleState::TeamSide::Player,
-                       0, DishBattleState::Phase::Entering);
-  (void)add_dish_to_menu(DishType::Potato, DishBattleState::TeamSide::Player, 1,
-                         DishBattleState::Phase::InQueue);
-  (void)add_dish_to_menu(DishType::Potato, DishBattleState::TeamSide::Player, 2,
-                         DishBattleState::Phase::InQueue);
-  (void)add_dish_to_menu(DishType::Potato, DishBattleState::TeamSide::Opponent,
-                         0, DishBattleState::Phase::InCombat);
+  auto player0_id = app.create_dish(DishType::FrenchFries)
+                        .on_team(DishBattleState::TeamSide::Player)
+                        .at_slot(0)
+                        .in_phase(DishBattleState::Phase::Entering)
+                        .commit();
+
+  app.create_dish(DishType::Potato)
+      .on_team(DishBattleState::TeamSide::Player)
+      .at_slot(1)
+      .in_phase(DishBattleState::Phase::InQueue)
+      .commit();
+
+  app.create_dish(DishType::Potato)
+      .on_team(DishBattleState::TeamSide::Player)
+      .at_slot(2)
+      .in_phase(DishBattleState::Phase::InQueue)
+      .commit();
+
+  app.create_dish(DishType::Potato)
+      .on_team(DishBattleState::TeamSide::Opponent)
+      .at_slot(0)
+      .in_phase(DishBattleState::Phase::InCombat)
+      .commit();
+
+  app.wait_for_frames(1);
+
+  auto *player0 = app.find_entity_by_id(player0_id);
+  if (!player0) {
+    log_error("EFFECT_TEST: Failed to find player0 entity");
+    return;
+  }
 
   // Test Self targeting
-  test_targeting_scope(player0, TargetScope::Self, 1);
+  test_targeting_scope(*player0, TargetScope::Self, 1);
 
   // Test Opponent targeting
-  test_targeting_scope(player0, TargetScope::Opponent, 1);
+  test_targeting_scope(*player0, TargetScope::Opponent, 1);
 
   // Test AllAllies targeting
-  test_targeting_scope(player0, TargetScope::AllAllies, 2);
+  test_targeting_scope(*player0, TargetScope::AllAllies, 2);
 
   // Test AllOpponents targeting
-  test_targeting_scope(player0, TargetScope::AllOpponents, 1);
+  test_targeting_scope(*player0, TargetScope::AllOpponents, 1);
 
   // Test DishesAfterSelf targeting
-  test_targeting_scope(player0, TargetScope::DishesAfterSelf, 2);
+  test_targeting_scope(*player0, TargetScope::DishesAfterSelf, 2);
 
   // Test FutureAllies targeting
-  test_targeting_scope(player0, TargetScope::FutureAllies, 2);
+  test_targeting_scope(*player0, TargetScope::FutureAllies, 2);
 
   log_info("EFFECT_TEST: Targeting scopes test completed");
 }
 
-static void test_deferred_flavor_mods_consumption() {
+static void test_deferred_flavor_mods_consumption(TestApp &app) {
   log_info("EFFECT_TEST: Testing DeferredFlavorMods consumption");
 
   GameStateManager::get().to_battle();
   GameStateManager::get().update_screen();
 
   // Create dish with DeferredFlavorMods
-  auto &dish =
-      add_dish_to_menu(DishType::Potato, DishBattleState::TeamSide::Player, 0,
-                       DishBattleState::Phase::InQueue);
+  auto dish_id = app.create_dish(DishType::Potato)
+                     .on_team(DishBattleState::TeamSide::Player)
+                     .at_slot(0)
+                     .in_phase(DishBattleState::Phase::InQueue)
+                     .commit();
+
+  app.wait_for_frames(1);
+
+  auto *dish = app.find_entity_by_id(dish_id);
+  if (!dish) {
+    log_error("EFFECT_TEST: Failed to find dish entity");
+    return;
+  }
 
   // Add DeferredFlavorMods
-  auto &def = dish.addComponent<DeferredFlavorMods>();
+  auto &def = dish->addComponent<DeferredFlavorMods>();
   def.richness = 2;
   def.spice = 1;
 
   // Transition to Entering phase (should consume mods)
-  auto &dbs = dish.get<DishBattleState>();
+  auto &dbs = dish->get<DishBattleState>();
   dbs.phase = DishBattleState::Phase::Entering;
 
   // Run ComputeCombatStatsSystem (it consumes DeferredFlavorMods)
   // Note: In a real test, we'd register and run the system
   // For now, we verify the mods are still present before consumption
-  if (dish.has<DeferredFlavorMods>()) {
+  if (dish->has<DeferredFlavorMods>()) {
     log_info("EFFECT_TEST: DeferredFlavorMods present before consumption");
   }
 
@@ -387,7 +444,7 @@ static void test_deferred_flavor_mods_consumption() {
   log_info("EFFECT_TEST: DeferredFlavorMods consumption test completed");
 }
 
-static void test_modifier_persistence_after_dish_finishes() {
+static void test_modifier_persistence_after_dish_finishes(TestApp &app) {
   log_info(
       "EFFECT_TEST: Testing modifier persistence after source dish finishes");
 
@@ -395,22 +452,35 @@ static void test_modifier_persistence_after_dish_finishes() {
   GameStateManager::get().update_screen();
 
   // Create French Fries (source) that will give +1 Zing to future allies
-  auto &source =
-      add_dish_to_menu(DishType::FrenchFries, DishBattleState::TeamSide::Player,
-                       0, DishBattleState::Phase::Entering, true);
+  auto source_id = app.create_dish(DishType::FrenchFries)
+                       .on_team(DishBattleState::TeamSide::Player)
+                       .at_slot(0)
+                       .in_phase(DishBattleState::Phase::Entering)
+                       .with_combat_stats()
+                       .commit();
 
   // Create future ally dish that will receive the modifier
-  auto &target =
-      add_dish_to_menu(DishType::Potato, DishBattleState::TeamSide::Player, 1,
-                       DishBattleState::Phase::InQueue, true);
+  auto target_id = app.create_dish(DishType::Potato)
+                       .on_team(DishBattleState::TeamSide::Player)
+                       .at_slot(1)
+                       .in_phase(DishBattleState::Phase::InQueue)
+                       .with_combat_stats()
+                       .commit();
 
-  // Merge temp entities into main array so queries can find them
-  afterhours::EntityHelper::merge_entity_arrays();
+  app.wait_for_frames(1);
+
+  auto *source = app.find_entity_by_id(source_id);
+  auto *target = app.find_entity_by_id(target_id);
+
+  if (!source || !target) {
+    log_error("EFFECT_TEST: Failed to find entities");
+    return;
+  }
 
   // Get TriggerQueue and fire OnServe trigger
   auto &tq_entity = get_or_create_trigger_queue();
   auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnServe, source.id, 0,
+  queue.add_event(TriggerHook::OnServe, source_id, 0,
                   DishBattleState::TeamSide::Player);
 
   // Process effect - this creates PendingCombatMods
@@ -423,13 +493,13 @@ static void test_modifier_persistence_after_dish_finishes() {
            "PendingCombatMods");
 
   // Verify target has PendingCombatMods
-  if (!target.has<PendingCombatMods>()) {
+  if (!target->has<PendingCombatMods>()) {
     log_error("EFFECT_TEST: Modifier persistence test FAILED - target missing "
               "PendingCombatMods");
     return;
   }
 
-  auto &pending = target.get<PendingCombatMods>();
+  auto &pending = target->get<PendingCombatMods>();
   log_info("EFFECT_TEST: Target has PendingCombatMods - zingDelta={}, "
            "bodyDelta={}",
            pending.zingDelta, pending.bodyDelta);
@@ -442,8 +512,8 @@ static void test_modifier_persistence_after_dish_finishes() {
   }
 
   // Check PreBattleModifiers BEFORE applying
-  if (target.has<PreBattleModifiers>()) {
-    auto &preBefore = target.get<PreBattleModifiers>();
+  if (target->has<PreBattleModifiers>()) {
+    auto &preBefore = target->get<PreBattleModifiers>();
     log_info("EFFECT_TEST: PreBattleModifiers BEFORE applying: zingDelta={}, "
              "bodyDelta={}",
              preBefore.zingDelta, preBefore.bodyDelta);
@@ -454,7 +524,7 @@ static void test_modifier_persistence_after_dish_finishes() {
   // Apply the pending mods - this should add to PreBattleModifiers
   ApplyPendingCombatModsSystem applySystem;
   if (applySystem.should_run(1.0f / 60.0f)) {
-    applySystem.for_each_with(target, pending, 1.0f / 60.0f);
+    applySystem.for_each_with(*target, pending, 1.0f / 60.0f);
   }
 
   log_info("EFFECT_TEST: After applying pending mods");
@@ -463,19 +533,19 @@ static void test_modifier_persistence_after_dish_finishes() {
   // assert
   {
     ComputeCombatStatsSystem computeNow;
-    computeNow.for_each_with(target, target.get<IsDish>(),
-                             target.get<DishLevel>(), 1.0f / 60.0f);
+    computeNow.for_each_with(*target, target->get<IsDish>(),
+                             target->get<DishLevel>(), 1.0f / 60.0f);
   }
 
   // Verify PreBattleModifiers has the modifier after compute
-  if (!target.has<PreBattleModifiers>()) {
+  if (!target->has<PreBattleModifiers>()) {
     log_error("EFFECT_TEST: Modifier persistence test FAILED - target missing "
               "PreBattleModifiers after compute tick");
     return;
   }
 
   {
-    auto &preMod = target.get<PreBattleModifiers>();
+    auto &preMod = target->get<PreBattleModifiers>();
     log_info("EFFECT_TEST: PreBattleModifiers AFTER applying (post-compute): "
              "zingDelta={}, bodyDelta={}",
              preMod.zingDelta, preMod.bodyDelta);
@@ -490,8 +560,8 @@ static void test_modifier_persistence_after_dish_finishes() {
   // Simulate ApplyPairingsAndClashesSystem running (this might overwrite!)
   log_info("EFFECT_TEST: Simulating ApplyPairingsAndClashesSystem (this "
            "might interfere)");
-  if (target.has<PreBattleModifiers>()) {
-    auto &preBeforeClash = target.get<PreBattleModifiers>();
+  if (target->has<PreBattleModifiers>()) {
+    auto &preBeforeClash = target->get<PreBattleModifiers>();
     log_info("EFFECT_TEST: PreBattleModifiers BEFORE clash system: "
              "zingDelta={}, bodyDelta={}",
              preBeforeClash.zingDelta, preBeforeClash.bodyDelta);
@@ -501,22 +571,22 @@ static void test_modifier_persistence_after_dish_finishes() {
   // game and it might be overwriting our modifiers!
   ApplyPairingsAndClashesSystem clashSystem;
   if (clashSystem.should_run(1.0f / 60.0f)) {
-    if (target.has<IsDish>() && target.has<DishBattleState>()) {
-      clashSystem.for_each_with(target, target.get<IsDish>(),
-                                target.get<DishBattleState>(), 1.0f / 60.0f);
-      if (target.has<PairingClashModifiers>()) {
-        auto &pcmTmp = target.get<PairingClashModifiers>();
+    if (target->has<IsDish>() && target->has<DishBattleState>()) {
+      clashSystem.for_each_with(*target, target->get<IsDish>(),
+                                target->get<DishBattleState>(), 1.0f / 60.0f);
+      if (target->has<PairingClashModifiers>()) {
+        auto &pcmTmp = target->get<PairingClashModifiers>();
         log_info("EFFECT_TEST: After running ApplyPairingsAndClashesSystem - "
                  "PairingClashModifiers: zingDelta={}, bodyDelta={}",
                  pcmTmp.zingDelta, pcmTmp.bodyDelta);
       }
 
       // Check if it overwrote our modifier mirror (PreBattleModifiers)
-      if (target.has<PreBattleModifiers>()) {
-        if (target.get<PreBattleModifiers>().zingDelta != 1) {
+      if (target->has<PreBattleModifiers>()) {
+        if (target->get<PreBattleModifiers>().zingDelta != 1) {
           log_error("EFFECT_TEST: ApplyPairingsAndClashesSystem OVERWROTE "
                     "modifier! Expected zingDelta=1, got {}",
-                    target.get<PreBattleModifiers>().zingDelta);
+                    target->get<PreBattleModifiers>().zingDelta);
           return;
         }
       }
@@ -525,11 +595,11 @@ static void test_modifier_persistence_after_dish_finishes() {
 
   // Now simulate source dish finishing and moving to Finished phase
   log_info("EFFECT_TEST: Simulating source dish finishing");
-  auto &source_dbs = source.get<DishBattleState>();
+  auto &source_dbs = source->get<DishBattleState>();
   source_dbs.phase = DishBattleState::Phase::Finished;
 
   // Also move target to Finished to simulate what happens when it finishes
-  auto &target_dbs = target.get<DishBattleState>();
+  auto &target_dbs = target->get<DishBattleState>();
   target_dbs.phase = DishBattleState::Phase::Finished;
 
   log_info("EFFECT_TEST: After setting phases to Finished");
@@ -540,11 +610,11 @@ static void test_modifier_persistence_after_dish_finishes() {
   for (int i = 0; i < 3; i++) {
     log_info("EFFECT_TEST: Running ComputeCombatStatsSystem iteration {}",
              i + 1);
-    computeSystem.for_each_with(target, target.get<IsDish>(),
-                                target.get<DishLevel>(), 1.0f / 60.0f);
+    computeSystem.for_each_with(*target, target->get<IsDish>(),
+                                target->get<DishLevel>(), 1.0f / 60.0f);
 
-    if (target.has<PreBattleModifiers>()) {
-      auto &preIter = target.get<PreBattleModifiers>();
+    if (target->has<PreBattleModifiers>()) {
+      auto &preIter = target->get<PreBattleModifiers>();
       log_info("EFFECT_TEST: After iteration {} - PreBattleModifiers: "
                "zingDelta={}, bodyDelta={}",
                i + 1, preIter.zingDelta, preIter.bodyDelta);
@@ -555,14 +625,14 @@ static void test_modifier_persistence_after_dish_finishes() {
   }
 
   // Verify PreBattleModifiers still has the modifier after source finishes
-  if (!target.has<PreBattleModifiers>()) {
+  if (!target->has<PreBattleModifiers>()) {
     log_error(
         "EFFECT_TEST: Modifier persistence test FAILED - PreBattleModifiers "
         "removed after source finished");
     return;
   }
 
-  auto &preModAfter = target.get<PreBattleModifiers>();
+  auto &preModAfter = target->get<PreBattleModifiers>();
   log_info("EFFECT_TEST: Final PreBattleModifiers: zingDelta={}, bodyDelta={}",
            preModAfter.zingDelta, preModAfter.bodyDelta);
 
@@ -575,14 +645,14 @@ static void test_modifier_persistence_after_dish_finishes() {
   }
 
   // Verify base stats include the modifier
-  if (!target.has<CombatStats>()) {
+  if (!target->has<CombatStats>()) {
     log_error("EFFECT_TEST: Modifier persistence test FAILED - target missing "
               "CombatStats");
     return;
   }
 
-  auto &cs = target.get<CombatStats>();
-  auto dish_info = get_dish_info(target.get<IsDish>().type);
+  auto &cs = target->get<CombatStats>();
+  auto dish_info = get_dish_info(target->get<IsDish>().type);
   int baseFlavorZing = dish_info.flavor.zing();
   int expectedBaseZing = baseFlavorZing + 1; // +1 from modifier
 
@@ -600,7 +670,7 @@ static void test_modifier_persistence_after_dish_finishes() {
   log_info("EFFECT_TEST: Modifier persistence test PASSED");
 }
 
-static void test_modifier_persistence_when_entering_combat() {
+static void test_modifier_persistence_when_entering_combat(TestApp &app) {
   log_info("EFFECT_TEST: Testing modifier persistence when entering combat");
   log_info("EFFECT_TEST: This test validates that body/zing modifiers persist "
            "when dishes transition from InQueue to InCombat");
@@ -611,16 +681,29 @@ static void test_modifier_persistence_when_entering_combat() {
   GameStateManager::get().update_screen();
 
   // Create Fried Egg (source) that will trigger the effect
-  auto &egg =
-      add_dish_to_menu(DishType::FriedEgg, DishBattleState::TeamSide::Player, 0,
-                       DishBattleState::Phase::Finished);
+  auto egg_id = app.create_dish(DishType::FriedEgg)
+                    .on_team(DishBattleState::TeamSide::Player)
+                    .at_slot(0)
+                    .in_phase(DishBattleState::Phase::Finished)
+                    .commit();
 
   // Create target dish that will receive the +2 body modifier
   // This dish starts in InQueue, will receive modifier, then transition to
   // InCombat
-  auto &target =
-      add_dish_to_menu(DishType::Potato, DishBattleState::TeamSide::Player, 1,
-                       DishBattleState::Phase::InQueue, true);
+  auto target_id = app.create_dish(DishType::Potato)
+                       .on_team(DishBattleState::TeamSide::Player)
+                       .at_slot(1)
+                       .in_phase(DishBattleState::Phase::InQueue)
+                       .with_combat_stats()
+                       .commit();
+
+  app.wait_for_frames(1);
+
+  auto *target = app.find_entity_by_id(target_id);
+  if (!target) {
+    log_error("EFFECT_TEST: Failed to find target entity");
+    return;
+  }
 
   // Get base flavor stats for target dish
   auto dish_info = get_dish_info(DishType::Potato);
@@ -628,19 +711,16 @@ static void test_modifier_persistence_when_entering_combat() {
   log_info("EFFECT_TEST: Target dish base body (from flavor): {}",
            baseFlavorBody);
 
-  // Merge temp entities into main array so queries can find them
-  afterhours::EntityHelper::merge_entity_arrays();
-
   // Step 1: Run ComputeCombatStatsSystem BEFORE modifier is applied
   // This simulates the dish existing in battle before receiving modifiers
   ComputeCombatStatsSystem computeSystem;
   log_info("EFFECT_TEST: Running ComputeCombatStatsSystem before modifier "
            "(InQueue phase)");
-  computeSystem.for_each_with(target, target.get<IsDish>(),
-                              target.get<DishLevel>(), 1.0f / 60.0f);
+  computeSystem.for_each_with(*target, target->get<IsDish>(),
+                              target->get<DishLevel>(), 1.0f / 60.0f);
 
-  int baseBodyBeforeMod = target.has<CombatStats>()
-                              ? target.get<CombatStats>().baseBody
+  int baseBodyBeforeMod = target->has<CombatStats>()
+                              ? target->get<CombatStats>().baseBody
                               : baseFlavorBody;
   log_info("EFFECT_TEST: Body before modifier: {}", baseBodyBeforeMod);
 
@@ -648,7 +728,7 @@ static void test_modifier_persistence_when_entering_combat() {
   // Fried Egg gives +2 body to AllAllies when it finishes
   auto &tq_entity = get_or_create_trigger_queue();
   auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnDishFinished, egg.id, 0,
+  queue.add_event(TriggerHook::OnDishFinished, egg_id, 0,
                   DishBattleState::TeamSide::Player);
 
   EffectResolutionSystem effectSystem;
@@ -658,12 +738,12 @@ static void test_modifier_persistence_when_entering_combat() {
   }
 
   // Step 3: Verify PendingCombatMods was created (as in production)
-  if (!target.has<PendingCombatMods>()) {
+  if (!target->has<PendingCombatMods>()) {
     log_error("EFFECT_TEST: FAILED - PendingCombatMods not created by effect");
     return;
   }
 
-  auto &pending = target.get<PendingCombatMods>();
+  auto &pending = target->get<PendingCombatMods>();
   if (pending.bodyDelta != 2) {
     log_error(
         "EFFECT_TEST: FAILED - PendingCombatMods.bodyDelta wrong: expected "
@@ -677,14 +757,14 @@ static void test_modifier_persistence_when_entering_combat() {
   // Step 4: Apply pending modifiers (same as production)
   // First ensure CombatStats exists (ApplyPendingCombatModsSystem requires
   // it)
-  if (!target.has<CombatStats>()) {
+  if (!target->has<CombatStats>()) {
     log_info("EFFECT_TEST: Creating CombatStats before applying modifiers");
-    target.addComponent<CombatStats>();
+    target->addComponent<CombatStats>();
   }
 
   // Run ComputeCombatStatsSystem once to initialize baseBody
-  computeSystem.for_each_with(target, target.get<IsDish>(),
-                              target.get<DishLevel>(), 1.0f / 60.0f);
+  computeSystem.for_each_with(*target, target->get<IsDish>(),
+                              target->get<DishLevel>(), 1.0f / 60.0f);
 
   // Step 4: Apply pending modifiers (same as production)
   // We'll manually call for_each_with to bypass should_run() check
@@ -692,18 +772,18 @@ static void test_modifier_persistence_when_entering_combat() {
   log_info("EFFECT_TEST: Running ApplyPendingCombatModsSystem (bypassing "
            "should_run check)");
   ApplyPendingCombatModsSystem applyModsSystem;
-  applyModsSystem.for_each_with(target, pending, 1.0f / 60.0f);
+  applyModsSystem.for_each_with(*target, pending, 1.0f / 60.0f);
 
   // Run ComputeCombatStatsSystem again to mirror the updated modifiers into
   // PreBattleModifiers
   log_info("EFFECT_TEST: Running ComputeCombatStatsSystem after applying "
            "modifiers");
-  computeSystem.for_each_with(target, target.get<IsDish>(),
-                              target.get<DishLevel>(), 1.0f / 60.0f);
+  computeSystem.for_each_with(*target, target->get<IsDish>(),
+                              target->get<DishLevel>(), 1.0f / 60.0f);
 
   // Verify the modifiers were applied
-  if (target.has<PreBattleModifiers>()) {
-    auto &preModAfterApply = target.get<PreBattleModifiers>();
+  if (target->has<PreBattleModifiers>()) {
+    auto &preModAfterApply = target->get<PreBattleModifiers>();
     log_info("EFFECT_TEST: After ApplyPendingCombatModsSystem - "
              "PreBattleModifiers.bodyDelta={}",
              preModAfterApply.bodyDelta);
@@ -723,21 +803,21 @@ static void test_modifier_persistence_when_entering_combat() {
   // Step 5: Run ApplyPairingsAndClashesSystem (as in production)
   // We'll manually call for_each_with to bypass should_run() check
   ApplyPairingsAndClashesSystem clashSystem;
-  if (target.has<IsDish>() && target.has<DishBattleState>()) {
+  if (target->has<IsDish>() && target->has<DishBattleState>()) {
     log_info("EFFECT_TEST: Running ApplyPairingsAndClashesSystem (bypassing "
              "should_run check)");
     int bodyDeltaBeforeClash = 0;
-    if (target.has<PairingClashModifiers>()) {
-      bodyDeltaBeforeClash = target.get<PairingClashModifiers>().bodyDelta;
+    if (target->has<PairingClashModifiers>()) {
+      bodyDeltaBeforeClash = target->get<PairingClashModifiers>().bodyDelta;
     }
     log_info("EFFECT_TEST: PairingClashModifiers BEFORE "
              "ApplyPairingsAndClashesSystem - "
              "bodyDelta={}",
              bodyDeltaBeforeClash);
-    clashSystem.for_each_with(target, target.get<IsDish>(),
-                              target.get<DishBattleState>(), 1.0f / 60.0f);
-    if (target.has<PairingClashModifiers>()) {
-      auto &pcm = target.get<PairingClashModifiers>();
+    clashSystem.for_each_with(*target, target->get<IsDish>(),
+                              target->get<DishBattleState>(), 1.0f / 60.0f);
+    if (target->has<PairingClashModifiers>()) {
+      auto &pcm = target->get<PairingClashModifiers>();
       log_info("EFFECT_TEST: After ApplyPairingsAndClashesSystem - "
                "PairingClashModifiers.bodyDelta: {} -> {}",
                bodyDeltaBeforeClash, pcm.bodyDelta);
@@ -745,12 +825,12 @@ static void test_modifier_persistence_when_entering_combat() {
 
     // CRITICAL CHECK: ApplyPairingsAndClashesSystem should NOT overwrite
     // combat modifiers!
-    if (target.has<PreBattleModifiers>()) {
-      if (target.get<PreBattleModifiers>().bodyDelta != 2) {
+    if (target->has<PreBattleModifiers>()) {
+      if (target->get<PreBattleModifiers>().bodyDelta != 2) {
         log_error("EFFECT_TEST: FAILED - ApplyPairingsAndClashesSystem "
                   "OVERWROTE combat "
                   "modifier! Expected bodyDelta=2, got {}",
-                  target.get<PreBattleModifiers>().bodyDelta);
+                  target->get<PreBattleModifiers>().bodyDelta);
         return;
       }
     }
@@ -761,28 +841,28 @@ static void test_modifier_persistence_when_entering_combat() {
   log_info(
       "EFFECT_TEST: Running ComputeCombatStatsSystem after modifier applied "
       "(InQueue phase)");
-  computeSystem.for_each_with(target, target.get<IsDish>(),
-                              target.get<DishLevel>(), 1.0f / 60.0f);
+  computeSystem.for_each_with(*target, target->get<IsDish>(),
+                              target->get<DishLevel>(), 1.0f / 60.0f);
 
   // Check PreBattleModifiers
-  if (!target.has<PreBattleModifiers>()) {
+  if (!target->has<PreBattleModifiers>()) {
     log_error("EFFECT_TEST: FAILED - PreBattleModifiers missing");
     return;
   }
 
-  auto &preModInQueue = target.get<PreBattleModifiers>();
+  auto &preModInQueue = target->get<PreBattleModifiers>();
   // Note: ApplyPairingsAndClashesSystem might add/change modifiers, but base
   // modifier should still be there
   log_info("EFFECT_TEST: PreBattleModifiers.bodyDelta in InQueue: {}",
            preModInQueue.bodyDelta);
 
   // Check body value while InQueue
-  if (!target.has<CombatStats>()) {
+  if (!target->has<CombatStats>()) {
     log_error("EFFECT_TEST: CombatStats missing");
     return;
   }
 
-  auto &csInQueue = target.get<CombatStats>();
+  auto &csInQueue = target->get<CombatStats>();
   int expectedBodyWithMod = baseFlavorBody + preModInQueue.bodyDelta;
   log_info("EFFECT_TEST: While InQueue - baseBody={}, currentBody={}, "
            "expected={} (flavor={} + mod={})",
@@ -809,31 +889,31 @@ static void test_modifier_persistence_when_entering_combat() {
 
   // Step 7: Transition to InCombat - THIS IS WHERE THE BUG HAPPENS
   log_info("EFFECT_TEST: Transitioning dish from InQueue to InCombat");
-  auto &dbs = target.get<DishBattleState>();
+  auto &dbs = target->get<DishBattleState>();
   dbs.phase = DishBattleState::Phase::InCombat;
 
   // Step 8: Run ComputeCombatStatsSystem after entering combat
   // This should sync currentBody = baseBody (which includes modifiers)
   log_info("EFFECT_TEST: Running ComputeCombatStatsSystem after entering "
            "InCombat");
-  computeSystem.for_each_with(target, target.get<IsDish>(),
-                              target.get<DishLevel>(), 1.0f / 60.0f);
+  computeSystem.for_each_with(*target, target->get<IsDish>(),
+                              target->get<DishLevel>(), 1.0f / 60.0f);
 
   // Check PreBattleModifiers still exist and haven't changed
-  if (!target.has<PreBattleModifiers>()) {
+  if (!target->has<PreBattleModifiers>()) {
     log_error(
         "EFFECT_TEST: FAILED - PreBattleModifiers MISSING after transition "
         "to InCombat");
     return;
   }
 
-  auto &preModInCombat = target.get<PreBattleModifiers>();
+  auto &preModInCombat = target->get<PreBattleModifiers>();
   log_info(
       "EFFECT_TEST: PreBattleModifiers after entering InCombat: bodyDelta={}",
       preModInCombat.bodyDelta);
 
   // Check body value after entering combat
-  auto &csInCombat = target.get<CombatStats>();
+  auto &csInCombat = target->get<CombatStats>();
   int expectedBodyInCombat = baseFlavorBody + preModInCombat.bodyDelta;
   log_info(
       "EFFECT_TEST: After entering InCombat - baseBody={}, currentBody={}, "
@@ -864,9 +944,9 @@ static void test_modifier_persistence_when_entering_combat() {
            "simulate "
            "multiple frames");
   for (int i = 0; i < 5; i++) {
-    computeSystem.for_each_with(target, target.get<IsDish>(),
-                                target.get<DishLevel>(), 1.0f / 60.0f);
-    auto &csIter = target.get<CombatStats>();
+    computeSystem.for_each_with(*target, target->get<IsDish>(),
+                                target->get<DishLevel>(), 1.0f / 60.0f);
+    auto &csIter = target->get<CombatStats>();
     if (csIter.currentBody != expectedBodyInCombat) {
       log_error("EFFECT_TEST: FAILED - currentBody changed on iteration {}: "
                 "expected {}, got {}",
@@ -875,7 +955,7 @@ static void test_modifier_persistence_when_entering_combat() {
     }
   }
 
-  auto &csFinal = target.get<CombatStats>();
+  auto &csFinal = target->get<CombatStats>();
   log_info("EFFECT_TEST: Final check after multiple frames - baseBody={}, "
            "currentBody={}, expected={}",
            csFinal.baseBody, csFinal.currentBody, expectedBodyInCombat);
@@ -910,20 +990,33 @@ static void test_salmon_neighbor_freshness_persists_to_combat(TestApp &app) {
   GameStateManager::get().update_screen();
 
   // Create lineup: Bagel(0), Salmon(1), Salmon(2), Bagel(3) on Player side
-  auto &bagel0 =
-      add_dish_to_menu(DishType::Bagel, DishBattleState::TeamSide::Player, 0,
-                       DishBattleState::Phase::InQueue, true);
-  auto &salmon1 =
-      add_dish_to_menu(DishType::Salmon, DishBattleState::TeamSide::Player, 1,
-                       DishBattleState::Phase::InQueue, true);
-  auto &salmon2 =
-      add_dish_to_menu(DishType::Salmon, DishBattleState::TeamSide::Player, 2,
-                       DishBattleState::Phase::InQueue, true);
-  auto &bagel3 =
-      add_dish_to_menu(DishType::Bagel, DishBattleState::TeamSide::Player, 3,
-                       DishBattleState::Phase::InQueue, true);
+  auto bagel0_id = app.create_dish(DishType::Bagel)
+                       .on_team(DishBattleState::TeamSide::Player)
+                       .at_slot(0)
+                       .in_phase(DishBattleState::Phase::InQueue)
+                       .with_combat_stats()
+                       .commit();
 
-  (void)bagel3; // silence unused warning
+  auto salmon1_id = app.create_dish(DishType::Salmon)
+                        .on_team(DishBattleState::TeamSide::Player)
+                        .at_slot(1)
+                        .in_phase(DishBattleState::Phase::InQueue)
+                        .with_combat_stats()
+                        .commit();
+
+  auto salmon2_id = app.create_dish(DishType::Salmon)
+                        .on_team(DishBattleState::TeamSide::Player)
+                        .at_slot(2)
+                        .in_phase(DishBattleState::Phase::InQueue)
+                        .with_combat_stats()
+                        .commit();
+
+  auto bagel3_id = app.create_dish(DishType::Bagel)
+                       .on_team(DishBattleState::TeamSide::Player)
+                       .at_slot(3)
+                       .in_phase(DishBattleState::Phase::InQueue)
+                       .with_combat_stats()
+                       .commit();
 
   // Wait a frame for entities to be merged by system loop
   app.wait_for_frames(1);
@@ -933,9 +1026,9 @@ static void test_salmon_neighbor_freshness_persists_to_combat(TestApp &app) {
   // TriggerDispatchSystem calls it directly
   auto &tq_entity = get_or_create_trigger_queue();
   auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnServe, salmon1.id, 1,
+  queue.add_event(TriggerHook::OnServe, salmon1_id, 1,
                   DishBattleState::TeamSide::Player);
-  queue.add_event(TriggerHook::OnServe, salmon2.id, 2,
+  queue.add_event(TriggerHook::OnServe, salmon2_id, 2,
                   DishBattleState::TeamSide::Player);
 
   // Wait a frame for trigger queue entity to be merged
@@ -982,9 +1075,9 @@ static void test_salmon_neighbor_freshness_persists_to_combat(TestApp &app) {
   // EffectResolutionSystem processes effects from DishEffect (not legacy
   // onServe) Note: TriggerDispatchSystem clears the queue after processing, so
   // we need to re-add events for EffectResolutionSystem to process
-  queue.add_event(TriggerHook::OnServe, salmon1.id, 1,
+  queue.add_event(TriggerHook::OnServe, salmon1_id, 1,
                   DishBattleState::TeamSide::Player);
-  queue.add_event(TriggerHook::OnServe, salmon2.id, 2,
+  queue.add_event(TriggerHook::OnServe, salmon2_id, 2,
                   DishBattleState::TeamSide::Player);
 
   EffectResolutionSystem effectSystem;
@@ -995,16 +1088,20 @@ static void test_salmon_neighbor_freshness_persists_to_combat(TestApp &app) {
   // Wait a frame for effect resolution to complete
   app.wait_for_frames(1);
 
-  // Use bagel0 reference directly instead of querying by ID
-  afterhours::Entity &bagel0_entity = bagel0;
+  // Get bagel0 entity by ID
+  auto *bagel0_entity = app.find_entity_by_id(bagel0_id);
+  if (!bagel0_entity) {
+    log_error("EFFECT_TEST: Failed to find bagel0 entity");
+    return;
+  }
 
   // Verify left Bagel received +1 Freshness via DeferredFlavorMods
-  if (!bagel0_entity.has<DeferredFlavorMods>()) {
+  if (!bagel0_entity->has<DeferredFlavorMods>()) {
     log_error("EFFECT_TEST: FAILED - Bagel(0) missing DeferredFlavorMods "
               "after Salmon OnServe");
     return;
   }
-  auto &def = bagel0_entity.get<DeferredFlavorMods>();
+  auto &def = bagel0_entity->get<DeferredFlavorMods>();
   log_info("EFFECT_TEST: Bagel(0) DeferredFlavorMods freshness={} (expect >=1)",
            def.freshness);
   if (def.freshness < 1) {
@@ -1015,14 +1112,14 @@ static void test_salmon_neighbor_freshness_persists_to_combat(TestApp &app) {
 
   // Compute stats while InQueue
   ComputeCombatStatsSystem compute;
-  if (!bagel0_entity.has<IsDish>() || !bagel0_entity.has<DishLevel>()) {
+  if (!bagel0_entity->has<IsDish>() || !bagel0_entity->has<DishLevel>()) {
     log_error("EFFECT_TEST: FAILED - Bagel(0) missing required components");
     return;
   }
-  compute.for_each_with(bagel0_entity, bagel0_entity.get<IsDish>(),
-                        bagel0_entity.get<DishLevel>(), 1.0f / 60.0f);
+  compute.for_each_with(*bagel0_entity, bagel0_entity->get<IsDish>(),
+                        bagel0_entity->get<DishLevel>(), 1.0f / 60.0f);
   int baseFlavorBody = get_dish_info(DishType::Bagel).flavor.body();
-  int bodyInQueue = bagel0_entity.get<CombatStats>().baseBody;
+  int bodyInQueue = bagel0_entity->get<CombatStats>().baseBody;
   log_info("EFFECT_TEST: Bagel(0) InQueue baseBody={} (baseFlavorBody={})",
            bodyInQueue, baseFlavorBody);
   if (bodyInQueue <= baseFlavorBody) {
@@ -1032,17 +1129,17 @@ static void test_salmon_neighbor_freshness_persists_to_combat(TestApp &app) {
   }
 
   // Transition to Entering, then InCombat; recompute each time
-  auto &dbs = bagel0_entity.get<DishBattleState>();
+  auto &dbs = bagel0_entity->get<DishBattleState>();
   dbs.phase = DishBattleState::Phase::Entering;
-  compute.for_each_with(bagel0_entity, bagel0_entity.get<IsDish>(),
-                        bagel0_entity.get<DishLevel>(), 1.0f / 60.0f);
-  int bodyEntering = bagel0_entity.get<CombatStats>().baseBody;
+  compute.for_each_with(*bagel0_entity, bagel0_entity->get<IsDish>(),
+                        bagel0_entity->get<DishLevel>(), 1.0f / 60.0f);
+  int bodyEntering = bagel0_entity->get<CombatStats>().baseBody;
   log_info("EFFECT_TEST: Bagel(0) Entering baseBody={}", bodyEntering);
 
   dbs.phase = DishBattleState::Phase::InCombat;
-  compute.for_each_with(bagel0_entity, bagel0_entity.get<IsDish>(),
-                        bagel0_entity.get<DishLevel>(), 1.0f / 60.0f);
-  int bodyInCombat = bagel0_entity.get<CombatStats>().baseBody;
+  compute.for_each_with(*bagel0_entity, bagel0_entity->get<IsDish>(),
+                        bagel0_entity->get<DishLevel>(), 1.0f / 60.0f);
+  int bodyInCombat = bagel0_entity->get<CombatStats>().baseBody;
   log_info("EFFECT_TEST: Bagel(0) InCombat baseBody={}", bodyInCombat);
 
   // Expectation: body should remain boosted across transitions
@@ -1067,15 +1164,15 @@ TEST(validate_effect_system) {
   // Initialize game context (ECS tests use direct to_battle() calls)
   app.launch_game();
 
-  test_french_fries_effect();
-  test_bagel_effect();
-  test_baguette_effect();
-  test_garlic_bread_effect();
-  test_fried_egg_effect();
-  test_targeting_scopes();
-  test_deferred_flavor_mods_consumption();
-  test_modifier_persistence_after_dish_finishes();
-  test_modifier_persistence_when_entering_combat();
+  test_french_fries_effect(app);
+  test_bagel_effect(app);
+  test_baguette_effect(app);
+  test_garlic_bread_effect(app);
+  test_fried_egg_effect(app);
+  test_targeting_scopes(app);
+  test_deferred_flavor_mods_consumption(app);
+  test_modifier_persistence_after_dish_finishes(app);
+  test_modifier_persistence_when_entering_combat(app);
   test_salmon_neighbor_freshness_persists_to_combat(app);
 
   log_info("EFFECT_TEST: All tests completed");

@@ -80,6 +80,18 @@ target("my_name_chef")
     -- Enable time tracing for ClangBuildAnalyzer
     add_cxxflags("-ftime-trace")
 
+    -- Coverage mode
+    if has_config("coverage") then
+        if is_host("macosx") then
+            add_cxxflags("-fprofile-instr-generate", "-fcoverage-mapping")
+            add_ldflags("-fprofile-instr-generate")
+        else
+            add_cxxflags("--coverage")
+            add_ldflags("--coverage")
+        end
+        set_symbols("debug")
+    end
+
     -- after_build(function(target)
     --     os.exec("timeout 3 ./output/my_name_chef.exe")
     --     -- os.exec("./output/my_name_chef.exe")
@@ -123,3 +135,15 @@ target("battle_server")
     end
     
     add_cxxflags("-ftime-trace")
+
+    -- Coverage mode
+    if has_config("coverage") then
+        if is_host("macosx") then
+            add_cxxflags("-fprofile-instr-generate", "-fcoverage-mapping")
+            add_ldflags("-fprofile-instr-generate")
+        else
+            add_cxxflags("--coverage")
+            add_ldflags("--coverage")
+        end
+        set_symbols("debug")
+    end

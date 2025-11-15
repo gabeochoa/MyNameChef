@@ -1,12 +1,15 @@
 #include "test_app.h"
+#include "../components/applied_set_bonuses.h"
 #include "../components/battle_load_request.h"
 #include "../components/battle_processor.h"
 #include "../components/battle_result.h"
+#include "../components/battle_synergy_counts.h"
 #include "../components/battle_team_tags.h"
 #include "../components/can_drop_onto.h"
 #include "../components/combat_queue.h"
 #include "../components/combat_stats.h"
 #include "../components/continue_game_request.h"
+#include "../components/cuisine_tag.h"
 #include "../components/dish_battle_state.h"
 #include "../components/dish_level.h"
 #include "../components/has_tooltip.h"
@@ -17,6 +20,7 @@
 #include "../components/is_inventory_item.h"
 #include "../components/is_shop_item.h"
 #include "../components/network_info.h"
+#include "../components/persistent_combat_modifiers.h"
 #include "../components/render_order.h"
 #include "../components/replay_state.h"
 #include "../components/transform.h"
@@ -35,6 +39,7 @@
 #include "../systems/NetworkSystem.h"
 #include "../tooltip.h"
 #include "test_macros.h"
+#include "test_state_inspector.h"
 #include <afterhours/ah.h>
 #include <afterhours/src/plugins/texture_manager.h>
 #include <chrono>
@@ -907,6 +912,17 @@ afterhours::EntityID TestDishBuilder::commit() {
 
   if (has_combat_stats) {
     entity.addComponent<CombatStats>();
+  }
+
+  if (cuisine_tag.has_value()) {
+    entity.addComponent<CuisineTag>(cuisine_tag.value());
+  }
+
+  if (persistent_modifier.has_value()) {
+    PersistentCombatModifiers &mod =
+        entity.addComponent<PersistentCombatModifiers>();
+    mod.zingDelta = persistent_modifier->first;
+    mod.bodyDelta = persistent_modifier->second;
   }
 
   if (team_side == DishBattleState::TeamSide::Player) {
@@ -2198,4 +2214,101 @@ bool TestApp::simulate_sell(afterhours::Entity &inventory_item) {
 
   // Cleanup will happen when system loop runs
   return true;
+}
+
+TestApp &TestApp::expect_synergy_count(CuisineTagType cuisine,
+                                       int expected_count,
+                                       DishBattleState::TeamSide team,
+                                       const std::string &location) {
+  afterhours::RefEntity counts_entity =
+      afterhours::EntityHelper::get_singleton<BattleSynergyCounts>();
+  if (!counts_entity.get().has<BattleSynergyCounts>()) {
+    fail("BattleSynergyCounts singleton not found", location);
+    return *this;
+  }
+
+  const BattleSynergyCounts &counts =
+      counts_entity.get().get<BattleSynergyCounts>();
+  const std::map<CuisineTagType, int> &team_counts =
+      (team == DishBattleState::TeamSide::Player)
+          ? counts.player_cuisine_counts
+          : counts.opponent_cuisine_counts;
+
+  auto it = team_counts.find(cuisine);
+  int actual_count = (it == team_counts.end()) ? 0 : it->second;
+
+  if (actual_count != expected_count) {
+    std::stringstream ss;
+    ss << "Expected synergy count for " << magic_enum::enum_name(cuisine)
+       << " to be " << expected_count << " but got " << actual_count;
+    fail(ss.str(), location);
+  }
+
+  return *this;
+}
+
+TestApp &TestApp::expect_modifier(afterhours::EntityID dish_id,
+                                  int expected_zing, int expected_body,
+                                  const std::string &location) {
+  afterhours::Entity *entity = find_entity_by_id(dish_id);
+  if (!entity) {
+    fail("Dish entity not found: " + std::to_string(dish_id), location);
+    return *this;
+  }
+
+  if (!entity->has<PersistentCombatModifiers>()) {
+    if (expected_zing == 0 && expected_body == 0) {
+      return *this; // No modifier expected
+    }
+    fail("Dish does not have PersistentCombatModifiers component", location);
+    return *this;
+  }
+
+  const PersistentCombatModifiers &mod =
+      entity->get<PersistentCombatModifiers>();
+  if (mod.zingDelta != expected_zing || mod.bodyDelta != expected_body) {
+    std::stringstream ss;
+    ss << "Expected modifier zing=" << expected_zing
+       << " body=" << expected_body << " but got zing=" << mod.zingDelta
+       << " body=" << mod.bodyDelta;
+    fail(ss.str(), location);
+  }
+
+  return *this;
+}
+
+TestApp &TestApp::enable_state_inspection(const std::set<std::string> &flags) {
+  TestStateInspector *inspector = TestStateInspector::get_instance();
+  if (inspector) {
+    inspector->enable(flags);
+  }
+  return *this;
+}
+
+TestApp &TestApp::disable_state_inspection() {
+  TestStateInspector *inspector = TestStateInspector::get_instance();
+  if (inspector) {
+    inspector->disable();
+  }
+  return *this;
+}
+
+TestApp &TestApp::clear_inspection_history() {
+  TestStateInspector *inspector = TestStateInspector::get_instance();
+  if (inspector) {
+    inspector->clear_history();
+  }
+  return *this;
+}
+
+TestApp &TestApp::clear_battle_dishes() {
+  for (afterhours::Entity &entity : afterhours::EntityQuery()
+                                        .whereHasComponent<IsDish>()
+                                        .whereHasComponent<DishBattleState>()
+                                        .gen()) {
+    entity.cleanup = true;
+  }
+  afterhours::EntityHelper::cleanup();
+  wait_for_frames(1);
+  return *this;
 }

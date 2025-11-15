@@ -2,6 +2,7 @@
 
 #include "../components/battle_team_tags.h"
 #include "../components/combat_stats.h"
+#include "../components/cuisine_tag.h"
 #include "../components/deferred_flavor_mods.h"
 #include "../components/dish_battle_state.h"
 #include "../components/dish_level.h"
@@ -9,6 +10,7 @@
 #include "../components/is_inventory_item.h"
 #include "../components/is_shop_item.h"
 #include "../components/pending_combat_mods.h"
+#include "../components/persistent_combat_modifiers.h"
 #include "../components/trigger_event.h"
 #include "../dish_types.h"
 #include "../game_state_manager.h"
@@ -51,6 +53,8 @@ class TestDishBuilder {
   DishBattleState::Phase phase = DishBattleState::Phase::InQueue;
   bool has_combat_stats = false;
   std::optional<int> level;
+  std::optional<CuisineTagType> cuisine_tag;
+  std::optional<std::pair<int, int>> persistent_modifier;
 
 public:
   explicit TestDishBuilder(DishType type) : type(type) {}
@@ -77,6 +81,16 @@ public:
 
   TestDishBuilder &at_level(int lvl) {
     level = lvl;
+    return *this;
+  }
+
+  TestDishBuilder &with_cuisine_tag(CuisineTagType cuisine) {
+    cuisine_tag = cuisine;
+    return *this;
+  }
+
+  TestDishBuilder &with_persistent_modifier(int zing, int body) {
+    persistent_modifier = std::make_pair(zing, body);
     return *this;
   }
 
@@ -272,6 +286,9 @@ struct TestApp {
   afterhours::OptEntity find_shop_item(afterhours::EntityID id, int slot);
   bool simulate_sell(afterhours::Entity &inventory_item);
 
+  // Helper to find entity by ID (useful for tests that need entity references)
+  afterhours::Entity *find_entity_by_id(afterhours::EntityID id);
+
   TestApp &wait_for_battle_initialized(float timeout_sec = 10.0f,
                                        const std::string &location = "");
   TestApp &wait_for_dishes_in_combat(int min_count = 1,
@@ -292,6 +309,22 @@ struct TestApp {
   TestApp &expect_false(bool value, const std::string &description,
                         const std::string &location = "");
 
+  // Set bonus and synergy validation helpers
+  TestApp &expect_synergy_count(CuisineTagType cuisine, int expected_count,
+                                DishBattleState::TeamSide team,
+                                const std::string &location = "");
+  TestApp &expect_modifier(afterhours::EntityID dish_id, int expected_zing,
+                           int expected_body, const std::string &location = "");
+
+  // State inspection helpers
+  TestApp &enable_state_inspection(const std::set<std::string> &flags = {
+                                       "entities"});
+  TestApp &disable_state_inspection();
+  TestApp &clear_inspection_history();
+
+  // Battle state helpers
+  TestApp &clear_battle_dishes();
+
   // Kill the test server and wait for NetworkSystem to detect the failure
   TestApp &kill_server();
 
@@ -299,7 +332,6 @@ struct TestApp {
   TestApp &force_network_check();
 
 private:
-  afterhours::Entity *find_entity_by_id(afterhours::EntityID id);
   afterhours::Entity *find_clickable_with(const std::string &label);
   void click_clickable(afterhours::Entity &entity);
   void setup_wait_state(WaitState::Type type, float timeout_sec,

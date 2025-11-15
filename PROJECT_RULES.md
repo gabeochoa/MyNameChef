@@ -184,6 +184,83 @@ Examples:
 - Tests will timeout after 1 second if waiting for a condition that never completes
 - Use `create_inventory_item()` or similar helper functions to set up test state rather than checking if conditions exist and branching
 
+### Test Writing Principles
+
+**Core Principle: Tests should observe production code, not manipulate it**
+- Tests set up initial conditions, then observe what happens naturally
+- Use `app.launch_game()` to reset state (restarts everything cleanly)
+- Avoid manual system calls, entity merging, or state manipulation
+- Exception: Tests that intentionally break things (network down, etc.) can manipulate state
+
+### Anti-Patterns to Avoid
+
+**DO NOT manually run systems**:
+- ❌ `EffectResolutionSystem system; system.for_each_with(...)`
+- ✅ Use `app.wait_for_frames(N)` to let the system loop process naturally
+- ✅ Systems run automatically in the main loop - tests should wait for effects
+
+**DO NOT manually merge entities**:
+- ❌ `afterhours::EntityHelper::merge_entity_arrays()`
+- ✅ Entities merge automatically in the system loop
+- ✅ Use `app.wait_for_frames(1)` after creating entities if you need them queryable immediately
+
+**DO NOT directly manipulate game state**:
+- ❌ `GameStateManager::get().update_screen()` (already in rules)
+- ❌ Directly setting component values that should be computed by systems
+- ✅ Use `app.wait_for_*()` methods to let systems process state changes
+
+**DO NOT bypass system ordering**:
+- ❌ Manually calling systems in wrong order
+- ✅ Let the system loop handle execution order
+- ✅ Use `app.wait_for_frames()` to ensure systems have run
+
+### Best Practices
+
+**Entity Creation**:
+- Use `app.create_dish()` helpers with fluent builder API
+- After creating entities, use `app.wait_for_frames(1)` if immediate querying is needed
+- Trust the system loop to merge entities automatically
+
+**System Execution**:
+- Never instantiate and call systems directly
+- Use `app.wait_for_frames(N)` to advance the game loop
+- Use `app.wait_for_*()` methods for state-dependent waits
+
+**State Validation**:
+- Use `app.expect_*()` methods for assertions
+- Use `app.expect_synergy_count()` and `app.expect_modifier()` for set bonus validation
+- Use state inspector for complex state tracking: `app.enable_state_inspection({"entities"})`
+- Validate after waiting for systems to process
+
+**State Reset**:
+- Use `app.launch_game()` to reset all state cleanly
+- Avoid manually clearing singletons or entities
+- Let the game restart handle cleanup
+
+### Example: Correct vs Incorrect
+
+**INCORRECT**:
+```cpp
+auto &dish = create_dish(...);
+afterhours::EntityHelper::merge_entity_arrays(); // ❌ Manual merge
+
+EffectResolutionSystem system;
+system.for_each_with(...); // ❌ Manual system call
+```
+
+**CORRECT**:
+```cpp
+auto dish_id = app.create_dish(DishType::Potato)
+  .on_team(Player).at_slot(0)
+  .with_cuisine_tag(American)
+  .commit();
+app.wait_for_frames(1); // ✅ Let system loop merge and process
+
+// Systems run automatically - just wait for the effect
+app.wait_for_frames(2); // ✅ Let EffectResolutionSystem process
+app.expect_dish_has_component<SomeEffect>(dish_id); // ✅ Validate result
+```
+
 ### Test Structure Requirements (CRITICAL)
 - **NO BRANCHING LOGIC**: Tests must NOT use `if`, `else`, `switch`, ternary operators (`?:`), or any conditional statements
 - **NO EARLY RETURNS**: Tests must NOT use `return` statements to exit early - tests run until completion or failure

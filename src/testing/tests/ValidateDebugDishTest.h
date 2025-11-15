@@ -17,6 +17,7 @@
 #include "../../systems/ComputeCombatStatsSystem.h"
 #include "../../systems/EffectResolutionSystem.h"
 #include "../../systems/TriggerDispatchSystem.h"
+#include "../test_app.h"
 #include "../test_macros.h"
 
 namespace ValidateDebugDishTestHelpers {
@@ -49,27 +50,6 @@ static void navigate_to_battle_screen(TestApp &app) {
     // Ensure screen is updated after navigation
     GameStateManager::get().update_screen();
   }
-}
-
-static afterhours::Entity &
-add_dish_to_menu(DishType type, DishBattleState::TeamSide team_side,
-                 int queue_index = -1,
-                 DishBattleState::Phase phase = DishBattleState::Phase::InQueue,
-                 bool has_combat_stats = false) {
-  auto &dish = afterhours::EntityHelper::createEntity();
-  dish.addComponent<IsDish>(type);
-  dish.addComponent<DishLevel>(1);
-
-  auto &dbs = dish.addComponent<DishBattleState>();
-  dbs.queue_index = (queue_index >= 0) ? queue_index : 0;
-  dbs.team_side = team_side;
-  dbs.phase = phase;
-
-  if (has_combat_stats) {
-    dish.addComponent<CombatStats>();
-  }
-
-  return dish;
 }
 
 static afterhours::Entity &get_or_create_trigger_queue() {
@@ -126,16 +106,18 @@ TEST(validate_debug_dish_onserve_flavor_stats) {
 
   log_info("DEBUG_DISH_TEST: Testing DebugDish OnServe flavor stat effects");
 
-  auto &debug_dish =
-      add_dish_to_menu(DishType::DebugDish, DishBattleState::TeamSide::Player,
-                       0, DishBattleState::Phase::Entering);
+  auto debug_dish_id = app.create_dish(DishType::DebugDish)
+                           .on_team(DishBattleState::TeamSide::Player)
+                           .at_slot(0)
+                           .in_phase(DishBattleState::Phase::Entering)
+                           .commit();
 
   // Wait a frame for entity to be merged by system loop
   app.wait_for_frames(1);
 
   auto &tq_entity = get_or_create_trigger_queue();
   auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnServe, debug_dish.id, 0,
+  queue.add_event(TriggerHook::OnServe, debug_dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
   EffectResolutionSystem effectSystem;
@@ -143,12 +125,18 @@ TEST(validate_debug_dish_onserve_flavor_stats) {
     effectSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
   }
 
-  if (!debug_dish.has<DeferredFlavorMods>()) {
+  auto *debug_dish = app.find_entity_by_id(debug_dish_id);
+  if (!debug_dish) {
+    log_error("DEBUG_DISH_TEST: Failed to find debug dish entity");
+    return;
+  }
+
+  if (!debug_dish->has<DeferredFlavorMods>()) {
     log_error("DEBUG_DISH_TEST: Missing DeferredFlavorMods");
     return;
   }
 
-  auto &mods = debug_dish.get<DeferredFlavorMods>();
+  auto &mods = debug_dish->get<DeferredFlavorMods>();
   bool all_stats_present = mods.satiety == 1 && mods.sweetness == 1 &&
                            mods.spice == 1 && mods.acidity == 1 &&
                            mods.umami == 1 && mods.richness == 1 &&
@@ -176,25 +164,38 @@ TEST(validate_debug_dish_onserve_target_scopes) {
 
   log_info("DEBUG_DISH_TEST: Testing DebugDish OnServe target scopes");
 
-  auto &debug_dish =
-      add_dish_to_menu(DishType::DebugDish, DishBattleState::TeamSide::Player,
-                       1, DishBattleState::Phase::Entering);
+  auto debug_dish_id = app.create_dish(DishType::DebugDish)
+                           .on_team(DishBattleState::TeamSide::Player)
+                           .at_slot(1)
+                           .in_phase(DishBattleState::Phase::Entering)
+                           .commit();
 
-  auto &ally_after =
-      add_dish_to_menu(DishType::Potato, DishBattleState::TeamSide::Player, 2,
-                       DishBattleState::Phase::InQueue, true);
-  auto &future_ally =
-      add_dish_to_menu(DishType::Potato, DishBattleState::TeamSide::Player, 3,
-                       DishBattleState::Phase::InQueue, true);
-  auto &opponent =
-      add_dish_to_menu(DishType::Potato, DishBattleState::TeamSide::Opponent, 1,
-                       DishBattleState::Phase::InCombat, true);
+  auto ally_after_id = app.create_dish(DishType::Potato)
+                           .on_team(DishBattleState::TeamSide::Player)
+                           .at_slot(2)
+                           .in_phase(DishBattleState::Phase::InQueue)
+                           .with_combat_stats()
+                           .commit();
 
-  afterhours::EntityHelper::merge_entity_arrays();
+  auto future_ally_id = app.create_dish(DishType::Potato)
+                            .on_team(DishBattleState::TeamSide::Player)
+                            .at_slot(3)
+                            .in_phase(DishBattleState::Phase::InQueue)
+                            .with_combat_stats()
+                            .commit();
+
+  auto opponent_id = app.create_dish(DishType::Potato)
+                         .on_team(DishBattleState::TeamSide::Opponent)
+                         .at_slot(1)
+                         .in_phase(DishBattleState::Phase::InCombat)
+                         .with_combat_stats()
+                         .commit();
+
+  app.wait_for_frames(1);
 
   auto &tq_entity = get_or_create_trigger_queue();
   auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnServe, debug_dish.id, 1,
+  queue.add_event(TriggerHook::OnServe, debug_dish_id, 1,
                   DishBattleState::TeamSide::Player);
 
   EffectResolutionSystem effectSystem;
@@ -202,20 +203,29 @@ TEST(validate_debug_dish_onserve_target_scopes) {
     effectSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
   }
 
+  auto *future_ally = app.find_entity_by_id(future_ally_id);
+  auto *ally_after = app.find_entity_by_id(ally_after_id);
+  auto *opponent = app.find_entity_by_id(opponent_id);
+
+  if (!future_ally || !ally_after || !opponent) {
+    log_error("DEBUG_DISH_TEST: Failed to find entities");
+    return;
+  }
+
   bool valid = true;
 
-  if (!future_ally.has<PendingCombatMods>()) {
+  if (!future_ally->has<PendingCombatMods>()) {
     log_error("DEBUG_DISH_TEST: FutureAllies target missing PendingCombatMods");
     valid = false;
   }
 
-  if (!ally_after.has<PendingCombatMods>()) {
+  if (!ally_after->has<PendingCombatMods>()) {
     log_error(
         "DEBUG_DISH_TEST: DishesAfterSelf target missing PendingCombatMods");
     valid = false;
   }
 
-  if (!opponent.has<PendingCombatMods>()) {
+  if (!opponent->has<PendingCombatMods>()) {
     log_error("DEBUG_DISH_TEST: Opponent target missing PendingCombatMods");
     valid = false;
   }
@@ -237,18 +247,25 @@ TEST(validate_debug_dish_onserve_combat_mods) {
 
   log_info("DEBUG_DISH_TEST: Testing DebugDish OnServe combat mods");
 
-  auto &debug_dish =
-      add_dish_to_menu(DishType::DebugDish, DishBattleState::TeamSide::Player,
-                       0, DishBattleState::Phase::Entering, true);
-  auto &ally =
-      add_dish_to_menu(DishType::Potato, DishBattleState::TeamSide::Player, 1,
-                       DishBattleState::Phase::InQueue, true);
+  auto debug_dish_id = app.create_dish(DishType::DebugDish)
+                           .on_team(DishBattleState::TeamSide::Player)
+                           .at_slot(0)
+                           .in_phase(DishBattleState::Phase::Entering)
+                           .with_combat_stats()
+                           .commit();
 
-  afterhours::EntityHelper::merge_entity_arrays();
+  auto ally_id = app.create_dish(DishType::Potato)
+                     .on_team(DishBattleState::TeamSide::Player)
+                     .at_slot(1)
+                     .in_phase(DishBattleState::Phase::InQueue)
+                     .with_combat_stats()
+                     .commit();
+
+  app.wait_for_frames(1);
 
   auto &tq_entity = get_or_create_trigger_queue();
   auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnServe, debug_dish.id, 0,
+  queue.add_event(TriggerHook::OnServe, debug_dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
   EffectResolutionSystem effectSystem;
@@ -256,23 +273,31 @@ TEST(validate_debug_dish_onserve_combat_mods) {
     effectSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
   }
 
-  if (!debug_dish.has<PendingCombatMods>()) {
+  auto *debug_dish = app.find_entity_by_id(debug_dish_id);
+  auto *ally = app.find_entity_by_id(ally_id);
+
+  if (!debug_dish || !ally) {
+    log_error("DEBUG_DISH_TEST: Failed to find entities");
+    return;
+  }
+
+  if (!debug_dish->has<PendingCombatMods>()) {
     log_error("DEBUG_DISH_TEST: Self missing PendingCombatMods");
     return;
   }
 
-  auto &self_mods = debug_dish.get<PendingCombatMods>();
+  auto &self_mods = debug_dish->get<PendingCombatMods>();
   if (self_mods.bodyDelta != 2) {
     log_error("DEBUG_DISH_TEST: Self bodyDelta wrong: {}", self_mods.bodyDelta);
     return;
   }
 
-  if (!ally.has<PendingCombatMods>()) {
+  if (!ally->has<PendingCombatMods>()) {
     log_error("DEBUG_DISH_TEST: Ally missing PendingCombatMods");
     return;
   }
 
-  auto &ally_mods = ally.get<PendingCombatMods>();
+  auto &ally_mods = ally->get<PendingCombatMods>();
   // DebugDish has multiple overlapping effects (AllAllies, FutureAllies,
   // etc.) so values will be higher than individual effect amounts
   if (ally_mods.zingDelta <= 0 || ally_mods.bodyDelta <= 0) {
@@ -297,18 +322,25 @@ TEST(validate_debug_dish_onstartbattle) {
 
   log_info("DEBUG_DISH_TEST: Testing DebugDish OnStartBattle effects");
 
-  auto &debug_dish =
-      add_dish_to_menu(DishType::DebugDish, DishBattleState::TeamSide::Player,
-                       0, DishBattleState::Phase::InQueue, true);
-  auto &ally =
-      add_dish_to_menu(DishType::Potato, DishBattleState::TeamSide::Player, 1,
-                       DishBattleState::Phase::InQueue, true);
+  auto debug_dish_id = app.create_dish(DishType::DebugDish)
+                           .on_team(DishBattleState::TeamSide::Player)
+                           .at_slot(0)
+                           .in_phase(DishBattleState::Phase::InQueue)
+                           .with_combat_stats()
+                           .commit();
 
-  afterhours::EntityHelper::merge_entity_arrays();
+  auto ally_id = app.create_dish(DishType::Potato)
+                     .on_team(DishBattleState::TeamSide::Player)
+                     .at_slot(1)
+                     .in_phase(DishBattleState::Phase::InQueue)
+                     .with_combat_stats()
+                     .commit();
+
+  app.wait_for_frames(1);
 
   auto &tq_entity = get_or_create_trigger_queue();
   auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnStartBattle, debug_dish.id, 0,
+  queue.add_event(TriggerHook::OnStartBattle, debug_dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
   EffectResolutionSystem effectSystem;
@@ -316,17 +348,25 @@ TEST(validate_debug_dish_onstartbattle) {
     effectSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
   }
 
-  if (!debug_dish.has<PendingCombatMods>()) {
+  auto *debug_dish = app.find_entity_by_id(debug_dish_id);
+  auto *ally = app.find_entity_by_id(ally_id);
+
+  if (!debug_dish || !ally) {
+    log_error("DEBUG_DISH_TEST: Failed to find entities");
+    return;
+  }
+
+  if (!debug_dish->has<PendingCombatMods>()) {
     log_error("DEBUG_DISH_TEST: OnStartBattle Self missing PendingCombatMods");
     return;
   }
 
-  if (!ally.has<PendingCombatMods>()) {
+  if (!ally->has<PendingCombatMods>()) {
     log_error("DEBUG_DISH_TEST: OnStartBattle Ally missing PendingCombatMods");
     return;
   }
 
-  auto &ally_mods = ally.get<PendingCombatMods>();
+  auto &ally_mods = ally->get<PendingCombatMods>();
   if (ally_mods.bodyDelta != 1) {
     log_error("DEBUG_DISH_TEST: OnStartBattle Ally bodyDelta wrong: {}",
               ally_mods.bodyDelta);
@@ -346,18 +386,25 @@ TEST(validate_debug_dish_oncoursestart) {
 
   log_info("DEBUG_DISH_TEST: Testing DebugDish OnCourseStart effects");
 
-  auto &debug_dish =
-      add_dish_to_menu(DishType::DebugDish, DishBattleState::TeamSide::Player,
-                       0, DishBattleState::Phase::InCombat, true);
-  auto &ally =
-      add_dish_to_menu(DishType::Potato, DishBattleState::TeamSide::Player, 1,
-                       DishBattleState::Phase::InCombat, true);
+  auto debug_dish_id = app.create_dish(DishType::DebugDish)
+                           .on_team(DishBattleState::TeamSide::Player)
+                           .at_slot(0)
+                           .in_phase(DishBattleState::Phase::InCombat)
+                           .with_combat_stats()
+                           .commit();
 
-  afterhours::EntityHelper::merge_entity_arrays();
+  auto ally_id = app.create_dish(DishType::Potato)
+                     .on_team(DishBattleState::TeamSide::Player)
+                     .at_slot(1)
+                     .in_phase(DishBattleState::Phase::InCombat)
+                     .with_combat_stats()
+                     .commit();
+
+  app.wait_for_frames(1);
 
   auto &tq_entity = get_or_create_trigger_queue();
   auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnCourseStart, debug_dish.id, 0,
+  queue.add_event(TriggerHook::OnCourseStart, debug_dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
   EffectResolutionSystem effectSystem;
@@ -365,12 +412,20 @@ TEST(validate_debug_dish_oncoursestart) {
     effectSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
   }
 
-  if (!debug_dish.has<PendingCombatMods>()) {
+  auto *debug_dish = app.find_entity_by_id(debug_dish_id);
+  auto *ally = app.find_entity_by_id(ally_id);
+
+  if (!debug_dish || !ally) {
+    log_error("DEBUG_DISH_TEST: Failed to find entities");
+    return;
+  }
+
+  if (!debug_dish->has<PendingCombatMods>()) {
     log_error("DEBUG_DISH_TEST: OnCourseStart Self missing PendingCombatMods");
     return;
   }
 
-  if (!ally.has<PendingCombatMods>()) {
+  if (!ally->has<PendingCombatMods>()) {
     log_error("DEBUG_DISH_TEST: OnCourseStart Ally missing PendingCombatMods");
     return;
   }
@@ -387,18 +442,25 @@ TEST(validate_debug_dish_onbitetaken) {
 
   log_info("DEBUG_DISH_TEST: Testing DebugDish OnBiteTaken effects");
 
-  auto &debug_dish =
-      add_dish_to_menu(DishType::DebugDish, DishBattleState::TeamSide::Player,
-                       0, DishBattleState::Phase::InCombat, true);
-  auto &ally =
-      add_dish_to_menu(DishType::Potato, DishBattleState::TeamSide::Player, 1,
-                       DishBattleState::Phase::InCombat, true);
+  auto debug_dish_id = app.create_dish(DishType::DebugDish)
+                           .on_team(DishBattleState::TeamSide::Player)
+                           .at_slot(0)
+                           .in_phase(DishBattleState::Phase::InCombat)
+                           .with_combat_stats()
+                           .commit();
 
-  afterhours::EntityHelper::merge_entity_arrays();
+  auto ally_id = app.create_dish(DishType::Potato)
+                     .on_team(DishBattleState::TeamSide::Player)
+                     .at_slot(1)
+                     .in_phase(DishBattleState::Phase::InCombat)
+                     .with_combat_stats()
+                     .commit();
+
+  app.wait_for_frames(1);
 
   auto &tq_entity = get_or_create_trigger_queue();
   auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnBiteTaken, debug_dish.id, 0,
+  queue.add_event(TriggerHook::OnBiteTaken, debug_dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
   EffectResolutionSystem effectSystem;
@@ -406,12 +468,20 @@ TEST(validate_debug_dish_onbitetaken) {
     effectSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
   }
 
-  if (!debug_dish.has<PendingCombatMods>()) {
+  auto *debug_dish = app.find_entity_by_id(debug_dish_id);
+  auto *ally = app.find_entity_by_id(ally_id);
+
+  if (!debug_dish || !ally) {
+    log_error("DEBUG_DISH_TEST: Failed to find entities");
+    return;
+  }
+
+  if (!debug_dish->has<PendingCombatMods>()) {
     log_error("DEBUG_DISH_TEST: OnBiteTaken Self missing PendingCombatMods");
     return;
   }
 
-  if (!ally.has<PendingCombatMods>()) {
+  if (!ally->has<PendingCombatMods>()) {
     log_error("DEBUG_DISH_TEST: OnBiteTaken Ally missing PendingCombatMods");
     return;
   }
@@ -429,18 +499,25 @@ TEST(validate_debug_dish_ondishfinished) {
 
   log_info("DEBUG_DISH_TEST: Testing DebugDish OnDishFinished effects");
 
-  auto &debug_dish =
-      add_dish_to_menu(DishType::DebugDish, DishBattleState::TeamSide::Player,
-                       0, DishBattleState::Phase::Finished, true);
-  auto &ally =
-      add_dish_to_menu(DishType::Potato, DishBattleState::TeamSide::Player, 1,
-                       DishBattleState::Phase::InCombat, true);
+  auto debug_dish_id = app.create_dish(DishType::DebugDish)
+                           .on_team(DishBattleState::TeamSide::Player)
+                           .at_slot(0)
+                           .in_phase(DishBattleState::Phase::Finished)
+                           .with_combat_stats()
+                           .commit();
 
-  afterhours::EntityHelper::merge_entity_arrays();
+  auto ally_id = app.create_dish(DishType::Potato)
+                     .on_team(DishBattleState::TeamSide::Player)
+                     .at_slot(1)
+                     .in_phase(DishBattleState::Phase::InCombat)
+                     .with_combat_stats()
+                     .commit();
+
+  app.wait_for_frames(1);
 
   auto &tq_entity = get_or_create_trigger_queue();
   auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnDishFinished, debug_dish.id, 0,
+  queue.add_event(TriggerHook::OnDishFinished, debug_dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
   EffectResolutionSystem effectSystem;
@@ -448,12 +525,19 @@ TEST(validate_debug_dish_ondishfinished) {
     effectSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
   }
 
-  if (!ally.has<PendingCombatMods>()) {
+  auto *ally = app.find_entity_by_id(ally_id);
+
+  if (!ally) {
+    log_error("DEBUG_DISH_TEST: Failed to find ally entity");
+    return;
+  }
+
+  if (!ally->has<PendingCombatMods>()) {
     log_error("DEBUG_DISH_TEST: OnDishFinished Ally missing PendingCombatMods");
     return;
   }
 
-  auto &ally_mods = ally.get<PendingCombatMods>();
+  auto &ally_mods = ally->get<PendingCombatMods>();
   if (ally_mods.zingDelta != 1 || ally_mods.bodyDelta != 2) {
     log_error(
         "DEBUG_DISH_TEST: OnDishFinished Ally mods wrong - zing={}, body={}",
@@ -473,18 +557,25 @@ TEST(validate_debug_dish_oncoursecomplete) {
 
   log_info("DEBUG_DISH_TEST: Testing DebugDish OnCourseComplete effects");
 
-  auto &debug_dish =
-      add_dish_to_menu(DishType::DebugDish, DishBattleState::TeamSide::Player,
-                       0, DishBattleState::Phase::Finished, true);
-  auto &ally =
-      add_dish_to_menu(DishType::Potato, DishBattleState::TeamSide::Player, 1,
-                       DishBattleState::Phase::InCombat, true);
+  auto debug_dish_id = app.create_dish(DishType::DebugDish)
+                           .on_team(DishBattleState::TeamSide::Player)
+                           .at_slot(0)
+                           .in_phase(DishBattleState::Phase::Finished)
+                           .with_combat_stats()
+                           .commit();
 
-  afterhours::EntityHelper::merge_entity_arrays();
+  auto ally_id = app.create_dish(DishType::Potato)
+                     .on_team(DishBattleState::TeamSide::Player)
+                     .at_slot(1)
+                     .in_phase(DishBattleState::Phase::InCombat)
+                     .with_combat_stats()
+                     .commit();
+
+  app.wait_for_frames(1);
 
   auto &tq_entity = get_or_create_trigger_queue();
   auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnCourseComplete, debug_dish.id, 0,
+  queue.add_event(TriggerHook::OnCourseComplete, debug_dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
   EffectResolutionSystem effectSystem;
@@ -492,13 +583,20 @@ TEST(validate_debug_dish_oncoursecomplete) {
     effectSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
   }
 
-  if (!ally.has<PendingCombatMods>()) {
+  auto *ally = app.find_entity_by_id(ally_id);
+
+  if (!ally) {
+    log_error("DEBUG_DISH_TEST: Failed to find ally entity");
+    return;
+  }
+
+  if (!ally->has<PendingCombatMods>()) {
     log_error(
         "DEBUG_DISH_TEST: OnCourseComplete Ally missing PendingCombatMods");
     return;
   }
 
-  auto &ally_mods = ally.get<PendingCombatMods>();
+  auto &ally_mods = ally->get<PendingCombatMods>();
   if (ally_mods.zingDelta != 1 || ally_mods.bodyDelta != 1) {
     log_error("DEBUG_DISH_TEST: OnCourseComplete Ally mods wrong - zing={}, "
               "body={}",

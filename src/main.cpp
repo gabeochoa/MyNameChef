@@ -75,6 +75,7 @@ backward::SignalHandling sh;
 #include "systems/UpdateSpriteTransform.h"
 #include "systems/battle_system_registry.h"
 #include "testing/test_macros.h"
+#include "testing/test_state_inspector.h"
 #include "ui/ui_systems.h"
 #include <afterhours/src/plugins/animation.h>
 #include <optional>
@@ -179,6 +180,7 @@ void game(const std::optional<std::string> &run_test) {
 
     if (run_test.has_value()) {
       systems.register_update_system(std::make_unique<TestSystem>(*run_test));
+      systems.register_update_system(std::make_unique<TestStateInspector>());
     }
     register_shop_update_systems(systems);
 

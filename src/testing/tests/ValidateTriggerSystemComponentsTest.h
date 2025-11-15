@@ -13,6 +13,7 @@
 #include "../../game_state_manager.h"
 #include "../../systems/EffectResolutionSystem.h"
 #include "../../systems/TriggerDispatchSystem.h"
+#include "../test_app.h"
 #include "../test_macros.h"
 
 namespace ValidateTriggerSystemComponentsTestHelpers {
@@ -26,26 +27,6 @@ static afterhours::Entity &get_or_create_trigger_queue() {
     afterhours::EntityHelper::registerSingleton<TriggerQueue>(tq_entity);
   }
   return tq_entity;
-}
-
-static afterhours::Entity &add_dish_to_menu(
-    DishType type, DishBattleState::TeamSide team_side, int queue_index = -1,
-    DishBattleState::Phase phase = DishBattleState::Phase::InQueue,
-    bool has_combat_stats = false) {
-  auto &dish = afterhours::EntityHelper::createEntity();
-  dish.addComponent<IsDish>(type);
-  dish.addComponent<DishLevel>(1);
-
-  auto &dbs = dish.addComponent<DishBattleState>();
-  dbs.queue_index = (queue_index >= 0) ? queue_index : 0;
-  dbs.team_side = team_side;
-  dbs.phase = phase;
-
-  if (has_combat_stats) {
-    dish.addComponent<CombatStats>();
-  }
-
-  return dish;
 }
 
 } // namespace ValidateTriggerSystemComponentsTestHelpers
@@ -176,30 +157,39 @@ TEST(validate_trigger_system_components) {
 }
 
 TEST(validate_onserve_trigger) {
-  (void)app;
   using namespace ValidateTriggerSystemComponentsTestHelpers;
   log_info("TRIGGER_HOOK_TEST: Testing OnServe trigger");
 
+  app.launch_game();
   GameStateManager::get().to_battle();
   GameStateManager::get().update_screen();
 
-  auto &source = add_dish_to_menu(DishType::FrenchFries,
-                                  DishBattleState::TeamSide::Player, 0,
-                                  DishBattleState::Phase::Entering);
+  auto source_id = app.create_dish(DishType::FrenchFries)
+                       .on_team(DishBattleState::TeamSide::Player)
+                       .at_slot(0)
+                       .in_phase(DishBattleState::Phase::Entering)
+                       .commit();
 
-  auto &ally1 =
-      add_dish_to_menu(DishType::Potato, DishBattleState::TeamSide::Player, 1,
-                       DishBattleState::Phase::InQueue, true);
-  auto &ally2 =
-      add_dish_to_menu(DishType::Bagel, DishBattleState::TeamSide::Player, 2,
-                       DishBattleState::Phase::InQueue, true);
+  auto ally1_id = app.create_dish(DishType::Potato)
+                      .on_team(DishBattleState::TeamSide::Player)
+                      .at_slot(1)
+                      .in_phase(DishBattleState::Phase::InQueue)
+                      .with_combat_stats()
+                      .commit();
+
+  auto ally2_id = app.create_dish(DishType::Bagel)
+                      .on_team(DishBattleState::TeamSide::Player)
+                      .at_slot(2)
+                      .in_phase(DishBattleState::Phase::InQueue)
+                      .with_combat_stats()
+                      .commit();
 
   // Wait a frame for entities to be merged by system loop
   app.wait_for_frames(1);
 
   auto &tq_entity = get_or_create_trigger_queue();
   auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnServe, source.id, 0,
+  queue.add_event(TriggerHook::OnServe, source_id, 0,
                   DishBattleState::TeamSide::Player);
 
   EffectResolutionSystem effectSystem;
@@ -207,13 +197,21 @@ TEST(validate_onserve_trigger) {
     effectSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
   }
 
-  if (!ally1.has<PendingCombatMods>() || !ally2.has<PendingCombatMods>()) {
+  auto *ally1 = app.find_entity_by_id(ally1_id);
+  auto *ally2 = app.find_entity_by_id(ally2_id);
+
+  if (!ally1 || !ally2) {
+    log_error("TRIGGER_HOOK_TEST: Failed to find ally entities");
+    return;
+  }
+
+  if (!ally1->has<PendingCombatMods>() || !ally2->has<PendingCombatMods>()) {
     log_error("TRIGGER_HOOK_TEST: OnServe effect not applied to future allies");
     return;
   }
 
-  if (ally1.get<PendingCombatMods>().zingDelta != 1 ||
-      ally2.get<PendingCombatMods>().zingDelta != 1) {
+  if (ally1->get<PendingCombatMods>().zingDelta != 1 ||
+      ally2->get<PendingCombatMods>().zingDelta != 1) {
     log_error("TRIGGER_HOOK_TEST: OnServe effect wrong amount - expected zingDelta=1");
     return;
   }
@@ -222,28 +220,43 @@ TEST(validate_onserve_trigger) {
 }
 
 TEST(validate_onbittetaken_trigger) {
-  (void)app;
   using namespace ValidateTriggerSystemComponentsTestHelpers;
   log_info("TRIGGER_HOOK_TEST: Testing OnBiteTaken trigger");
 
+  app.launch_game();
   GameStateManager::get().to_battle();
   GameStateManager::get().update_screen();
 
-  auto &source = add_dish_to_menu(DishType::Potato,
-                                  DishBattleState::TeamSide::Player, 0,
-                                  DishBattleState::Phase::InCombat, true);
-  source.get<CombatStats>().currentZing = 2;
+  auto source_id = app.create_dish(DishType::Potato)
+                       .on_team(DishBattleState::TeamSide::Player)
+                       .at_slot(0)
+                       .in_phase(DishBattleState::Phase::InCombat)
+                       .with_combat_stats()
+                       .commit();
 
-  auto &target = add_dish_to_menu(DishType::Potato,
-                                  DishBattleState::TeamSide::Opponent, 0,
-                                  DishBattleState::Phase::InCombat, true);
-  target.get<CombatStats>().currentBody = 5;
+  auto target_id = app.create_dish(DishType::Potato)
+                       .on_team(DishBattleState::TeamSide::Opponent)
+                       .at_slot(0)
+                       .in_phase(DishBattleState::Phase::InCombat)
+                       .with_combat_stats()
+                       .commit();
 
-  afterhours::EntityHelper::merge_entity_arrays();
+  app.wait_for_frames(1);
+
+  auto *source = app.find_entity_by_id(source_id);
+  auto *target = app.find_entity_by_id(target_id);
+
+  if (!source || !target) {
+    log_error("TRIGGER_HOOK_TEST: Failed to find entities");
+    return;
+  }
+
+  source->get<CombatStats>().currentZing = 2;
+  target->get<CombatStats>().currentBody = 5;
 
   auto &tq_entity = get_or_create_trigger_queue();
   auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnBiteTaken, source.id, 0,
+  queue.add_event(TriggerHook::OnBiteTaken, source_id, 0,
                   DishBattleState::TeamSide::Player);
   queue.events.back().payloadInt = 2;
 
@@ -260,29 +273,38 @@ TEST(validate_onbittetaken_trigger) {
 }
 
 TEST(validate_ondishfinished_trigger) {
-  (void)app;
   using namespace ValidateTriggerSystemComponentsTestHelpers;
   log_info("TRIGGER_HOOK_TEST: Testing OnDishFinished trigger");
 
+  app.launch_game();
   GameStateManager::get().to_battle();
   GameStateManager::get().update_screen();
 
-  auto &source = add_dish_to_menu(DishType::FriedEgg,
-                                  DishBattleState::TeamSide::Player, 0,
-                                  DishBattleState::Phase::Finished);
+  auto source_id = app.create_dish(DishType::FriedEgg)
+                       .on_team(DishBattleState::TeamSide::Player)
+                       .at_slot(0)
+                       .in_phase(DishBattleState::Phase::Finished)
+                       .commit();
 
-  auto &ally1 =
-      add_dish_to_menu(DishType::Potato, DishBattleState::TeamSide::Player, 1,
-                       DishBattleState::Phase::InCombat, true);
-  auto &ally2 =
-      add_dish_to_menu(DishType::Bagel, DishBattleState::TeamSide::Player, 2,
-                       DishBattleState::Phase::InQueue, true);
+  auto ally1_id = app.create_dish(DishType::Potato)
+                      .on_team(DishBattleState::TeamSide::Player)
+                      .at_slot(1)
+                      .in_phase(DishBattleState::Phase::InCombat)
+                      .with_combat_stats()
+                      .commit();
 
-  afterhours::EntityHelper::merge_entity_arrays();
+  auto ally2_id = app.create_dish(DishType::Bagel)
+                      .on_team(DishBattleState::TeamSide::Player)
+                      .at_slot(2)
+                      .in_phase(DishBattleState::Phase::InQueue)
+                      .with_combat_stats()
+                      .commit();
+
+  app.wait_for_frames(1);
 
   auto &tq_entity = get_or_create_trigger_queue();
   auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnDishFinished, source.id, 0,
+  queue.add_event(TriggerHook::OnDishFinished, source_id, 0,
                   DishBattleState::TeamSide::Player);
 
   EffectResolutionSystem effectSystem;
@@ -290,13 +312,21 @@ TEST(validate_ondishfinished_trigger) {
     effectSystem.for_each_with(tq_entity, queue, 1.0f / 60.0f);
   }
 
-  if (!ally1.has<PendingCombatMods>() || !ally2.has<PendingCombatMods>()) {
+  auto *ally1 = app.find_entity_by_id(ally1_id);
+  auto *ally2 = app.find_entity_by_id(ally2_id);
+
+  if (!ally1 || !ally2) {
+    log_error("TRIGGER_HOOK_TEST: Failed to find ally entities");
+    return;
+  }
+
+  if (!ally1->has<PendingCombatMods>() || !ally2->has<PendingCombatMods>()) {
     log_error("TRIGGER_HOOK_TEST: OnDishFinished effect not applied to allies");
     return;
   }
 
-  if (ally1.get<PendingCombatMods>().bodyDelta != 2 ||
-      ally2.get<PendingCombatMods>().bodyDelta != 2) {
+  if (ally1->get<PendingCombatMods>().bodyDelta != 2 ||
+      ally2->get<PendingCombatMods>().bodyDelta != 2) {
     log_error("TRIGGER_HOOK_TEST: OnDishFinished effect wrong amount - expected bodyDelta=2");
     return;
   }
@@ -305,22 +335,25 @@ TEST(validate_ondishfinished_trigger) {
 }
 
 TEST(validate_oncoursestart_trigger) {
-  (void)app;
   using namespace ValidateTriggerSystemComponentsTestHelpers;
   log_info("TRIGGER_HOOK_TEST: Testing OnCourseStart trigger");
 
+  app.launch_game();
   GameStateManager::get().to_battle();
   GameStateManager::get().update_screen();
 
-  auto &dish = add_dish_to_menu(DishType::Potato,
-                                DishBattleState::TeamSide::Player, 0,
-                                DishBattleState::Phase::Entering, true);
+  auto dish_id = app.create_dish(DishType::Potato)
+                     .on_team(DishBattleState::TeamSide::Player)
+                     .at_slot(0)
+                     .in_phase(DishBattleState::Phase::Entering)
+                     .with_combat_stats()
+                     .commit();
 
-  afterhours::EntityHelper::merge_entity_arrays();
+  app.wait_for_frames(1);
 
   auto &tq_entity = get_or_create_trigger_queue();
   auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnCourseStart, dish.id, 0,
+  queue.add_event(TriggerHook::OnCourseStart, dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
   TriggerDispatchSystem dispatchSystem;
@@ -336,22 +369,25 @@ TEST(validate_oncoursestart_trigger) {
 }
 
 TEST(validate_onstartbattle_trigger) {
-  (void)app;
   using namespace ValidateTriggerSystemComponentsTestHelpers;
   log_info("TRIGGER_HOOK_TEST: Testing OnStartBattle trigger");
 
+  app.launch_game();
   GameStateManager::get().to_battle();
   GameStateManager::get().update_screen();
 
-  auto &dish = add_dish_to_menu(DishType::Potato,
-                                DishBattleState::TeamSide::Player, 0,
-                                DishBattleState::Phase::InQueue, true);
+  auto dish_id = app.create_dish(DishType::Potato)
+                     .on_team(DishBattleState::TeamSide::Player)
+                     .at_slot(0)
+                     .in_phase(DishBattleState::Phase::InQueue)
+                     .with_combat_stats()
+                     .commit();
 
-  afterhours::EntityHelper::merge_entity_arrays();
+  app.wait_for_frames(1);
 
   auto &tq_entity = get_or_create_trigger_queue();
   auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnStartBattle, dish.id, 0,
+  queue.add_event(TriggerHook::OnStartBattle, dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
   TriggerDispatchSystem dispatchSystem;
@@ -367,22 +403,25 @@ TEST(validate_onstartbattle_trigger) {
 }
 
 TEST(validate_oncoursecomplete_trigger) {
-  (void)app;
   using namespace ValidateTriggerSystemComponentsTestHelpers;
   log_info("TRIGGER_HOOK_TEST: Testing OnCourseComplete trigger");
 
+  app.launch_game();
   GameStateManager::get().to_battle();
   GameStateManager::get().update_screen();
 
-  auto &dish = add_dish_to_menu(DishType::Potato,
-                                DishBattleState::TeamSide::Player, 0,
-                                DishBattleState::Phase::Finished, true);
+  auto dish_id = app.create_dish(DishType::Potato)
+                     .on_team(DishBattleState::TeamSide::Player)
+                     .at_slot(0)
+                     .in_phase(DishBattleState::Phase::Finished)
+                     .with_combat_stats()
+                     .commit();
 
-  afterhours::EntityHelper::merge_entity_arrays();
+  app.wait_for_frames(1);
 
   auto &tq_entity = get_or_create_trigger_queue();
   auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnCourseComplete, dish.id, 0,
+  queue.add_event(TriggerHook::OnCourseComplete, dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
   TriggerDispatchSystem dispatchSystem;
