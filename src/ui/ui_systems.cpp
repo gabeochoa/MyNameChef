@@ -13,11 +13,16 @@
 
 #include "../components/continue_button_disabled.h"
 #include "../components/continue_game_request.h"
+#include "../components/is_draggable.h"
+#include "../components/is_drink_shop_item.h"
 #include "../components/is_gallery_item.h"
 #include "../components/is_shop_item.h"
 #include "../components/network_info.h"
+#include "../components/render_order.h"
 #include "../components/replay_state.h"
+#include "../components/transform.h"
 #include "../components/user_id.h"
+#include "../drink_types.h"
 #include "../game.h"
 #include "../game_state_manager.h"
 #include "../input_mapping.h"
@@ -28,6 +33,7 @@
 #include "../settings.h"
 #include "../shop.h"
 #include "../systems/ExportMenuSnapshotSystem.h"
+#include "../texture_library.h"
 #include "../tooltip.h"
 #include "../translation_manager.h"
 #include "containers.h"
@@ -544,6 +550,44 @@ Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
         for (int slot = 0; slot < SHOP_SLOTS; ++slot) {
           if (!slot_occupied[slot]) {
             make_shop_item(slot, get_random_dish_for_tier(current_tier));
+          }
+        }
+        //  TODO - refactor this function as its getting quite long
+
+        // Refill empty drink slots
+        float screen_width = static_cast<float>(raylib::GetScreenWidth());
+        float drink_shop_start_x =
+            screen_width - (2 * (SLOT_SIZE + SLOT_GAP)) - 50.0f;
+
+        std::vector<bool> drink_slot_occupied(DRINK_SHOP_SLOTS, false);
+        for (auto &ref : afterhours::EntityQuery({.force_merge = true})
+                             .template whereHasComponent<IsDrinkShopItem>()
+                             .gen()) {
+          int slot = ref.get().get<IsDrinkShopItem>().slot;
+          if (slot >= 0 && slot < DRINK_SHOP_SLOTS) {
+            drink_slot_occupied[slot] = true;
+          }
+        }
+
+        for (int slot = 0; slot < DRINK_SHOP_SLOTS; ++slot) {
+          if (!drink_slot_occupied[slot]) {
+            auto position = calculate_slot_position(
+                slot, static_cast<int>(drink_shop_start_x), DRINK_SHOP_START_Y,
+                2);
+            DrinkType drink_type = get_random_drink();
+
+            auto &e = EntityHelper::createEntity();
+            e.addComponent<Transform>(position, vec2{SLOT_SIZE, SLOT_SIZE});
+            e.addComponent<IsDrinkShopItem>(slot, drink_type);
+            e.addComponent<IsDraggable>(true);
+            e.addComponent<HasRenderOrder>(RenderOrder::ShopItems,
+                                           RenderScreen::Shop);
+
+            const auto frame =
+                afterhours::texture_manager::idx_to_sprite_frame(0, 0);
+            e.addComponent<afterhours::texture_manager::HasSprite>(
+                position, vec2{SLOT_SIZE, SLOT_SIZE}, 0.f, frame,
+                render_constants::kDishSpriteScale, raylib::WHITE);
           }
         }
 

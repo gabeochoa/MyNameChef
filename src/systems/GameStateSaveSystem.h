@@ -1,10 +1,12 @@
 #pragma once
 
 #include "../components/dish_level.h"
+#include "../components/drink_pairing.h"
 #include "../components/is_dish.h"
 #include "../components/is_inventory_item.h"
 #include "../components/is_shop_item.h"
 #include "../components/user_id.h"
+#include "../drink_types.h"
 #include "../game_state_manager.h"
 #include "../log.h"
 #include "../seeded_rng.h"
@@ -72,6 +74,14 @@ struct GameStateSaveSystem : afterhours::System<> {
         level = entity.get<DishLevel>().level;
       }
       dish_entry["level"] = level;
+
+      if (entity.has<DrinkPairing>()) {
+        const DrinkPairing &drink_pairing = entity.get<DrinkPairing>();
+        if (drink_pairing.drink.has_value()) {
+          dish_entry["drink"] =
+              std::string(magic_enum::enum_name(drink_pairing.drink.value()));
+        }
+      }
 
       inventory.push_back(dish_entry);
     }

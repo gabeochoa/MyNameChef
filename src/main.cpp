@@ -32,6 +32,7 @@ backward::SignalHandling sh;
 #include "systems/DropWhenNoLongerHeld.h"
 #include "systems/EffectResolutionSystem.h"
 #include "systems/GenerateDishesGallery.h"
+#include "systems/HandleDrinkDrop.h"
 #include "systems/HandleFreezeIconClick.h"
 #include "systems/InitCombatState.h"
 #include "systems/InitialShopFill.h"
@@ -47,6 +48,8 @@ backward::SignalHandling sh;
 #include "systems/RenderBattleTeams.h"
 #include "systems/RenderDebugWindowInfo.h"
 #include "systems/RenderDishProgressBars.h"
+#include "systems/RenderDrinkIcon.h"
+#include "systems/RenderDrinkShopSlots.h"
 #include "systems/RenderEntitiesByOrder.h"
 #include "systems/RenderFPS.h"
 #include "systems/RenderFreezeIcon.h"
@@ -171,6 +174,7 @@ void game(const std::optional<std::string> &run_test) {
     systems.register_update_system(std::make_unique<UpdateShaderValues>());
     systems.register_update_system(std::make_unique<MarkEntitiesWithShaders>());
     systems.register_update_system(std::make_unique<HandleFreezeIconClick>());
+    systems.register_update_system(std::make_unique<HandleDrinkDrop>());
     systems.register_update_system(std::make_unique<MarkIsHeldWhenHeld>());
     systems.register_update_system(std::make_unique<DropWhenNoLongerHeld>());
     battle_systems::register_battle_systems(systems);
@@ -236,6 +240,7 @@ void game(const std::optional<std::string> &run_test) {
       systems.register_render_system(std::make_unique<RenderLetterboxBars>());
       systems.register_render_system(std::make_unique<RenderSellSlot>());
       systems.register_render_system(std::make_unique<RenderFreezeIcon>());
+      systems.register_render_system(std::make_unique<RenderDrinkIcon>());
       systems.register_render_system(std::make_unique<RenderBattleResults>());
       // ReplayUISystem is now integrated into ScheduleMainMenuUI::battle_screen
       systems.register_render_system(std::make_unique<RenderToastSystem>());

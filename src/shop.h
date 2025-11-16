@@ -71,6 +71,10 @@ constexpr int SELL_SLOT_ID = 999;
 constexpr int SELL_SLOT_X = INVENTORY_START_X + (SLOT_SIZE + SLOT_GAP) * 8;
 constexpr int SELL_SLOT_Y = INVENTORY_START_Y;
 
+// Drink shop constants
+constexpr int DRINK_SHOP_SLOTS = 4;
+constexpr int DRINK_SHOP_START_Y = SHOP_START_Y;
+
 // Forward declarations for shop functions
 afterhours::Entity &make_shop_manager(afterhours::Entity &);
 afterhours::Entity &make_combat_manager(afterhours::Entity &);

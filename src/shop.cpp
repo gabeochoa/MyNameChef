@@ -27,6 +27,8 @@
 #include "render_backend.h"
 #include "render_constants.h"
 #include "seeded_rng.h"
+#include "systems/GenerateDrinkShop.h"
+#include "systems/RenderDrinkShopSlots.h"
 #include "systems/GenerateInventorySlots.h"
 #include "systems/GenerateShopSlots.h"
 #include "systems/NetworkSystem.h"
@@ -308,11 +310,14 @@ struct ScreenTransitionSystem : System<> {
 void register_shop_update_systems(afterhours::SystemManager &systems) {
   systems.register_update_system(std::make_unique<GenerateShopSlots>());
   systems.register_update_system(std::make_unique<GenerateInventorySlots>());
+  systems.register_update_system(std::make_unique<GenerateDrinkShop>());
   systems.register_update_system(std::make_unique<ScreenTransitionSystem>());
   systems.register_update_system(std::make_unique<SynergyCountingSystem>());
 }
 
-void register_shop_render_systems(afterhours::SystemManager &) {}
+void register_shop_render_systems(afterhours::SystemManager &systems) {
+  systems.register_render_system(std::make_unique<RenderDrinkShopSlots>());
+}
 
 bool wallet_can_afford(int cost) {
   auto wallet_entity = EntityHelper::get_singleton<Wallet>();

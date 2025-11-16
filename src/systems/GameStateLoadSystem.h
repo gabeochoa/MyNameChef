@@ -4,6 +4,7 @@
 #include "../components/continue_button_disabled.h"
 #include "../components/continue_game_request.h"
 #include "../components/dish_level.h"
+#include "../components/drink_pairing.h"
 #include "../components/game_state_loaded.h"
 #include "../components/has_tooltip.h"
 #include "../components/is_dish.h"
@@ -16,6 +17,7 @@
 #include "../components/transform.h"
 #include "../components/user_id.h"
 #include "../dish_types.h"
+#include "../drink_types.h"
 #include "../game_state_manager.h"
 #include "../log.h"
 #include "../render_constants.h"
@@ -273,6 +275,15 @@ private:
             dish_entity.addComponent<HasTooltip>(
                 generate_dish_tooltip(dish_type_opt.value()));
 
+            if (dish_entry.contains("drink") &&
+                dish_entry["drink"].is_string()) {
+              std::string drink_str = dish_entry["drink"].get<std::string>();
+              auto drink_type_opt = magic_enum::enum_cast<DrinkType>(drink_str);
+              if (drink_type_opt.has_value()) {
+                dish_entity.addComponent<DrinkPairing>(drink_type_opt.value());
+              }
+            }
+
             for (auto &ref : afterhours::EntityQuery()
                                  .whereHasComponent<IsDropSlot>()
                                  .gen()) {
@@ -296,7 +307,8 @@ private:
           auto dish_type_opt = magic_enum::enum_cast<DishType>(dish_type_str);
           if (dish_type_opt.has_value()) {
             auto dish_type = dish_type_opt.value();
-            auto position = calculate_slot_position(slot, SHOP_START_X, SHOP_START_Y);
+            auto position =
+                calculate_slot_position(slot, SHOP_START_X, SHOP_START_Y);
             auto &dish_entity = afterhours::EntityHelper::createEntity();
 
             dish_entity.addComponent<Transform>(position,
@@ -317,7 +329,8 @@ private:
                 position, vec2{SLOT_SIZE, SLOT_SIZE}, 0.f, frame,
                 render_constants::kDishSpriteScale, raylib::WHITE);
 
-            dish_entity.addComponent<HasTooltip>(generate_dish_tooltip(dish_type));
+            dish_entity.addComponent<HasTooltip>(
+                generate_dish_tooltip(dish_type));
 
             for (auto &ref : afterhours::EntityQuery()
                                  .whereHasComponent<IsDropSlot>()
