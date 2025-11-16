@@ -5,11 +5,13 @@
 #include "../components/cuisine_tag.h"
 #include "../components/dish_archetype_tag.h"
 #include "../components/dish_level.h"
+#include "../components/drink_pairing.h"
 #include "../components/has_tooltip.h"
 #include "../components/is_dish.h"
 #include "../components/render_order.h"
 #include "../components/synergy_counts.h"
 #include "../components/transform.h"
+#include "../drink_types.h"
 #include "../font_info.h"
 #include "../game_state_manager.h"
 #include "../render_backend.h"
@@ -227,6 +229,17 @@ public:
 
       if (has_tags) {
         tooltip_text += tag_info.str();
+      }
+
+      // Add drink pairing information
+      if (entity.has<DrinkPairing>()) {
+        const auto &drink_pairing = entity.get<DrinkPairing>();
+        if (drink_pairing.drink.has_value()) {
+          DrinkType drink_type = drink_pairing.drink.value();
+          DrinkInfo drink_info = get_drink_info(drink_type);
+          // TODO add information about the drink
+          tooltip_text += "\n[COLOR:Info]Drink: [COLOR:Text]" + drink_info.name + "\n";
+        }
       }
     }
 
