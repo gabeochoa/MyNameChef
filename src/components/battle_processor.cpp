@@ -26,7 +26,7 @@ void BattleProcessor::startBattle(const BattleInput &input) {
   ties = 0;
   simulationTime = 0.0f;
   finished = false; // Reset finished flag when starting new battle
-  log_info("BATTLE_PROCESSOR_START: Battle initialized - simulationComplete=%d, currentCourse=%d, playerDishes=%zu, opponentDishes=%zu, finished=%d", 
+  log_info("BATTLE_PROCESSOR_START: Battle initialized - simulationComplete={}, currentCourse={}, playerDishes={}, opponentDishes={}, finished={}", 
            (int)simulationComplete, currentCourse, playerDishes.size(), opponentDishes.size(), (int)finished);
 
   // Load teams from JSON files
@@ -41,13 +41,13 @@ void BattleProcessor::updateSimulation(float dt) {
   static int call_count = 0;
   call_count++;
   if (call_count % 60 == 0 || call_count <= 10) { // Log first 10 calls and every 60 after
-    log_info("BATTLE_SIM: updateSimulation CALLED - call=%d, complete=%d, time=%.2f, course=%d, dishes=%zu/%zu", 
+    log_info("BATTLE_SIM: updateSimulation CALLED - call={}, complete={}, time={:.2f}, course={}, dishes={}/{}", 
              call_count, (int)simulationComplete, simulationTime, currentCourse, playerDishes.size(), opponentDishes.size());
   }
   
   if (simulationComplete) {
     if (call_count % 60 == 0 || call_count <= 10) {
-      log_info("BATTLE_SIM: updateSimulation EARLY RETURN - simulationComplete=true, call=%d", call_count);
+      log_info("BATTLE_SIM: updateSimulation EARLY RETURN - simulationComplete=true, call={}", call_count);
     }
     return;
   }
@@ -78,14 +78,14 @@ void BattleProcessor::finishBattle() {
   // CRITICAL: Check simulationComplete FIRST, before any other operations
   // This prevents crashes if the battle already finished and BattleResult was created
   if (simulationComplete) {
-    log_info("BATTLE_PROCESSOR_FINISH: Battle already completed naturally, just clearing activeBattle - finished=%d, isBattleActive=%d", 
+    log_info("BATTLE_PROCESSOR_FINISH: Battle already completed naturally, just clearing activeBattle - finished={}, isBattleActive={}", 
              (int)finished, (int)isBattleActive());
     activeBattle.reset();
     finished = true;
     return;
   }
   
-  log_info("BATTLE_PROCESSOR_FINISH: Called - finished=%d, isBattleActive=%d, simulationComplete=%d, activeBattle.has_value=%d", 
+  log_info("BATTLE_PROCESSOR_FINISH: Called - finished={}, isBattleActive={}, simulationComplete={}, activeBattle.has_value={}", 
            (int)finished, (int)isBattleActive(), (int)simulationComplete, activeBattle.has_value() ? 1 : 0);
   
   if (finished) {
@@ -101,14 +101,14 @@ void BattleProcessor::finishBattle() {
   
   // Wrap entire function in try/catch for safety
   try {
-    log_info("BATTLE_PROCESSOR_FINISH: Starting battle finish - playerWins=%d, opponentWins=%d, ties=%d, outcomes.size=%zu", 
+    log_info("BATTLE_PROCESSOR_FINISH: Starting battle finish - playerWins={}, opponentWins={}, ties={}, outcomes.size={}", 
              playerWins, opponentWins, ties, outcomes.size());
     
     // Step 2: Handle incomplete battles gracefully
     // If battle hasn't completed naturally, create a partial result
     bool isComplete = simulationComplete || (currentCourse >= totalCourses);
     if (!isComplete) {
-      log_info("BATTLE_PROCESSOR_FINISH: Battle incomplete (currentCourse=%d, totalCourses=%d), creating partial result", 
+      log_info("BATTLE_PROCESSOR_FINISH: Battle incomplete (currentCourse={}, totalCourses={}), creating partial result", 
                currentCourse, totalCourses);
     }
     
@@ -160,7 +160,7 @@ void BattleProcessor::finishBattle() {
     const auto componentId = afterhours::components::get_type_id<BattleResult>();
     bool singletonExists =
         afterhours::EntityHelper::get().singletonMap.contains(componentId);
-    log_info("BATTLE_PROCESSOR_FINISH: Singleton exists=%d", singletonExists ? 1 : 0);
+    log_info("BATTLE_PROCESSOR_FINISH: Singleton exists={}", singletonExists ? 1 : 0);
 
   // CRITICAL: Always create a new BattleResult singleton instead of trying to update existing one
   // This avoids crashes if the previous singleton was cleaned up
@@ -191,10 +191,10 @@ void BattleProcessor::finishBattle() {
   }
 
     // Clear active battle
-    log_info("BATTLE_PROCESSOR_FINISH: Clearing activeBattle - was_active=%d", activeBattle.has_value() ? 1 : 0);
+    log_info("BATTLE_PROCESSOR_FINISH: Clearing activeBattle - was_active={}", activeBattle.has_value() ? 1 : 0);
     activeBattle.reset();
     finished = true; // Mark as finished to prevent multiple calls
-    log_info("BATTLE_PROCESSOR_FINISH: activeBattle cleared - isBattleActive=%d, finished=%d", 
+    log_info("BATTLE_PROCESSOR_FINISH: activeBattle cleared - isBattleActive={}, finished={}", 
              activeBattle.has_value() ? 1 : 0, (int)finished);
   } catch (const std::exception &e) {
     log_info("BATTLE_PROCESSOR_FINISH: Exception caught in finishBattle: {}", e.what());
@@ -308,7 +308,7 @@ void BattleProcessor::processCourse(int courseIndex, float dt) {
 
   if (!playerDish || !opponentDish) {
     if (process_count % 60 == 0 || process_count <= 10) {
-      log_info("BATTLE_SIM: processCourse - No dishes found for course %d (player=%p, opponent=%p)", 
+      log_info("BATTLE_SIM: processCourse - No dishes found for course {} (player={}, opponent={})", 
                courseIndex, (void*)playerDish, (void*)opponentDish);
     }
     return;
@@ -373,7 +373,7 @@ void BattleProcessor::resolveCombatTick(DishSimData &player,
   // Mark first bite as decided (for initialization tracking)
   if (!player.firstBiteDecided) {
     player.firstBiteDecided = true;
-    log_info("BATTLE_SIM: Course %d - First combat tick (player slot=%d body=%d, opponent slot=%d body=%d)", 
+    log_info("BATTLE_SIM: Course {} - First combat tick (player slot={} body={}, opponent slot={} body={})", 
              player.slot, player.slot, player.currentBody, opponent.slot, opponent.currentBody);
   }
 
@@ -391,14 +391,14 @@ void BattleProcessor::resolveCombatTick(DishSimData &player,
   static int tick_count = 0;
   tick_count++;
   if (tick_count % 10 == 0) { // Log every 10 ticks to avoid spam
-    log_info("BATTLE_SIM: Course %d - Combat tick %d (player slot=%d body: %d->%d, opponent slot=%d body: %d->%d)", 
+    log_info("BATTLE_SIM: Course {} - Combat tick {} (player slot={} body: {}->{}, opponent slot={} body: {}->{})", 
              player.slot, tick_count, player.slot, old_player_body, player.currentBody, 
              opponent.slot, old_opponent_body, opponent.currentBody);
   }
 
   // Check if either dish is defeated
   if (player.currentBody <= 0 || opponent.currentBody <= 0) {
-    log_info("BATTLE_SIM: Course %d - Dish defeated (player body=%d, opponent body=%d)", 
+    log_info("BATTLE_SIM: Course {} - Dish defeated (player body={}, opponent body={})", 
              player.slot, player.currentBody, opponent.currentBody);
     finishCourse(player, opponent);
   }

@@ -26,7 +26,7 @@ struct BattleProcessorSystem : afterhours::System<BattleProcessor> {
       skip_count++;
       if (skip_count % 60 == 0) {
         log_info(
-            "BATTLE_PROCESSOR_SHOULD_RUN: Screen is not Battle - screen=%d",
+            "BATTLE_PROCESSOR_SHOULD_RUN: Screen is not Battle - screen={}",
             (int)gsm.active_screen);
       }
       return false;
@@ -136,7 +136,7 @@ struct BattleProcessorSystem : afterhours::System<BattleProcessor> {
               processor.finishBattle();
             } else {
               log_info("BATTLE_PROCESSOR: Skipping finishBattle() - "
-                       "isBattleActive=%d, finished=%d, simulationComplete=%d",
+                       "isBattleActive={}, finished={}, simulationComplete={}",
                        processor.isBattleActive() ? 1 : 0,
                        processor.finished ? 1 : 0,
                        processor.simulationComplete ? 1 : 0);
@@ -223,7 +223,7 @@ struct BattleProcessorSystem : afterhours::System<BattleProcessor> {
               last_battle_player_path != request.playerJsonPath &&
               !last_battle_player_path.empty()) {
             log_info("BATTLE_PROCESSOR: Finishing old battle (different path) "
-                     "before starting new one - isBattleActive=%d, finished=%d",
+                     "before starting new one - isBattleActive={}, finished={}",
                      processor.isBattleActive() ? 1 : 0,
                      processor.finished ? 1 : 0);
             // Only call finishBattle if not already finished
@@ -316,7 +316,7 @@ struct BattleProcessorSystem : afterhours::System<BattleProcessor> {
 
       if (processor.simulationComplete) {
         log_info("BATTLE_PROCESSOR: Battle completed, finishing battle - "
-                 "last_path='{}', finished=%d",
+                 "last_path='{}', finished={}",
                  last_battle_player_path, processor.finished ? 1 : 0);
         // Only call finishBattle if not already finished
         if (!processor.finished) {
