@@ -3,6 +3,7 @@
 #include "../components/dish_level.h"
 #include "../components/is_dish.h"
 #include "../components/is_inventory_item.h"
+#include "../components/is_shop_item.h"
 #include "../components/user_id.h"
 #include "../game_state_manager.h"
 #include "../log.h"
@@ -75,6 +76,45 @@ struct GameStateSaveSystem : afterhours::System<> {
       inventory.push_back(dish_entry);
     }
 
+    std::vector<GameStateRefEntity> shop_dishes;
+    for (afterhours::Entity &entity : afterhours::EntityQuery()
+                                          .whereHasComponent<IsShopItem>()
+                                          .whereHasComponent<IsDish>()
+                                          .gen()) {
+      shop_dishes.push_back(entity);
+    }
+
+    std::sort(shop_dishes.begin(), shop_dishes.end(),
+              [](const GameStateRefEntity &a, const GameStateRefEntity &b) {
+                return a.get().get<IsShopItem>().slot <
+                       b.get().get<IsShopItem>().slot;
+              });
+
+    nlohmann::json shop = nlohmann::json::array();
+    for (const GameStateRefEntity &entity_ref : shop_dishes) {
+      afterhours::Entity &entity = entity_ref.get();
+      IsShopItem &shop_item = entity.get<IsShopItem>();
+      IsDish &dish = entity.get<IsDish>();
+
+      nlohmann::json dish_entry;
+      dish_entry["slot"] = shop_item.slot;
+      dish_entry["dishType"] = std::string(magic_enum::enum_name(dish.type));
+
+      int level = 1;
+      if (entity.has<DishLevel>()) {
+        level = entity.get<DishLevel>().level;
+      }
+      dish_entry["level"] = level;
+
+      bool is_frozen = false;
+      if (entity.has<Freezeable>()) {
+        is_frozen = entity.get<Freezeable>().isFrozen;
+      }
+      dish_entry["isFrozen"] = is_frozen;
+
+      shop.push_back(dish_entry);
+    }
+
     GameStateOptEntity wallet_opt =
         afterhours::EntityHelper::get_singleton<Wallet>();
     GameStateOptEntity health_opt =
@@ -117,6 +157,7 @@ struct GameStateSaveSystem : afterhours::System<> {
     nlohmann::json gameState;
     gameState["shopSeed"] = shop_seed;
     gameState["inventory"] = inventory;
+    gameState["shop"] = shop;
     gameState["gold"] = wallet.gold;
     gameState["health"] =
         nlohmann::json{{"current", health.current}, {"max", health.max}};

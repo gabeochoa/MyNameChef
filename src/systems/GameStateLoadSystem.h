@@ -10,6 +10,7 @@
 #include "../components/is_draggable.h"
 #include "../components/is_drop_slot.h"
 #include "../components/is_inventory_item.h"
+#include "../components/is_shop_item.h"
 #include "../components/network_info.h"
 #include "../components/render_order.h"
 #include "../components/transform.h"
@@ -271,6 +272,52 @@ private:
 
             dish_entity.addComponent<HasTooltip>(
                 generate_dish_tooltip(dish_type_opt.value()));
+
+            for (auto &ref : afterhours::EntityQuery()
+                                 .whereHasComponent<IsDropSlot>()
+                                 .gen()) {
+              auto &slot_entity = ref.get();
+              if (slot_entity.get<IsDropSlot>().slot_id == slot) {
+                slot_entity.get<IsDropSlot>().occupied = true;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      if (gameState.contains("shop") && gameState["shop"].is_array()) {
+        for (const auto &dish_entry : gameState["shop"]) {
+          int slot = dish_entry["slot"].get<int>();
+          std::string dish_type_str = dish_entry["dishType"].get<std::string>();
+          int level = dish_entry.value("level", 1);
+          bool is_frozen = dish_entry.value("isFrozen", false);
+
+          auto dish_type_opt = magic_enum::enum_cast<DishType>(dish_type_str);
+          if (dish_type_opt.has_value()) {
+            auto dish_type = dish_type_opt.value();
+            auto position = calculate_slot_position(slot, SHOP_START_X, SHOP_START_Y);
+            auto &dish_entity = afterhours::EntityHelper::createEntity();
+
+            dish_entity.addComponent<Transform>(position,
+                                                vec2{SLOT_SIZE, SLOT_SIZE});
+            dish_entity.addComponent<IsDish>(dish_type);
+            dish_entity.addComponent<DishLevel>(level);
+            dish_entity.addComponent<IsShopItem>(slot);
+            dish_entity.addComponent<IsDraggable>(true);
+            dish_entity.addComponent<Freezeable>(is_frozen);
+            dish_entity.addComponent<HasRenderOrder>(RenderOrder::ShopItems,
+                                                     RenderScreen::Shop);
+            add_dish_tags(dish_entity, dish_type);
+
+            auto dish_info = get_dish_info(dish_type);
+            const auto frame = afterhours::texture_manager::idx_to_sprite_frame(
+                dish_info.sprite.i, dish_info.sprite.j);
+            dish_entity.addComponent<afterhours::texture_manager::HasSprite>(
+                position, vec2{SLOT_SIZE, SLOT_SIZE}, 0.f, frame,
+                render_constants::kDishSpriteScale, raylib::WHITE);
+
+            dish_entity.addComponent<HasTooltip>(generate_dish_tooltip(dish_type));
 
             for (auto &ref : afterhours::EntityQuery()
                                  .whereHasComponent<IsDropSlot>()

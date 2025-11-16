@@ -215,33 +215,6 @@
   9. **Only after successful commit, proceed to Task 7**
 - **Estimated**: 3-4 hours
 
-### Task 7: Update Font Across the Game
-**Files**: `src/font_info.h`, `src/render_utils.h`, all UI rendering systems
-- **Goal**: Standardize font usage across all game screens
-- **Implementation**:
-  - Review current font usage and identify inconsistencies
-  - Start with single font for everything (standardize on one font)
-  - Update font loading and management system
-  - Replace hardcoded font references with centralized font system
-  - Ensure font rendering is consistent across all screens (Shop, Battle, Results, etc.)
-- **Future Enhancement**: Later we can add different fonts for different contexts (e.g., decorative font for titles, readable font for tooltips), but start simple
-- **Fun Ideas** (for later):
-  - Different fonts for different contexts (e.g., decorative font for titles, readable font for tooltips)
-  - Font size scaling for different screen resolutions
-  - Font fallback system for missing glyphs
-- **Validation Steps**:
-  1. Audit current font usage across all systems
-  2. Update font_info.h with standardized font definitions (single font to start)
-  3. Replace hardcoded font references with centralized system
-  4. Update all UI rendering systems to use new font system
-  5. **MANDATORY CHECKPOINT**: Build: `xmake`
-  6. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
-  7. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
-  8. Verify fonts render correctly across all screens (manual test)
-  9. **MANDATORY CHECKPOINT**: Commit: `git commit -m "ui - standardize font usage across game"`
-  10. **Only after successful commit, proceed to Task 8**
-- **Estimated**: 3-5 hours
-
 ### Task 8: Better System for Text Formatting
 **Files**: Create `src/ui/text_formatting.h`, update all text rendering systems
 - **Goal**: Create a centralized, maintainable system for text formatting throughout the game

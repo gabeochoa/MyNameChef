@@ -3,6 +3,7 @@
 #include "../components/is_drop_slot.h"
 #include "../components/is_shop_item.h"
 #include "../game_state_manager.h"
+#include "../shop.h"
 #include <afterhours/ah.h>
 
 struct CleanupShopEntities : afterhours::System<> {
@@ -20,12 +21,18 @@ struct CleanupShopEntities : afterhours::System<> {
     if (last_screen == GameStateManager::Screen::Shop &&
         gsm.active_screen != GameStateManager::Screen::Shop) {
 
-      // Mark all shop item entities for cleanup
+      // Mark all non-frozen shop item entities for cleanup
       for (auto &ref : afterhours::EntityQuery()
                            .template whereHasComponent<IsShopItem>()
                            .gen()) {
-        ref.get().cleanup = true;
-        log_info("Marked shop item entity {} for cleanup", ref.get().id);
+        bool is_frozen = false;
+        if (ref.get().has<Freezeable>()) {
+          is_frozen = ref.get().get<Freezeable>().isFrozen;
+        }
+        if (!is_frozen) {
+          ref.get().cleanup = true;
+          log_info("Marked shop item entity {} for cleanup", ref.get().id);
+        }
       }
 
       // Mark all shop drop slot entities for cleanup (shop-only slots)

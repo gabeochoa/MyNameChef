@@ -225,12 +225,28 @@ bool DropWhenNoLongerHeld::swap_items(Entity &entity, Entity *occupied_slot,
   int original_slot_id = get_slot_id(entity);
   int target_slot_id = occupied_slot->get<IsDropSlot>().slot_id;
 
+  bool entity_was_frozen = false;
+  if (entity.has<Freezeable>()) {
+    entity_was_frozen = entity.get<Freezeable>().isFrozen;
+  }
+  bool item_was_frozen = false;
+  if (item.has<Freezeable>()) {
+    item_was_frozen = item.get<Freezeable>().isFrozen;
+  }
+
   vec2 slot_center = occupied_slot->get<Transform>().center();
   entity.get<Transform>().position = slot_center - transform.size * 0.5f;
   item.get<Transform>().position = held.original_position;
 
   set_slot_id(entity, target_slot_id);
   set_slot_id(item, original_slot_id);
+
+  if (entity.has<Freezeable>()) {
+    entity.get<Freezeable>().isFrozen = entity_was_frozen;
+  }
+  if (item.has<Freezeable>()) {
+    item.get<Freezeable>().isFrozen = item_was_frozen;
+  }
 
   occupied_slot->get<IsDropSlot>().occupied = true;
   if (original_slot_id >= 0) {
