@@ -4,6 +4,7 @@
 #include "../game_state_manager.h"
 #include "../input_mapping.h"
 #include "../render_backend.h"
+#include "../ui/text_formatting.h"
 #include <afterhours/ah.h>
 #include <fmt/format.h>
 #include <magic_enum/magic_enum.hpp>
@@ -47,7 +48,9 @@ struct RenderDebugWindowInfo
     const int y2 = 54;
     const int y3 = 72;
     const float font_size = 14.0f;
-    const raylib::Color col = raylib::WHITE;
+    const raylib::Color col = text_formatting::TextFormatting::get_color(
+        text_formatting::SemanticColor::Text,
+        text_formatting::FormattingContext::HUD);
 
     render_backend::DrawTextWithActiveFont(fmt::format("win {}x{}", window_w, window_h).c_str(), x,
                                           y0, font_size, col);

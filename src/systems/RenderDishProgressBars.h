@@ -9,6 +9,7 @@
 #include "../render_backend.h"
 #include "../render_constants.h"
 #include "../rl.h"
+#include "../ui/text_formatting.h"
 #include <afterhours/ah.h>
 #include <afterhours/src/plugins/color.h>
 
@@ -37,11 +38,19 @@ struct RenderDishProgressBars : System<IsDish, DishLevel, Transform> {
                        static_cast<int>(bar_position.y), 40, 10,
                        Color{255, 255, 255, 255}); // White border
 
+    raylib::Color gold_color = text_formatting::TextFormatting::get_color(
+        text_formatting::SemanticColor::Gold,
+        text_formatting::FormattingContext::HUD);
+    raylib::Color muted_color = text_formatting::TextFormatting::get_color(
+        text_formatting::SemanticColor::TextMuted,
+        text_formatting::FormattingContext::HUD);
+    raylib::Color accent_color = text_formatting::TextFormatting::get_color(
+        text_formatting::SemanticColor::Accent,
+        text_formatting::FormattingContext::HUD);
+
     // Draw progress indicators (smaller)
     for (int i = 0; i < level.merges_needed; ++i) {
-      Color color = (i < level.merge_progress) ? Color{255, 215, 0, 255}
-                                               :   // Gold for filled
-                        Color{120, 120, 120, 255}; // Darker gray for empty
+      Color color = (i < level.merge_progress) ? gold_color : muted_color;
 
       int x = static_cast<int>(bar_position.x) + 2 + i * 12;
       int y = static_cast<int>(bar_position.y) + 2;
@@ -54,7 +63,7 @@ struct RenderDishProgressBars : System<IsDish, DishLevel, Transform> {
       std::string level_text = "L" + std::to_string(level.level);
       render_backend::DrawTextWithActiveFont(level_text.c_str(), static_cast<int>(center.x - 10),
                                             static_cast<int>(bar_position.y - 25), font_sizes::Normal,
-                                            Color{255, 255, 0, 255}); // Bright yellow for visibility
+                                            accent_color);
     }
   }
 };

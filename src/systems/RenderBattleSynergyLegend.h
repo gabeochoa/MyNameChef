@@ -6,8 +6,10 @@
 #include "../components/set_bonus_definitions.h"
 #include "../font_info.h"
 #include "../game_state_manager.h"
+#include "../render_backend.h"
 #include "../rl.h"
 #include "../shop.h"
+#include "../ui/text_formatting.h"
 #include <afterhours/ah.h>
 #include <magic_enum/magic_enum.hpp>
 
@@ -64,9 +66,12 @@ struct RenderBattleSynergyLegend : afterhours::System<> {
                           std::to_string(next_threshold);
 
       float y = start_y + (line_count * line_height);
+      raylib::Color text_color = text_formatting::TextFormatting::get_color(
+          text_formatting::SemanticColor::Text,
+          text_formatting::FormattingContext::Combat);
       render_backend::DrawTextWithActiveFont(label.c_str(), static_cast<int>(x),
                                              static_cast<int>(y), text_size,
-                                             raylib::WHITE);
+                                             text_color);
 
       line_count++;
     }

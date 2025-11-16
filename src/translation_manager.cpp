@@ -1,7 +1,10 @@
 #include "translation_manager.h"
+#include "font_info.h"
 #include "log.h"
 #include "magic_enum/magic_enum.hpp"
 #include <map>
+#include <set>
+#include <vector>
 
 namespace translation_manager {
 
@@ -75,6 +78,58 @@ static std::map<strings::i18n, TranslatableString> english_translations = {
          "unknown", "Fallback text for unknown game states")},
 };
 
+// Korean translations
+static std::map<strings::i18n, TranslatableString> korean_translations = {
+    {strings::i18n::play, translation_manager::TranslatableString(
+                              "플레이", "새 게임을 시작하는 메인 메뉴 버튼")},
+    {strings::i18n::about, translation_manager::TranslatableString(
+                               "정보", "게임 정보를 표시하는 메인 메뉴 버튼")},
+    {strings::i18n::exit, translation_manager::TranslatableString(
+                              "종료", "게임을 종료하는 메인 메뉴 버튼")},
+    {strings::i18n::start, translation_manager::TranslatableString(
+                               "시작", "게임플레이를 시작하는 버튼")},
+    {strings::i18n::back,
+     translation_manager::TranslatableString(
+         "뒤로", "이전 화면으로 돌아가는 네비게이션 버튼")},
+    {strings::i18n::continue_game, translation_manager::TranslatableString(
+                                       "계속", "라운드 종료 후 계속하는 버튼")},
+    {strings::i18n::quit, translation_manager::TranslatableString(
+                              "종료", "현재 게임 세션을 종료하는 버튼")},
+    {strings::i18n::settings,
+     translation_manager::TranslatableString(
+         "설정", "게임 설정에 접근하는 메인 메뉴 버튼")},
+    {strings::i18n::language, translation_manager::TranslatableString(
+                                  "언어", "게임 언어를 선택하는 드롭다운")},
+};
+
+// Japanese translations
+static std::map<strings::i18n, TranslatableString> japanese_translations = {
+    {strings::i18n::play,
+     translation_manager::TranslatableString(
+         "プレイ", "新しいゲームを開始するメインメニューボタン")},
+    {strings::i18n::about,
+     translation_manager::TranslatableString(
+         "情報", "ゲーム情報を表示するメインメニューボタン")},
+    {strings::i18n::exit, translation_manager::TranslatableString(
+                              "終了", "ゲームを終了するメインメニューボタン")},
+    {strings::i18n::start, translation_manager::TranslatableString(
+                               "開始", "ゲームプレイを開始するボタン")},
+    {strings::i18n::back, translation_manager::TranslatableString(
+                              "戻る", "前の画面に戻るナビゲーションボタン")},
+    {strings::i18n::continue_game,
+     translation_manager::TranslatableString("続ける",
+                                             "ラウンド終了後に続けるボタン")},
+    {strings::i18n::quit,
+     translation_manager::TranslatableString(
+         "終了", "現在のゲームセッションを終了するボタン")},
+    {strings::i18n::settings,
+     translation_manager::TranslatableString(
+         "設定", "ゲーム設定にアクセスするメインメニューボタン")},
+    {strings::i18n::language,
+     translation_manager::TranslatableString(
+         "言語", "ゲーム言語を選択するドロップダウン")},
+};
+
 // Get translations for a specific language
 const std::map<strings::i18n, TranslatableString> &
 TranslationManager::get_translations_for_language(Language language) const {
@@ -82,9 +137,9 @@ TranslationManager::get_translations_for_language(Language language) const {
   case Language::English:
     return english_translations;
   case Language::Korean:
-    return english_translations;
+    return korean_translations;
   case Language::Japanese:
-    return english_translations;
+    return japanese_translations;
   }
 }
 
@@ -142,8 +197,8 @@ void TranslationManager::set_language(Language language) {
 
 // Load CJK fonts for all the strings this manager needs
 void TranslationManager::load_cjk_fonts(
-    afterhours::ui::FontManager & /* font_manager */,
-    const std::string & /* font_file */) const {
+    afterhours::ui::FontManager &font_manager,
+    const std::string &font_file) const {
 
   // Collect all unique codepoints from all CJK languages
   std::set<int> all_codepoints;
@@ -210,11 +265,32 @@ void TranslationManager::load_cjk_fonts(
     // Convert set to vector
     std::vector<int> codepoints(all_codepoints.begin(), all_codepoints.end());
 
-    // Simplified - no font loading system
-    // TODO: Implement font loading when Files system is available
+    // Load fonts with codepoints for Korean and Japanese
+    // Note: font_file parameter is the Korean font file path
+    // We need to get the Japanese font file path separately
+    if (!font_file.empty() && codepoints.size() > 0) {
+      std::string korean_font_name = get_font_name(FontID::Korean);
+      std::string japanese_font_name = get_font_name(FontID::Japanese);
 
-    log_info("Loaded basic fonts with {} total codepoints for CJK support",
-             codepoints.size());
+      // Load Korean font with codepoints
+      font_manager.load_font_with_codepoints(
+          korean_font_name, font_file.c_str(), codepoints.data(),
+          static_cast<int>(codepoints.size()));
+
+      // For Japanese, we need to construct the font file path
+      // Since we only have the Korean font file path, we'll use it for both
+      // In a full implementation, we'd pass both font file paths
+      // For now, use the same file (assuming it supports both languages)
+      font_manager.load_font_with_codepoints(
+          japanese_font_name, font_file.c_str(), codepoints.data(),
+          static_cast<int>(codepoints.size()));
+
+      log_info("Loaded CJK fonts with {} total codepoints for Korean and "
+               "Japanese support",
+               codepoints.size());
+    } else {
+      log_warn("Cannot load CJK fonts: font_file is empty or no codepoints");
+    }
   }
 }
 

@@ -9,6 +9,7 @@
 #include "../game_state_manager.h"
 #include "../render_backend.h"
 #include "../rl.h"
+#include "../ui/text_formatting.h"
 #include <afterhours/ah.h>
 #include <functional>
 #include <magic_enum/magic_enum.hpp>
@@ -46,8 +47,11 @@ struct RenderBattleResults : afterhours::System<> {
     float titleX = (screenWidth - titleWidth) / 2.0f;
     float titleY = 100.0f;
 
+    raylib::Color title_color = text_formatting::TextFormatting::get_color(
+        text_formatting::SemanticColor::Accent,
+        text_formatting::FormattingContext::Results);
     render_backend::DrawTextWithActiveFont(title.c_str(), (int)titleX, (int)titleY, font_sizes::Title,
-                                          raylib::YELLOW);
+                                          title_color);
 
     std::string outcomeText;
     raylib::Color outcomeColor;
@@ -55,15 +59,21 @@ struct RenderBattleResults : afterhours::System<> {
     switch (result.outcome) {
     case BattleResult::Outcome::PlayerWin:
       outcomeText = "PLAYER WINS!";
-      outcomeColor = raylib::GREEN;
+      outcomeColor = text_formatting::TextFormatting::get_color(
+          text_formatting::SemanticColor::Success,
+          text_formatting::FormattingContext::Results);
       break;
     case BattleResult::Outcome::OpponentWin:
       outcomeText = "OPPONENT WINS!";
-      outcomeColor = raylib::RED;
+      outcomeColor = text_formatting::TextFormatting::get_color(
+          text_formatting::SemanticColor::Error,
+          text_formatting::FormattingContext::Results);
       break;
     case BattleResult::Outcome::Tie:
       outcomeText = "IT'S A TIE!";
-      outcomeColor = raylib::YELLOW;
+      outcomeColor = text_formatting::TextFormatting::get_color(
+          text_formatting::SemanticColor::Warning,
+          text_formatting::FormattingContext::Results);
       break;
     }
 
@@ -129,9 +139,19 @@ private:
   }
 
   void render_teams(float /* screenWidth */, float startY) const {
+    raylib::Color text_color = text_formatting::TextFormatting::get_color(
+        text_formatting::SemanticColor::Text,
+        text_formatting::FormattingContext::Results);
+    raylib::Color success_color = text_formatting::TextFormatting::get_color(
+        text_formatting::SemanticColor::Success,
+        text_formatting::FormattingContext::Results);
+    raylib::Color error_color = text_formatting::TextFormatting::get_color(
+        text_formatting::SemanticColor::Error,
+        text_formatting::FormattingContext::Results);
+
     // Player team
     std::string playerLabel = "PLAYER TEAM:";
-    render_backend::DrawTextWithActiveFont(playerLabel.c_str(), 50, (int)startY, font_sizes::Medium, raylib::GREEN);
+    render_backend::DrawTextWithActiveFont(playerLabel.c_str(), 50, (int)startY, font_sizes::Medium, success_color);
 
     float playerX = 50.0f;
     float playerY = startY + 30.0f;
@@ -150,14 +170,14 @@ private:
       std::string dishName = dish.name();
 
       render_backend::DrawTextWithActiveFont(dishName.c_str(), (int)playerX, (int)playerY, font_sizes::Normal,
-                                            raylib::WHITE);
+                                            text_color);
       playerX += render_backend::MeasureTextWithActiveFont(dishName.c_str(), font_sizes::Normal) + 20.0f;
     }
 
     // Opponent team
     std::string opponentLabel = "OPPONENT TEAM:";
     render_backend::DrawTextWithActiveFont(opponentLabel.c_str(), 50, (int)(startY + 60), font_sizes::Medium,
-                                          raylib::RED);
+                                          error_color);
 
     float opponentX = 50.0f;
     float opponentY = startY + 90.0f;
@@ -176,7 +196,7 @@ private:
       std::string dishName = dish.name();
 
       render_backend::DrawTextWithActiveFont(dishName.c_str(), (int)opponentX, (int)opponentY, font_sizes::Normal,
-                                            raylib::WHITE);
+                                            text_color);
       opponentX += render_backend::MeasureTextWithActiveFont(dishName.c_str(), font_sizes::Normal) + 20.0f;
     }
   }

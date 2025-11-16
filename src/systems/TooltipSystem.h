@@ -15,6 +15,7 @@
 #include "../render_backend.h"
 #include "../rl.h"
 #include "../tooltip.h"
+#include "../ui/text_formatting.h"
 #include <afterhours/ah.h>
 #include <magic_enum/magic_enum.hpp>
 #include <map>
@@ -67,7 +68,7 @@ public:
         for (auto course : magic_enum::enum_values<CourseTagType>()) {
           if (tag.has(course)) {
             if (first) {
-              tag_info << "\n[GOLD]Course: [WHITE]";
+              tag_info << "\n[COLOR:Gold]Course: [COLOR:Text]";
               first = false;
             } else {
               tag_info << ", ";
@@ -88,7 +89,7 @@ public:
         for (auto cuisine : magic_enum::enum_values<CuisineTagType>()) {
           if (tag.has(cuisine)) {
             if (first) {
-              tag_info << "[GOLD]Cuisine: [WHITE]";
+              tag_info << "[COLOR:Gold]Cuisine: [COLOR:Text]";
               first_cuisine = cuisine;
               first = false;
             } else {
@@ -109,7 +110,8 @@ public:
             int count = synergy.get_count(first_cuisine);
             std::vector<int> thresholds =
                 synergy.get_all_thresholds(first_cuisine);
-            tag_info << "[CYAN]Synergy: [WHITE]" << count << " dishes (";
+            tag_info << "[COLOR:Info]Synergy: [COLOR:Text]" << count
+                     << " dishes (";
             bool first_threshold = true;
             for (int threshold : thresholds) {
               if (!first_threshold) {
@@ -120,7 +122,7 @@ public:
                 tag_info << threshold;
               } else {
                 // Future threshold - grayed out
-                tag_info << "[GRAY]" << threshold << "[WHITE]";
+                tag_info << "[COLOR:TextMuted]" << threshold << "[COLOR:Text]";
               }
               first_threshold = false;
             }
@@ -136,7 +138,7 @@ public:
         for (auto brand : magic_enum::enum_values<BrandTagType>()) {
           if (tag.has(brand)) {
             if (first) {
-              tag_info << "[GOLD]Brand: [WHITE]";
+              tag_info << "[COLOR:Gold]Brand: [COLOR:Text]";
               first_brand = brand;
               first = false;
             } else {
@@ -157,7 +159,8 @@ public:
             int count = synergy.get_count(first_brand);
             std::vector<int> thresholds =
                 synergy.get_all_thresholds(first_brand);
-            tag_info << "[CYAN]Synergy: [WHITE]" << count << " dishes (";
+            tag_info << "[COLOR:Info]Synergy: [COLOR:Text]" << count
+                     << " dishes (";
             bool first_threshold = true;
             for (int threshold : thresholds) {
               if (!first_threshold) {
@@ -166,7 +169,7 @@ public:
               if (count >= threshold) {
                 tag_info << threshold;
               } else {
-                tag_info << "[GRAY]" << threshold << "[WHITE]";
+                tag_info << "[COLOR:TextMuted]" << threshold << "[COLOR:Text]";
               }
               first_threshold = false;
             }
@@ -182,7 +185,7 @@ public:
         for (auto archetype : magic_enum::enum_values<DishArchetypeTagType>()) {
           if (tag.has(archetype)) {
             if (first) {
-              tag_info << "[GOLD]Archetype: [WHITE]";
+              tag_info << "[COLOR:Gold]Archetype: [COLOR:Text]";
               first_archetype = archetype;
               first = false;
             } else {
@@ -203,7 +206,8 @@ public:
             int count = synergy.get_count(first_archetype);
             std::vector<int> thresholds =
                 synergy.get_all_thresholds(first_archetype);
-            tag_info << "[CYAN]Synergy: [WHITE]" << count << " dishes (";
+            tag_info << "[COLOR:Info]Synergy: [COLOR:Text]" << count
+                     << " dishes (";
             bool first_threshold = true;
             for (int threshold : thresholds) {
               if (!first_threshold) {
@@ -212,7 +216,7 @@ public:
               if (count >= threshold) {
                 tag_info << threshold;
               } else {
-                tag_info << "[GRAY]" << threshold << "[WHITE]";
+                tag_info << "[COLOR:TextMuted]" << threshold << "[COLOR:Text]";
               }
               first_threshold = false;
             }
@@ -226,14 +230,6 @@ public:
       }
     }
 
-    // Color mapping (defined early for use in width calculation and rendering)
-    std::map<std::string, raylib::Color> color_map = {
-        {"[GOLD]", raylib::GOLD},     {"[RED]", raylib::RED},
-        {"[GREEN]", raylib::GREEN},   {"[BLUE]", raylib::BLUE},
-        {"[ORANGE]", raylib::ORANGE}, {"[PURPLE]", raylib::PURPLE},
-        {"[CYAN]", raylib::SKYBLUE},  {"[YELLOW]", raylib::YELLOW},
-        {"[WHITE]", raylib::WHITE},   {"[GRAY]", raylib::GRAY}};
-
     float tooltip_x = mouse_pos.x + 10; // Offset from mouse
     float tooltip_y = mouse_pos.y - 30; // Above mouse
 
@@ -245,14 +241,9 @@ public:
 
     while (std::getline(measure_stream, measure_line)) {
       line_count++;
-      // Remove color markers for width calculation
-      std::string clean_line = measure_line;
-      for (const auto &[marker, color] : color_map) {
-        size_t pos = 0;
-        while ((pos = clean_line.find(marker, pos)) != std::string::npos) {
-          clean_line.erase(pos, marker.length());
-        }
-      }
+      // Remove color markers for width calculation using formatting system
+      std::string clean_line =
+          text_formatting::TextFormatting::strip_formatting_codes(measure_line);
       float line_width = render_backend::MeasureTextWithActiveFont(
           clean_line.c_str(), tooltip.font_size);
       if (line_width > max_line_width) {
@@ -313,59 +304,10 @@ public:
                                static_cast<int>(tooltip_width),
                                static_cast<int>(tooltip_height), raylib::WHITE);
 
-    // Draw tooltip text with color support
-    float current_y = tooltip_y + tooltip.padding;
-    std::istringstream text_stream(tooltip_text);
-    std::string line;
-
-    while (std::getline(text_stream, line)) {
-      float current_x = tooltip_x + tooltip.padding;
-      raylib::Color current_color = tooltip.text_color; // Default color
-
-      // Parse line for color markers and render segments
-      size_t pos = 0;
-      while (pos < line.length()) {
-        // Find the next color marker
-        size_t next_marker_pos = std::string::npos;
-        std::string next_marker;
-        raylib::Color next_color = current_color;
-
-        for (const auto &[marker, color] : color_map) {
-          size_t marker_pos = line.find(marker, pos);
-          if (marker_pos != std::string::npos &&
-              (next_marker_pos == std::string::npos ||
-               marker_pos < next_marker_pos)) {
-            next_marker_pos = marker_pos;
-            next_marker = marker;
-            next_color = color;
-          }
-        }
-
-        // Extract text segment before next marker (or to end of line)
-        size_t segment_end = (next_marker_pos != std::string::npos)
-                                 ? next_marker_pos
-                                 : line.length();
-        std::string segment = line.substr(pos, segment_end - pos);
-
-        // Draw the segment if it's not empty
-        if (!segment.empty()) {
-          render_backend::DrawTextWithActiveFont(segment.c_str(), static_cast<int>(current_x),
-                                                 static_cast<int>(current_y),
-                                                 tooltip.font_size, current_color);
-          current_x += render_backend::MeasureTextWithActiveFont(segment.c_str(),
-                                                                 tooltip.font_size);
-        }
-
-        // Update position and color for next segment
-        if (next_marker_pos != std::string::npos) {
-          pos = next_marker_pos + next_marker.length();
-          current_color = next_color;
-        } else {
-          pos = line.length();
-        }
-      }
-
-      current_y += tooltip.font_size;
-    }
+    // Draw tooltip text with color support using formatting system
+    text_formatting::render_formatted_text_multiline(
+        tooltip_text, static_cast<int>(tooltip_x + tooltip.padding),
+        static_cast<int>(tooltip_y + tooltip.padding), tooltip.font_size,
+        text_formatting::FormattingContext::Tooltip, tooltip.text_color);
   }
 };

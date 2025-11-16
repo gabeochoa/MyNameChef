@@ -20,6 +20,11 @@ enum struct i18nParam {
   number_count,
   number_time,
   number_ordinal,
+  dish_name,
+  synergy_name,
+  stat_name,
+  currency_amount,
+  player_name,
 
   Count
 };
@@ -29,6 +34,11 @@ const std::map<i18nParam, std::string> translation_param = {
     {i18nParam::number_count, "number_count"},
     {i18nParam::number_time, "number_time"},
     {i18nParam::number_ordinal, "number_ordinal"},
+    {i18nParam::dish_name, "dish_name"},
+    {i18nParam::synergy_name, "synergy_name"},
+    {i18nParam::stat_name, "stat_name"},
+    {i18nParam::currency_amount, "currency_amount"},
+    {i18nParam::player_name, "player_name"},
 };
 
 class TranslatableString {

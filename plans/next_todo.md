@@ -216,33 +216,236 @@
 - **Estimated**: 3-4 hours
 
 ### Task 8: Better System for Text Formatting
-**Files**: Create `src/ui/text_formatting.h`, update all text rendering systems
-- **Goal**: Create a centralized, maintainable system for text formatting throughout the game
-- **Focus**: More interested in formatting (bold, italic, colors, structure) than just colors
-- **Implementation**:
-  - Create text formatting system with semantic formatting names
-  - Support for formatting codes (e.g., `[BOLD]`, `[ITALIC]`, `[COLOR:red]`)
-  - Define formatting palette for different contexts (UI, combat, tooltips, etc.)
-  - Replace hardcoded formatting with semantic formatting system
-  - Ensure consistent formatting usage across all screens
-- **Note**: Color system can be part of this, but focus is on overall formatting structure
-- **Fun Ideas**:
-  - Color-coded stat changes (green for positive, red for negative)
-  - Contextual formatting (e.g., dish rarity colors, synergy colors)
-  - Rich text formatting support
-  - Accessibility: ensure sufficient contrast ratios
-- **Validation Steps**:
-  1. Create text_formatting.h with formatting system and semantic names
-  2. Define formatting palette for different contexts
-  3. Replace hardcoded formatting with semantic formatting system across all UI
-  4. Update text rendering utilities to use new formatting system
-  5. **MANDATORY CHECKPOINT**: Build: `xmake`
-  6. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
-  7. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
-  8. Verify text formatting is consistent and appropriate across all screens (manual test)
-  9. **MANDATORY CHECKPOINT**: Commit: `git commit -m "ui - implement centralized text formatting system"`
-  10. **Only after successful commit, proceed to Task 9**
-- **Estimated**: 3-4 hours
+**Files**: Create `src/ui/text_formatting.h`, update all text rendering systems, enhance `src/translation_manager.h`
+- **Goal**: Create a centralized, maintainable system for text formatting throughout the game that integrates with translations and supports i18n properly
+- **Focus**: More interested in formatting (bold, italic, colors, structure) than just colors, with proper translation support
+
+#### Current State Analysis
+- **TooltipSystem** has basic color markers (`[GOLD]`, `[RED]`, etc.) but hardcoded in the system
+- **Render systems** use hardcoded `raylib::GOLD`, `raylib::RED`, `Color{255, 215, 0, 255}`, etc.
+- **Theme system** exists (`afterhours::ui::Theme`) but not used for text rendering
+- **Font system** has semantic sizes (`font_sizes::Small`, `font_sizes::Medium`, etc.)
+
+#### Implementation Steps
+
+**Step 1: Create Core Text Formatting System**
+- **File**: `src/ui/text_formatting.h`
+- Create `FormattingContext` enum: `UI`, `Combat`, `Tooltip`, `HUD`, `Results`
+- Create `SemanticColor` enum: `Primary`, `Secondary`, `Accent`, `Success`, `Warning`, `Error`, `Info`, `Text`, `TextMuted`, `Gold`, `Health`, `Positive`, `Negative`, etc.
+- Create `FormattingStyle` struct: Combines color, bold, italic flags
+- Create `TextFormatting` class:
+  - Maps semantic colors to actual colors per context
+  - Parses formatting codes: `[BOLD]`, `[ITALIC]`, `[COLOR:semantic_name]`, `[RESET]`
+  - Provides `get_color(SemanticColor, FormattingContext)` method
+  - Integrates with existing `afterhours::ui::Theme` system
+
+**Step 2: Define Formatting Palettes**
+- **UI context**: Use theme colors (Primary, Secondary, Accent from Theme)
+- **Combat context**: High contrast colors (red for damage, green for healing)
+- **Tooltip context**: Rich colors for information display
+- **HUD context**: Status colors (gold for currency, red for health, etc.)
+- **Results context**: Outcome colors (green for win, red for loss, yellow for tie)
+
+**Step 3: Create Formatting Code Parser**
+- Handles nested formatting: `[BOLD][COLOR:Error]Text[/COLOR][/BOLD]`
+- Supports closing tags: `[/BOLD]`, `[/COLOR]`
+- Maintains formatting stack during parsing
+- Returns vector of `FormattedSegment` structs: `{text, color, is_bold, is_italic}`
+
+**Step 4: Create Rendering Helper Functions**
+- `render_formatted_text()`: Renders formatted text segments
+- `measure_formatted_text()`: Measures formatted text width
+- `strip_formatting_codes()`: Removes formatting codes for plain text measurement
+- Integration with `render_backend::DrawTextWithActiveFont()`
+
+**Step 5: Update TooltipSystem**
+- **File**: `src/systems/TooltipSystem.h`
+- Replace hardcoded `color_map` with `TextFormatting::get_color()`
+- Update color markers to use semantic names: `[COLOR:Gold]`, `[COLOR:Info]`
+- Use formatting parser for rich text support
+- Keep backward compatibility with existing `[GOLD]`, `[RED]` markers during transition
+
+**Step 6: Update RenderWalletHUD**
+- **File**: `src/systems/RenderWalletHUD.h`
+- Replace `raylib::GOLD` with `TextFormatting::get_color(SemanticColor::Gold, FormattingContext::HUD)`
+- Replace `raylib::RED` with `TextFormatting::get_color(SemanticColor::Health, FormattingContext::HUD)`
+- Replace `raylib::WHITE` with `TextFormatting::get_color(SemanticColor::Text, FormattingContext::HUD)`
+
+**Step 7: Update RenderBattleResults**
+- **File**: `src/systems/RenderBattleResults.h`
+- Replace hardcoded colors with semantic colors:
+  - `raylib::YELLOW` → `SemanticColor::Accent` (title)
+  - `raylib::GREEN` → `SemanticColor::Success` (player win)
+  - `raylib::RED` → `SemanticColor::Error` (opponent win)
+  - `raylib::YELLOW` → `SemanticColor::Warning` (tie)
+- Use `FormattingContext::Results`
+
+**Step 8: Update RenderDishProgressBars**
+- **File**: `src/systems/RenderDishProgressBars.h`
+- Replace hardcoded `Color{255, 215, 0, 255}` with `SemanticColor::Gold`
+- Replace hardcoded `Color{120, 120, 120, 255}` with `SemanticColor::TextMuted`
+- Replace hardcoded `Color{255, 255, 0, 255}` with `SemanticColor::Accent`
+
+**Step 9: Update RenderBattleTeams**
+- **File**: `src/systems/RenderBattleTeams.h`
+- Replace `raylib::WHITE` with `SemanticColor::Text`
+- Replace `raylib::GREEN` with `SemanticColor::Success` (player)
+- Replace `raylib::RED` with `SemanticColor::Error` (opponent)
+
+**Step 10: Update Other Render Systems**
+- Search for remaining hardcoded colors in:
+  - `src/systems/RenderAnimations.h`
+  - `src/systems/RenderZingBodyOverlay.h`
+  - `src/systems/RenderDebugWindowInfo.h`
+  - `src/systems/RenderToastSystem.h`
+  - `src/systems/RenderBattleSynergyLegend.h`
+- Replace with semantic colors using appropriate context
+
+**Step 11: Add Contextual Formatting Helpers**
+- `format_stat_change(int value)`: Returns formatted string with `[COLOR:Positive]` or `[COLOR:Negative]`
+- `format_currency(int amount)`: Returns formatted string with `[COLOR:Gold]`
+- `format_health(int current, int max)`: Returns formatted string with appropriate colors
+
+**Step 12: Translation System Enhancements** (based on pharmasea/kart-afterhours comparison)
+- Add additional `i18nParam` types to `translation_manager.h`: `dish_name`, `synergy_name`, `stat_name`, `currency_amount`, `player_name`, etc.
+- Implement actual CJK font loading in `translation_manager.cpp` (currently stub)
+  - Use `font_manager.load_font_with_codepoints()` like kart-afterhours
+  - Extract codepoints from all translations for Korean/Japanese
+  - Load fonts with extracted codepoints
+- Add actual Korean/Japanese translations (currently returns English for all)
+  - Can be done incrementally, start with basic UI strings
+
+#### Design Decisions
+
+**Formatting Code Syntax**:
+- Use square brackets: `[BOLD]`, `[COLOR:Gold]`, `[/BOLD]`
+- Support both self-closing and paired tags
+- Semantic color names: `[COLOR:Gold]`, `[COLOR:Error]`, `[COLOR:Success]`
+- Backward compatibility: Support old `[GOLD]`, `[RED]` markers during transition
+
+**Context System**:
+- Different contexts map same semantic color to different actual colors
+- Example: `SemanticColor::Primary` in `UI` context uses theme primary, in `Combat` context uses high-contrast color
+- Allows context-appropriate color choices while maintaining semantic meaning
+
+**Integration with Theme and Color Systems**:
+
+**Theme System Integration**:
+- For `FormattingContext::UI`, semantic colors that map to `Theme::Usage` values use:
+  ```cpp
+  afterhours::ui::imm::ThemeDefaults::get().get_theme().from_usage(Theme::Usage::Primary)
+  ```
+- Semantic colors that map to Theme: `Primary`, `Secondary`, `Accent`, `Error`, `Font`, `DarkFont`
+- Access theme via singleton: `afterhours::ui::imm::ThemeDefaults::get().get_theme()`
+- Theme colors are configured in `SetupGameStylingDefaults` system in `src/ui/ui_systems.cpp`
+
+**Color System Integration**:
+- Use `afterhours::colors` namespace for game-specific colors:
+  - `afterhours::colors::UI_GOLD`, `UI_RED`, `UI_GREEN`, `UI_BLUE`, `UI_WHITE`, `UI_BLACK`
+  - Custom colors: `pacific_blue`, `oxford_blue`, `orange_soda`, `isabelline`, `tea_green`
+- Use `raylib::` namespace colors for contexts that don't use theme (HUD, Combat, Results)
+- Use color utility functions: `colors::darken()`, `colors::set_opacity()` for variations
+
+**Context-Specific Behavior**:
+- **UI context**: Prefer theme colors via `Theme::from_usage()` for semantic colors that map to theme
+- **HUD/Combat/Results contexts**: Use `raylib::` or `afterhours::colors` directly (no theme dependency)
+- **Tooltip context**: Use `afterhours::colors` namespace colors for rich information display
+
+**Implementation Details**:
+- `TextFormatting::get_color()` method checks context:
+  - If `FormattingContext::UI` and semantic color maps to `Theme::Usage`, call `theme.from_usage()`
+  - Otherwise, use `afterhours::colors` or `raylib::` colors based on context
+- Semantic color enum includes both theme-mapped colors and game-specific colors
+- Maintains separation: UI components use Theme, text rendering uses TextFormatting (which may use Theme for UI context)
+
+#### Translation and Internationalization Support
+
+**RTL Language Support (Arabic, Hebrew)**:
+- **Text direction detection**: Detect RTL characters in text segments
+- **Formatting preservation**: Formatting metadata stored separately from text, applied during rendering
+- **Segment ordering**: For RTL text, reverse segment order but preserve formatting
+- **Mixed text**: Handle LTR/RTL boundaries correctly (e.g., Arabic numbers in English text)
+- **Translation workflow**:
+  1. Get translated string via `TranslatableString`
+  2. Apply formatting using helper functions
+  3. Parse into segments with direction info
+  4. Render with proper direction handling
+
+**CJK Language Support (Chinese, Japanese, Korean)**:
+- **Existing infrastructure**: Codebase already has `contains_cjk()` checks and special rendering for CJK text
+- **Font handling**: Different fonts for CJK languages (need to implement actual loading)
+- **Character spacing**: CJK characters have different spacing requirements (already handled in `draw_text_in_rect`)
+- **Formatting with CJK text**:
+  - Formatting codes should not break CJK character boundaries
+  - Color changes should work seamlessly with CJK text
+  - Bold/italic may not be supported by all CJK fonts (graceful fallback)
+- **Mixed CJK/Latin text**: 
+  - Handle formatting that spans CJK and Latin characters
+  - Ensure proper character width calculation for mixed text
+  - Use existing `measure_text_utf8()` and `draw_text_ex()` functions for CJK segments
+- **Integration with existing CJK rendering**:
+  - Leverage existing `afterhours::ui::text_utils::contains_cjk()` detection
+  - Use existing CJK rendering path in `draw_text_in_rect()` when formatting contains CJK
+  - Formatting segments should preserve CJK character integrity
+
+**Formatting Approach for i18n**:
+- **Use fmt::format with helper functions** instead of bracket codes in translation strings
+- **Formatting applied after translation**: Ensures formatting works correctly regardless of language
+- **Example workflow**:
+  ```cpp
+  // Translation string: "You have {gold_amount} gold" (no formatting codes in translation)
+  auto trs = translation_manager::get_translatable_string(key)
+    .set_param(translation_manager::i18nParam::number_count, 
+               TextFormatting::format_currency(100, FormattingContext::HUD).get_plain_text());
+  // Apply formatting after translation
+  auto formatted = format_translatable_with_color(trs, SemanticColor::Text, FormattingContext::HUD);
+  ```
+- **Benefits**:
+  - Translators don't need to understand formatting codes
+  - Formatting works correctly in RTL and CJK languages
+  - Formatting can be language-specific if needed (e.g., different colors for different languages)
+
+#### Benefits
+- **Maintainability**: Change colors in one place
+- **Consistency**: Same semantic meaning across all screens
+- **Accessibility**: Easy to adjust contrast ratios globally
+- **Extensibility**: Easy to add new formatting types (underline, strikethrough, etc.)
+- **Context-aware**: Colors adapt to context (UI vs Combat vs HUD)
+- **Translation-friendly**: Uses `fmt::format` which integrates with existing `TranslatableString` system
+- **RTL Support**: Formatting metadata separate from text, enabling proper RTL rendering
+- **Type-safe**: Helper functions provide compile-time safety vs string-based bracket codes
+
+#### Future Enhancements (Not in Scope)
+- Rich text formatting (underline, strikethrough)
+- Animated text effects
+- Text shadows/outlines
+- Font size variations in formatting codes
+- Language-specific color palettes (beyond context-based)
+
+#### Validation Steps
+1. Create text_formatting.h with formatting system using fmt::format helpers
+2. Define formatting palette for different contexts (integrate with Theme system)
+3. Implement formatting code parser for backward compatibility
+4. Create rendering helper functions
+5. Add missing i18nParam types to translation_manager.h
+6. Implement actual CJK font loading in translation_manager.cpp
+7. Update TooltipSystem to use new formatting system
+8. Update RenderWalletHUD to use semantic colors
+9. Update RenderBattleResults to use semantic colors
+10. Update RenderDishProgressBars to use semantic colors
+11. Update RenderBattleTeams to use semantic colors
+12. Update remaining render systems to use semantic colors
+13. Add contextual formatting helper functions
+14. Test with Korean/Japanese translations (add basic translations if missing)
+15. **MANDATORY CHECKPOINT**: Build: `xmake`
+16. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
+17. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
+18. Verify text formatting is consistent and appropriate across all screens (manual test)
+19. Verify formatting works with Korean/Japanese text (manual test)
+20. **MANDATORY CHECKPOINT**: Commit: `git commit -m "ui - implement centralized text formatting system with i18n support"`
+21. **Only after successful commit, proceed to Task 9**
+
+- **Estimated**: 4-5 hours (includes translation system enhancements)
 
 ### Task 9: Fix Tooltip Offscreen Positioning
 **Files**: `src/systems/TooltipSystem.h`

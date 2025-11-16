@@ -7,6 +7,7 @@
 #include "../game_state_manager.h"
 #include "../render_backend.h"
 #include "../rl.h"
+#include "../ui/text_formatting.h"
 #include <afterhours/ah.h>
 #include <afterhours/src/plugins/animation.h>
 #include <afterhours/src/plugins/texture_manager.h>
@@ -119,8 +120,18 @@ struct RenderBattleTeams : afterhours::System<Transform, IsDish> {
           (int)transform.size.x, (int)transform.size.y, raylib::PINK);
     }
 
+    raylib::Color success_color = text_formatting::TextFormatting::get_color(
+        text_formatting::SemanticColor::Success,
+        text_formatting::FormattingContext::Combat);
+    raylib::Color error_color = text_formatting::TextFormatting::get_color(
+        text_formatting::SemanticColor::Error,
+        text_formatting::FormattingContext::Combat);
+    raylib::Color text_color = text_formatting::TextFormatting::get_color(
+        text_formatting::SemanticColor::Text,
+        text_formatting::FormattingContext::Combat);
+
     // Draw border
-    raylib::Color borderColor = isPlayer ? raylib::GREEN : raylib::RED;
+    raylib::Color borderColor = isPlayer ? success_color : error_color;
     raylib::DrawRectangleLines(
         (int)(transform.position.x + offset_x),
         (int)(transform.position.y + offset_y + present_offset_y),
@@ -134,7 +145,7 @@ struct RenderBattleTeams : afterhours::System<Transform, IsDish> {
     float textY = transform.position.y + offset_y + present_offset_y - 25.0f;
 
     render_backend::DrawTextWithActiveFont(dishName.c_str(), (int)textX, (int)textY, font_sizes::Normal,
-                                          raylib::WHITE);
+                                          text_color);
 
     // Draw team label
     std::string teamLabel = isPlayer ? "PLAYER" : "OPPONENT";

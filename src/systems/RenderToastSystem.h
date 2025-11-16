@@ -6,6 +6,7 @@
 #include "../font_info.h"
 #include "../game_state_manager.h"
 #include "../render_backend.h"
+#include "../ui/text_formatting.h"
 #include <afterhours/ah.h>
 #include <afterhours/src/plugins/color.h>
 
@@ -37,7 +38,9 @@ struct RenderToastSystem
     float textX = transform.position.x + (transform.size.x - textWidth) / 2.0f;
     float textY = transform.position.y + (transform.size.y - fontSize) / 2.0f;
 
-    raylib::Color textColor = raylib::WHITE;
+    raylib::Color textColor = text_formatting::TextFormatting::get_color(
+        text_formatting::SemanticColor::Text,
+        text_formatting::FormattingContext::UI);
     textColor.a = bgColor.a;
 
     render_backend::DrawTextWithActiveFont(toast.message.c_str(), static_cast<int>(textX),

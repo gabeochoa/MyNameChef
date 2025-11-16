@@ -53,17 +53,18 @@ static std::string format_flavor_stat(FlavorStatType stat) {
 
 static std::string format_effect_description(const DishEffect &effect) {
   std::ostringstream desc;
-  std::string triggerName = std::string(magic_enum::enum_name(effect.triggerHook));
-  
-  desc << "[WHITE]" << triggerName << ": ";
-  
+  std::string triggerName =
+      std::string(magic_enum::enum_name(effect.triggerHook));
+
+  desc << "[COLOR:Text]" << triggerName << ": ";
+
   if (effect.conditional) {
     std::string checkStat = format_flavor_stat(effect.adjacentCheckStat);
     desc << "If adjacent has " << checkStat << ", ";
   }
-  
+
   std::string target = format_target_scope(effect.targetScope);
-  
+
   switch (effect.operation) {
   case EffectOperation::AddFlavorStat: {
     std::string statName = format_flavor_stat(effect.flavorStatType);
@@ -82,7 +83,7 @@ static std::string format_effect_description(const DishEffect &effect) {
     break;
   }
   }
-  
+
   return desc.str();
 }
 
@@ -90,26 +91,28 @@ inline std::string generate_dish_tooltip(DishType dishType) {
   auto dishInfo = get_dish_info(dishType);
   std::ostringstream tooltip;
 
-  tooltip << "[GOLD]" << dishInfo.name << "\n";
-  tooltip << "[CYAN]Price: " << dishInfo.price << " coins\n";
+  tooltip << "[COLOR:Gold]" << dishInfo.name << "\n";
+  tooltip << "[COLOR:Info]Price: " << dishInfo.price << " coins\n";
   tooltip << "Flavor Stats:\n";
   if (dishInfo.flavor.satiety > 0)
-    tooltip << "[PURPLE]  Satiety: " << dishInfo.flavor.satiety << "\n";
+    tooltip << "[COLOR:Accent]  Satiety: " << dishInfo.flavor.satiety << "\n";
   if (dishInfo.flavor.sweetness > 0)
-    tooltip << "[YELLOW]  Sweetness: " << dishInfo.flavor.sweetness << "\n";
+    tooltip << "[COLOR:Warning]  Sweetness: " << dishInfo.flavor.sweetness
+            << "\n";
   if (dishInfo.flavor.spice > 0)
-    tooltip << "[RED]  Spice: " << dishInfo.flavor.spice << "\n";
+    tooltip << "[COLOR:Error]  Spice: " << dishInfo.flavor.spice << "\n";
   if (dishInfo.flavor.acidity > 0)
-    tooltip << "[GREEN]  Acidity: " << dishInfo.flavor.acidity << "\n";
+    tooltip << "[COLOR:Success]  Acidity: " << dishInfo.flavor.acidity << "\n";
   if (dishInfo.flavor.umami > 0)
-    tooltip << "[BLUE]  Umami: " << dishInfo.flavor.umami << "\n";
+    tooltip << "[COLOR:Info]  Umami: " << dishInfo.flavor.umami << "\n";
   if (dishInfo.flavor.richness > 0)
-    tooltip << "[ORANGE]  Richness: " << dishInfo.flavor.richness << "\n";
+    tooltip << "[COLOR:Warning]  Richness: " << dishInfo.flavor.richness
+            << "\n";
   if (dishInfo.flavor.freshness > 0)
-    tooltip << "[CYAN]  Freshness: " << dishInfo.flavor.freshness << "\n";
+    tooltip << "[COLOR:Info]  Freshness: " << dishInfo.flavor.freshness << "\n";
 
   if (!dishInfo.effects.empty()) {
-    tooltip << "\n[GOLD]Effects:\n";
+    tooltip << "\n[COLOR:Gold]Effects:\n";
     for (const auto &effect : dishInfo.effects) {
       tooltip << format_effect_description(effect) << "\n";
     }
@@ -125,29 +128,31 @@ inline std::string generate_dish_tooltip_with_level(DishType dishType,
   auto dishInfo = get_dish_info(dishType, level);
   std::ostringstream tooltip;
 
-  tooltip << "[GOLD]" << dishInfo.name << "\n";
-  tooltip << "[CYAN]Price: " << dishInfo.price << " coins\n";
-  tooltip << "[YELLOW]Level: " << level << "\n";
-  tooltip << "[WHITE]Progress: " << merge_progress << "/" << merges_needed
+  tooltip << "[COLOR:Gold]" << dishInfo.name << "\n";
+  tooltip << "[COLOR:Info]Price: " << dishInfo.price << " coins\n";
+  tooltip << "[COLOR:Warning]Level: " << level << "\n";
+  tooltip << "[COLOR:Text]Progress: " << merge_progress << "/" << merges_needed
           << " merges\n";
   tooltip << "Flavor Stats:\n";
   if (dishInfo.flavor.satiety > 0)
-    tooltip << "[PURPLE]  Satiety: " << dishInfo.flavor.satiety << "\n";
+    tooltip << "[COLOR:Accent]  Satiety: " << dishInfo.flavor.satiety << "\n";
   if (dishInfo.flavor.sweetness > 0)
-    tooltip << "[YELLOW]  Sweetness: " << dishInfo.flavor.sweetness << "\n";
+    tooltip << "[COLOR:Warning]  Sweetness: " << dishInfo.flavor.sweetness
+            << "\n";
   if (dishInfo.flavor.spice > 0)
-    tooltip << "[RED]  Spice: " << dishInfo.flavor.spice << "\n";
+    tooltip << "[COLOR:Error]  Spice: " << dishInfo.flavor.spice << "\n";
   if (dishInfo.flavor.acidity > 0)
-    tooltip << "[GREEN]  Acidity: " << dishInfo.flavor.acidity << "\n";
+    tooltip << "[COLOR:Success]  Acidity: " << dishInfo.flavor.acidity << "\n";
   if (dishInfo.flavor.umami > 0)
-    tooltip << "[BLUE]  Umami: " << dishInfo.flavor.umami << "\n";
+    tooltip << "[COLOR:Info]  Umami: " << dishInfo.flavor.umami << "\n";
   if (dishInfo.flavor.richness > 0)
-    tooltip << "[ORANGE]  Richness: " << dishInfo.flavor.richness << "\n";
+    tooltip << "[COLOR:Warning]  Richness: " << dishInfo.flavor.richness
+            << "\n";
   if (dishInfo.flavor.freshness > 0)
-    tooltip << "[CYAN]  Freshness: " << dishInfo.flavor.freshness << "\n";
+    tooltip << "[COLOR:Info]  Freshness: " << dishInfo.flavor.freshness << "\n";
 
   if (!dishInfo.effects.empty()) {
-    tooltip << "\n[GOLD]Effects:\n";
+    tooltip << "\n[COLOR:Gold]Effects:\n";
     for (const auto &effect : dishInfo.effects) {
       tooltip << format_effect_description(effect) << "\n";
     }

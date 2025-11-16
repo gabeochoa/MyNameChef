@@ -3,6 +3,7 @@
 #include "../font_info.h"
 #include "../game_state_manager.h"
 #include "../shop.h"
+#include "../ui/text_formatting.h"
 #include <afterhours/ah.h>
 using namespace afterhours;
 
@@ -25,8 +26,11 @@ struct RenderWalletHUD : System<> {
     // testability Expected: Wallet should be a UI element with label "Gold:
     // 100" or similar This would allow
     // UITestHelpers::visible_ui_exists("Gold:") to work
+    raylib::Color gold_color = text_formatting::TextFormatting::get_color(
+        text_formatting::SemanticColor::Gold,
+        text_formatting::FormattingContext::HUD);
     render_backend::DrawTextWithActiveFont(wallet_text.c_str(), 20, 80,
-                                           font_sizes::Medium, raylib::GOLD);
+                                           font_sizes::Medium, gold_color);
 
     auto health_entity = EntityHelper::get_singleton<Health>();
     if (!health_entity.get().has<Health>())
@@ -36,8 +40,11 @@ struct RenderWalletHUD : System<> {
     std::string health_text = std::to_string(health.current) + "/" +
                               std::to_string(health.max) + " health";
 
+    raylib::Color health_color = text_formatting::TextFormatting::get_color(
+        text_formatting::SemanticColor::Health,
+        text_formatting::FormattingContext::HUD);
     render_backend::DrawTextWithActiveFont(health_text.c_str(), 20, 110,
-                                           font_sizes::Medium, raylib::RED);
+                                           font_sizes::Medium, health_color);
 
     auto round_entity = EntityHelper::get_singleton<Round>();
     if (!round_entity.get().has<Round>())
@@ -46,7 +53,10 @@ struct RenderWalletHUD : System<> {
     const auto &round = round_entity.get().get<Round>();
     std::string round_text = "Round " + std::to_string(round.current);
 
+    raylib::Color text_color = text_formatting::TextFormatting::get_color(
+        text_formatting::SemanticColor::Text,
+        text_formatting::FormattingContext::HUD);
     render_backend::DrawTextWithActiveFont(round_text.c_str(), 20, 140,
-                                           font_sizes::Medium, raylib::WHITE);
+                                           font_sizes::Medium, text_color);
   }
 };
