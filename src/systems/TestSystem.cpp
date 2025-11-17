@@ -30,6 +30,7 @@ std::unordered_map<std::string, std::function<void()>> g_test_continuations;
 #include "../testing/tests/ValidateDishSellingTest.h"
 #include "../testing/tests/ValidateDishSystemTest.h"
 #include "../testing/tests/ValidateDoubleBattleFlowTest.h"
+#include "../testing/tests/ValidateDrinkEffectsTest.h"
 #include "../testing/tests/ValidateDrinkShopTest.h"
 #include "../testing/tests/ValidateEffectSystemTest.h"
 #include "../testing/tests/ValidateEntityQueryWithoutManualMergeTest.h"
