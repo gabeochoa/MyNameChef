@@ -68,6 +68,9 @@ private:
                          TargetScope::Self, 2),
               DishEffect(TriggerHook::OnServe, EffectOperation::AddCombatBody,
                          TargetScope::Self, -1)};
+    case DrinkType::BlueSoda:
+      return {DishEffect(TriggerHook::OnCourseComplete,
+                         EffectOperation::AddCombatBody, TargetScope::Self, 1)};
     default:
       log_error("ApplyDrinkPairingEffects: Unhandled drink type");
       return {};
