@@ -1,13 +1,16 @@
 #pragma once
 
 #include "../components/dish_battle_state.h"
+#include "../components/dish_effect.h"
 #include "../components/drink_effects.h"
 #include "../components/drink_pairing.h"
 #include "../components/is_dish.h"
+#include "../drink_types.h"
 #include "../game_state_manager.h"
 #include "../log.h"
 #include "../query.h"
 #include <afterhours/ah.h>
+#include <vector>
 
 struct ApplyDrinkPairingEffects
     : afterhours::System<IsDish, DishBattleState, DrinkPairing> {
@@ -30,6 +33,27 @@ struct ApplyDrinkPairingEffects
       return;
     }
 
-    e.addComponent<DrinkEffects>();
+    DrinkType drink_type = drink_pairing.drink.value();
+    std::vector<DishEffect> effects = get_drink_effects(drink_type);
+    auto &drink_effects = e.addComponent<DrinkEffects>();
+    drink_effects.effects = std::move(effects);
+  }
+
+private:
+  std::vector<DishEffect> get_drink_effects(DrinkType type) {
+    switch (type) {
+    case DrinkType::Water:
+      return {};
+    case DrinkType::OrangeJuice:
+      return {DishEffect(TriggerHook::OnServe, EffectOperation::AddFlavorStat,
+                         TargetScope::Self, 1, FlavorStatType::Freshness)};
+    case DrinkType::Coffee:
+      return {DishEffect(TriggerHook::OnStartBattle,
+                         EffectOperation::AddCombatZing, TargetScope::Self,
+                         2)};
+    default:
+      log_error("ApplyDrinkPairingEffects: Unhandled drink type");
+      return {};
+    }
   }
 };
