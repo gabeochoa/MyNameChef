@@ -3,7 +3,12 @@
 #include "trigger_event.h"
 #include <afterhours/ah.h>
 
-enum struct EffectOperation { AddFlavorStat, AddCombatZing, AddCombatBody };
+enum struct EffectOperation {
+  AddFlavorStat,
+  AddCombatZing,
+  AddCombatBody,
+  SwapStats
+};
 
 enum struct TargetScope {
   Self,

@@ -82,6 +82,10 @@ static std::string format_effect_description(const DishEffect &effect) {
     desc << sign << effect.amount << " Body to " << target;
     break;
   }
+  case EffectOperation::SwapStats: {
+    desc << "Swap Zing and Body for " << target;
+    break;
+  }
   }
 
   return desc.str();

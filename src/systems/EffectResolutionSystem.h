@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../components/combat_stats.h"
 #include "../components/deferred_flavor_mods.h"
 #include "../components/dish_battle_state.h"
 #include "../components/dish_effect.h"
@@ -442,6 +443,20 @@ private:
       pending.bodyDelta += effect.amount;
       log_info("EFFECT: Added {} Body (combat) to entity {}", effect.amount,
                target.id);
+      break;
+    }
+
+    case EffectOperation::SwapStats: {
+      if (!target.has<CombatStats>()) {
+        log_error(
+            "EFFECT: SwapStats requires CombatStats component on entity {}",
+            target.id);
+        break;
+      }
+      auto &stats = target.get<CombatStats>();
+      std::swap(stats.baseZing, stats.baseBody);
+      std::swap(stats.currentZing, stats.currentBody);
+      log_info("EFFECT: Swapped Zing and Body stats for entity {}", target.id);
       break;
     }
     }
