@@ -266,7 +266,8 @@ static void test_blue_soda_effect(TestApp &app) {
 }
 
 static void test_watermelon_juice_effect(TestApp &app) {
-  log_info("DRINK_TEST: Testing Watermelon Juice (OnCourseComplete +1 Freshness and +1 Body to Self)");
+  log_info("DRINK_TEST: Testing Watermelon Juice (OnCourseComplete +1 "
+           "Freshness and +1 Body to Self)");
 
   ensure_battle_load_request_exists();
   GameStateManager::get().to_battle();
@@ -309,6 +310,180 @@ static void test_watermelon_juice_effect(TestApp &app) {
   log_info("DRINK_TEST: Watermelon Juice effect PASSED");
 }
 
+static void test_yellow_soda_effect(TestApp &app) {
+  log_info("DRINK_TEST: Testing Yellow Soda (OnBiteTaken +1 Zing to Self)");
+
+  ensure_battle_load_request_exists();
+  GameStateManager::get().to_battle();
+  app.wait_for_frames(1);
+
+  auto dish_id = app.create_dish(DishType::Potato)
+                     .on_team(DishBattleState::TeamSide::Player)
+                     .at_slot(0)
+                     .in_phase(DishBattleState::Phase::InQueue)
+                     .with_combat_stats()
+                     .commit();
+
+  app.wait_for_frames(5);
+
+  afterhours::OptEntity dish_opt =
+      afterhours::EntityQuery({.force_merge = true})
+          .whereID(dish_id)
+          .gen_first();
+  app.expect_true(dish_opt.has_value(), "dish entity exists");
+  dish_opt.asE().addComponent<DrinkPairing>(DrinkType::YellowSoda);
+
+  app.wait_for_frames(20);
+
+  auto &tq_entity = get_or_create_trigger_queue();
+  auto &queue = tq_entity.get<TriggerQueue>();
+  queue.add_event(TriggerHook::OnBiteTaken, dish_id, 0,
+                  DishBattleState::TeamSide::Player);
+
+  app.wait_for_frames(10);
+
+  PendingCombatMods expected;
+  expected.zingDelta = 1;
+  expected.bodyDelta = 0;
+  app.expect_combat_mods(dish_id, expected);
+
+  log_info("DRINK_TEST: Yellow Soda effect PASSED");
+}
+
+static void test_green_soda_effect(TestApp &app) {
+  log_info("DRINK_TEST: Testing Green Soda (OnServe +2 Zing, -1 Body to Self)");
+
+  ensure_battle_load_request_exists();
+  GameStateManager::get().to_battle();
+  app.wait_for_frames(1);
+
+  auto dish_id = app.create_dish(DishType::Potato)
+                     .on_team(DishBattleState::TeamSide::Player)
+                     .at_slot(0)
+                     .in_phase(DishBattleState::Phase::InQueue)
+                     .with_combat_stats()
+                     .commit();
+
+  app.wait_for_frames(5);
+
+  afterhours::OptEntity dish_opt =
+      afterhours::EntityQuery({.force_merge = true})
+          .whereID(dish_id)
+          .gen_first();
+  app.expect_true(dish_opt.has_value(), "dish entity exists");
+  dish_opt.asE().addComponent<DrinkPairing>(DrinkType::GreenSoda);
+
+  app.wait_for_frames(20);
+
+  auto &tq_entity = get_or_create_trigger_queue();
+  auto &queue = tq_entity.get<TriggerQueue>();
+  queue.add_event(TriggerHook::OnServe, dish_id, 0,
+                  DishBattleState::TeamSide::Player);
+
+  app.wait_for_frames(10);
+
+  PendingCombatMods expected;
+  expected.zingDelta = 2;
+  expected.bodyDelta = -1;
+  app.expect_combat_mods(dish_id, expected);
+
+  log_info("DRINK_TEST: Green Soda effect PASSED");
+}
+
+static void test_white_wine_effect(TestApp &app) {
+  log_info(
+      "DRINK_TEST: Testing White Wine (OnStartBattle +1 Zing to AllAllies)");
+
+  ensure_battle_load_request_exists();
+  GameStateManager::get().to_battle();
+  app.wait_for_frames(1);
+
+  auto source_dish_id = app.create_dish(DishType::Potato)
+                            .on_team(DishBattleState::TeamSide::Player)
+                            .at_slot(0)
+                            .in_phase(DishBattleState::Phase::InQueue)
+                            .with_combat_stats()
+                            .commit();
+
+  auto ally_dish_id = app.create_dish(DishType::Potato)
+                          .on_team(DishBattleState::TeamSide::Player)
+                          .at_slot(1)
+                          .in_phase(DishBattleState::Phase::InQueue)
+                          .with_combat_stats()
+                          .commit();
+
+  app.wait_for_frames(5);
+
+  afterhours::OptEntity source_dish_opt =
+      afterhours::EntityQuery({.force_merge = true})
+          .whereID(source_dish_id)
+          .gen_first();
+  app.expect_true(source_dish_opt.has_value(), "source dish entity exists");
+  source_dish_opt.asE().addComponent<DrinkPairing>(DrinkType::WhiteWine);
+
+  app.wait_for_frames(20);
+
+  auto &tq_entity = get_or_create_trigger_queue();
+  auto &queue = tq_entity.get<TriggerQueue>();
+  queue.add_event(TriggerHook::OnStartBattle, source_dish_id, 0,
+                  DishBattleState::TeamSide::Player);
+
+  app.wait_for_frames(10);
+
+  PendingCombatMods expected;
+  expected.zingDelta = 1;
+  expected.bodyDelta = 0;
+  app.expect_combat_mods(ally_dish_id, expected);
+
+  log_info("DRINK_TEST: White Wine effect PASSED");
+}
+
+static void test_red_wine_effect(TestApp &app) {
+  log_info(
+      "DRINK_TEST: Testing Red Wine (OnServe +1 Richness to Self and Next)");
+
+  ensure_battle_load_request_exists();
+  GameStateManager::get().to_battle();
+  app.wait_for_frames(1);
+
+  auto source_dish_id = app.create_dish(DishType::Potato)
+                            .on_team(DishBattleState::TeamSide::Player)
+                            .at_slot(0)
+                            .in_phase(DishBattleState::Phase::InQueue)
+                            .commit();
+
+  auto next_dish_id = app.create_dish(DishType::Potato)
+                          .on_team(DishBattleState::TeamSide::Player)
+                          .at_slot(1)
+                          .in_phase(DishBattleState::Phase::InQueue)
+                          .commit();
+
+  app.wait_for_frames(5);
+
+  afterhours::OptEntity source_dish_opt =
+      afterhours::EntityQuery({.force_merge = true})
+          .whereID(source_dish_id)
+          .gen_first();
+  app.expect_true(source_dish_opt.has_value(), "source dish entity exists");
+  source_dish_opt.asE().addComponent<DrinkPairing>(DrinkType::RedWine);
+
+  app.wait_for_frames(20);
+
+  auto &tq_entity = get_or_create_trigger_queue();
+  auto &queue = tq_entity.get<TriggerQueue>();
+  queue.add_event(TriggerHook::OnServe, source_dish_id, 0,
+                  DishBattleState::TeamSide::Player);
+
+  app.wait_for_frames(10);
+
+  DeferredFlavorMods expected;
+  expected.richness = 1;
+  app.expect_flavor_mods(source_dish_id, expected);
+  app.expect_flavor_mods(next_dish_id, expected);
+
+  log_info("DRINK_TEST: Red Wine effect PASSED");
+}
+
 } // namespace ValidateDrinkEffectsTestHelpers
 
 TEST(validate_drink_effects) {
@@ -322,6 +497,10 @@ TEST(validate_drink_effects) {
   test_red_soda_effect(app);
   test_blue_soda_effect(app);
   test_watermelon_juice_effect(app);
+  test_yellow_soda_effect(app);
+  test_green_soda_effect(app);
+  test_white_wine_effect(app);
+  test_red_wine_effect(app);
 
   log_info("DRINK_TEST: All tests completed");
 }
