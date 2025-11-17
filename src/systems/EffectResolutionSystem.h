@@ -4,6 +4,7 @@
 #include "../components/deferred_flavor_mods.h"
 #include "../components/dish_battle_state.h"
 #include "../components/dish_effect.h"
+#include "../components/drink_effects.h"
 #include "../components/is_dish.h"
 #include "../components/pending_combat_mods.h"
 #include "../components/synergy_bonus_effects.h"
@@ -63,6 +64,15 @@ private:
     for (const auto &effect : info.effects) {
       if (effect.triggerHook == ev.hook) {
         apply_effect(effect, ev);
+      }
+    }
+
+    if (src_opt->has<DrinkEffects>()) {
+      const auto &drink_effects = src_opt->get<DrinkEffects>();
+      for (const auto &effect : drink_effects.effects) {
+        if (effect.triggerHook == ev.hook) {
+          apply_effect(effect, ev);
+        }
       }
     }
 
