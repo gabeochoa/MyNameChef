@@ -81,6 +81,9 @@ private:
                          FlavorStatType::Freshness),
               DishEffect(TriggerHook::OnCourseComplete,
                          EffectOperation::AddCombatBody, TargetScope::Self, 1)};
+    case DrinkType::YellowSoda:
+      return {DishEffect(TriggerHook::OnBiteTaken,
+                         EffectOperation::AddCombatZing, TargetScope::Self, 1)};
     default:
       log_error("ApplyDrinkPairingEffects: Unhandled drink type");
       return {};
