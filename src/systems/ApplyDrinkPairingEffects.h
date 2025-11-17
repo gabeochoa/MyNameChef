@@ -49,8 +49,7 @@ private:
                          TargetScope::Self, 1, FlavorStatType::Freshness)};
     case DrinkType::Coffee:
       return {DishEffect(TriggerHook::OnStartBattle,
-                         EffectOperation::AddCombatZing, TargetScope::Self,
-                         2)};
+                         EffectOperation::AddCombatZing, TargetScope::Self, 2)};
     default:
       log_error("ApplyDrinkPairingEffects: Unhandled drink type");
       return {};
