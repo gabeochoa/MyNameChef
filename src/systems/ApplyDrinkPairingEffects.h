@@ -63,6 +63,11 @@ private:
                          TargetScope::Self, 1, FlavorStatType::Richness),
               DishEffect(TriggerHook::OnServe, EffectOperation::AddFlavorStat,
                          TargetScope::Next, 1, FlavorStatType::Richness)};
+    case DrinkType::GreenSoda:
+      return {DishEffect(TriggerHook::OnServe, EffectOperation::AddCombatZing,
+                         TargetScope::Self, 2),
+              DishEffect(TriggerHook::OnServe, EffectOperation::AddCombatBody,
+                         TargetScope::Self, -1)};
     default:
       log_error("ApplyDrinkPairingEffects: Unhandled drink type");
       return {};
