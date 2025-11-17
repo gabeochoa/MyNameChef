@@ -53,6 +53,11 @@ private:
     case DrinkType::RedSoda:
       return {DishEffect(TriggerHook::OnCourseComplete,
                          EffectOperation::AddCombatZing, TargetScope::Self, 1)};
+    case DrinkType::HotCocoa:
+      return {DishEffect(TriggerHook::OnServe, EffectOperation::AddFlavorStat,
+                         TargetScope::Self, 1, FlavorStatType::Sweetness),
+              DishEffect(TriggerHook::OnServe, EffectOperation::AddFlavorStat,
+                         TargetScope::Self, 1, FlavorStatType::Richness)};
     default:
       log_error("ApplyDrinkPairingEffects: Unhandled drink type");
       return {};
