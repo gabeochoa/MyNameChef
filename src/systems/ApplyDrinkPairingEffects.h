@@ -8,7 +8,6 @@
 #include "../drink_types.h"
 #include "../game_state_manager.h"
 #include "../log.h"
-#include "../query.h"
 #include <afterhours/ah.h>
 #include <vector>
 

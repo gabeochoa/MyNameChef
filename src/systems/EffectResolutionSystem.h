@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../components/combat_stats.h"
 #include "../components/deferred_flavor_mods.h"
 #include "../components/dish_battle_state.h"
 #include "../components/dish_effect.h"
