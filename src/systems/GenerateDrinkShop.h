@@ -61,8 +61,9 @@ private:
       e.addComponent<HasRenderOrder>(RenderOrder::ShopItems,
                                      RenderScreen::Shop);
 
-      // Water sprite is at column 7, row 5 in the spritesheet (beverages row)
-      const auto frame = afterhours::texture_manager::idx_to_sprite_frame(7, 5);
+      DrinkInfo drink_info = get_drink_info(drink_type);
+      const auto frame = afterhours::texture_manager::idx_to_sprite_frame(
+          drink_info.sprite.i, drink_info.sprite.j);
       e.addComponent<afterhours::texture_manager::HasSprite>(
           position, vec2{SLOT_SIZE, SLOT_SIZE}, 0.f, frame,
           render_constants::kDishSpriteScale, raylib::WHITE);
