@@ -65,6 +65,24 @@ public:
       }
       return parent_;
     }
+
+    TriggerEffectBuilder &copy_effect() {
+      parent_.effect_.operation = EffectOperation::CopyEffect;
+      parent_.effect_.amount = 0;
+      return parent_;
+    }
+
+    TriggerEffectBuilder &summon_dish(DishType dish_type) {
+      parent_.effect_.operation = EffectOperation::SummonDish;
+      parent_.effect_.summonDishType = dish_type;
+      return parent_;
+    }
+
+    TriggerEffectBuilder &apply_status(int zingDelta) {
+      parent_.effect_.operation = EffectOperation::ApplyStatus;
+      parent_.effect_.amount = zingDelta;
+      return parent_;
+    }
   };
 
   TargetEffectBuilder with_target(TargetScope target) {
@@ -114,6 +132,24 @@ public:
   TriggerEffectBuilder &remove_flavor_stat(FlavorStatType stat,
                                            int amount = 1) {
     return add_flavor_stat(stat, -amount);
+  }
+
+  TriggerEffectBuilder &copy_effect() {
+    effect_.operation = EffectOperation::CopyEffect;
+    effect_.amount = 0;
+    return *this;
+  }
+
+  TriggerEffectBuilder &summon_dish(DishType dish_type) {
+    effect_.operation = EffectOperation::SummonDish;
+    effect_.summonDishType = dish_type;
+    return *this;
+  }
+
+  TriggerEffectBuilder &apply_status(int zingDelta) {
+    effect_.operation = EffectOperation::ApplyStatus;
+    effect_.amount = zingDelta;
+    return *this;
   }
 
   DishEffect get_effect() && { return std::move(effect_); }

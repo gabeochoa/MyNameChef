@@ -27,6 +27,14 @@ static std::string format_target_scope(TargetScope scope) {
     return "next dish";
   case TargetScope::SelfAndAdjacent:
     return "self and adjacent";
+  case TargetScope::RandomAlly:
+    return "random ally";
+  case TargetScope::RandomOpponent:
+    return "random opponent";
+  case TargetScope::RandomDish:
+    return "random dish";
+  case TargetScope::RandomOtherAlly:
+    return "random other ally";
   }
   return "unknown";
 }
@@ -95,6 +103,25 @@ static std::string format_effect_description(const DishEffect &effect) {
   case EffectOperation::PreventAllDamage: {
     int count = effect.amount > 0 ? effect.amount : 1;
     desc << "Prevent next " << count << " damage to " << target;
+    break;
+  }
+  case EffectOperation::CopyEffect: {
+    desc << "Copy all effects from " << target;
+    break;
+  }
+  case EffectOperation::SummonDish: {
+    if (effect.summonDishType.has_value()) {
+      auto dish_info = get_dish_info(effect.summonDishType.value());
+      desc << "Summon " << dish_info.name << " to " << target;
+    } else {
+      desc << "Summon dish to " << target;
+    }
+    break;
+  }
+  case EffectOperation::ApplyStatus: {
+    int zingDelta = effect.amount;
+    std::string sign = zingDelta >= 0 ? "+" : "";
+    desc << "Apply " << sign << zingDelta << " Zing to " << target;
     break;
   }
   }

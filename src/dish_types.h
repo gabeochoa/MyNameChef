@@ -40,6 +40,9 @@ enum struct DishType {
   Churros,
   Bouillabaisse,
   FoieGras,
+  Paella,
+  Pho,
+  WagyuSteak,
   DebugDish,
 };
 

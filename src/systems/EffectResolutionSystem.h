@@ -1,21 +1,33 @@
 #pragma once
 
+#include "../components/battle_team_tags.h"
 #include "../components/combat_stats.h"
 #include "../components/deferred_flavor_mods.h"
 #include "../components/dish_battle_state.h"
 #include "../components/dish_effect.h"
+#include "../components/dish_level.h"
 #include "../components/drink_effects.h"
+#include "../components/has_tooltip.h"
 #include "../components/is_dish.h"
 #include "../components/next_damage_effect.h"
 #include "../components/pending_combat_mods.h"
+#include "../components/render_order.h"
+#include "../components/status_effects.h"
 #include "../components/synergy_bonus_effects.h"
+#include "../components/transform.h"
 #include "../components/trigger_event.h"
 #include "../components/trigger_queue.h"
 #include "../dish_types.h"
 #include "../game_state_manager.h"
 #include "../query.h"
+#include "../render_backend.h"
+#include "../render_constants.h"
+#include "../seeded_rng.h"
 #include "../shop.h"
+#include "../tooltip.h"
 #include <afterhours/ah.h>
+#include <afterhours/src/plugins/texture_manager.h>
+#include <magic_enum/magic_enum.hpp>
 #include <optional>
 #include <vector>
 
@@ -94,10 +106,22 @@ private:
       }
     }
 
+    // For CopyEffect, handle specially - it needs the source entity, not
+    // targets
+    if (effect.operation == EffectOperation::CopyEffect) {
+      auto src_opt = EQ({.ignore_temp_warning = true})
+                         .whereID(ev.sourceEntityId)
+                         .gen_first();
+      if (src_opt && src_opt->has<IsDish>()) {
+        apply_to_target(*src_opt.value(), effect, ev);
+      }
+      return;
+    }
+
     auto targets = get_targets(effect.targetScope, ev);
 
     for (afterhours::Entity &target : targets) {
-      apply_to_target(target, effect);
+      apply_to_target(target, effect, ev);
     }
 
     if (effect.playFreshnessChainAnimation) {
@@ -389,12 +413,85 @@ private:
       }
       break;
     }
+
+    case TargetScope::RandomAlly: {
+      auto allies = EQ({.force_merge = true})
+                        .whereHasComponent<IsDish>()
+                        .whereHasComponent<DishBattleState>()
+                        .whereTeamSide(src_team_side)
+                        .whereNotID(ev.sourceEntityId)
+                        .gen();
+      std::vector<afterhours::Entity *> ally_vec;
+      for (afterhours::Entity &e : allies) {
+        ally_vec.push_back(&e);
+      }
+      if (!ally_vec.empty()) {
+        size_t random_index = SeededRng::get().gen_index(ally_vec.size());
+        targets.push_back(*ally_vec[random_index]);
+      }
+      break;
+    }
+
+    case TargetScope::RandomOpponent: {
+      auto opponents = EQ({.force_merge = true})
+                           .whereHasComponent<IsDish>()
+                           .whereHasComponent<DishBattleState>()
+                           .whereTeamSide(opposite_side)
+                           .gen();
+      // TODO no pointers please
+      std::vector<afterhours::Entity *> opponent_vec;
+      for (afterhours::Entity &e : opponents) {
+        opponent_vec.push_back(&e);
+      }
+      if (!opponent_vec.empty()) {
+        size_t random_index = SeededRng::get().gen_index(opponent_vec.size());
+        targets.push_back(*opponent_vec[random_index]);
+      }
+      break;
+    }
+
+    case TargetScope::RandomDish: {
+      auto all_dishes = EQ({.force_merge = true})
+                            .whereHasComponent<IsDish>()
+                            .whereHasComponent<DishBattleState>()
+                            .whereNotID(ev.sourceEntityId)
+                            .gen();
+      std::vector<afterhours::Entity *> dish_vec;
+      for (afterhours::Entity &e : all_dishes) {
+        dish_vec.push_back(&e);
+      }
+      if (!dish_vec.empty()) {
+        size_t random_index = SeededRng::get().gen_index(dish_vec.size());
+        targets.push_back(*dish_vec[random_index]);
+      }
+      break;
+    }
+
+    case TargetScope::RandomOtherAlly: {
+      // Same as RandomAlly, explicit version
+      auto allies = EQ({.force_merge = true})
+                        .whereHasComponent<IsDish>()
+                        .whereHasComponent<DishBattleState>()
+                        .whereTeamSide(src_team_side)
+                        .whereNotID(ev.sourceEntityId)
+                        .gen();
+      std::vector<afterhours::Entity *> ally_vec;
+      for (afterhours::Entity &e : allies) {
+        ally_vec.push_back(&e);
+      }
+      if (!ally_vec.empty()) {
+        size_t random_index = SeededRng::get().gen_index(ally_vec.size());
+        targets.push_back(*ally_vec[random_index]);
+      }
+      break;
+    }
     }
 
     return targets;
   }
 
-  void apply_to_target(afterhours::Entity &target, const DishEffect &effect) {
+  void apply_to_target(afterhours::Entity &target, const DishEffect &effect,
+                       const TriggerEvent &ev) {
     switch (effect.operation) {
     case EffectOperation::AddFlavorStat: {
       auto &def = target.addComponentIfMissing<DeferredFlavorMods>();
@@ -479,6 +576,174 @@ private:
       next_effect.count = effect.amount > 0 ? effect.amount : 1;
       log_info("EFFECT: Added PreventAllDamage ({} uses) to entity {}",
                next_effect.count, target.id);
+      break;
+    }
+
+    case EffectOperation::CopyEffect: {
+      // CopyEffect: target parameter is the source dish (the one copying)
+      // The effect's targetScope determines which dish to copy from
+      // Create a new event with source as the target for get_targets
+      TriggerEvent copy_ev(effect.triggerHook, target.id, ev.slotIndex,
+                           ev.teamSide);
+      afterhours::RefEntities copy_targets =
+          get_targets(effect.targetScope, copy_ev);
+
+      // Validate that exactly one target exists
+      if (copy_targets.size() != 1) {
+        log_error("EFFECT: CopyEffect requires exactly one target, got {}",
+                  copy_targets.size());
+        break;
+      }
+
+      afterhours::Entity &copy_from = copy_targets[0];
+
+      // Collect all effects from the target dish
+      std::vector<DishEffect> copied_effects;
+
+      // 1. Dish effects from get_dish_info().effects
+      if (copy_from.has<IsDish>()) {
+        const auto &copy_dish = copy_from.get<IsDish>();
+        int copy_level = 1;
+        if (copy_from.has<DishLevel>()) {
+          copy_level = copy_from.get<DishLevel>().level;
+        }
+        const auto &copy_info = get_dish_info(copy_dish.type, copy_level);
+        for (const auto &dish_effect : copy_info.effects) {
+          DishEffect copied = dish_effect;
+          copied.is_copied = true;
+          copied_effects.push_back(copied);
+        }
+      }
+
+      // 2. Drink effects from DrinkEffects component
+      if (copy_from.has<DrinkEffects>()) {
+        const auto &drink_effects = copy_from.get<DrinkEffects>();
+        for (const auto &drink_effect : drink_effects.effects) {
+          DishEffect copied = drink_effect;
+          copied.is_copied = true;
+          copied_effects.push_back(copied);
+        }
+      }
+
+      // 3. Synergy effects from SynergyBonusEffects component
+      if (copy_from.has<SynergyBonusEffects>()) {
+        const auto &synergy_effects = copy_from.get<SynergyBonusEffects>();
+        for (const auto &synergy_effect : synergy_effects.effects) {
+          DishEffect copied = synergy_effect;
+          copied.is_copied = true;
+          copied_effects.push_back(copied);
+        }
+      }
+
+      // Store copied effects on source dish (target parameter)
+      auto &source_drink_effects = target.addComponentIfMissing<DrinkEffects>();
+      for (const auto &copied : copied_effects) {
+        source_drink_effects.effects.push_back(copied);
+      }
+
+      log_info("EFFECT: Copied {} effects from entity {} to entity {}",
+               copied_effects.size(), copy_from.id, target.id);
+      break;
+    }
+
+    case EffectOperation::SummonDish: {
+      // SummonDish: Create a new dish entity in the same slot as the source
+      if (!effect.summonDishType.has_value()) {
+        log_error("EFFECT: SummonDish requires summonDishType to be set");
+        break;
+      }
+
+      DishType dish_to_summon = effect.summonDishType.value();
+
+      // Get source dish's slot and team info
+      if (!target.has<DishBattleState>()) {
+        log_error(
+            "EFFECT: SummonDish requires DishBattleState on source entity");
+        break;
+      }
+
+      const auto &source_dbs = target.get<DishBattleState>();
+      int slot = source_dbs.queue_index;
+      bool isPlayer =
+          (source_dbs.team_side == DishBattleState::TeamSide::Player);
+
+      // Create new dish entity
+      auto &summoned_entity = afterhours::EntityHelper::createEntity();
+
+      // Calculate position (same as InstantiateBattleTeamSystem)
+      float x, y;
+      if (isPlayer) {
+        x = 120.0f + slot * 100.0f;
+        y = 150.0f;
+      } else {
+        x = 120.0f + slot * 100.0f;
+        y = 500.0f;
+      }
+
+      summoned_entity.addComponent<Transform>(afterhours::vec2{x, y},
+                                              afterhours::vec2{80.0f, 80.0f});
+      summoned_entity.addComponent<IsDish>(dish_to_summon);
+      add_dish_tags(summoned_entity, dish_to_summon);
+      summoned_entity.addComponent<DishLevel>(1); // Summoned dishes are level 1
+
+      auto &summoned_dbs = summoned_entity.addComponent<DishBattleState>();
+      summoned_dbs.queue_index = slot;
+      summoned_dbs.team_side = source_dbs.team_side;
+      // If source is in combat, summoned dish enters combat; otherwise InQueue
+      if (source_dbs.phase == DishBattleState::Phase::InCombat ||
+          source_dbs.phase == DishBattleState::Phase::Entering) {
+        summoned_dbs.phase = DishBattleState::Phase::InCombat;
+      } else {
+        summoned_dbs.phase = DishBattleState::Phase::InQueue;
+      }
+      summoned_dbs.enter_progress = 1.0f; // Already entered
+      summoned_dbs.bite_timer = 0.0f;
+
+      summoned_entity.addComponent<HasRenderOrder>(RenderOrder::BattleTeams,
+                                                   RenderScreen::Battle |
+                                                       RenderScreen::Results);
+
+      // TODO id prefer to not have this and then just ignore it later on
+      if (!render_backend::is_headless_mode) {
+        auto dish_info = get_dish_info(dish_to_summon);
+        const auto frame = afterhours::texture_manager::idx_to_sprite_frame(
+            dish_info.sprite.i, dish_info.sprite.j);
+        summoned_entity.addComponent<afterhours::texture_manager::HasSprite>(
+            afterhours::vec2{x, y}, afterhours::vec2{80.0f, 80.0f}, 0.f, frame,
+            render_constants::kDishSpriteScale,
+            raylib::Color{255, 255, 255, 255});
+      }
+
+      if (isPlayer) {
+        summoned_entity.addComponent<IsPlayerTeamItem>();
+      } else {
+        summoned_entity.addComponent<IsOpponentTeamItem>();
+      }
+
+      summoned_entity.addComponent<HasTooltip>(
+          generate_dish_tooltip(dish_to_summon));
+
+      log_info("EFFECT: Summoned dish {} (entity {}) in slot {} for team {}",
+               magic_enum::enum_name(dish_to_summon), summoned_entity.id, slot,
+               isPlayer ? "Player" : "Opponent");
+      break;
+    }
+
+    case EffectOperation::ApplyStatus: {
+      // ApplyStatus: Add a status effect (debuff/buff) to the target
+      // amount field encodes zingDelta
+      // TODO: Support bodyDelta via separate parameter or extend DishEffect
+      // struct
+      auto &status_effects = target.addComponentIfMissing<StatusEffects>();
+      StatusEffect status;
+      status.zingDelta = effect.amount; // Use amount for zingDelta
+      status.bodyDelta = 0;             // TODO: Add support for bodyDelta
+      status.duration = 0;              // 0 = permanent for now
+      status_effects.effects.push_back(status);
+
+      log_info("EFFECT: Applied status effect to entity {} - zingDelta: {}, "
+               "bodyDelta: {}",
+               target.id, status.zingDelta, status.bodyDelta);
       break;
     }
     }

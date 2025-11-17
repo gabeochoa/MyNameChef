@@ -8,6 +8,7 @@
 #include "../components/pairing_clash_modifiers.h"
 #include "../components/persistent_combat_modifiers.h"
 #include "../components/pre_battle_modifiers.h"
+#include "../components/status_effects.h"
 #include "../dish_types.h"
 #include <afterhours/ah.h>
 #include <map>
@@ -20,7 +21,6 @@ struct ComputeCombatStatsSystem : afterhours::System<IsDish, DishLevel> {
 
   void for_each_with(afterhours::Entity &e, IsDish &dish, DishLevel &lvl,
                      float) override {
-    // (quiet)
 
     // Add components if they don't exist
     CombatStats &cs = e.addComponentIfMissing<CombatStats>();
@@ -152,11 +152,19 @@ struct ComputeCombatStatsSystem : afterhours::System<IsDish, DishLevel> {
       persistZ = pm.zingDelta;
       persistB = pm.bodyDelta;
     }
+    int statusZ = 0, statusB = 0;
+    if (e.has<StatusEffects>()) {
+      const auto &se = e.get<StatusEffects>();
+      for (const auto &status : se.effects) {
+        statusZ += status.zingDelta;
+        statusB += status.bodyDelta;
+      }
+    }
     // Calculate total modifiers from source components ONLY
     // Do NOT include PreBattleModifiers in the calculation (feedback loop
     // prevention)
-    int totalZ = pairingZ + persistZ;
-    int totalB = pairingB + persistB;
+    int totalZ = pairingZ + persistZ + statusZ;
+    int totalB = pairingB + persistB + statusB;
 
     cs.baseZing = std::max(1, zing + totalZ);
     cs.baseBody = std::max(0, body + totalB);

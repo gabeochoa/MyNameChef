@@ -2,6 +2,10 @@
 
 #include "trigger_event.h"
 #include <afterhours/ah.h>
+#include <optional>
+
+// Forward declaration to avoid circular dependency with dish_types.h
+enum struct DishType;
 
 enum struct EffectOperation {
   AddFlavorStat,
@@ -9,7 +13,10 @@ enum struct EffectOperation {
   AddCombatBody,
   SwapStats,
   MultiplyDamage,
-  PreventAllDamage
+  PreventAllDamage,
+  CopyEffect,
+  SummonDish,
+  ApplyStatus
 };
 
 enum struct TargetScope {
@@ -22,7 +29,11 @@ enum struct TargetScope {
   FutureOpponents,
   Previous,
   Next,
-  SelfAndAdjacent
+  SelfAndAdjacent,
+  RandomAlly,
+  RandomOpponent,
+  RandomDish,
+  RandomOtherAlly
 };
 
 enum struct FlavorStatType {
@@ -45,6 +56,9 @@ struct DishEffect {
   bool conditional = false;
   FlavorStatType adjacentCheckStat = FlavorStatType::Freshness;
   bool playFreshnessChainAnimation = false;
+  bool is_copied = false; // True if this effect was copied from another dish
+  std::optional<DishType>
+      summonDishType; // Dish type to summon (for SummonDish operation)
 
   DishEffect() = default;
 

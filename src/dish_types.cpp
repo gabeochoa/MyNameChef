@@ -583,6 +583,37 @@ DishInfo get_dish_info(DishType type, int level) {
         .register_on_serve(
             ServeEffect().with_target(TargetScope::Opponent).remove_body(1))
         .build();
+  case DishType::Paella:
+    return dish()
+        .with_name("Paella")
+        .with_flavor(FlavorStats{.satiety = 2, .umami = 2, .richness = 1})
+        .with_sprite(SpriteLocation{34, 0})
+        .with_tier(4)
+        .register_on_start_battle(OnStartBattleEffect()
+                                      .with_target(TargetScope::RandomAlly)
+                                      .copy_effect())
+        .build();
+  case DishType::Pho:
+    return dish()
+        .with_name("Pho")
+        .with_flavor(FlavorStats{.satiety = 2, .umami = 2, .freshness = 1})
+        .with_sprite(SpriteLocation{36, 0})
+        .with_tier(3)
+        .register_on_dish_finished(
+            OnDishFinishedEffect()
+                .with_target(TargetScope::Self)
+                .summon_dish(DishType::Potato)) // TODO: Use proper Broth dish
+                                                // type instead of Potato
+        .build();
+  case DishType::WagyuSteak:
+    return dish()
+        .with_name("Wagyu Steak")
+        .with_flavor(FlavorStats{.satiety = 3, .umami = 3, .richness = 2})
+        .with_sprite(SpriteLocation{51, 0})
+        .with_tier(5)
+        .register_on_bite_taken(
+            OnBiteEffect().with_target(TargetScope::Opponent).apply_status(-1))
+        .build();
   case DishType::DebugDish:
     return make_debug_dish();
   }
@@ -761,6 +792,25 @@ void add_dish_tags(afterhours::Entity &entity, DishType type) {
   case DishType::FoieGras:
     entity.addComponent<CourseTag>(CourseTagType::Entree);
     entity.addComponent<CuisineTag>(CuisineTagType::French);
+    entity.addComponent<BrandTag>(BrandTagType::Restaurant);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Protein);
+    break;
+  case DishType::Paella:
+    entity.addComponent<CourseTag>(CourseTagType::Entree);
+    entity.addComponent<CuisineTag>(
+        CuisineTagType::Italian); // TODO: Add Spanish cuisine tag
+    entity.addComponent<BrandTag>(BrandTagType::Restaurant);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Grain);
+    break;
+  case DishType::Pho:
+    entity.addComponent<CourseTag>(CourseTagType::Soup);
+    entity.addComponent<CuisineTag>(CuisineTagType::Vietnamese);
+    entity.addComponent<BrandTag>(BrandTagType::Restaurant);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Grain);
+    break;
+  case DishType::WagyuSteak:
+    entity.addComponent<CourseTag>(CourseTagType::Entree);
+    entity.addComponent<CuisineTag>(CuisineTagType::Japanese);
     entity.addComponent<BrandTag>(BrandTagType::Restaurant);
     entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Protein);
     break;
