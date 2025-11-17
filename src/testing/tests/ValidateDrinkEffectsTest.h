@@ -185,6 +185,130 @@ static void test_coffee_effect(TestApp &app) {
   log_info("DRINK_TEST: Coffee effect PASSED");
 }
 
+static void test_red_soda_effect(TestApp &app) {
+  log_info("DRINK_TEST: Testing Red Soda (OnCourseComplete +1 Zing to Self)");
+
+  ensure_battle_load_request_exists();
+  GameStateManager::get().to_battle();
+  app.wait_for_frames(1);
+
+  auto dish_id = app.create_dish(DishType::Potato)
+                     .on_team(DishBattleState::TeamSide::Player)
+                     .at_slot(0)
+                     .in_phase(DishBattleState::Phase::InQueue)
+                     .with_combat_stats()
+                     .commit();
+
+  app.wait_for_frames(5);
+
+  afterhours::OptEntity dish_opt =
+      afterhours::EntityQuery({.force_merge = true})
+          .whereID(dish_id)
+          .gen_first();
+  app.expect_true(dish_opt.has_value(), "dish entity exists");
+  dish_opt.asE().addComponent<DrinkPairing>(DrinkType::RedSoda);
+
+  app.wait_for_frames(20);
+
+  auto &tq_entity = get_or_create_trigger_queue();
+  auto &queue = tq_entity.get<TriggerQueue>();
+  queue.add_event(TriggerHook::OnCourseComplete, dish_id, 0,
+                  DishBattleState::TeamSide::Player);
+
+  app.wait_for_frames(10);
+
+  PendingCombatMods expected;
+  expected.zingDelta = 1;
+  expected.bodyDelta = 0;
+  app.expect_combat_mods(dish_id, expected);
+
+  log_info("DRINK_TEST: Red Soda effect PASSED");
+}
+
+static void test_blue_soda_effect(TestApp &app) {
+  log_info("DRINK_TEST: Testing Blue Soda (OnCourseComplete +1 Body to Self)");
+
+  ensure_battle_load_request_exists();
+  GameStateManager::get().to_battle();
+  app.wait_for_frames(1);
+
+  auto dish_id = app.create_dish(DishType::Potato)
+                     .on_team(DishBattleState::TeamSide::Player)
+                     .at_slot(0)
+                     .in_phase(DishBattleState::Phase::InQueue)
+                     .with_combat_stats()
+                     .commit();
+
+  app.wait_for_frames(5);
+
+  afterhours::OptEntity dish_opt =
+      afterhours::EntityQuery({.force_merge = true})
+          .whereID(dish_id)
+          .gen_first();
+  app.expect_true(dish_opt.has_value(), "dish entity exists");
+  dish_opt.asE().addComponent<DrinkPairing>(DrinkType::BlueSoda);
+
+  app.wait_for_frames(20);
+
+  auto &tq_entity = get_or_create_trigger_queue();
+  auto &queue = tq_entity.get<TriggerQueue>();
+  queue.add_event(TriggerHook::OnCourseComplete, dish_id, 0,
+                  DishBattleState::TeamSide::Player);
+
+  app.wait_for_frames(10);
+
+  PendingCombatMods expected;
+  expected.zingDelta = 0;
+  expected.bodyDelta = 1;
+  app.expect_combat_mods(dish_id, expected);
+
+  log_info("DRINK_TEST: Blue Soda effect PASSED");
+}
+
+static void test_watermelon_juice_effect(TestApp &app) {
+  log_info("DRINK_TEST: Testing Watermelon Juice (OnCourseComplete +1 Freshness and +1 Body to Self)");
+
+  ensure_battle_load_request_exists();
+  GameStateManager::get().to_battle();
+  app.wait_for_frames(1);
+
+  auto dish_id = app.create_dish(DishType::Potato)
+                     .on_team(DishBattleState::TeamSide::Player)
+                     .at_slot(0)
+                     .in_phase(DishBattleState::Phase::InQueue)
+                     .with_combat_stats()
+                     .commit();
+
+  app.wait_for_frames(5);
+
+  afterhours::OptEntity dish_opt =
+      afterhours::EntityQuery({.force_merge = true})
+          .whereID(dish_id)
+          .gen_first();
+  app.expect_true(dish_opt.has_value(), "dish entity exists");
+  dish_opt.asE().addComponent<DrinkPairing>(DrinkType::WatermelonJuice);
+
+  app.wait_for_frames(20);
+
+  auto &tq_entity = get_or_create_trigger_queue();
+  auto &queue = tq_entity.get<TriggerQueue>();
+  queue.add_event(TriggerHook::OnCourseComplete, dish_id, 0,
+                  DishBattleState::TeamSide::Player);
+
+  app.wait_for_frames(10);
+
+  DeferredFlavorMods expected_flavor;
+  expected_flavor.freshness = 1;
+  app.expect_flavor_mods(dish_id, expected_flavor);
+
+  PendingCombatMods expected_combat;
+  expected_combat.zingDelta = 0;
+  expected_combat.bodyDelta = 1;
+  app.expect_combat_mods(dish_id, expected_combat);
+
+  log_info("DRINK_TEST: Watermelon Juice effect PASSED");
+}
+
 } // namespace ValidateDrinkEffectsTestHelpers
 
 TEST(validate_drink_effects) {
@@ -195,6 +319,9 @@ TEST(validate_drink_effects) {
   test_water_effect(app);
   test_orange_juice_effect(app);
   test_coffee_effect(app);
+  test_red_soda_effect(app);
+  test_blue_soda_effect(app);
+  test_watermelon_juice_effect(app);
 
   log_info("DRINK_TEST: All tests completed");
 }
