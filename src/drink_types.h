@@ -1,5 +1,6 @@
 #pragma once
 
+#include "dish_types.h"
 #include <cstddef>
 #include <string>
 
@@ -10,10 +11,7 @@ enum struct DrinkType {
 struct DrinkInfo {
   std::string name;
   int price = 1;
-  struct {
-    int i; // sprite column (x / 32)
-    int j; // sprite row (y / 32)
-  } sprite;
+  SpriteLocation sprite;
 };
 
 DrinkInfo get_drink_info(DrinkType type);
