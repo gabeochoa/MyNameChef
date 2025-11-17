@@ -1,111 +1,219 @@
-RAYLIB_FLAGS := `pkg-config --cflags raylib`
-RAYLIB_LIB := `pkg-config --libs raylib`
+# Detect OS
+UNAME_S := $(shell uname -s)
 
-FLAGS = -Wall -Wextra -Wpedantic -Wuninitialized -Wshadow \
-		-Wconversion -g 
-NOFLAGS = -Wno-deprecated-volatile -Wno-missing-field-initializers \
-		  -Wno-c99-extensions -Wno-unused-function -Wno-sign-conversion \
-		  -Wno-implicit-int-float-conversion -Werror
-
-INCLUDES = -Ivendor/ -Isrc/
-LIBS = -L. -Lvendor/ $(RAYLIB_LIB)
-
-H_FILES := $(wildcard src/**/*.h src/**/*.hpp)
-SRC_FILES := $(wildcard src/*.cpp src/**/*.cpp)
-OBJ_DIR := ./output
-OBJ_FILES := $(SRC_FILES:%.cpp=$(OBJ_DIR)/%.o)
-
-DEPENDS := $(patsubst %.cpp,%.d,$(SOURCES))
--include $(DEPENDS)
-
-OUTPUT_FOLDER:= output
-OUTPUT_EXE := $(OUTPUT_FOLDER)/my_name_chef.exe
-
-ifeq ($(OS),Windows_NT)
-	RAYLIB_FLAGS := -IF:/RayLib/include
-	RAYLIB_LIB := F:/RayLib/lib/raylib.dll
-
-	# CXX := g++ -std=c++23
-	CXX := F:\llvm-mingw-20241217-msvcrt-x86_64\bin\g++.exe  -std=c++23
-
-	mkdir_cmd = powershell -command "& {&'New-Item' -Path .\ -Name output\resources -ItemType directory -ErrorAction SilentlyContinue}";
-	cp_lib_cmd = powershell -command  "& {&'Copy-Item' .\vendor\raylib\*.dll output -ErrorAction SilentlyContinue}";
-	cp_resources_cmd = powershell -command  "& {&'Copy-Item' .\resources\* output\resources -ErrorAction SilentlyContinue}";
-	run_cmd := powershell -command "& {&'$(OUTPUT_FOLDER)/my_name_chef.exe'}";
-	sign_cmd:=
-	COMPILE = $(CXX) $(FLAGS) $(INCLUDES) $(LIBS) src/main.cpp src/settings.cpp src/preload.cpp src/makers.cpp -o $(OUTPUT_EXE) $(sign_cmd) && $(run_cmd)
+# Compiler settings
+ifeq ($(UNAME_S),Darwin)
+    CXX := clang++
+    EXT := .exe
+    RAYLIB_FLAGS := $(shell pkg-config --cflags raylib)
+    RAYLIB_LIB := $(shell pkg-config --libs raylib)
+    MACOS_FLAGS := -DBACKWARD
+    FRAMEWORKS := -framework CoreFoundation
+else ifeq ($(OS),Windows_NT)
+    CXX := g++
+    EXT := .exe
+    RAYLIB_FLAGS := -IF:/RayLib/include
+    RAYLIB_LIB := F:/RayLib/lib/raylib.dll
+    MACOS_FLAGS :=
+    FRAMEWORKS :=
 else
-	mkdir_cmd = mkdir -p output/resources/
-	cp_lib_cmd = cp vendor/raylib/*.dll output/
-	cp_resources_cmd = cp -r resources/* output/resources/
-	run_cmd := ./${OUTPUT_EXE}
-	sign_cmd := && codesign -s - -f --verbose --entitlements ent.plist $(OUTPUT_EXE)
-	# CXX := /Users/gabeochoa/homebrew/Cellar/gcc/14.2.0_1/bin/g++-14
-	CXX := clang++ -std=c++23 -Wmost -fsanitize=address
-	# CXX := g++-14 -fmax-errors=10 -std=c++23 -DBACKWARD
-	FLAGS = -g $(RAYLIB_FLAGS) -ftime-trace 
-	COMPILE = xmake
+    CXX := clang++
+    EXT :=
+    RAYLIB_FLAGS := $(shell pkg-config --cflags raylib)
+    RAYLIB_LIB := $(shell pkg-config --libs raylib)
+    MACOS_FLAGS :=
+    FRAMEWORKS :=
 endif
 
+# C++ standard
+CXXSTD := -std=c++23
 
-.PHONY: all clean output count countall old clean
+# Base compiler flags from xmake.lua
+CXXFLAGS_BASE := -g \
+    -fmax-errors=10 \
+    -Wall -Wextra -Wpedantic \
+    -Wuninitialized -Wshadow -Wconversion \
+    -Wcast-qual -Wchar-subscripts \
+    -Wcomment -Wdisabled-optimization -Wformat=2 \
+    -Wformat-nonliteral -Wformat-security -Wformat-y2k \
+    -Wimport -Winit-self -Winline -Winvalid-pch \
+    -Wlong-long -Wmissing-format-attribute \
+    -Wmissing-include-dirs \
+    -Wpacked -Wpointer-arith \
+    -Wreturn-type -Wsequence-point \
+    -Wstrict-overflow=5 -Wswitch -Wswitch-default \
+    -Wswitch-enum -Wtrigraphs \
+    -Wunused-label -Wunused-parameter -Wunused-value \
+    -Wunused-variable -Wvariadic-macros -Wvolatile-register-var \
+    -Wwrite-strings -Warray-bounds \
+    -pipe \
+    -fno-stack-protector \
+    -fno-common
 
+# Warning suppressions from xmake.lua
+CXXFLAGS_SUPPRESS := -Wno-deprecated-volatile -Wno-missing-field-initializers \
+    -Wno-c99-extensions -Wno-unused-function -Wno-sign-conversion \
+    -Wno-implicit-int-float-conversion -Wno-implicit-float-conversion \
+    -Wno-format-nonliteral -Wno-format-security -Wno-format-y2k \
+    -Wno-import -Wno-inline -Wno-invalid-pch \
+    -Wno-long-long -Wno-missing-format-attribute \
+    -Wno-missing-noreturn -Wno-packed -Wno-redundant-decls \
+    -Wno-sequence-point -Wno-trigraphs -Wno-variadic-macros \
+    -Wno-volatile-register-var
 
-$(info SRC_FILES: $(SRC_FILES))
-$(info OBJ_FILES: $(OBJ_FILES))
+# Time tracing for ClangBuildAnalyzer
+CXXFLAGS_TIME_TRACE := -ftime-trace
 
+# Coverage flags
+COVERAGE_CXXFLAGS :=
+COVERAGE_LDFLAGS :=
+ifeq ($(COVERAGE),1)
+    ifeq ($(UNAME_S),Darwin)
+        COVERAGE_CXXFLAGS := -fprofile-instr-generate -fcoverage-mapping
+        COVERAGE_LDFLAGS := -fprofile-instr-generate
+    else
+        COVERAGE_CXXFLAGS := --coverage
+        COVERAGE_LDFLAGS := --coverage
+    endif
+endif
 
-all: 
-	$(COMPILE) 
+# Combine all CXXFLAGS
+CXXFLAGS := $(CXXSTD) $(CXXFLAGS_BASE) $(CXXFLAGS_SUPPRESS) $(CXXFLAGS_TIME_TRACE) \
+    $(MACOS_FLAGS) $(COVERAGE_CXXFLAGS) $(RAYLIB_FLAGS)
 
-old: $(OUTPUT_EXE)
+# Include directories
+INCLUDES := -Ivendor/
 
-$(OUTPUT_EXE): $(H_FILES) $(OBJ_FILES)
-	$(CXX) $(FLAGS) $(LEAKFLAGS) $(NOFLAGS) $(INCLUDES) $(LIBS) $(OBJ_FILES) -o $(OUTPUT_EXE)
+# Library flags
+LDFLAGS := -L. -Lvendor/ $(RAYLIB_LIB) $(FRAMEWORKS) $(COVERAGE_LDFLAGS)
 
-$(OBJ_DIR)/%.o: %.cpp makefile
-	$(CXX) $(FLAGS) $(NOFLAGS) $(INCLUDES) -c $< -o $@ -MMD -MF $(@:.o=.d)
+# Directories
+OBJ_DIR := output/objs
+OUTPUT_DIR := output
 
-%.d: %.cpp
-  $(MAKEDEPEND)
+# Source files for my_name_chef
+MAIN_SRC := $(wildcard src/*.cpp)
+MAIN_SRC := $(filter-out src/main.cpp, $(MAIN_SRC))
+MAIN_SRC += src/main.cpp
+MAIN_SRC += $(wildcard src/components/*.cpp)
+MAIN_SRC += $(wildcard src/systems/*.cpp)
+MAIN_SRC += $(wildcard src/ui/*.cpp)
+MAIN_SRC += src/server/file_storage.cpp
+MAIN_SRC += src/testing/test_app.cpp
+MAIN_SRC += src/testing/test_context.cpp
 
+# Source files for battle_server
+SERVER_SRC := $(wildcard src/server/*.cpp)
+SERVER_SRC += $(wildcard src/server/async/*.cpp)
+SERVER_SRC += $(wildcard src/server/tests/*.cpp)
+SERVER_SRC += $(filter-out src/main.cpp, $(wildcard src/*.cpp))
+SERVER_SRC += $(wildcard src/components/*.cpp)
+SERVER_SRC += $(filter-out src/systems/TestSystem.cpp, $(wildcard src/systems/*.cpp))
+SERVER_SRC += $(wildcard src/ui/*.cpp)
+
+# Object files
+MAIN_OBJS := $(MAIN_SRC:src/%.cpp=$(OBJ_DIR)/main/%.o)
+SERVER_OBJS := $(SERVER_SRC:src/%.cpp=$(OBJ_DIR)/server/%.o)
+
+# Dependency files
+MAIN_DEPS := $(MAIN_OBJS:.o=.d)
+SERVER_DEPS := $(SERVER_OBJS:.o=.d)
+
+# Output executables
+MAIN_EXE := $(OUTPUT_DIR)/my_name_chef$(EXT)
+SERVER_EXE := $(OUTPUT_DIR)/battle_server$(EXT)
+
+# Default target
+all: $(MAIN_EXE)
+
+# Build both targets
+both: $(MAIN_EXE) $(SERVER_EXE)
+
+# Main executable
+$(MAIN_EXE): $(MAIN_OBJS) | $(OUTPUT_DIR)/.stamp
+	@echo "Linking $(MAIN_EXE)..."
+	$(CXX) $(CXXFLAGS) $(MAIN_OBJS) $(LDFLAGS) -o $@
+	@echo "Built $(MAIN_EXE)"
+
+# Battle server executable
+$(SERVER_EXE): CXXFLAGS += -DHEADLESS_MODE
+$(SERVER_EXE): $(SERVER_OBJS) | $(OUTPUT_DIR)/.stamp
+	@echo "Linking $(SERVER_EXE)..."
+	$(CXX) $(CXXFLAGS) $(SERVER_OBJS) $(LDFLAGS) -o $@
+	@echo "Built $(SERVER_EXE)"
+
+# Compile main object files
+$(OBJ_DIR)/main/%.o: src/%.cpp | $(OBJ_DIR)/main
+	@echo "Compiling $<..."
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@ -MMD -MP -MF $(@:.o=.d) -MT $@
+
+# Compile server object files
+$(OBJ_DIR)/server/%.o: src/%.cpp | $(OBJ_DIR)/server
+	@echo "Compiling $<..."
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -DHEADLESS_MODE $(INCLUDES) -c $< -o $@ -MMD -MP -MF $(@:.o=.d) -MT $@
+
+# Create directories
+$(OUTPUT_DIR)/.stamp:
+	@mkdir -p $(OUTPUT_DIR)
+	@touch $@
+
+$(OBJ_DIR)/main:
+	@mkdir -p $(OBJ_DIR)/main
+
+$(OBJ_DIR)/server:
+	@mkdir -p $(OBJ_DIR)/server
+
+# Include dependency files
+-include $(MAIN_DEPS)
+-include $(SERVER_DEPS)
+
+# Clean build artifacts
 clean:
-	rm -rf output/src/
-	mkdir output/src
+	@echo "Cleaning build artifacts..."
+	rm -rf $(OBJ_DIR)
+	@echo "Clean complete"
 
-output:
+clean-all: clean
+	rm -f $(MAIN_EXE) $(SERVER_EXE)
+	@echo "Cleaned all"
+
+# Resource copying
+ifeq ($(UNAME_S),Darwin)
+    mkdir_cmd := mkdir -p $(OUTPUT_DIR)/resources/
+    cp_resources_cmd := cp -r resources/* $(OUTPUT_DIR)/resources/
+    sign_cmd := codesign -s - -f --verbose --entitlements ent.plist
+else ifeq ($(OS),Windows_NT)
+    mkdir_cmd := powershell -command "& {&'New-Item' -Path .\ -Name $(OUTPUT_DIR)\resources -ItemType directory -ErrorAction SilentlyContinue}"
+    cp_resources_cmd := powershell -command "& {&'Copy-Item' .\resources\* $(OUTPUT_DIR)\resources -ErrorAction SilentlyContinue}"
+    sign_cmd :=
+else
+    mkdir_cmd := mkdir -p $(OUTPUT_DIR)/resources/
+    cp_resources_cmd := cp -r resources/* $(OUTPUT_DIR)/resources/
+    sign_cmd :=
+endif
+
+output: $(MAIN_EXE)
 	$(mkdir_cmd)
-	$(cp_lib_cmd)
 	$(cp_resources_cmd)
 
-sign:
-	codesign -s - -f --verbose --entitlements ent.plist $(OUTPUT_EXE)
+sign: $(MAIN_EXE)
+	$(sign_cmd) $(MAIN_EXE)
 
-run: 
-	$(mkdir_cmd)
-	$(cp_resources_cmd)
-	$(run_cmd)
+run: output
+	./$(MAIN_EXE)
 
-brawlhalla: 
-	cp $(OUTPUT_EXE) F:\SteamLibrary\steamapps\common\Brawlhalla\Brawlhalla.exe
-
-
-count: 
-	git ls-files | grep "src" | grep -v "resources" | grep -v "vendor" | xargs wc -l | sort -rn | pr -2 -t -w 100
-	make -C vendor/afterhours
-
-countall: 
-	git ls-files | xargs wc -l | sort -rn
-
-cppcheck:
-	cppcheck src/ -Ivendor/afterhours --enable=all --std=c++23 --language=c++ --suppress=noConstructor --suppress=noExplicitConstructor --suppress=useStlAlgorithm --suppress=unusedStructMember --suppress=useInitializationList --suppress=duplicateCondition --suppress=nullPointerRedundantCheck --suppress=cstyleCast
+# Utility targets
+.PHONY: all both clean clean-all output sign run
 
 # ClangBuildAnalyzer integration
-cba:
-	@echo "Building with xmake to generate trace data..."
-	xmake build
+cba: clean
+	@echo "Building with make to generate trace data..."
+	$(MAKE) $(MAIN_EXE)
 	@echo "Analyzing build performance..."
-	ClangBuildAnalyzer --all build/.objs/my_name_chef/macosx/arm64/debug/src/ build-analysis.html
+	@mkdir -p $(OBJ_DIR)/main
+	ClangBuildAnalyzer --all $(OBJ_DIR)/main/ build-analysis.html
 	ClangBuildAnalyzer --analyze build-analysis.html | tee build-analysis.txt
 	@echo ""
 	@echo "Top 5 slowest files to parse:"
@@ -115,57 +223,52 @@ clean-cba:
 	rm -f build-analysis.html build-analysis.txt
 	@echo "Analysis files cleaned"
 
-prof:
-	$(mkdir_cmd)
-	$(cp_resources_cmd)
-	codesign -s - -f --verbose --entitlements ent.plist $(OUTPUT_EXE)
+# Profiling targets (macOS only)
+ifeq ($(UNAME_S),Darwin)
+prof: output sign
 	rm -rf recording.trace/
-	xctrace record --template 'Time Profiler' --output 'recording.trace' --launch $(OUTPUT_EXE)
+	xctrace record --template 'Time Profiler' --output 'recording.trace' --launch $(MAIN_EXE)
 
-leak:
-	$(mkdir_cmd)
-	$(cp_resources_cmd)
-	codesign -s - -f --verbose --entitlements ent.plist $(OUTPUT_EXE)
+leak: output sign
 	rm -rf recording.trace/
-	xctrace record --template 'Leaks' --output 'recording.trace' --launch $(OUTPUT_EXE)
+	xctrace record --template 'Leaks' --output 'recording.trace' --launch $(MAIN_EXE)
 
-alloc:
-	$(mkdir_cmd)
-	$(cp_resources_cmd)
-	codesign -s - -f --verbose --entitlements ent.plist $(OUTPUT_EXE)
+alloc: output sign
 	rm -rf recording.trace/
-	xctrace record --template 'Allocations' --output 'recording.trace' --launch $(OUTPUT_EXE)
+	xctrace record --template 'Allocations' --output 'recording.trace' --launch $(MAIN_EXE)
+endif
 
+# Code counting
+count:
+	git ls-files | grep "src" | grep -v "resources" | grep -v "vendor" | xargs wc -l | sort -rn | pr -2 -t -w 100
 
-getxm: 
-	powershell -command  "Invoke-Expression (Invoke-Webrequest 'https://xmake.io/psget.text' -UseBasicParsing).Content"
-xm:
-	xmake create -l c++ -t module.binary my_name_chef.exe
+countall:
+	git ls-files | xargs wc -l | sort -rn
 
-.PHONY: deps deps-html deps-check deps-dot deps-svg cba clean-cba
+# Static analysis
+cppcheck:
+	cppcheck src/ -Ivendor/afterhours --enable=all --std=c++23 --language=c++ \
+		--suppress=noConstructor --suppress=noExplicitConstructor \
+		--suppress=useStlAlgorithm --suppress=unusedStructMember \
+		--suppress=useInitializationList --suppress=duplicateCondition \
+		--suppress=nullPointerRedundantCheck --suppress=cstyleCast
 
+# Dependency graph targets
 deps:
 	cd tools && make run
 
-# Generate DOT files for visualization
 deps-dot:
 	cd tools && ./dependency_graph --src ../src --main ../src/main.cpp --outdir ../output
 
-# Generate SVG files from DOT files (requires graphviz)
 deps-svg:
 	cd tools && ./dependency_graph --src ../src --main ../src/main.cpp --outdir ../output --svg
 
-# Legacy Python target (commented out since Python tool doesn't exist)
-# deps-python:
-# 	python3 tools/dependency_graph.py --src src --main src/main.cpp --outdir build
-
-# Requires graphviz 'dot' on PATH
 deps-html:
 	cd tools && ./dependency_graph --src ../src --main ../src/main.cpp --outdir ../output
 
-# Create or update baseline: cp output/dependency_summary.json tools/dependency_baseline.json
-# Fails if current summary differs from baseline
 deps-check: deps
 	@echo "Checking dependency graph against baseline..."
 	@[ -f tools/dependency_baseline.json ] || (echo "No baseline found at tools/dependency_baseline.json" && exit 2)
 	@diff -u tools/dependency_baseline.json output/dependency_summary.json || (echo "Dependency summary changed. Run 'make deps' and update baseline if intentional." && exit 1)
+
+.PHONY: cba clean-cba prof leak alloc count countall cppcheck deps deps-dot deps-svg deps-html deps-check

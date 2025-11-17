@@ -33,8 +33,10 @@ Examples:
 - `output/` contains build artifacts
 
 ## Build System
-- Use `xmake` to build project
+- Use `make` to build project
 - Game executable is `my_name_chef.exe`
+- Run `make` to build main game, `make both` to build game and battle_server
+- Use `make clean` to clean build artifacts
 
 ## Debugging
 - Use `log_info()`, `log_warn()`, `log_error()` for logging
@@ -300,7 +302,7 @@ app.expect_dish_has_component<SomeEffect>(dish_id); // ✅ Validate result
 - Use consistent patterns across similar systems
 - Update related systems when changing component structures
 - Test builds after each major refactoring step
-- Run `xmake` after each significant change to catch compilation errors
+- Run `make` after each significant change to catch compilation errors
 - Fix build errors immediately before continuing development
 - Include all necessary component headers in system files
 - Use early returns for error conditions in systems
