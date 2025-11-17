@@ -19,6 +19,12 @@ DrinkInfo get_drink_info(DrinkType type) {
     return DrinkInfo{"Green Soda", 2, SpriteLocation{4, 5}};
   case DrinkType::BlueSoda:
     return DrinkInfo{"Blue Soda", 2, SpriteLocation{3, 5}};
+  case DrinkType::WhiteWine:
+    return DrinkInfo{"White Wine", 3, SpriteLocation{11, 5}};
+  case DrinkType::WatermelonJuice:
+    return DrinkInfo{"Watermelon Juice", 3, SpriteLocation{8, 5}};
+  case DrinkType::YellowSoda:
+    return DrinkInfo{"Yellow Soda", 3, SpriteLocation{6, 5}};
   default:
     log_error("get_drink_info: Unhandled drink type");
     return DrinkInfo{"Water", 1, SpriteLocation{7, 5}};
