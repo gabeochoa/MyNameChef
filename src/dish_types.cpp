@@ -554,7 +554,7 @@ DishInfo get_dish_info(DishType type, int level) {
     return dish()
         .with_name("Churros")
         .with_flavor(FlavorStats{.sweetness = 2, .richness = 1})
-        .with_sprite(SpriteLocation{48, 0})
+        .with_sprite(SpriteLocation{10, 1})
         .with_tier(4)
         .register_on_serve(
             ServeEffect().with_target(TargetScope::Self).add_zing(2))
@@ -565,7 +565,7 @@ DishInfo get_dish_info(DishType type, int level) {
     return dish()
         .with_name("Bouillabaisse")
         .with_flavor(FlavorStats{.umami = 2, .freshness = 1})
-        .with_sprite(SpriteLocation{49, 0})
+        .with_sprite(SpriteLocation{87, 0})
         .with_tier(5)
         .register_on_serve(
             ServeEffect().with_target(TargetScope::Self).add_zing(1))
@@ -576,7 +576,7 @@ DishInfo get_dish_info(DishType type, int level) {
     return dish()
         .with_name("Foie Gras")
         .with_flavor(FlavorStats{.richness = 3, .umami = 1})
-        .with_sprite(SpriteLocation{50, 0})
+        .with_sprite(SpriteLocation{95, 0})
         .with_tier(5)
         .register_on_serve(
             ServeEffect().with_target(TargetScope::Self).add_body(2))
