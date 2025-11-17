@@ -50,6 +50,9 @@ private:
     case DrinkType::Coffee:
       return {DishEffect(TriggerHook::OnStartBattle,
                          EffectOperation::AddCombatZing, TargetScope::Self, 2)};
+    case DrinkType::RedSoda:
+      return {DishEffect(TriggerHook::OnCourseComplete,
+                         EffectOperation::AddCombatZing, TargetScope::Self, 1)};
     default:
       log_error("ApplyDrinkPairingEffects: Unhandled drink type");
       return {};
