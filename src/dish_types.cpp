@@ -403,6 +403,15 @@ DishInfo get_dish_info(DishType type, int level) {
         .register_on_course_complete(
             OnCourseCompleteEffect().with_target(TargetScope::Self).add_body(1))
         .build();
+  case DishType::Tempura:
+    return dish()
+        .with_name("Tempura")
+        .with_flavor(FlavorStats{.satiety = 1, .richness = 1})
+        .with_sprite(SpriteLocation{46, 0})
+        .with_tier(2)
+        .register_on_bite_taken(
+            OnBiteEffect().with_target(TargetScope::Self).add_zing(1))
+        .build();
 
   // Tier 3: Moderate complexity
   case DishType::Burger:
@@ -425,6 +434,17 @@ DishInfo get_dish_info(DishType type, int level) {
         .with_flavor(FlavorStats{.satiety = 1, .richness = 1})
         .with_sprite(SpriteLocation{31, 0})
         .with_tier(3)
+        .build();
+  case DishType::Risotto:
+    return dish()
+        .with_name("Risotto")
+        .with_flavor(FlavorStats{.richness = 2, .umami = 1})
+        .with_sprite(SpriteLocation{44, 0})
+        .with_tier(3)
+        .register_on_serve(
+            ServeEffect().with_target(TargetScope::Self).add_flavor_stat(FlavorStatType::Richness, 1))
+        .register_on_serve(
+            ServeEffect().with_target(TargetScope::Next).add_flavor_stat(FlavorStatType::Richness, 1))
         .build();
   case DishType::IceCream:
     return dish()
@@ -596,6 +616,18 @@ void add_dish_tags(afterhours::Entity &entity, DishType type) {
   case DishType::MisoSoup:
     entity.addComponent<CourseTag>(CourseTagType::Soup);
     entity.addComponent<CuisineTag>(CuisineTagType::Japanese);
+    entity.addComponent<BrandTag>(BrandTagType::Restaurant);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Grain);
+    break;
+  case DishType::Tempura:
+    entity.addComponent<CourseTag>(CourseTagType::Appetizer);
+    entity.addComponent<CuisineTag>(CuisineTagType::Japanese);
+    entity.addComponent<BrandTag>(BrandTagType::Restaurant);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Protein);
+    break;
+  case DishType::Risotto:
+    entity.addComponent<CourseTag>(CourseTagType::Entree);
+    entity.addComponent<CuisineTag>(CuisineTagType::Italian);
     entity.addComponent<BrandTag>(BrandTagType::Restaurant);
     entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Grain);
     break;
