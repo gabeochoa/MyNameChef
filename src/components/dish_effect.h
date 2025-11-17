@@ -7,7 +7,9 @@ enum struct EffectOperation {
   AddFlavorStat,
   AddCombatZing,
   AddCombatBody,
-  SwapStats
+  SwapStats,
+  MultiplyDamage,
+  PreventAllDamage
 };
 
 enum struct TargetScope {

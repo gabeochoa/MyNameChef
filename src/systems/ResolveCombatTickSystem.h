@@ -5,6 +5,7 @@
 #include "../components/battle_result.h"
 #include "../components/combat_stats.h"
 #include "../components/dish_battle_state.h"
+#include "../components/next_damage_effect.h"
 #include "../components/transform.h"
 #include "../components/trigger_event.h"
 #include "../components/trigger_queue.h"
@@ -101,12 +102,14 @@ private:
       int player_damage = cs.currentZing;
       if (player_damage <= 0)
         player_damage = 1;
+      player_damage = apply_damage_effects(opponent, player_damage);
       opponent_cs.currentBody -= player_damage;
 
       // Opponent dish attacks player
       int opponent_damage = opponent_cs.currentZing;
       if (opponent_damage <= 0)
         opponent_damage = 1;
+      opponent_damage = apply_damage_effects(e, opponent_damage);
       cs.currentBody -= opponent_damage;
 
       // Fire OnBiteTaken events for both attacks
@@ -201,6 +204,26 @@ private:
   }
 
 private:
+  int apply_damage_effects(afterhours::Entity &target, int damage) {
+    if (!target.has<NextDamageEffect>()) {
+      return damage;
+    }
+
+    auto &effect = target.get<NextDamageEffect>();
+    float modified_damage = static_cast<float>(damage);
+    modified_damage *= effect.multiplier;
+    modified_damage += static_cast<float>(effect.flatModifier);
+    damage = static_cast<int>(modified_damage);
+    damage = std::max(0, damage);
+
+    effect.count--;
+    if (effect.count <= 0) {
+      target.removeComponent<NextDamageEffect>();
+    }
+
+    return damage;
+  }
+
   afterhours::OptEntity find_opponent_dish(const DishBattleState &dbs) {
     DishBattleState::TeamSide opponent_side =
         (dbs.team_side == DishBattleState::TeamSide::Player)
@@ -253,14 +276,16 @@ private:
           dbs.queue_index = new_index;
 
           if (dish.has<Transform>()) {
-            float y = (side == DishBattleState::TeamSide::Player) ? 150.0f : 500.0f;
+            float y =
+                (side == DishBattleState::TeamSide::Player) ? 150.0f : 500.0f;
             float x = 120.0f + new_index * 100.0f;
             Transform &transform = dish.get<Transform>();
             transform.position = afterhours::vec2{x, y};
 
             if (dish.has<afterhours::texture_manager::HasSprite>()) {
-              dish.get<afterhours::texture_manager::HasSprite>().update_transform(
-                  transform.position, transform.size, transform.angle);
+              dish.get<afterhours::texture_manager::HasSprite>()
+                  .update_transform(transform.position, transform.size,
+                                    transform.angle);
             }
           }
         }

@@ -6,6 +6,7 @@
 #include "../components/dish_effect.h"
 #include "../components/drink_effects.h"
 #include "../components/is_dish.h"
+#include "../components/next_damage_effect.h"
 #include "../components/pending_combat_mods.h"
 #include "../components/synergy_bonus_effects.h"
 #include "../components/trigger_event.h"
@@ -457,6 +458,27 @@ private:
       std::swap(stats.baseZing, stats.baseBody);
       std::swap(stats.currentZing, stats.currentBody);
       log_info("EFFECT: Swapped Zing and Body stats for entity {}", target.id);
+      break;
+    }
+
+    case EffectOperation::MultiplyDamage: {
+      auto &next_effect = target.addComponentIfMissing<NextDamageEffect>();
+      next_effect.multiplier =
+          effect.amount > 0 ? static_cast<float>(effect.amount) : 2.0f;
+      next_effect.flatModifier = 0;
+      next_effect.count = 1;
+      log_info("EFFECT: Added MultiplyDamage ({}x) to entity {}",
+               next_effect.multiplier, target.id);
+      break;
+    }
+
+    case EffectOperation::PreventAllDamage: {
+      auto &next_effect = target.addComponentIfMissing<NextDamageEffect>();
+      next_effect.multiplier = 0.0f;
+      next_effect.flatModifier = 0;
+      next_effect.count = effect.amount > 0 ? effect.amount : 1;
+      log_info("EFFECT: Added PreventAllDamage ({} uses) to entity {}",
+               next_effect.count, target.id);
       break;
     }
     }

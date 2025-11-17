@@ -86,6 +86,17 @@ static std::string format_effect_description(const DishEffect &effect) {
     desc << "Swap Zing and Body for " << target;
     break;
   }
+  case EffectOperation::MultiplyDamage: {
+    float multiplier =
+        effect.amount > 0 ? static_cast<float>(effect.amount) : 2.0f;
+    desc << "Next attack deals " << multiplier << "x damage to " << target;
+    break;
+  }
+  case EffectOperation::PreventAllDamage: {
+    int count = effect.amount > 0 ? effect.amount : 1;
+    desc << "Prevent next " << count << " damage to " << target;
+    break;
+  }
   }
 
   return desc.str();
