@@ -6,6 +6,16 @@
 
 enum struct DrinkType {
   Water = 0,
+  OrangeJuice,
+  Coffee,
+  RedSoda,
+  GreenSoda,
+  BlueSoda,
+  YellowSoda,
+  HotCocoa,
+  RedWine,
+  WhiteWine,
+  WatermelonJuice,
 };
 
 struct DrinkInfo {
