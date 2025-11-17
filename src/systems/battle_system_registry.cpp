@@ -1,6 +1,7 @@
 #include "battle_system_registry.h"
 #include "../render_backend.h"
 #include "AdvanceCourseSystem.h"
+#include "ApplyDrinkPairingEffects.h"
 #include "ApplyPairingsAndClashesSystem.h"
 #include "ApplyPendingCombatModsSystem.h"
 #include "ApplySetBonusesSystem.h"
@@ -56,6 +57,7 @@ void register_battle_systems(afterhours::SystemManager &systems) {
   systems.register_update_system(std::make_unique<InitCombatState>());
   systems.register_update_system(
       std::make_unique<ApplyPairingsAndClashesSystem>());
+  systems.register_update_system(std::make_unique<ApplyDrinkPairingEffects>());
   systems.register_update_system(std::make_unique<StartCourseSystem>());
   systems.register_update_system(
       std::make_unique<BattleEnterAnimationSystem>());
