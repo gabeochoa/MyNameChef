@@ -34,6 +34,7 @@ enum struct DishType {
   Bagel,
   Baguette,
   GarlicBread,
+  MisoSoup,
   DebugDish,
 };
 

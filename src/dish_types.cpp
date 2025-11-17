@@ -394,6 +394,15 @@ DishInfo get_dish_info(DishType type, int level) {
         .with_sprite(SpriteLocation{29, 0})
         .with_tier(2)
         .build();
+  case DishType::MisoSoup:
+    return dish()
+        .with_name("Miso Soup")
+        .with_flavor(FlavorStats{.umami = 1, .satiety = 1})
+        .with_sprite(SpriteLocation{38, 0})
+        .with_tier(2)
+        .register_on_course_complete(
+            OnCourseCompleteEffect().with_target(TargetScope::Self).add_body(1))
+        .build();
 
   // Tier 3: Moderate complexity
   case DishType::Burger:
@@ -583,6 +592,12 @@ void add_dish_tags(afterhours::Entity &entity, DishType type) {
     // entity.addComponent<CuisineTag>(CuisineTagType::Japanese);
     entity.addComponent<BrandTag>(BrandTagType::LocalFarm);
     entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Protein);
+    break;
+  case DishType::MisoSoup:
+    entity.addComponent<CourseTag>(CourseTagType::Soup);
+    entity.addComponent<CuisineTag>(CuisineTagType::Japanese);
+    entity.addComponent<BrandTag>(BrandTagType::Restaurant);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Grain);
     break;
   case DishType::Ramen:
     entity.addComponent<CourseTag>(CourseTagType::Soup);
