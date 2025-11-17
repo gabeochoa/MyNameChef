@@ -71,6 +71,10 @@ private:
     case DrinkType::BlueSoda:
       return {DishEffect(TriggerHook::OnCourseComplete,
                          EffectOperation::AddCombatBody, TargetScope::Self, 1)};
+    case DrinkType::WhiteWine:
+      return {DishEffect(TriggerHook::OnStartBattle,
+                         EffectOperation::AddCombatZing, TargetScope::AllAllies,
+                         1)};
     default:
       log_error("ApplyDrinkPairingEffects: Unhandled drink type");
       return {};
