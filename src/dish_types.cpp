@@ -441,10 +441,12 @@ DishInfo get_dish_info(DishType type, int level) {
         .with_flavor(FlavorStats{.richness = 2, .umami = 1})
         .with_sprite(SpriteLocation{44, 0})
         .with_tier(3)
-        .register_on_serve(
-            ServeEffect().with_target(TargetScope::Self).add_flavor_stat(FlavorStatType::Richness, 1))
-        .register_on_serve(
-            ServeEffect().with_target(TargetScope::Next).add_flavor_stat(FlavorStatType::Richness, 1))
+        .register_on_serve(ServeEffect()
+                               .with_target(TargetScope::Self)
+                               .add_flavor_stat(FlavorStatType::Richness, 1))
+        .register_on_serve(ServeEffect()
+                               .with_target(TargetScope::Next)
+                               .add_flavor_stat(FlavorStatType::Richness, 1))
         .build();
   case DishType::IceCream:
     return dish()
@@ -547,6 +549,39 @@ DishInfo get_dish_info(DishType type, int level) {
         .with_flavor(FlavorStats{.umami = 2, .satiety = 1})
         .with_sprite(SpriteLocation{27, 0})
         .with_tier(5)
+        .build();
+  case DishType::Churros:
+    return dish()
+        .with_name("Churros")
+        .with_flavor(FlavorStats{.sweetness = 2, .richness = 1})
+        .with_sprite(SpriteLocation{48, 0})
+        .with_tier(4)
+        .register_on_serve(
+            ServeEffect().with_target(TargetScope::Self).add_zing(2))
+        .register_on_serve(
+            ServeEffect().with_target(TargetScope::Self).remove_body(1))
+        .build();
+  case DishType::Bouillabaisse:
+    return dish()
+        .with_name("Bouillabaisse")
+        .with_flavor(FlavorStats{.umami = 2, .freshness = 1})
+        .with_sprite(SpriteLocation{49, 0})
+        .with_tier(5)
+        .register_on_serve(
+            ServeEffect().with_target(TargetScope::Self).add_zing(1))
+        .register_on_serve(
+            ServeEffect().with_target(TargetScope::Self).add_zing(1))
+        .build();
+  case DishType::FoieGras:
+    return dish()
+        .with_name("Foie Gras")
+        .with_flavor(FlavorStats{.richness = 3, .umami = 1})
+        .with_sprite(SpriteLocation{50, 0})
+        .with_tier(5)
+        .register_on_serve(
+            ServeEffect().with_target(TargetScope::Self).add_body(2))
+        .register_on_serve(
+            ServeEffect().with_target(TargetScope::Opponent).remove_body(1))
         .build();
   case DishType::DebugDish:
     return make_debug_dish();
@@ -710,6 +745,24 @@ void add_dish_tags(afterhours::Entity &entity, DishType type) {
     entity.addComponent<CourseTag>(CourseTagType::Dessert);
     entity.addComponent<BrandTag>(BrandTagType::Bakery);
     entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Bread);
+    break;
+  case DishType::Churros:
+    entity.addComponent<CourseTag>(CourseTagType::Dessert);
+    entity.addComponent<CuisineTag>(CuisineTagType::Mexican);
+    entity.addComponent<BrandTag>(BrandTagType::Bakery);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Bread);
+    break;
+  case DishType::Bouillabaisse:
+    entity.addComponent<CourseTag>(CourseTagType::Soup);
+    entity.addComponent<CuisineTag>(CuisineTagType::French);
+    entity.addComponent<BrandTag>(BrandTagType::Restaurant);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Protein);
+    break;
+  case DishType::FoieGras:
+    entity.addComponent<CourseTag>(CourseTagType::Entree);
+    entity.addComponent<CuisineTag>(CuisineTagType::French);
+    entity.addComponent<BrandTag>(BrandTagType::Restaurant);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Protein);
     break;
   // Higher tier dishes - commented for future implementation
   // case DishType::MacNCheese:

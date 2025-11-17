@@ -37,6 +37,9 @@ enum struct DishType {
   MisoSoup,
   Tempura,
   Risotto,
+  Churros,
+  Bouillabaisse,
+  FoieGras,
   DebugDish,
 };
 
