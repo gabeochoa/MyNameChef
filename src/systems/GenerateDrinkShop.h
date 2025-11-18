@@ -14,6 +14,7 @@
 #include "../texture_library.h"
 #include <afterhours/ah.h>
 #include <afterhours/src/plugins/texture_manager.h>
+#include <afterhours/src/entity_helper.h>
 
 using namespace afterhours;
 
@@ -49,10 +50,17 @@ private:
     float drink_shop_start_x =
         screen_width - (2 * (SLOT_SIZE + SLOT_GAP)) - 50.0f;
 
+    // Get current shop tier
+    auto shop_tier_entity = EntityHelper::get_singleton<ShopTier>();
+    int current_tier = 1; // Default to tier 1
+    if (shop_tier_entity.get().has<ShopTier>()) {
+      current_tier = shop_tier_entity.get().get<ShopTier>().current_tier;
+    }
+
     for (int i = 0; i < DRINK_SHOP_SLOTS; ++i) {
       auto position = calculate_slot_position(
           i, static_cast<int>(drink_shop_start_x), DRINK_SHOP_START_Y, 2);
-      DrinkType drink_type = get_random_drink();
+      DrinkType drink_type = get_random_drink_for_tier(current_tier);
 
       auto &e = EntityHelper::createEntity();
       e.addComponent<Transform>(position, vec2{SLOT_SIZE, SLOT_SIZE});

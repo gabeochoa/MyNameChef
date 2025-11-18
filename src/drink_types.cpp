@@ -1,5 +1,10 @@
 #include "drink_types.h"
 #include "log.h"
+#include "seeded_rng.h"
+#include <array>
+#include <magic_enum/magic_enum.hpp>
+#include <span>
+#include <vector>
 
 DrinkInfo get_drink_info(DrinkType type) {
   switch (type) {
@@ -32,6 +37,38 @@ DrinkInfo get_drink_info(DrinkType type) {
 }
 
 DrinkType get_random_drink() {
-  // TODO: Add more drink types (soda, juice, etc.)
-  return DrinkType::Water;
+  auto all_drinks = magic_enum::enum_values<DrinkType>();
+  auto &rng = SeededRng::get();
+  return all_drinks[rng.gen_index(all_drinks.size())];
+}
+
+DrinkType get_random_drink_for_tier(int tier) {
+  static const std::array<DrinkType, 4> tier1_drinks = {
+      DrinkType::Water, DrinkType::OrangeJuice, DrinkType::Coffee,
+      DrinkType::RedSoda};
+  static const std::array<DrinkType, 8> tier1_2_drinks = {
+      DrinkType::Water,    DrinkType::OrangeJuice, DrinkType::Coffee,
+      DrinkType::RedSoda,  DrinkType::HotCocoa,    DrinkType::GreenSoda,
+      DrinkType::BlueSoda, DrinkType::RedWine};
+  static const std::array<DrinkType, 11> all_drinks = {
+      DrinkType::Water,           DrinkType::OrangeJuice, DrinkType::Coffee,
+      DrinkType::RedSoda,         DrinkType::HotCocoa,    DrinkType::GreenSoda,
+      DrinkType::BlueSoda,        DrinkType::RedWine,     DrinkType::WhiteWine,
+      DrinkType::WatermelonJuice, DrinkType::YellowSoda};
+
+  std::span<const DrinkType> available_drinks;
+
+  if (tier >= 3) {
+    available_drinks = all_drinks;
+  } else if (tier >= 2) {
+    available_drinks = tier1_2_drinks;
+  } else if (tier >= 1) {
+    available_drinks = tier1_drinks;
+  } else {
+    log_warn("No drinks available for tier {}, falling back to Water", tier);
+    return DrinkType::Water;
+  }
+
+  auto &rng = SeededRng::get();
+  return available_drinks[rng.gen_index(available_drinks.size())];
 }
