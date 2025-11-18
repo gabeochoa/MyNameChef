@@ -59,6 +59,8 @@ struct DishEffect {
   bool is_copied = false; // True if this effect was copied from another dish
   std::optional<DishType>
       summonDishType; // Dish type to summon (for SummonDish operation)
+  int statusBodyDelta =
+      0; // Body delta for ApplyStatus operation (amount is zingDelta)
 
   DishEffect() = default;
 

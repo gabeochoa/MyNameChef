@@ -731,14 +731,13 @@ private:
 
     case EffectOperation::ApplyStatus: {
       // ApplyStatus: Add a status effect (debuff/buff) to the target
-      // amount field encodes zingDelta
-      // TODO: Support bodyDelta via separate parameter or extend DishEffect
-      // struct
+      // amount field encodes zingDelta, statusBodyDelta encodes bodyDelta
       auto &status_effects = target.addComponentIfMissing<StatusEffects>();
       StatusEffect status;
       status.zingDelta = effect.amount; // Use amount for zingDelta
-      status.bodyDelta = 0;             // TODO: Add support for bodyDelta
-      status.duration = 0;              // 0 = permanent for now
+      status.bodyDelta =
+          effect.statusBodyDelta; // Use statusBodyDelta for bodyDelta
+      status.duration = 0;        // 0 = permanent for now
       status_effects.effects.push_back(status);
 
       log_info("EFFECT: Applied status effect to entity {} - zingDelta: {}, "

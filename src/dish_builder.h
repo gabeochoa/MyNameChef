@@ -78,9 +78,10 @@ public:
       return parent_;
     }
 
-    TriggerEffectBuilder &apply_status(int zingDelta) {
+    TriggerEffectBuilder &apply_status(int zingDelta, int bodyDelta = 0) {
       parent_.effect_.operation = EffectOperation::ApplyStatus;
       parent_.effect_.amount = zingDelta;
+      parent_.effect_.statusBodyDelta = bodyDelta;
       return parent_;
     }
 
@@ -164,9 +165,10 @@ public:
     return *this;
   }
 
-  TriggerEffectBuilder &apply_status(int zingDelta) {
+  TriggerEffectBuilder &apply_status(int zingDelta, int bodyDelta = 0) {
     effect_.operation = EffectOperation::ApplyStatus;
     effect_.amount = zingDelta;
+    effect_.statusBodyDelta = bodyDelta;
     return *this;
   }
 
