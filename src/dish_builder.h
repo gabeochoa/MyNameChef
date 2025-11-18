@@ -83,6 +83,24 @@ public:
       parent_.effect_.amount = zingDelta;
       return parent_;
     }
+
+    TriggerEffectBuilder &swap_stats() {
+      parent_.effect_.operation = EffectOperation::SwapStats;
+      parent_.effect_.amount = 0;
+      return parent_;
+    }
+
+    TriggerEffectBuilder &multiply_damage(float multiplier) {
+      parent_.effect_.operation = EffectOperation::MultiplyDamage;
+      parent_.effect_.amount = static_cast<int>(multiplier);
+      return parent_;
+    }
+
+    TriggerEffectBuilder &prevent_all_damage(int count = 1) {
+      parent_.effect_.operation = EffectOperation::PreventAllDamage;
+      parent_.effect_.amount = count;
+      return parent_;
+    }
   };
 
   TargetEffectBuilder with_target(TargetScope target) {
@@ -149,6 +167,24 @@ public:
   TriggerEffectBuilder &apply_status(int zingDelta) {
     effect_.operation = EffectOperation::ApplyStatus;
     effect_.amount = zingDelta;
+    return *this;
+  }
+
+  TriggerEffectBuilder &swap_stats() {
+    effect_.operation = EffectOperation::SwapStats;
+    effect_.amount = 0;
+    return *this;
+  }
+
+  TriggerEffectBuilder &multiply_damage(float multiplier) {
+    effect_.operation = EffectOperation::MultiplyDamage;
+    effect_.amount = static_cast<int>(multiplier);
+    return *this;
+  }
+
+  TriggerEffectBuilder &prevent_all_damage(int count = 1) {
+    effect_.operation = EffectOperation::PreventAllDamage;
+    effect_.amount = count;
     return *this;
   }
 

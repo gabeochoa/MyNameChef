@@ -557,9 +557,7 @@ DishInfo get_dish_info(DishType type, int level) {
         .with_sprite(SpriteLocation{10, 1})
         .with_tier(4)
         .register_on_serve(
-            ServeEffect().with_target(TargetScope::Self).add_zing(2))
-        .register_on_serve(
-            ServeEffect().with_target(TargetScope::Self).remove_body(1))
+            ServeEffect().with_target(TargetScope::Self).swap_stats())
         .build();
   case DishType::Bouillabaisse:
     return dish()
@@ -568,9 +566,7 @@ DishInfo get_dish_info(DishType type, int level) {
         .with_sprite(SpriteLocation{87, 0})
         .with_tier(5)
         .register_on_serve(
-            ServeEffect().with_target(TargetScope::Self).add_zing(1))
-        .register_on_serve(
-            ServeEffect().with_target(TargetScope::Self).add_zing(1))
+            ServeEffect().with_target(TargetScope::Self).multiply_damage(2.0f))
         .build();
   case DishType::FoieGras:
     return dish()
@@ -578,10 +574,9 @@ DishInfo get_dish_info(DishType type, int level) {
         .with_flavor(FlavorStats{.richness = 3, .umami = 1})
         .with_sprite(SpriteLocation{95, 0})
         .with_tier(5)
-        .register_on_serve(
-            ServeEffect().with_target(TargetScope::Self).add_body(2))
-        .register_on_serve(
-            ServeEffect().with_target(TargetScope::Opponent).remove_body(1))
+        .register_on_start_battle(OnStartBattleEffect()
+                                      .with_target(TargetScope::Self)
+                                      .prevent_all_damage(1))
         .build();
   case DishType::Paella:
     return dish()
