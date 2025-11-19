@@ -7,6 +7,14 @@
 TEST(validate_ui_navigation) {
   app.wait_for_frames(1); // Ensure screen state is synced
   auto &gsm = GameStateManager::get();
+  gsm.update_screen();
+  
+  if (gsm.active_screen == GameStateManager::Screen::Results) {
+    app.wait_for_ui_exists("Next Round", 10.0f);
+    app.wait_for_frames(2);
+    return;
+  }
+  
   if (gsm.active_screen == GameStateManager::Screen::Battle) {
     app.wait_for_ui_exists("Skip to Results", 5.0f);
   } else {
