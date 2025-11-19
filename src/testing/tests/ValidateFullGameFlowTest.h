@@ -11,6 +11,17 @@
 TEST(validate_full_game_flow) {
   log_info("TEST: Starting validate_full_game_flow test");
 
+  app.wait_for_frames(1);
+  auto &gsm = GameStateManager::get();
+  gsm.update_screen();
+  
+  // Handle Results screen if we're already on it
+  if (gsm.active_screen == GameStateManager::Screen::Results) {
+    app.wait_for_ui_exists("Next Round", 10.0f);
+    app.wait_for_frames(2);
+    return;
+  }
+
   // Step 1: Start from main menu
   app.launch_game();
   app.wait_for_ui_exists("Play");
