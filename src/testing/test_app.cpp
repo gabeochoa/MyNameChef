@@ -881,7 +881,10 @@ TestApp &TestApp::wait_for_screen(GameStateManager::Screen screen,
     return *this;
   }
 
-  setup_wait_state(WaitState::Screen, timeout_sec);
+  std::string wait_location =
+      std::string(loc.file_name()) + ":" + std::to_string(loc.line());
+
+  setup_wait_state(WaitState::Screen, timeout_sec, wait_location);
   wait_state.target_screen = screen;
   wait_state.operation_id = op_id;
 

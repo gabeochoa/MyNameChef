@@ -43,28 +43,25 @@ static afterhours::RefEntity get_or_create_applied_set_bonuses() {
 }
 
 static void navigate_to_shop(TestApp &app) {
-  // Navigate to Shop screen
-  // Assumes app.launch_game() was called first, which sets screen to Main
-  app.wait_for_frames(1); // Ensure screen state is synced
-  auto &gsm = GameStateManager::get();
-
+  app.wait_for_frames(1);
+  GameStateManager &gsm = GameStateManager::get();
   if (gsm.active_screen == GameStateManager::Screen::Shop) {
-    return; // Already on Shop
+    app.wait_for_ui_exists("Next Round", 5.0f);
+    return;
   }
 
-  // Navigate from Main to Shop
   app.wait_for_ui_exists("Play", 5.0f);
   app.click("Play");
-  app.wait_for_screen(GameStateManager::Screen::Shop, 10.0f);
+  app.wait_for_ui_exists("Next Round", 10.0f);
+  app.wait_for_frames(2);
 }
 
 static void navigate_to_battle(TestApp &app) {
-  // Navigate from Shop to Battle
-  // Assumes we're already on Shop screen with dishes in inventory
   app.wait_for_ui_exists("Next Round", 5.0f);
   app.click("Next Round");
-  app.wait_for_screen(GameStateManager::Screen::Battle, 15.0f);
-  app.wait_for_frames(5); // Let battle initialize and systems run
+  app.wait_for_battle_initialized(30.0f);
+  app.wait_for_dishes_in_combat(1, 30.0f);
+  app.wait_for_frames(5);
 }
 
 } // namespace ValidateSetBonusSystemTestHelpers
@@ -102,8 +99,6 @@ TEST(validate_set_bonus_american_2_piece) {
   // Navigate to battle - systems will run naturally
   navigate_to_battle(app);
 
-  // Wait for systems to process (BattleSynergyCountingSystem and
-  // ApplySetBonusesSystem run on battle start)
   app.wait_for_frames(20);
 
   // Validate synergy count
