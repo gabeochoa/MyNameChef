@@ -47,6 +47,7 @@
 #include <raylib/raylib.h>
 #include <source_location>
 #include <thread>
+#include <unordered_map>
 
 void TestApp::fail(const std::string &message, const std::string &location) {
   failure_message = message;
@@ -310,9 +311,28 @@ TestApp &TestApp::navigate_to_shop(const std::source_location &loc) {
   if (completed_operations.count(op_id) > 0) {
     return *this;
   }
-  wait_for_ui_exists("Play");
-  click("Play");
-  wait_for_screen(GameStateManager::Screen::Shop);
+
+  wait_for_frames(1);
+  GameStateManager &gsm = GameStateManager::get();
+  gsm.update_screen();
+
+  if (gsm.active_screen == GameStateManager::Screen::Shop) {
+    wait_for_ui_exists("Next Round", 10.0f);
+  } else if (gsm.active_screen == GameStateManager::Screen::Results) {
+    wait_for_ui_exists("Back to Shop", 10.0f);
+    click("Back to Shop");
+    wait_for_frames(2);
+    wait_for_screen(GameStateManager::Screen::Shop, 15.0f);
+    wait_for_ui_exists("Next Round", 10.0f);
+  } else {
+    wait_for_ui_exists("Play", 5.0f);
+    click("Play");
+    wait_for_screen(GameStateManager::Screen::Shop, 15.0f);
+    wait_for_ui_exists("Next Round", 10.0f);
+  }
+
+  wait_for_frames(2);
+  wait_for_shop_items(1, 10.0f, loc);
   completed_operations.insert(op_id);
   if (step_delay()) {
     yield([this]() {
@@ -433,6 +453,63 @@ std::vector<TestShopItemInfo> TestApp::read_store_options() {
         {entity.id, dish.type, dish.name(), shop.slot, dish_info.price});
   }
   return result;
+}
+
+TestApp &TestApp::wait_for_shop_items(int min_count, float timeout_sec,
+                                      const std::source_location &loc) {
+  TestOperationID op_id = generate_operation_id(
+      loc, "wait_for_shop_items:" + std::to_string(min_count));
+  static std::unordered_map<TestOperationID,
+                            std::chrono::steady_clock::time_point>
+      wait_start;
+  auto now = std::chrono::steady_clock::now();
+  if (completed_operations.count(op_id) > 0) {
+    wait_start.erase(op_id);
+    return *this;
+  }
+
+  if (!wait_start.contains(op_id)) {
+    wait_start[op_id] = now;
+  }
+
+  const std::string location =
+      std::string(loc.file_name()) + ":" + std::to_string(loc.line());
+
+  int item_count = 0;
+  for (afterhours::Entity &entity :
+       afterhours::EntityQuery({.force_merge = true})
+           .whereHasComponent<IsShopItem>()
+           .gen()) {
+    if (entity.cleanup || !entity.has<IsDish>()) {
+      continue;
+    }
+    item_count++;
+  }
+
+  if (item_count >= min_count) {
+    completed_operations.insert(op_id);
+    wait_start.erase(op_id);
+    return *this;
+  }
+
+  std::chrono::duration<float> elapsed = now - wait_start[op_id];
+  if (elapsed.count() >= timeout_sec) {
+    wait_start.erase(op_id);
+    fail("Timeout waiting for shop items (needed " +
+             std::to_string(min_count) + ", found " +
+             std::to_string(item_count) + ")",
+         location);
+    return *this;
+  }
+
+  wait_state.type = WaitState::FrameDelay;
+  wait_state.frame_delay_count = 1;
+  wait_state.operation_id = 0;
+  yield([this]() {
+    test_resuming = true;
+    TestRegistry::get().run_test(current_test_name, *this);
+  });
+  return *this;
 }
 
 int TestApp::read_wallet_gold() {
@@ -2155,6 +2232,39 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
   }
 
   return *this;
+}
+
+void TestApp::set_test_int(const std::string &key, int value) {
+  test_int_data[key] = value;
+}
+
+std::optional<int> TestApp::get_test_int(const std::string &key) const {
+  if (auto it = test_int_data.find(key); it != test_int_data.end()) {
+    return it->second;
+  }
+  return std::nullopt;
+}
+
+bool TestApp::has_test_int(const std::string &key) const {
+  return test_int_data.contains(key);
+}
+
+void TestApp::set_test_shop_item(const std::string &key,
+                                 const TestShopItemInfo &info) {
+  test_shop_item_data[key] = info;
+}
+
+std::optional<TestShopItemInfo>
+TestApp::get_test_shop_item(const std::string &key) const {
+  if (auto it = test_shop_item_data.find(key);
+      it != test_shop_item_data.end()) {
+    return it->second;
+  }
+  return std::nullopt;
+}
+
+bool TestApp::has_test_shop_item(const std::string &key) const {
+  return test_shop_item_data.contains(key);
 }
 
 afterhours::OptEntity TestApp::find_inventory_item_by_slot(int slot_index) {

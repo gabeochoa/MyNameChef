@@ -24,6 +24,7 @@
 #include <source_location>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 struct TestDishInfo {
@@ -108,6 +109,8 @@ struct TestApp {
   bool test_resuming = false;
   bool test_executing = false; // Guard against recursive run_test calls
   std::set<TestOperationID> completed_operations;
+  std::unordered_map<std::string, int> test_int_data;
+  std::unordered_map<std::string, TestShopItemInfo> test_shop_item_data;
 
   static TestOperationID
   generate_operation_id(const std::source_location &loc,
@@ -143,6 +146,8 @@ struct TestApp {
     if (current_test_name != name) {
       current_test_name = name;
       completed_operations.clear();
+      test_int_data.clear();
+      test_shop_item_data.clear();
     }
   }
 
@@ -163,6 +168,10 @@ struct TestApp {
       const std::source_location &loc = std::source_location::current());
   TestApp &navigate_to_battle(
       const std::source_location &loc = std::source_location::current());
+  TestApp &
+  wait_for_shop_items(int min_count, float timeout_sec = 10.0f,
+                      const std::source_location &loc =
+                          std::source_location::current());
 
   std::vector<TestDishInfo> read_player_inventory();
   std::vector<TestShopItemInfo> read_store_options();
@@ -206,6 +215,14 @@ struct TestApp {
                          const std::string &location = "");
   TestApp &purchase_item(DishType type, int inventory_slot = -1,
                          const std::string &location = "");
+  void set_test_int(const std::string &key, int value);
+  std::optional<int> get_test_int(const std::string &key) const;
+  bool has_test_int(const std::string &key) const;
+  void set_test_shop_item(const std::string &key,
+                          const TestShopItemInfo &info);
+  std::optional<TestShopItemInfo>
+  get_test_shop_item(const std::string &key) const;
+  bool has_test_shop_item(const std::string &key) const;
 
   TestApp &wait_for_screen(
       GameStateManager::Screen screen, float timeout_sec = 5.0f,
