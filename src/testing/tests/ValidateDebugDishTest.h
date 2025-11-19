@@ -25,33 +25,40 @@ namespace ValidateDebugDishTestHelpers {
 // Helper to navigate to battle screen using TestApp navigation
 // Assumes app.launch_game() should be called first to reset state
 static void navigate_to_battle_screen(TestApp &app) {
-  app.wait_for_frames(1); // Ensure screen state is synced
+  app.wait_for_frames(1);
   auto &gsm = GameStateManager::get();
-  
+  gsm.update_screen();
+
   if (gsm.active_screen == GameStateManager::Screen::Battle) {
-    // Already on battle screen, just wait for UI to be ready
     app.wait_for_ui_exists("Skip to Results", 5.0f);
     return;
   }
-  
-  // Navigate from Main to Shop
+
+  if (gsm.active_screen == GameStateManager::Screen::Results) {
+    app.wait_for_ui_exists("Back to Shop", 10.0f);
+    app.click("Back to Shop");
+    app.wait_for_frames(2);
+  }
+
   if (gsm.active_screen != GameStateManager::Screen::Shop) {
     app.wait_for_ui_exists("Play", 5.0f);
     app.click("Play");
-    app.wait_for_screen(GameStateManager::Screen::Shop, 10.0f);
+    app.wait_for_ui_exists("Next Round", 10.0f);
+    app.wait_for_frames(2);
+  } else {
+    app.wait_for_ui_exists("Next Round", 5.0f);
   }
-  
-  // Ensure inventory has dishes (required to proceed)
+
   const auto inventory = app.read_player_inventory();
   if (inventory.empty()) {
     app.create_inventory_item(DishType::Potato, 0);
     app.wait_for_frames(2);
   }
-  
-  // Navigate to battle
-  app.wait_for_ui_exists("Next Round", 5.0f);
+
   app.click("Next Round");
-  app.wait_for_screen(GameStateManager::Screen::Battle, 15.0f);
+  app.wait_for_battle_initialized(30.0f);
+  app.wait_for_dishes_in_combat(1, 30.0f);
+  app.wait_for_frames(5);
   app.wait_for_ui_exists("Skip to Results", 5.0f);
 }
 
