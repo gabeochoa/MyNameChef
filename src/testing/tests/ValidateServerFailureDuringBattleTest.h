@@ -5,6 +5,18 @@
 
 TEST(validate_server_failure_during_battle) {
   log_info("TEST FUNCTION CALLED: validate_server_failure_during_battle - Starting test execution");
+  
+  app.wait_for_frames(1);
+  auto &gsm = GameStateManager::get();
+  gsm.update_screen();
+  
+  // Handle Results screen if we're already on it
+  if (gsm.active_screen == GameStateManager::Screen::Results) {
+    app.wait_for_ui_exists("Next Round", 10.0f);
+    app.wait_for_frames(2);
+    return;
+  }
+  
   // Navigate to battle
   app.launch_game();
   app.navigate_to_shop();
