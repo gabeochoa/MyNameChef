@@ -204,9 +204,25 @@ class TestExecutor:
             elif result.returncode == 124:  # timeout command exit code
                 print(f"  {Colors.RED}❌ TIMEOUT{Colors.NC} - Test exceeded {test_timeout}s timeout")
                 return (False, "timeout")
-            elif result.returncode == 139:  # SIGSEGV
-                print(f"  {Colors.RED}❌ SEGFAULT{Colors.NC} - Test caused segmentation fault")
-                return (False, "segfault")
+            elif result.returncode == 139:  # SIGSEGV (segmentation fault)
+                print(f"  {Colors.RED}❌ CRASHED{Colors.NC} - Segmentation fault (SIGSEGV)")
+                return (False, "crash_sigsegv")
+            elif result.returncode == 134 or result.returncode == -6:  # SIGABRT
+                print(f"  {Colors.RED}❌ CRASHED{Colors.NC} - Aborted (SIGABRT)")
+                return (False, "crash_sigabrt")
+            elif result.returncode == 136 or result.returncode == -8:  # SIGFPE
+                print(f"  {Colors.RED}❌ CRASHED{Colors.NC} - Floating point exception (SIGFPE)")
+                return (False, "crash_sigfpe")
+            elif result.returncode == 137 or result.returncode == -9:  # SIGKILL
+                print(f"  {Colors.RED}❌ CRASHED{Colors.NC} - Killed (SIGKILL)")
+                return (False, "crash_sigkill")
+            elif result.returncode == 138 or result.returncode == -10:  # SIGBUS
+                print(f"  {Colors.RED}❌ CRASHED{Colors.NC} - Bus error (SIGBUS)")
+                return (False, "crash_sigbus")
+            elif result.returncode < 0:  # Other negative exit codes (signals)
+                signal_num = -result.returncode
+                print(f"  {Colors.RED}❌ CRASHED{Colors.NC} - Signal {signal_num}")
+                return (False, f"crash_signal_{signal_num}")
             else:
                 print(f"  {Colors.RED}❌ FAILED{Colors.NC} - Test failed with exit code {result.returncode}")
                 return (False, f"exit_code_{result.returncode}")
