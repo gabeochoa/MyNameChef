@@ -3,6 +3,7 @@
 #include "../../components/is_dish.h"
 #include "../../components/is_inventory_item.h"
 #include "../../dish_types.h"
+#include "../../log.h"
 #include "../../query.h"
 #include "../test_macros.h"
 #include <afterhours/ah.h>
@@ -21,15 +22,27 @@ TEST(validate_shop_purchase) {
       TestApp::generate_operation_id(std::source_location::current(),
                                      "validate_shop_purchase.purchase_stage");
   if (!app.completed_operations.count(purchase_stage)) {
-    app.set_wallet_gold(10);
-    app.wait_for_shop_items(1, 15.0f);
-    std::vector<TestShopItemInfo> shop_items = app.read_store_options();
-    app.expect_not_empty(shop_items, "shop items");
+    // Check if we already have a stored item (from a previous resume)
+    auto stored_item_opt = app.get_test_shop_item("validate_shop_purchase.first_item");
+    TestShopItemInfo item_to_buy;
+    
+    if (stored_item_opt.has_value()) {
+      // Use the stored item (from a previous resume)
+      item_to_buy = stored_item_opt.value();
+      log_error("TEST: Using stored item type {} (resuming purchase)", static_cast<int>(item_to_buy.type));
+    } else {
+      // First time - read from shop and store it
+      app.set_wallet_gold(10);
+      app.wait_for_shop_items(1, 15.0f);
+      std::vector<TestShopItemInfo> shop_items = app.read_store_options();
+      app.expect_not_empty(shop_items, "shop items");
 
-    const TestShopItemInfo item_to_buy = shop_items[0];
-    app.set_test_shop_item("validate_shop_purchase.first_item", item_to_buy);
-    app.set_test_int("validate_shop_purchase.initial_gold",
-                     app.read_wallet_gold());
+      item_to_buy = shop_items[0];
+      app.set_test_shop_item("validate_shop_purchase.first_item", item_to_buy);
+      app.set_test_int("validate_shop_purchase.initial_gold",
+                       app.read_wallet_gold());
+      log_error("TEST: Stored new item type {} for purchase", static_cast<int>(item_to_buy.type));
+    }
 
     app.expect_wallet_at_least(item_to_buy.price);
     app.purchase_item(item_to_buy.type);
