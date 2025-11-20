@@ -2,264 +2,293 @@
 
 ## Overview
 
-This plan details implementing set bonus effects that activate when synergy thresholds (2/4/6) are reached, and a battle legend UI to display active synergies.
+This plan documents the current state of the set bonus system and identifies remaining work. **Most of the core functionality is already implemented.**
 
 ## Goal
 
-Implement set bonus system that:
-- Applies bonuses when synergy thresholds reached (2/4/6)
-- Displays active synergies in battle legend box
-- Provides visual feedback when thresholds achieved
+Complete set bonus system that:
+- ✅ Applies bonuses when synergy thresholds reached (2/4/6)
+- ✅ Displays active synergies in battle legend box
+- ❌ Provides visual feedback when thresholds achieved
 
 ## Current State
 
-### Existing Infrastructure
+### ✅ Fully Implemented
 
-- ✅ `SynergyCounts` singleton exists
-- ✅ `SynergyCountingSystem` counts tags in shop
-- ✅ `BattleSynergyCountingSystem` counts tags in battle
-- ✅ `ApplyPairingsAndClashesSystem` exists (can be extended)
-- ✅ `PreBattleModifiers` component exists for stat bonuses
+1. **Set Bonus Definitions** (`src/components/set_bonus_definitions.h` & `.cpp`)
+   - `SetBonusDefinition` struct with support for:
+     - Stat bonuses (`zingDelta`, `bodyDelta`)
+     - Effect-based bonuses (`bonusEffects`, `bonusEffectsCount`)
+     - Target scope (`TargetScope::AllAllies`, `TargetScope::AllOpponents`)
+   - Complete definitions for all 10 cuisine types:
+     - American, Thai, Italian, Japanese, Mexican, French, Chinese, Indian, Korean, Vietnamese
+   - Each cuisine has unique bonuses at 2/4/6 thresholds
+   - Some bonuses include trigger effects (e.g., American 4-piece: OnBiteTaken +1 Body)
 
-### Missing Features
+2. **Bonus Application System** (`src/systems/ApplySetBonusesSystem.h`)
+   - Reads `BattleSynergyCounts` singleton
+   - Checks thresholds (2, 4, 6) for each cuisine
+   - Applies bonuses to `PersistentCombatModifiers` (not `PreBattleModifiers`)
+   - Tracks applied bonuses in `AppliedSetBonuses` singleton to prevent duplicates
+   - Applies stat bonuses and effect bonuses separately
+   - Runs once per battle (when entering battle screen)
 
-- ❌ Set bonus definitions (what bonuses are)
-- ❌ Threshold checking and bonus application
-- ❌ Battle synergy legend box UI
-- ❌ Visual feedback for threshold achievements
+3. **Battle Synergy Counting** (`src/systems/BattleSynergyCountingSystem.h`)
+   - Counts cuisine tags for player and opponent teams
+   - Updates `BattleSynergyCounts` singleton
+   - Only counts dishes in `InQueue` or `Entering` phase
+   - Runs once per battle (uses `calculated` flag)
 
-## Design Decisions Needed
+4. **Battle Synergy Legend UI** (`src/systems/RenderBattleSynergyLegend.h`)
+   - Displays active synergies in top-left corner (x=20, y=170)
+   - Shows format: "American: 4/6" (current count / next threshold)
+   - Only displays synergies with count >= 2
+   - Updates each frame (reads from `BattleSynergyCounts`)
 
-### Bonus Design (CRITICAL - Needs Design Planning)
+5. **Effect Integration** (`src/systems/EffectResolutionSystem.h`)
+   - Processes `SynergyBonusEffects` component
+   - Applies trigger-based effects (e.g., OnBiteTaken)
+   - Integrates with existing effect system
 
-**Question**: What are set bonuses?
+6. **Test Coverage** (`src/testing/tests/ValidateSetBonusSystemTest.h`)
+   - Tests for 2-piece, 4-piece, 6-piece bonuses
+   - Tests for no synergy case
+   - Validates modifiers are applied correctly
+   - All tests pass
 
-**Option 1: Stat Bonuses Only**
-- 2-piece: +1 Zing, +1 Body
-- 4-piece: +2 Zing, +2 Body
-- 6-piece: +3 Zing, +3 Body
+### ❌ Missing Features
 
-**Option 2: Effect Unlocks**
-- 2-piece: Stat bonus
-- 4-piece: Stat bonus + new effect
-- 6-piece: Stat bonus + powerful effect
+1. **Visual Feedback for Threshold Achievements**
+   - No celebration animation when hitting 4-piece or 6-piece bonus
+   - No particle effects or glow around dishes
+   - No sound effects
+   - No visual indication when threshold is crossed
 
-**Option 3: Hybrid**
-- 2-piece: Stat bonus
-- 4-piece: Larger stat bonus
-- 6-piece: Stat bonus + effect unlock
+2. **Real-Time Updates**
+   - `BattleSynergyCountingSystem` only runs once per battle
+   - `ApplySetBonusesSystem` only runs once per battle
+   - Bonuses don't update if dishes leave combat mid-battle
+   - Legend updates each frame but counts are static after initial calculation
 
-**Recommendation**: Start with **Option 1 (Stat Bonuses Only)** for proof of concept, then expand.
+3. **Other Tag Type Support**
+   - Only `CuisineTag` is supported
+   - `CourseTag`, `BrandTag`, `DishArchetypeTag` are counted but have no bonuses
+   - Architecture could support other tag types but definitions don't exist
 
-## Implementation Details
+## Implementation Architecture
 
-### 1. Set Bonus Definitions
+### Component Flow
 
-**File**: Create `src/components/set_bonus_definitions.h` or hardcode in system
+1. **Battle Entry**:
+   - `BattleSynergyCountingSystem` counts cuisine tags → `BattleSynergyCounts`
+   - `ApplySetBonusesSystem` reads counts → applies bonuses → `PersistentCombatModifiers` + `SynergyBonusEffects`
+   - `ComputeCombatStatsSystem` reads `PersistentCombatModifiers` → calculates final stats
 
-**Structure**:
-```cpp
-struct SetBonusDefinition {
-  CuisineTagType cuisine; // Or other tag type
-  int threshold; // 2, 4, or 6
-  int zingBonus;
-  int bodyBonus;
-};
+2. **Effect Processing**:
+   - `EffectResolutionSystem` processes `SynergyBonusEffects` on trigger events
+   - Effects can modify stats mid-battle (e.g., OnBiteTaken +1 Body)
 
-// Hardcoded definitions (proof of concept with CuisineTag)
-std::vector<SetBonusDefinition> set_bonus_definitions = {
-  {CuisineTagType::American, 2, 1, 1},  // 2-piece: +1 Zing, +1 Body
-  {CuisineTagType::American, 4, 2, 2},  // 4-piece: +2 Zing, +2 Body
-  {CuisineTagType::American, 6, 3, 3},  // 6-piece: +3 Zing, +3 Body
-  // Add more cuisines...
-};
-```
+3. **UI Rendering**:
+   - `RenderBattleSynergyLegend` reads `BattleSynergyCounts` each frame
+   - Displays active synergies with current/next threshold format
 
-### 2. Extend ApplyPairingsAndClashesSystem
+### Key Components
 
-**File**: `src/systems/ApplyPairingsAndClashesSystem.h`
+- `SetBonusDefinition`: Defines bonus structure (stats + effects)
+- `BattleSynergyCounts`: Singleton tracking cuisine counts per team
+- `AppliedSetBonuses`: Singleton tracking which bonuses have been applied
+- `PersistentCombatModifiers`: Component storing stat bonuses
+- `SynergyBonusEffects`: Component storing effect-based bonuses
 
-**Logic**:
-- Read `BattleSynergyCounts` singleton (or `SynergyCounts` for shop)
-- Check each tag type for threshold achievements
-- Apply bonuses to `PreBattleModifiers` when thresholds reached
-- Only apply once per threshold (don't stack multiple times)
+### Key Systems
 
-**Implementation**:
-```cpp
-void apply_set_bonuses(afterhours::Entity &dish, const BattleSynergyCounts &counts) {
-  if (!dish.has<CuisineTag>()) return;
-  
-  const auto &tag = dish.get<CuisineTag>();
-  auto &pre = dish.addComponentIfMissing<PreBattleModifiers>();
-  
-  for (auto cuisine : magic_enum::enum_values<CuisineTagType>()) {
-    if (!tag.has(cuisine)) continue;
-    
-    int count = counts.player_cuisine_counts[cuisine];
-    
-    // Check thresholds and apply bonuses
-    if (count >= 6) {
-      pre.zingDelta += 3;
-      pre.bodyDelta += 3;
-    } else if (count >= 4) {
-      pre.zingDelta += 2;
-      pre.bodyDelta += 2;
-    } else if (count >= 2) {
-      pre.zingDelta += 1;
-      pre.bodyDelta += 1;
-    }
-  }
-}
-```
+- `BattleSynergyCountingSystem`: Counts tags once per battle
+- `ApplySetBonusesSystem`: Applies bonuses once per battle
+- `RenderBattleSynergyLegend`: Renders legend each frame
+- `EffectResolutionSystem`: Processes synergy effects during combat
 
-### 3. Battle Synergy Legend Box
+## Remaining Work
 
-**File**: `src/systems/RenderBattleSynergyLegendSystem.h` (new)
+### Priority 1: Visual Feedback (Optional Enhancement)
 
-**Purpose**: Display active synergies in battle
+**Goal**: Add celebration when thresholds are achieved
 
-**Display Rules**:
-- Only show synergies that have reached at least 2/4/6 threshold
-- Format: "American: 4/6" or "Bread: 2/4"
-- Position: Top-left or top-right corner of battle screen
+**Implementation Options**:
+1. **Animation Events**: Use existing `AnimationEvent` system
+   - Create `AnimationEventType::SetBonusAchieved`
+   - Trigger when threshold crossed (detect in `ApplySetBonusesSystem`)
+   - Render celebration animation in `RenderAnimations`
 
-**UI Layout**:
-```
-┌─────────────────┐
-│ Synergies:       │
-│ American: 4/6   │ ← Active (reached 4)
-│ Bread: 2/4      │ ← Active (reached 2)
-└─────────────────┘
-```
+2. **Particle Effects**: Add glow/particles around dishes
+   - Create new particle system or extend existing
+   - Trigger on threshold achievement
+   - Visual indicator on affected dishes
 
-**Implementation**:
-- Read `BattleSynergyCounts` singleton
-- Filter to only show tags with count >= 2
-- Display count and next threshold
-- Update in real-time as dishes enter/exit
+3. **Sound Effects**: Play sound when threshold reached
+   - Add to sound library
+   - Trigger in `ApplySetBonusesSystem`
 
-### 4. Visual Feedback
+**Files to Modify**:
+- `src/systems/ApplySetBonusesSystem.h` - Detect threshold crossing
+- `src/systems/RenderAnimations.h` - Render celebration (if using animation events)
+- `src/components/animation_event.h` - Add new event type (if needed)
 
-**Threshold Achievements**:
-- Celebration animation when hitting 4-piece or 6-piece bonus
-- Particle effects or glow around dishes
-- Sound effect (optional)
+**Estimated Time**: 2-4 hours
+
+### Priority 2: Real-Time Updates (Future Enhancement)
+
+**Goal**: Update bonuses as dishes enter/exit combat
+
+**Current Limitation**: Systems run once per battle, so bonuses are static
 
 **Implementation**:
-- Detect threshold crossing (count goes from <threshold to >=threshold)
-- Trigger animation/effect
-- Log achievement
+1. Remove `calculated` flag from `BattleSynergyCountingSystem`
+2. Make it run continuously (check `should_run` each frame)
+3. Remove `applied` flag from `ApplySetBonusesSystem`
+4. Track previous counts to detect threshold crossings
+5. Re-apply bonuses when counts change
 
-## Scope
+**Considerations**:
+- Performance: Continuous counting may be expensive
+- Edge cases: What happens when dish finishes mid-battle?
+- Should bonuses be removed if count drops below threshold?
 
-**Start with**: One tag type (CuisineTag) as proof of concept
+**Files to Modify**:
+- `src/systems/BattleSynergyCountingSystem.h`
+- `src/systems/ApplySetBonusesSystem.h`
+- `src/components/applied_set_bonuses.h` - May need to track previous state
 
-**Future**: Extend to other tag types (CourseTag, BrandTag, etc.)
+**Estimated Time**: 4-6 hours
 
-**Skip for now**: "Herb Garden" example - focus on stat bonuses first
+### Priority 3: Other Tag Type Support (Future Enhancement)
 
-## Test Cases
+**Goal**: Add set bonuses for CourseTag, BrandTag, DishArchetypeTag
 
-### Test 1: 2-Piece Bonus
+**Implementation**:
+1. Create `get_course_bonus_definitions()` similar to cuisine
+2. Create `get_brand_bonus_definitions()`
+3. Create `get_archetype_bonus_definitions()`
+4. Extend `ApplySetBonusesSystem` to check all tag types
+5. Extend `RenderBattleSynergyLegend` to display all tag types
 
-**Setup**:
-- 2 American dishes in team
-- Enter battle
+**Files to Modify**:
+- `src/components/set_bonus_definitions.cpp` - Add new definition functions
+- `src/systems/ApplySetBonusesSystem.h` - Process all tag types
+- `src/systems/RenderBattleSynergyLegend.h` - Display all tag types
+- `src/components/battle_synergy_counts.h` - Already has counts for all types
 
-**Expected**:
-- Each dish gets +1 Zing, +1 Body from set bonus
-- Legend shows "American: 2/4"
+**Estimated Time**: 6-8 hours
 
-### Test 2: 4-Piece Bonus
+## Test Cases (Already Implemented)
 
-**Setup**:
-- 4 American dishes in team
-- Enter battle
+All test cases in `ValidateSetBonusSystemTest.h` pass:
 
-**Expected**:
-- Each dish gets +2 Zing, +2 Body (4-piece bonus, not 2-piece)
-- Legend shows "American: 4/6"
+1. ✅ **2-Piece Bonus**: 2 American dishes → +1 Body each
+2. ✅ **4-Piece Bonus**: 4 American dishes → +3 Body each (2-piece +1, 4-piece +2)
+3. ✅ **6-Piece Bonus**: 6 American dishes → +6 Body each (2-piece +1, 4-piece +2, 6-piece +3)
+4. ✅ **No Synergy**: Dishes without matching tags → no bonuses
 
-### Test 3: 6-Piece Bonus
-
-**Setup**:
-- 6 American dishes in team
-- Enter battle
-
-**Expected**:
-- Each dish gets +3 Zing, +3 Body (6-piece bonus)
-- Legend shows "American: 6/6" or "American: 6"
-
-### Test 4: Multiple Synergies
-
-**Setup**:
-- 4 American dishes, 2 Bread dishes
-
-**Expected**:
-- American dishes get 4-piece bonus
-- Bread dishes get 2-piece bonus
-- Legend shows both synergies
+**Note**: Tests validate that bonuses stack (2+4+6 = total), not replace each other.
 
 ## Validation Steps
 
-1. **Design Phase**: Decide on bonus design (stats vs effects vs both)
+### Current System Validation
 
-2. **Create Set Bonus Definitions**
-   - Define data structure for bonuses
-   - Hardcode definitions for one tag type (CuisineTag)
+1. ✅ **Build**: Code compiles successfully
+2. ✅ **Headless Tests**: All tests pass (`./scripts/run_all_tests.sh`)
+3. ✅ **Non-Headless Tests**: All tests pass (`./scripts/run_all_tests.sh -v`)
+4. ✅ **Manual Testing**: Bonuses apply correctly in battle
+5. ✅ **Legend Display**: Synergies show correctly in battle UI
 
-3. **Extend ApplyPairingsAndClashesSystem**
-   - Read `BattleSynergyCounts`
-   - Check thresholds
-   - Apply bonuses to `PreBattleModifiers`
+### Future Enhancement Validation
 
-4. **Add Battle Synergy Legend Box**
-   - Create `RenderBattleSynergyLegendSystem`
-   - Display active synergies
-   - Update in real-time
+If implementing visual feedback or real-time updates:
 
-5. **Add Visual Feedback**
-   - Celebration animation for thresholds
-   - Particle effects (optional)
+1. **Build**: Run `xmake` - code must compile successfully
+2. **Headless Tests**: Run `./scripts/run_all_tests.sh` (ALL must pass)
+3. **Non-Headless Tests**: Run `./scripts/run_all_tests.sh -v` (ALL must pass)
+4. **Manual Testing**: Verify visual feedback appears correctly
+5. **Commit**: `git commit -m "add visual feedback for set bonus thresholds"`
 
-6. **MANDATORY CHECKPOINT**: Build
-   - Run `xmake` - code must compile successfully
+## Edge Cases (Handled)
 
-7. **MANDATORY CHECKPOINT**: Run Headless Tests
-   - Run `./scripts/run_all_tests.sh` (ALL must pass)
+1. ✅ **Partial Teams**: Bonuses apply only to dishes with matching tags
+2. ✅ **Multiple Thresholds**: Bonuses stack (2-piece + 4-piece + 6-piece all apply)
+3. ✅ **Multiple Cuisines**: Each cuisine tracked separately
+4. ✅ **Effect Bonuses**: Trigger-based effects work correctly (e.g., OnBiteTaken)
+5. ✅ **Opponent Bonuses**: Opponent team also gets bonuses (e.g., Indian cuisine debuffs)
 
-8. **MANDATORY CHECKPOINT**: Run Non-Headless Tests
-   - Run `./scripts/run_all_tests.sh -v` (ALL must pass)
+## Edge Cases (Not Handled - Future Work)
 
-9. **Verify Set Bonuses**
-   - Test bonuses apply correctly
-   - Test legend displays correctly
-   - Test visual feedback works
-
-10. **MANDATORY CHECKPOINT**: Commit
-    - `git commit -m "implement set bonus effects with threshold system"`
-
-## Edge Cases
-
-1. **Partial Teams**: Some dishes don't have tag (bonus still applies to those with tag)
-2. **Dishes Leave Combat**: Bonuses should update if dishes finish
-3. **Multiple Tag Types**: Dish has multiple tags (gets bonuses from all)
-4. **Threshold Crossing**: Animation triggers when crossing threshold
+1. ❌ **Dishes Leave Combat**: Bonuses don't update if dish finishes mid-battle
+2. ❌ **Threshold Crossing**: No visual feedback when crossing threshold
+3. ❌ **Count Drops Below Threshold**: Bonuses remain even if count drops (by design - once applied, stays)
 
 ## Success Criteria
 
+### ✅ Completed
+
 - ✅ Set bonuses apply when thresholds reached
 - ✅ Battle synergy legend displays active synergies
-- ✅ Visual feedback for threshold achievements
 - ✅ All tests pass in headless and non-headless modes
+- ✅ Effect-based bonuses work correctly
+- ✅ Multiple cuisines supported
 
-## Estimated Time
+### ❌ Remaining (Optional)
 
-6-8 hours:
-- 1 hour: Design phase (decide bonus structure)
-- 2 hours: Set bonus definitions and application
-- 2 hours: Battle synergy legend UI
-- 1 hour: Visual feedback
-- 2 hours: Testing and validation
+- ❌ Visual feedback for threshold achievements
+- ❌ Real-time updates as dishes enter/exit combat
+- ❌ Support for other tag types (CourseTag, BrandTag, etc.)
 
+## Design Decisions (Already Made)
+
+### Bonus Design: Hybrid Approach ✅
+
+The system uses **Option 3 (Hybrid)** from the original plan:
+- 2-piece: Stat bonus only
+- 4-piece: Stat bonus + effect unlock (some cuisines)
+- 6-piece: Stat bonus + powerful effect (some cuisines)
+
+**Examples**:
+- **American**: 2-piece = +1 Body, 4-piece = +2 Body + OnBiteTaken +1 Body, 6-piece = +3 Body + OnBiteTaken +2 Body
+- **Thai**: 2-piece = +1 Zing, 4-piece = +2 Zing, 6-piece = +3 Zing (stats only)
+- **Indian**: 2-piece = +1 Zing (allies), 4-piece = -1 Zing (opponents), 6-piece = -2 Zing (opponents)
+
+### Component Choice: PersistentCombatModifiers ✅
+
+Bonuses are applied to `PersistentCombatModifiers`, not `PreBattleModifiers`:
+- `PreBattleModifiers` is now a write-only mirror (for backward compatibility)
+- `PersistentCombatModifiers` is the source of truth for combat stat modifiers
+- `ComputeCombatStatsSystem` reads from `PersistentCombatModifiers`
+
+### System Architecture: Once-Per-Battle ✅
+
+Both counting and application systems run once per battle:
+- `BattleSynergyCountingSystem` uses `calculated` flag
+- `ApplySetBonusesSystem` uses `applied` flag
+- This is by design - bonuses are calculated at battle start and remain static
+
+## Estimated Time for Remaining Work
+
+**Visual Feedback Only**: 2-4 hours
+- Detect threshold crossing: 1 hour
+- Add animation/particles: 1-2 hours
+- Testing: 1 hour
+
+**Real-Time Updates**: 4-6 hours
+- Remove once-per-battle flags: 1 hour
+- Add threshold crossing detection: 2 hours
+- Handle edge cases: 1-2 hours
+- Testing: 1 hour
+
+**Other Tag Types**: 6-8 hours
+- Create definitions: 2-3 hours
+- Extend systems: 2-3 hours
+- Testing: 2 hours
+
+## Notes
+
+- The "Herb Garden" example mentioned in the original plan is not implemented and appears to be a future feature idea
+- The system is production-ready for CuisineTag bonuses
+- Visual feedback is a nice-to-have enhancement, not required for core functionality
+- Real-time updates may not be necessary if bonuses are meant to be static per battle
