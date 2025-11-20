@@ -2468,6 +2468,14 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
     return *this;
   }
   
+  // Verify shop item still has IsShopItem before drop (required for purchase)
+  if (!shop_item_held_opt.asE().has<IsShopItem>()) {
+    fail("Shop item does not have IsShopItem before drop - purchase will fail. "
+         "Item may have been modified unexpectedly.", location);
+    test_input::clear_simulated_input();
+    return *this;
+  }
+  
   // Move mouse to target slot position (ensure it's within slot bounds for overlap check)
   // Verify target slot has required components and re-query to ensure it's merged
   afterhours::OptEntity target_slot_merged_opt =
@@ -2483,6 +2491,17 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
   afterhours::Entity &target_slot_merged = target_slot_merged_opt.asE();
   if (!target_slot_merged.has<CanDropOnto>() || !target_slot_merged.get<CanDropOnto>().enabled) {
     fail("Target slot missing CanDropOnto or it's disabled", location);
+    test_input::clear_simulated_input();
+    return *this;
+  }
+  
+  // Verify drop slot accepts inventory items (required for purchase)
+  const IsDropSlot &drop_slot = target_slot_merged.get<IsDropSlot>();
+  if (!drop_slot.accepts_inventory_items) {
+    fail("Target slot does not accept inventory items - purchase will fail. "
+         "Slot ID: " + std::to_string(drop_slot.slot_id) + 
+         ", accepts_inventory: " + std::to_string(drop_slot.accepts_inventory_items) +
+         ", accepts_shop: " + std::to_string(drop_slot.accepts_shop_items), location);
     test_input::clear_simulated_input();
     return *this;
   }
@@ -2503,6 +2522,36 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
   
   test_input::set_mouse_position(mouse_pos_within_slot);
   wait_for_frames(2); // Ensure mouse position is set and slot is ready
+  
+  // Verify the slot can be found by the system's query (without force_merge)
+  // The system uses EQ() which doesn't use force_merge, so we need to ensure the slot is merged
+  bool slot_found_by_system = false;
+  for (int check = 0; check < 10; ++check) {
+    wait_for_frames(1);
+    for (afterhours::Entity &entity :
+         afterhours::EntityQuery() // No force_merge, like the system uses
+             .whereHasComponent<Transform>()
+             .whereHasComponent<CanDropOnto>()
+             .whereHasComponent<IsDropSlot>()
+             .gen()) {
+      if (entity.id == target_slot_merged.id) {
+        const IsDropSlot &slot = entity.get<IsDropSlot>();
+        if (slot.accepts_inventory_items && slot.accepts_shop_items) {
+          slot_found_by_system = true;
+          break;
+        }
+      }
+    }
+    if (slot_found_by_system) {
+      break;
+    }
+  }
+  
+  if (!slot_found_by_system) {
+    fail("Target slot not found by system query (without force_merge) - system may not find it for drop", location);
+    test_input::clear_simulated_input();
+    return *this;
+  }
   
   // Release mouse button to drop
   // The release flag is one-shot, so we need to ensure DropWhenNoLongerHeld processes it
@@ -2545,19 +2594,56 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
       afterhours::EntityQuery({.force_merge = true})
           .whereID(shop_item_id)
           .gen_first();
-  if (shop_item_check_opt2.has_value() && shop_item_check_opt2.asE().has<IsShopItem>()) {
+  
+  bool item_still_exists = shop_item_check_opt2.has_value();
+  bool item_has_shop_item = item_still_exists && shop_item_check_opt2.asE().has<IsShopItem>();
+  bool item_has_inventory_item = item_still_exists && shop_item_check_opt2.asE().has<IsInventoryItem>();
+  
+  // Debug: Check wallet state immediately after drop
+  int gold_after_drop = read_wallet_gold();
+  
+  if (item_still_exists && item_has_shop_item) {
     // Item still has IsShopItem, which means it snapped back (drop slot not found)
     fail("Shop item snapped back to original position - drop slot was not found. "
-         "Mouse position may not be overlapping the slot correctly.", location);
+         "Mouse position may not be overlapping the slot correctly. "
+         "Gold: " + std::to_string(gold_after_drop) + " (unchanged)", location);
     test_input::clear_simulated_input();
     return *this;
   }
+  
+  // Debug: Check if item exists and what components it has
+  if (item_still_exists && !item_has_shop_item && !item_has_inventory_item) {
+    // Item exists but has neither IsShopItem nor IsInventoryItem - this is unexpected
+    // It might have been cleaned up or something else happened
+    fail("Shop item exists but has neither IsShopItem nor IsInventoryItem - item may have been cleaned up unexpectedly. "
+         "Gold: " + std::to_string(gold_after_drop), location);
+    test_input::clear_simulated_input();
+    return *this;
+  }
+  
+  // If item has IsInventoryItem, try_purchase_shop_item succeeded
+  // But if gold wasn't deducted, charge_for_shop_purchase failed silently
+  if (item_has_inventory_item && gold_after_drop == initial_gold) {
+    // Item has IsInventoryItem but gold wasn't deducted - this means try_purchase_shop_item
+    // removed IsShopItem and added IsInventoryItem, but charge_for_shop_purchase didn't work
+    fail("Item has IsInventoryItem but gold was not deducted - charge_for_shop_purchase may have failed silently. "
+         "Gold: " + std::to_string(gold_after_drop) + ", expected: " + std::to_string(initial_gold - price) +
+         ". This suggests wallet_charge() returned true but didn't actually deduct gold.", location);
+    test_input::clear_simulated_input();
+    return *this;
+  }
+  
+  // If item doesn't exist, it might be in inventory with a different entity ID
+  // We'll check for it in the polling loop below
   
   // Now poll for purchase completion
   // The purchase should have completed - check if item is in inventory first
   // (gold deduction happens immediately in try_purchase_shop_item)
   for (int attempt = 0; attempt < 30; ++attempt) {
     wait_for_frames(1);
+    
+    // Check gold first - this should be updated immediately when charge_for_shop_purchase succeeds
+    new_gold = read_wallet_gold();
     
     // Check if item is in inventory (this is the most reliable indicator)
     for (afterhours::Entity &entity :
@@ -2573,25 +2659,23 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
       }
     }
     
-    if (found_in_inventory) {
-      // Item is in inventory, check gold was deducted
-      new_gold = read_wallet_gold();
-      if (new_gold == initial_gold - price) {
-        break; // Purchase completed successfully
-      } else {
-        // Item is in inventory but gold wasn't deducted - this is a bug
-        fail("Item is in inventory but gold was not deducted correctly: expected " +
-             std::to_string(initial_gold - price) + ", got " + std::to_string(new_gold),
-             location);
-        test_input::clear_simulated_input();
-        return *this;
-      }
+    // If both conditions are met, purchase completed successfully
+    if (found_in_inventory && new_gold == initial_gold - price) {
+      break; // Purchase completed successfully
     }
     
-    // Also check gold in case item check is failing
-    new_gold = read_wallet_gold();
-    if (new_gold == initial_gold - price) {
-      // Gold was deducted, but item not found in inventory yet - wait a bit more
+    // If item is in inventory but gold wasn't deducted - this is a bug
+    if (found_in_inventory && new_gold != initial_gold - price) {
+      fail("Item is in inventory but gold was not deducted correctly: expected " +
+           std::to_string(initial_gold - price) + ", got " + std::to_string(new_gold) +
+           " (initial: " + std::to_string(initial_gold) + ", price: " + std::to_string(price) + ")",
+           location);
+      test_input::clear_simulated_input();
+      return *this;
+    }
+    
+    // If gold was deducted but item not found in inventory yet - wait a bit more
+    if (new_gold == initial_gold - price && !found_in_inventory) {
       continue;
     }
   }
