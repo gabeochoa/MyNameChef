@@ -39,6 +39,7 @@
 
 ### Task 1: Add Survivor Carryover Test
 **Files**: Create `src/testing/tests/ValidateSurvivorCarryoverTest.h`
+- **Plan**: ⚠️ **NEEDS PLAN FILE** - Create `plans/survivor_carryover_test_plan.md`
 - **Goal**: Test that dishes that survive a course carry over to the next course correctly
 - **Key Behaviors to Test**:
   - When a dish survives (has remaining Body after opponent finishes), it should retarget the next opponent
@@ -64,10 +65,39 @@
 
 ---
 
+## Plan Creation Tasks
+
+1. **Course Tags & SynergyCountingSystem Foundations**
+   - ⚠️ **NEEDS PLAN FILE** - Create `plans/synergy_counting_plan.md` detailing component additions (CourseTag, CuisineTag, etc.), `SynergyCounts` singleton behavior, and required UI hooks.
+   - Implement tag components, `SynergyCountingSystem`, and verification tests per the new plan, ensuring tooltips and overlays read from `SynergyCounts`.
+
+2. **Combat Level Scaling Correction**
+   - ⚠️ **NEEDS PLAN FILE** - Create `plans/level_scaling_fix_plan.md` covering desired Zing/Body math (strict 2x per level), affected systems (`ComputeCombatStatsSystem`, tests), and regression validation.
+   - Update combat stat calculations and regression tests referencing the plan to guarantee deterministic parity with TODO specs.
+
+3. **Combine Duplicates into Levels (3-of-a-kind)**
+   - ⚠️ **NEEDS PLAN FILE** - Create `plans/three_of_a_kind_merge_plan.md` enumerating merge triggers, UI feedback, and stat scaling for triple merges.
+   - Implement the merge system changes and tests guided by that plan to ensure entities consolidate correctly and grant level-ups.
+
+4. **Shop UX Affordances (Prices & Drop Highlights)**
+   - ⚠️ **NEEDS PLAN FILE** - Create `plans/shop_ux_affordances_plan.md` outlining UI layout updates for price display, legal drop target highlights, and interaction states.
+   - Implement the UI/UX improvements per the plan, including tests or headless verifications that confirm highlights appear only on valid targets.
+
+5. **Set Bonus Effects & Legend UI**
+   - ⚠️ **NEEDS PLAN FILE** - Create `plans/set_bonus_system_plan.md` specifying bonus thresholds, data structures, and visual presentation requirements.
+   - Implement set bonus calculations, PreBattleModifiers plumbing, and the battle legend UI according to the plan with supporting tests/logs.
+
+6. **RerollCost, Freezeable, and Seeded RNG Cleanup**
+   - ⚠️ **NEEDS PLAN FILE** - Create `plans/reroll_and_freeze_rng_plan.md` that defines deterministic reroll cost behavior, Freezeable component usage, and RNG seeding cleanup scope.
+   - Refactor shop reroll/freeze logic to follow the plan, replacing remaining `std::random_device` usage and adding validation tests.
+
+---
+
 ## Tier 2: Core Gameplay Features (4-8hrs each)
 
 ### Task 2: Replace random_device with SeededRng in Server
 **Files**: `src/server/battle_api.cpp`, `src/server/async/systems/ProcessCommandQueueSystem.h`
+- **Plan**: ⚠️ **NEEDS PLAN FILE** - Create `plans/server_rng_determinism_plan.md`
 - **Issue**: Server code still uses `std::random_device` instead of `SeededRng` for deterministic RNG
 - **Locations**:
   - `battle_api.cpp:195` - Battle seed generation
@@ -93,6 +123,7 @@
 
 ### Task 3: Implement BattleReport Persistence
 **Files**: Create/update `src/components/battle_report.h`, add JSON serialization
+- **Plan**: ⚠️ **NEEDS PLAN FILE** - Create `plans/battle_report_persistence_plan.md`
 - **Architecture**: Server-authoritative battle system
   - Server returns JSON: `{ seed, opponentId, outcomes[], events[] }`
   - Client receives JSON and uses seed to replay battle visually
@@ -127,6 +158,7 @@
 
 ### Task 4: Enhance Replay System
 **Files**: Enhance `src/systems/ReplayControllerSystem.h`, create `src/systems/ReplayUISystem.h`
+- **Plan**: ⚠️ **NEEDS PLAN FILE** - Create `plans/replay_system_enhancement_plan.md`
 - **Current State**: Basic ReplayState exists, pause/play works
 - **Enhancements Needed**:
   - Speed controls (0.5x/1x/2x/4x) - partially exists, needs UI buttons
@@ -154,6 +186,7 @@
 
 ### Task 5: Implement Set Bonus Effects
 **Files**: Extend `ApplyPairingsAndClashesSystem.h`, create set bonus definitions
+- **Plan**: See `plans/set_bonus_system_plan.md` (from Plan Creation Tasks #5)
 - **Goal**: Apply bonuses when synergy thresholds are reached (2/4/6)
 - **Implementation**:
   - Read SynergyCounts singleton (already exists)
@@ -190,6 +223,7 @@
 
 ### Task 6: Enhanced Shop UX
 **Files**: Update shop systems and UI
+- **Plan**: See `plans/shop_ux_affordances_plan.md` (from Plan Creation Tasks #4)
 - **Features**:
   - Show price in shop (all items cost 3 gold, so display this in shop UI, not on each item)
   - Note: Eventually drinks will cost 1 gold and get paired with dishes, but not implementing that yet
@@ -219,6 +253,7 @@
 
 ### Task 10: Implement Status Effects
 **Files**: Create status effect components, extend `EffectResolutionSystem.h`
+- **Plan**: ⚠️ **NEEDS PLAN FILE** - Create `plans/status_effects_plan.md` (explicitly marked as "NEEDS FULL DESIGN PLAN" in task)
 - **Goal**: Implement status effects system (e.g., PalateCleanser, Heat, SweetTooth, Fatigue)
 - **Implementation**:
   - Create status effect components
@@ -254,6 +289,7 @@
 
 ### Task 11: Implement Duration-Based Effects
 **Files**: Extend `EffectResolutionSystem.h`
+- **Plan**: ⚠️ **NEEDS PLAN FILE** - Create `plans/duration_based_effects_plan.md`
 - **Goal**: Implement effects that last N courses (duration-based effects)
 - **Implementation**:
   - Add duration tracking to effects
@@ -274,6 +310,7 @@
 
 ### Task 12: Implement Effect Chains and Dependencies
 **Files**: Extend `EffectResolutionSystem.h`
+- **Plan**: ⚠️ **NEEDS PLAN FILE** - Create `plans/effect_chains_plan.md`
 - **Goal**: Implement effect chains where one effect can trigger another effect
 - **Implementation**:
   - Add effect dependency tracking
@@ -295,6 +332,7 @@
 
 ### Task 13: Visual Enhancements for Dish Merging
 **Files**: Update rendering systems
+- **Plan**: ⚠️ **NEEDS PLAN FILE** - Create `plans/dish_merging_visuals_plan.md`
 - **Goal**: Add visual feedback for dish merging (merge system already implemented)
 - **Note**: Dish merging is already implemented (2 level N dishes make 1 level N+1). This task is just visual polish.
 - **Level Scaling**: Uses existing 2x per level system (level 2 = 2x, level 3 = 4x, level 4 = 8x). See `ComputeCombatStatsSystem.h` lines 95-104.
