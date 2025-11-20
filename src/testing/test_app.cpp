@@ -2506,6 +2506,14 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
     return *this;
   }
   
+  // Verify slot is not occupied (if it is, swap_items will be called instead of drop_into_empty_slot)
+  if (drop_slot.occupied) {
+    fail("Target slot is occupied - swap_items will be called instead of drop_into_empty_slot. "
+         "This may cause different behavior. Slot ID: " + std::to_string(drop_slot.slot_id), location);
+    test_input::clear_simulated_input();
+    return *this;
+  }
+  
   // Ensure mouse position is within slot bounds (not just at center)
   // The overlap check uses a 1x1 rectangle at mouse position
   const Transform &slot_transform = target_slot_merged.get<Transform>();
@@ -2558,7 +2566,29 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
   // Set the release flag, then wait for system to process it
   // The flag will be consumed when DropWhenNoLongerHeld checks is_mouse_button_released
   test_input::simulate_mouse_button_release(raylib::MOUSE_BUTTON_LEFT);
-  wait_for_frames(2); // Let DropWhenNoLongerHeld process the release (needs at least 1 frame)
+  wait_for_frames(3); // Let DropWhenNoLongerHeld process the release (needs at least 1 frame, give extra for wallet update)
+  
+  // Immediately check wallet state after drop - wallet_charge should have executed synchronously
+  // But wait a frame first to ensure DropWhenNoLongerHeld has processed
+  wait_for_frames(1);
+  int gold_immediately_after_drop = read_wallet_gold();
+  
+  // Debug: Check if wallet singleton exists
+  afterhours::RefEntity wallet_check = afterhours::EntityHelper::get_singleton<Wallet>();
+  if (!wallet_check.get().has<Wallet>()) {
+    fail("Wallet singleton not found after drop - wallet_charge cannot work", location);
+    test_input::clear_simulated_input();
+    return *this;
+  }
+  
+  if (gold_immediately_after_drop != initial_gold - price && gold_immediately_after_drop != initial_gold) {
+    // Wallet changed but not by the expected amount - something else modified it
+    fail("Wallet gold changed unexpectedly after drop: expected " + 
+         std::to_string(initial_gold - price) + " or " + std::to_string(initial_gold) + 
+         ", got " + std::to_string(gold_immediately_after_drop), location);
+    test_input::clear_simulated_input();
+    return *this;
+  }
   
   // Wait for purchase to complete (DropWhenNoLongerHeld processes the drop)
   // Poll until gold is deducted or item appears in inventory
