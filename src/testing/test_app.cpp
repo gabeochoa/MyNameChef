@@ -642,6 +642,38 @@ TestApp &TestApp::create_inventory_item(DishType type, int slot,
 
 TestApp &TestApp::apply_drink_to_dish(int dish_slot, DrinkType drink_type,
                                        const std::source_location &loc) {
+  // Use operation ID to track progress and make it idempotent
+  TestOperationID op_id = generate_operation_id(
+      loc, "apply_drink_to_dish:" + std::to_string(dish_slot) + ":" + 
+      std::to_string(static_cast<int>(drink_type)));
+  
+  // Check if operation is already complete by verifying DrinkPairing exists
+  bool already_applied = false;
+  for (afterhours::Entity &entity :
+       afterhours::EntityQuery({.force_merge = true})
+           .whereHasComponent<IsInventoryItem>()
+           .whereHasComponent<IsDish>()
+           .gen()) {
+    if (entity.get<IsInventoryItem>().slot == dish_slot && entity.has<DrinkPairing>()) {
+      const DrinkPairing &pairing = entity.get<DrinkPairing>();
+      if (pairing.drink.has_value() && pairing.drink.value() == drink_type) {
+        already_applied = true;
+        break;
+      }
+    }
+  }
+  
+  if (already_applied) {
+    // Drink is already applied - operation must have completed
+    completed_operations.insert(op_id);
+    return *this;
+  }
+  
+  // Check if operation is already in progress (marked as complete)
+  if (completed_operations.count(op_id) > 0) {
+    return *this;
+  }
+  
   // Simulate drag-and-drop of drink onto dish using mouse input simulation
   // This uses test_input wrapper to simulate mouse interactions
   
@@ -748,35 +780,109 @@ TestApp &TestApp::apply_drink_to_dish(int dish_slot, DrinkType drink_type,
     return *this;
   }
   
+  // CRITICAL: Verify the entity is queryable by MarkIsHeldWhenHeld system (without force_merge)
+  // The system uses EQ() which doesn't use force_merge, so we need to ensure the entity is in the main array
+  bool system_can_find_entity = false;
+  for (int check = 0; check < 10; ++check) {
+    wait_for_frames(1);
+    for (afterhours::Entity &entity :
+         afterhours::EntityQuery() // No force_merge, like MarkIsHeldWhenHeld uses
+             .whereHasComponent<IsDraggable>()
+             .whereHasComponent<Transform>()
+             .gen()) {
+      if (entity.id == drink_entity_id) {
+        system_can_find_entity = true;
+        // Update position from the entity the system can see
+        drink_pos = entity.get<Transform>().center();
+        break;
+      }
+    }
+    if (system_can_find_entity) {
+      break;
+    }
+  }
+  
+  if (!system_can_find_entity) {
+    fail("Drink entity not found by system query (without force_merge) - MarkIsHeldWhenHeld cannot find it");
+    test_input::clear_simulated_input();
+    return *this;
+  }
+  
   // Get position from merged entity
   drink_pos = drink_merged.get<Transform>().center();
   
+  // Ensure mouse position is within entity bounds (not just at center)
+  // MarkIsHeldWhenHeld uses CheckCollisionPointRec which needs the point to be within the rect
+  const Transform &entity_transform = drink_merged.get<Transform>();
+  Rectangle entity_rect = entity_transform.rect();
+  vec2 mouse_pos_within_entity = entity_transform.center();
+  
+  // Clamp mouse position to be within entity bounds with a small margin
+  mouse_pos_within_entity.x = std::max(entity_rect.x + 1.0f, 
+                                       std::min(entity_rect.x + entity_rect.width - 1.0f, 
+                                                mouse_pos_within_entity.x));
+  mouse_pos_within_entity.y = std::max(entity_rect.y + 1.0f, 
+                                       std::min(entity_rect.y + entity_rect.height - 1.0f, 
+                                                mouse_pos_within_entity.y));
+  
   // Simulate mouse drag-and-drop:
-  // 1. Set mouse position to drink position
-  // 2. Simulate mouse button press (to start drag)
-  // 3. Wait a frame for MarkIsHeldWhenHeld to process
+  // 1. Set mouse position to drink position (within bounds)
+  // 2. Simulate mouse button press (to start drag) - flag persists until consumed
+  // 3. Wait for MarkIsHeldWhenHeld to process
   // 4. Move mouse to dish position
   // 5. Simulate mouse button release (to drop)
   // 6. Wait for HandleDrinkDrop to process
   
-  test_input::set_mouse_position(drink_pos);
+  test_input::set_mouse_position(mouse_pos_within_entity);
+  wait_for_frames(1); // Ensure mouse position is set before press
   test_input::simulate_mouse_button_press(raylib::MOUSE_BUTTON_LEFT);
-  wait_for_frames(3); // Let MarkIsHeldWhenHeld process the press
+  wait_for_frames(5); // Let MarkIsHeldWhenHeld process the press (flag persists until consumed)
   
-  // Re-query for drink entity to verify it's held
+  // Verify drink is now held - poll for a few frames since the system might not have run yet
+  bool is_held = false;
+  for (int check = 0; check < 20; ++check) {
+    wait_for_frames(1);
+    afterhours::OptEntity check_opt =
+        afterhours::EntityQuery({.force_merge = true})
+            .whereID(drink_entity_id)
+            .gen_first();
+    if (check_opt.has_value() && check_opt.asE().has<IsHeld>()) {
+      is_held = true;
+      log_error("TEST_APP: Drink {} is held after {} checks", drink_entity_id, check + 1);
+      break;
+    }
+  }
+  
+  if (!is_held) {
+    // Final check - maybe the entity ID changed or something else happened
+    int held_count = 0;
+    for (afterhours::Entity &e :
+         afterhours::EntityQuery({.force_merge = true})
+             .whereHasComponent<IsHeld>()
+             .gen()) {
+      held_count++;
+      if (e.id == drink_entity_id) {
+        is_held = true;
+        log_error("TEST_APP: Found held drink {} in separate query", drink_entity_id);
+        break;
+      }
+    }
+    log_error("TEST_APP: After polling, is_held={}, held_count={}, drink_entity_id={}", is_held, held_count, drink_entity_id);
+  }
+  
+  if (!is_held) {
+    fail("Drink was not marked as held after mouse press");
+    test_input::clear_simulated_input();
+    return *this;
+  }
+  
+  // Re-query for drink entity to use for drop
   afterhours::OptEntity drink_held_opt =
       afterhours::EntityQuery({.force_merge = true})
           .whereID(drink_entity_id)
           .gen_first();
   if (!drink_held_opt.has_value()) {
     fail("Drink entity not found after waiting");
-    test_input::clear_simulated_input();
-    return *this;
-  }
-  
-  // Verify drink is now held
-  if (!drink_held_opt.asE().has<IsHeld>()) {
-    fail("Drink was not marked as held after mouse press");
     test_input::clear_simulated_input();
     return *this;
   }
@@ -815,6 +921,9 @@ TestApp &TestApp::apply_drink_to_dish(int dish_slot, DrinkType drink_type,
   
   // Clear simulated input state
   test_input::clear_simulated_input();
+  
+  // Mark operation as complete
+  completed_operations.insert(op_id);
   
   return *this;
 }
