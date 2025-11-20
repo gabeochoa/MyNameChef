@@ -104,5 +104,9 @@ bool is_mouse_button_up(raylib::MouseButton button) {
   return afterhours::input::is_mouse_button_up(button);
 }
 
+bool is_simulation_active() {
+  return get_simulated_state().input_simulation_active;
+}
+
 } // namespace test_input
 

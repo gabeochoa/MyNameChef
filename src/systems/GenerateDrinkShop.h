@@ -54,7 +54,7 @@ private:
     // Check for test override first
     bool use_override = false;
     std::vector<DrinkType> override_drinks;
-    
+
     // Check for test override using singleton map directly
     try {
       const auto override_id = get_type_id<TestDrinkShopOverride>();
@@ -87,7 +87,7 @@ private:
     for (int i = 0; i < DRINK_SHOP_SLOTS; ++i) {
       auto position = calculate_slot_position(
           i, static_cast<int>(drink_shop_start_x), DRINK_SHOP_START_Y, 2);
-      
+
       DrinkType drink_type;
       if (use_override && i < static_cast<int>(override_drinks.size())) {
         // Use override drink for this slot
@@ -116,7 +116,8 @@ private:
     }
 
     if (use_override) {
-      log_info("Generated drink shop with {} drinks (test override)", DRINK_SHOP_SLOTS);
+      log_info("Generated drink shop with {} drinks (test override)",
+               DRINK_SHOP_SLOTS);
     } else {
       log_info("Generated drink shop with {} drinks", DRINK_SHOP_SLOTS);
     }

@@ -30,5 +30,8 @@ bool is_mouse_button_pressed(raylib::MouseButton button);
 bool is_mouse_button_down(raylib::MouseButton button);
 bool is_mouse_button_up(raylib::MouseButton button);
 
+// Check if input simulation is currently active
+bool is_simulation_active();
+
 } // namespace test_input
 

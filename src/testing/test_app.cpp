@@ -2385,66 +2385,200 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
     }
   }
 
-  // Simulate drag-and-drop: add IsHeld component, then let system process
-  // We'll simulate what DropWhenNoLongerHeld does for purchasing
-  vec2 slot_center = target_slot->get<Transform>().center();
-  vec2 item_size = shop_item->has<Transform>()
-                       ? shop_item->get<Transform>().size
-                       : vec2{80.0f, 80.0f};
-
-  // Add IsHeld component to simulate dragging
-  if (!shop_item->has<Transform>()) {
-    shop_item->addComponent<Transform>(vec2{0, 0}, item_size);
+  // Simulate drag-and-drop using test_input (production code path)
+  // This uses the same flow as apply_drink_to_dish: simulate mouse interactions
+  // and let DropWhenNoLongerHeld system process naturally
+  
+  // Get positions
+  if (!shop_item->has<Transform>() || !target_slot->has<Transform>()) {
+    fail("Shop item or target slot missing Transform component", location);
+    return *this;
   }
-  Transform &item_transform = shop_item->get<Transform>();
-  IsHeld held_component{vec2{0, 0}, item_transform.position};
-
-  // Position item over the target slot
-  item_transform.position = slot_center - item_size * 0.5f;
-
-  // Get original slot ID before removing IsShopItem
-  int original_slot = -1;
-  if (shop_item->has<IsShopItem>()) {
-    original_slot = shop_item->get<IsShopItem>().slot;
+  
+  vec2 shop_item_pos = shop_item->get<Transform>().center();
+  vec2 target_slot_pos = target_slot->get<Transform>().center();
+  
+  // Store shop item ID since pointer might become invalid after merge
+  afterhours::EntityID shop_item_id = shop_item->id;
+  
+  // Wait for shop item to be merged so MarkIsHeldWhenHeld system can find it
+  for (int i = 0; i < 20; ++i) {
+    wait_for_frames(1);
+    afterhours::OptEntity shop_item_merged_opt =
+        afterhours::EntityQuery()
+            .whereID(shop_item_id)
+            .gen_first();
+    if (shop_item_merged_opt.has_value()) {
+      // Entity is merged, get updated position
+      shop_item_pos = shop_item_merged_opt.asE().get<Transform>().center();
+      break;
+    }
   }
-
-  // Charge for purchase (same logic as
-  // DropWhenNoLongerHeld::try_purchase_shop_item)
-  if (!charge_for_shop_purchase(type)) {
-    // Failed to charge - restore position
-    item_transform.position = held_component.original_position;
-    fail("Failed to charge wallet for purchase", location);
+  
+  // Verify shop item is merged and has required components
+  afterhours::OptEntity shop_item_merged_opt =
+      afterhours::EntityQuery()
+          .whereID(shop_item_id)
+          .gen_first();
+  if (!shop_item_merged_opt.has_value()) {
+    fail("Shop item not found after merge - system cannot find it", location);
+    test_input::clear_simulated_input();
+    return *this;
   }
-
-  // Remove IsShopItem and add IsInventoryItem
-  shop_item->removeComponent<IsShopItem>();
-  IsInventoryItem &inv_item = shop_item->addComponent<IsInventoryItem>();
-  inv_item.slot = target_slot->get<IsDropSlot>().slot_id;
-
-  shop_item->removeComponentIfExists<Freezeable>();
-
-  // Mark slot as occupied
-  target_slot->get<IsDropSlot>().occupied = true;
-
-  // Free the original shop slot
-  if (original_slot >= 0) {
-    for (afterhours::Entity &entity :
-         afterhours::EntityQuery().whereHasComponent<IsDropSlot>().gen()) {
-      if (entity.get<IsDropSlot>().slot_id == original_slot) {
-        entity.get<IsDropSlot>().occupied = false;
-        break;
+  
+  afterhours::Entity &shop_item_merged = shop_item_merged_opt.asE();
+  if (!shop_item_merged.has<IsDraggable>() || !shop_item_merged.has<Transform>()) {
+    fail("Shop item missing IsDraggable or Transform component", location);
+    test_input::clear_simulated_input();
+    return *this;
+  }
+  
+  // Get position from merged entity
+  shop_item_pos = shop_item_merged.get<Transform>().center();
+  
+  // Simulate mouse drag-and-drop:
+  // 1. Set mouse position to shop item position
+  // 2. Wait a frame to ensure position is set
+  // 3. Simulate mouse button press (to start drag) - flag will be consumed by system in next frame
+  // 4. Wait for MarkIsHeldWhenHeld to process
+  // 5. Move mouse to target slot position
+  // 6. Simulate mouse button release (to drop)
+  // 7. Wait for DropWhenNoLongerHeld to process
+  
+  test_input::set_mouse_position(shop_item_pos);
+  wait_for_frames(1); // Ensure mouse position is set before press
+  test_input::simulate_mouse_button_press(raylib::MOUSE_BUTTON_LEFT);
+  wait_for_frames(3); // Let MarkIsHeldWhenHeld process the press (flag consumed in first frame)
+  
+  // Re-query for shop item to verify it's held
+  afterhours::OptEntity shop_item_held_opt =
+      afterhours::EntityQuery({.force_merge = true})
+          .whereID(shop_item_id)
+          .gen_first();
+  if (!shop_item_held_opt.has_value()) {
+    fail("Shop item not found after waiting", location);
+    test_input::clear_simulated_input();
+    return *this;
+  }
+  
+  // Verify shop item is now held
+  if (!shop_item_held_opt.asE().has<IsHeld>()) {
+    fail("Shop item was not marked as held after mouse press", location);
+    test_input::clear_simulated_input();
+    return *this;
+  }
+  
+  // Move mouse to target slot position (ensure it's within slot bounds for overlap check)
+  // Verify target slot has required components and re-query to ensure it's merged
+  afterhours::OptEntity target_slot_merged_opt =
+      afterhours::EntityQuery({.force_merge = true})
+          .whereID(target_slot->id)
+          .gen_first();
+  if (!target_slot_merged_opt.has_value()) {
+    fail("Target slot not found after merge", location);
+    test_input::clear_simulated_input();
+    return *this;
+  }
+  
+  afterhours::Entity &target_slot_merged = target_slot_merged_opt.asE();
+  if (!target_slot_merged.has<CanDropOnto>() || !target_slot_merged.get<CanDropOnto>().enabled) {
+    fail("Target slot missing CanDropOnto or it's disabled", location);
+    test_input::clear_simulated_input();
+    return *this;
+  }
+  
+  // Ensure mouse position is within slot bounds (not just at center)
+  // The overlap check uses a 1x1 rectangle at mouse position
+  const Transform &slot_transform = target_slot_merged.get<Transform>();
+  Rectangle slot_rect = slot_transform.rect();
+  vec2 mouse_pos_within_slot = target_slot_merged.get<Transform>().center();
+  
+  // Clamp mouse position to be within slot bounds with a small margin
+  mouse_pos_within_slot.x = std::max(slot_rect.x + 1.0f, 
+                                     std::min(slot_rect.x + slot_rect.width - 1.0f, 
+                                              mouse_pos_within_slot.x));
+  mouse_pos_within_slot.y = std::max(slot_rect.y + 1.0f, 
+                                     std::min(slot_rect.y + slot_rect.height - 1.0f, 
+                                              mouse_pos_within_slot.y));
+  
+  test_input::set_mouse_position(mouse_pos_within_slot);
+  wait_for_frames(2); // Ensure mouse position is set and slot is ready
+  
+  // Release mouse button to drop
+  // The release flag is one-shot, so we need to ensure DropWhenNoLongerHeld processes it
+  // Set the release flag, then wait for system to process it
+  // The flag will be consumed when DropWhenNoLongerHeld checks is_mouse_button_released
+  test_input::simulate_mouse_button_release(raylib::MOUSE_BUTTON_LEFT);
+  wait_for_frames(2); // Let DropWhenNoLongerHeld process the release (needs at least 1 frame)
+  
+  // Wait for purchase to complete (DropWhenNoLongerHeld processes the drop)
+  // Poll until gold is deducted or item appears in inventory
+  // Store target slot ID before waiting (pointer might become invalid)
+  int target_slot_id = target_slot_merged.get<IsDropSlot>().slot_id;
+  int new_gold = read_wallet_gold();
+  bool found_in_inventory = false;
+  bool item_no_longer_held = false;
+  
+  // First, verify the item is no longer held (drop was processed)
+  for (int check_held = 0; check_held < 10; ++check_held) {
+    wait_for_frames(1);
+    afterhours::OptEntity shop_item_check_opt =
+        afterhours::EntityQuery({.force_merge = true})
+            .whereID(shop_item_id)
+            .gen_first();
+    if (shop_item_check_opt.has_value() && !shop_item_check_opt.asE().has<IsHeld>()) {
+      item_no_longer_held = true;
+      break;
+    }
+  }
+  
+  if (!item_no_longer_held) {
+    fail("Shop item still held after drop - DropWhenNoLongerHeld may not have processed the drop", location);
+    test_input::clear_simulated_input();
+    return *this;
+  }
+  
+  // Now poll for purchase completion
+  for (int attempt = 0; attempt < 30; ++attempt) {
+    wait_for_frames(1);
+    
+    // Check if gold was deducted
+    new_gold = read_wallet_gold();
+    if (new_gold == initial_gold - price) {
+      // Gold was deducted, check if item is in inventory
+      for (afterhours::Entity &entity :
+           afterhours::EntityQuery({.force_merge = true})
+               .whereHasComponent<IsInventoryItem>()
+               .whereHasComponent<IsDish>()
+               .gen()) {
+        const IsDish &dish = entity.get<IsDish>();
+        const IsInventoryItem &inv = entity.get<IsInventoryItem>();
+        if (dish.type == type && inv.slot == target_slot_id) {
+          found_in_inventory = true;
+          break;
+        }
+      }
+      if (found_in_inventory) {
+        break; // Purchase completed successfully
       }
     }
   }
-
-  // Changes will be visible after system loop runs
-  // Verify purchase succeeded
-  const int new_gold = read_wallet_gold();
+  
+  // Clear simulated input now that purchase is complete
+  test_input::clear_simulated_input();
+  
+  // Verify purchase succeeded by checking gold and inventory
   if (new_gold != initial_gold - price) {
     fail("Gold not deducted correctly: expected " +
              std::to_string(initial_gold - price) + ", got " +
              std::to_string(new_gold),
          location);
+    return *this;
+  }
+  
+  if (!found_in_inventory) {
+    fail("Item not found in inventory after purchase", location);
+    return *this;
   }
 
   if (step_delay()) {
