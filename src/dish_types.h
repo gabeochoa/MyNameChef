@@ -43,6 +43,7 @@ enum struct DishType {
   Paella,
   Pho,
   WagyuSteak,
+  Broth,
   DebugDish,
 };
 

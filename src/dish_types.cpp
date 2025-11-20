@@ -597,8 +597,7 @@ DishInfo get_dish_info(DishType type, int level) {
         .register_on_dish_finished(
             OnDishFinishedEffect()
                 .with_target(TargetScope::Self)
-                .summon_dish(DishType::Potato)) // TODO: Use proper Broth dish
-                                                // type instead of Potato
+                .summon_dish(DishType::Broth))
         .build();
   case DishType::WagyuSteak:
     return dish()
@@ -608,6 +607,13 @@ DishInfo get_dish_info(DishType type, int level) {
         .with_tier(5)
         .register_on_bite_taken(
             OnBiteEffect().with_target(TargetScope::Opponent).apply_status(-1))
+        .build();
+  case DishType::Broth:
+    return dish()
+        .with_name("Broth")
+        .with_flavor(FlavorStats{.satiety = 1, .umami = 1})
+        .with_sprite(SpriteLocation{38, 0})
+        .with_tier(1)
         .build();
   case DishType::DebugDish:
     return make_debug_dish();
@@ -621,9 +627,9 @@ const std::vector<DishType> &get_default_dish_pool() {
     std::vector<DishType> result;
     result.reserve(all_dishes.size());
 
-    // Filter out placeholder/debug dishes
+    // Filter out placeholder/debug dishes and summoned-only dishes
     for (const auto &dish : all_dishes) {
-      if (dish != DishType::DebugDish) {
+      if (dish != DishType::DebugDish && dish != DishType::Broth) {
         result.push_back(dish);
       }
     }
@@ -808,6 +814,12 @@ void add_dish_tags(afterhours::Entity &entity, DishType type) {
     entity.addComponent<CuisineTag>(CuisineTagType::Japanese);
     entity.addComponent<BrandTag>(BrandTagType::Restaurant);
     entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Protein);
+    break;
+  case DishType::Broth:
+    entity.addComponent<CourseTag>(CourseTagType::Soup);
+    entity.addComponent<CuisineTag>(CuisineTagType::Vietnamese);
+    entity.addComponent<BrandTag>(BrandTagType::Restaurant);
+    entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Grain);
     break;
   // Higher tier dishes - commented for future implementation
   // case DishType::MacNCheese:
