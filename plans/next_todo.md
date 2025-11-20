@@ -14,6 +14,7 @@
 - **Effect Info in Tooltips**: ✅ Complete (commit c93e68e - tooltips now display effect descriptions with triggers, targets, and stat changes)
 - **Tags and SynergyCountingSystem**: ✅ Complete (all tag components exist, SynergyCountingSystem counts tags, tooltips display tags and synergy counts)
 - **Dish Merging System**: ✅ Complete (merge system implemented, 2 level N dishes make 1 level N+1, uses DishLevel.contribution_value())
+- **RerollCost, Freezeable, and Seeded RNG Cleanup**: ✅ Complete (all shop RNG uses SeededRng, RerollCost is deterministic, Freezeable works correctly, tests pass)
 
 ---
 
@@ -39,7 +40,7 @@
 
 ### Task 1: Add Survivor Carryover Test
 **Files**: Create `src/testing/tests/ValidateSurvivorCarryoverTest.h`
-- **Plan**: ⚠️ **NEEDS PLAN FILE** - Create `plans/survivor_carryover_test_plan.md`
+- **Plan**: See `plans/survivor_carryover_test_plan.md`
 - **Goal**: Test that dishes that survive a course carry over to the next course correctly
 - **Key Behaviors to Test**:
   - When a dish survives (has remaining Body after opponent finishes), it should retarget the next opponent
@@ -67,29 +68,18 @@
 
 ## Plan Creation Tasks
 
-1. **Course Tags & SynergyCountingSystem Foundations**
-   - ⚠️ **NEEDS PLAN FILE** - Create `plans/synergy_counting_plan.md` detailing component additions (CourseTag, CuisineTag, etc.), `SynergyCounts` singleton behavior, and required UI hooks.
-   - Implement tag components, `SynergyCountingSystem`, and verification tests per the new plan, ensuring tooltips and overlays read from `SynergyCounts`.
-
-2. **Combat Level Scaling Correction**
-   - ⚠️ **NEEDS PLAN FILE** - Create `plans/level_scaling_fix_plan.md` covering desired Zing/Body math (strict 2x per level), affected systems (`ComputeCombatStatsSystem`, tests), and regression validation.
-   - Update combat stat calculations and regression tests referencing the plan to guarantee deterministic parity with TODO specs.
-
-3. **Combine Duplicates into Levels (3-of-a-kind)**
-   - ⚠️ **NEEDS PLAN FILE** - Create `plans/three_of_a_kind_merge_plan.md` enumerating merge triggers, UI feedback, and stat scaling for triple merges.
+1. **Combine Duplicates into Levels (3-of-a-kind)**
+   - **Plan**: See `plans/three_of_a_kind_merge_plan.md`
    - Implement the merge system changes and tests guided by that plan to ensure entities consolidate correctly and grant level-ups.
 
-4. **Shop UX Affordances (Prices & Drop Highlights)**
-   - ⚠️ **NEEDS PLAN FILE** - Create `plans/shop_ux_affordances_plan.md` outlining UI layout updates for price display, legal drop target highlights, and interaction states.
+2. **Shop UX Affordances (Prices & Drop Highlights)**
+   - **Plan**: See `plans/shop_ux_affordances_plan.md`
    - Implement the UI/UX improvements per the plan, including tests or headless verifications that confirm highlights appear only on valid targets.
 
-5. **Set Bonus Effects & Legend UI**
-   - ⚠️ **NEEDS PLAN FILE** - Create `plans/set_bonus_system_plan.md` specifying bonus thresholds, data structures, and visual presentation requirements.
+3. **Set Bonus Effects & Legend UI**
+   - **Plan**: See `plans/set_bonus_system_plan.md`
+   - **Status**: ✅ Core functionality complete (set bonuses apply, legend displays, tests pass). Optional: visual feedback for threshold achievements.
    - Implement set bonus calculations, PreBattleModifiers plumbing, and the battle legend UI according to the plan with supporting tests/logs.
-
-6. **RerollCost, Freezeable, and Seeded RNG Cleanup**
-   - ⚠️ **NEEDS PLAN FILE** - Create `plans/reroll_and_freeze_rng_plan.md` that defines deterministic reroll cost behavior, Freezeable component usage, and RNG seeding cleanup scope.
-   - Refactor shop reroll/freeze logic to follow the plan, replacing remaining `std::random_device` usage and adding validation tests.
 
 ---
 
@@ -97,7 +87,7 @@
 
 ### Task 2: Replace random_device with SeededRng in Server
 **Files**: `src/server/battle_api.cpp`, `src/server/async/systems/ProcessCommandQueueSystem.h`
-- **Plan**: ⚠️ **NEEDS PLAN FILE** - Create `plans/server_rng_determinism_plan.md`
+- **Plan**: See `plans/server_rng_determinism_plan.md`
 - **Issue**: Server code still uses `std::random_device` instead of `SeededRng` for deterministic RNG
 - **Locations**:
   - `battle_api.cpp:195` - Battle seed generation
@@ -123,7 +113,7 @@
 
 ### Task 3: Implement BattleReport Persistence
 **Files**: Create/update `src/components/battle_report.h`, add JSON serialization
-- **Plan**: ⚠️ **NEEDS PLAN FILE** - Create `plans/battle_report_persistence_plan.md`
+- **Plan**: See `plans/battle_report_persistence_plan.md`
 - **Architecture**: Server-authoritative battle system
   - Server returns JSON: `{ seed, opponentId, outcomes[], events[] }`
   - Client receives JSON and uses seed to replay battle visually
@@ -158,7 +148,7 @@
 
 ### Task 4: Enhance Replay System
 **Files**: Enhance `src/systems/ReplayControllerSystem.h`, create `src/systems/ReplayUISystem.h`
-- **Plan**: ⚠️ **NEEDS PLAN FILE** - Create `plans/replay_system_enhancement_plan.md`
+- **Plan**: See `plans/replay_system_enhancement_plan.md`
 - **Current State**: Basic ReplayState exists, pause/play works
 - **Enhancements Needed**:
   - Speed controls (0.5x/1x/2x/4x) - partially exists, needs UI buttons
@@ -184,42 +174,32 @@
   9. **Only after successful commit, proceed to Task 5**
 - **Estimated**: 4-6 hours
 
-### Task 5: Implement Set Bonus Effects
-**Files**: Extend `ApplyPairingsAndClashesSystem.h`, create set bonus definitions
-- **Plan**: See `plans/set_bonus_system_plan.md` (from Plan Creation Tasks #5)
-- **Goal**: Apply bonuses when synergy thresholds are reached (2/4/6)
-- **Implementation**:
-  - Read SynergyCounts singleton (already exists)
-  - Apply bonuses to PreBattleModifiers based on thresholds
-  - Visual feedback when thresholds reached
-  - Display active synergies in battle as totals in a legend box (shows current synergy counts and thresholds)
-- **Set Bonus Definition Location**: Hardcoded in code (data structure, e.g., `struct SetBonusDefinitions`)
-- **Scope**: Start with one tag type as proof of concept (e.g., CuisineTag)
-- **Bonus Design**: ⚠️ **NEEDS DESIGN PLANNING** - Decide what bonuses actually are:
-  - Are bonuses just stat bonuses (extra Zing/Body)?
-  - Or do bonuses unlock new effects/triggers?
-  - Or both (stat bonuses at 2/4, effect unlocks at 6)?
-  - Need to think through balance and design before implementing
-- **Battle Synergy Legend Box**: Should only show synergies that have reached at least 2/4/6 threshold (not "almost there" indicators)
-- **Note**: Skip "Herb Garden" example for now - focus on stat bonuses first
-- **Fun Ideas**:
+### Task 5: Implement Set Bonus Effects (Optional: Visual Feedback)
+**Files**: Add visual feedback systems
+- **Plan**: See `plans/set_bonus_system_plan.md`
+- **Status**: ✅ Core functionality complete (set bonuses apply, legend displays, tests pass)
+- **Remaining Work**: Optional visual feedback for threshold achievements
+- **Current State**:
+  - ✅ Set bonus definitions exist for all 10 cuisines
+  - ✅ Bonuses apply correctly via `ApplySetBonusesSystem`
+  - ✅ Battle synergy legend displays active synergies
+  - ✅ Effect-based bonuses work (e.g., OnBiteTaken triggers)
+  - ✅ Tests pass and verify functionality
+- **Optional Enhancement**: Visual feedback when thresholds achieved
   - Celebration animation when hitting 4-piece or 6-piece bonus
-  - Set bonus tooltips showing what you'll get
-  - Battle synergy legend box showing active synergies with counts (e.g., "American: 4/6", "Bread: 2/4")
-- **Validation Steps**:
-  1. **DESIGN PHASE**: Plan set bonus design (what bonuses are - stats vs effects vs both)
-  2. Create set bonus definitions in code (hardcoded data structure) for one tag type (e.g., CuisineTag)
-  3. Extend ApplyPairingsAndClashesSystem to read SynergyCounts
-  4. Apply bonuses to PreBattleModifiers when thresholds reached
-  5. Add battle synergy legend box (only shows active synergies at threshold)
-  6. Add visual feedback for threshold achievements
-  7. **MANDATORY CHECKPOINT**: Build: `xmake`
-  8. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
-  9. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
-  10. Verify set bonuses apply correctly, visual feedback works (manual test)
-  11. **MANDATORY CHECKPOINT**: Commit: `git commit -m "implement set bonus effects with threshold system"`
-  12. **Only after successful commit, proceed to Task 6**
-- **Estimated**: 6-8 hours
+  - Particle effects or glow around dishes
+  - Sound effects (optional)
+- **Validation Steps** (if implementing visual feedback):
+  1. Add animation/particle system for threshold achievements
+  2. Detect threshold crossing in `ApplySetBonusesSystem`
+  3. Trigger visual feedback on threshold achievement
+  4. **MANDATORY CHECKPOINT**: Build: `xmake`
+  5. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
+  6. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
+  7. Verify visual feedback appears correctly (manual test)
+  8. **MANDATORY CHECKPOINT**: Commit: `git commit -m "ui - add visual feedback for set bonus thresholds"`
+  9. **Only after successful commit, proceed to Task 6**
+- **Estimated**: 2-4 hours (if implementing visual feedback)
 
 ### Task 6: Enhanced Shop UX
 **Files**: Update shop systems and UI
@@ -253,7 +233,7 @@
 
 ### Task 10: Implement Status Effects
 **Files**: Create status effect components, extend `EffectResolutionSystem.h`
-- **Plan**: ⚠️ **NEEDS PLAN FILE** - Create `plans/status_effects_plan.md` (explicitly marked as "NEEDS FULL DESIGN PLAN" in task)
+- **Plan**: See `plans/status_effects_plan.md` (explicitly marked as "NEEDS FULL DESIGN PLAN" in task)
 - **Goal**: Implement status effects system (e.g., PalateCleanser, Heat, SweetTooth, Fatigue)
 - **Implementation**:
   - Create status effect components
@@ -289,7 +269,7 @@
 
 ### Task 11: Implement Duration-Based Effects
 **Files**: Extend `EffectResolutionSystem.h`
-- **Plan**: ⚠️ **NEEDS PLAN FILE** - Create `plans/duration_based_effects_plan.md`
+- **Plan**: See `plans/duration_based_effects_plan.md`
 - **Goal**: Implement effects that last N courses (duration-based effects)
 - **Implementation**:
   - Add duration tracking to effects
@@ -310,7 +290,7 @@
 
 ### Task 12: Implement Effect Chains and Dependencies
 **Files**: Extend `EffectResolutionSystem.h`
-- **Plan**: ⚠️ **NEEDS PLAN FILE** - Create `plans/effect_chains_plan.md`
+- **Plan**: See `plans/effect_chains_plan.md`
 - **Goal**: Implement effect chains where one effect can trigger another effect
 - **Implementation**:
   - Add effect dependency tracking
@@ -332,7 +312,7 @@
 
 ### Task 13: Visual Enhancements for Dish Merging
 **Files**: Update rendering systems
-- **Plan**: ⚠️ **NEEDS PLAN FILE** - Create `plans/dish_merging_visuals_plan.md`
+- **Plan**: See `plans/dish_merging_visuals_plan.md`
 - **Goal**: Add visual feedback for dish merging (merge system already implemented)
 - **Note**: Dish merging is already implemented (2 level N dishes make 1 level N+1). This task is just visual polish.
 - **Level Scaling**: Uses existing 2x per level system (level 2 = 2x, level 3 = 4x, level 4 = 8x). See `ComputeCombatStatsSystem.h` lines 95-104.
