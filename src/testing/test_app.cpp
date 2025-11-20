@@ -2554,28 +2554,45 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
   }
   
   // Now poll for purchase completion
+  // The purchase should have completed - check if item is in inventory first
+  // (gold deduction happens immediately in try_purchase_shop_item)
   for (int attempt = 0; attempt < 30; ++attempt) {
     wait_for_frames(1);
     
-    // Check if gold was deducted
+    // Check if item is in inventory (this is the most reliable indicator)
+    for (afterhours::Entity &entity :
+         afterhours::EntityQuery({.force_merge = true})
+             .whereHasComponent<IsInventoryItem>()
+             .whereHasComponent<IsDish>()
+             .gen()) {
+      const IsDish &dish = entity.get<IsDish>();
+      const IsInventoryItem &inv = entity.get<IsInventoryItem>();
+      if (dish.type == type && inv.slot == target_slot_id) {
+        found_in_inventory = true;
+        break;
+      }
+    }
+    
+    if (found_in_inventory) {
+      // Item is in inventory, check gold was deducted
+      new_gold = read_wallet_gold();
+      if (new_gold == initial_gold - price) {
+        break; // Purchase completed successfully
+      } else {
+        // Item is in inventory but gold wasn't deducted - this is a bug
+        fail("Item is in inventory but gold was not deducted correctly: expected " +
+             std::to_string(initial_gold - price) + ", got " + std::to_string(new_gold),
+             location);
+        test_input::clear_simulated_input();
+        return *this;
+      }
+    }
+    
+    // Also check gold in case item check is failing
     new_gold = read_wallet_gold();
     if (new_gold == initial_gold - price) {
-      // Gold was deducted, check if item is in inventory
-      for (afterhours::Entity &entity :
-           afterhours::EntityQuery({.force_merge = true})
-               .whereHasComponent<IsInventoryItem>()
-               .whereHasComponent<IsDish>()
-               .gen()) {
-        const IsDish &dish = entity.get<IsDish>();
-        const IsInventoryItem &inv = entity.get<IsInventoryItem>();
-        if (dish.type == type && inv.slot == target_slot_id) {
-          found_in_inventory = true;
-          break;
-        }
-      }
-      if (found_in_inventory) {
-        break; // Purchase completed successfully
-      }
+      // Gold was deducted, but item not found in inventory yet - wait a bit more
+      continue;
     }
   }
   
