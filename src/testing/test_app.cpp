@@ -2310,21 +2310,64 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
   expect_screen_is(GameStateManager::Screen::Shop, location);
 
   // Find a shop item of the specified type
+  // IMPORTANT: If an item of this type is already being held, continue with that item
+  // This ensures we always purchase the same item when the test resumes
   afterhours::Entity *shop_item = nullptr;
+  afterhours::EntityID held_item_id = -1;
+  
+  // First, check if there's already a held item of this type (purchase in progress)
+  // IMPORTANT: Only continue with held item if it matches the exact type we're trying to purchase
   for (afterhours::Entity &entity :
-       afterhours::EntityQuery().whereHasComponent<IsShopItem>().gen()) {
+       afterhours::EntityQuery({.force_merge = true})
+           .whereHasComponent<IsShopItem>()
+           .whereHasComponent<IsHeld>()
+           .gen()) {
     if (entity.has<IsDish>()) {
       const IsDish &dish = entity.get<IsDish>();
       if (dish.type == type) {
-        shop_item = &entity;
+        held_item_id = entity.id;
+        log_error("TEST_APP: Found held item {} of type {} - continuing with this item", entity.id, static_cast<int>(type));
         break;
+      } else {
+        log_error("TEST_APP: Found held item {} of type {} but need type {} - ignoring", entity.id, static_cast<int>(dish.type), static_cast<int>(type));
       }
     }
   }
-
+  
+  // If we found a held item, use it; otherwise find any available item of this type
+  if (held_item_id >= 0) {
+    afterhours::OptEntity held_opt =
+        afterhours::EntityQuery({.force_merge = true})
+            .whereID(held_item_id)
+            .gen_first();
+    if (held_opt.has_value() && held_opt.asE().has<IsShopItem>()) {
+      shop_item = &held_opt.asE();
+    }
+  }
+  
+  // If no held item found, find any available item of this type
+  // IMPORTANT: Skip items that are already being held (purchase in progress for a different type)
+  if (!shop_item) {
+    for (afterhours::Entity &entity :
+         afterhours::EntityQuery({.force_merge = true}).whereHasComponent<IsShopItem>().gen()) {
+      if (entity.has<IsDish>()) {
+        const IsDish &dish = entity.get<IsDish>();
+        if (dish.type == type) {
+          // Skip if this item is already being held (purchase in progress for a different operation)
+          if (entity.has<IsHeld>()) {
+            log_error("TEST_APP: Skipping shop item {} - already being held (different purchase in progress)", entity.id);
+            continue;
+          }
+          shop_item = &entity;
+          break;
+        }
+      }
+    }
+  }
+  
   if (!shop_item) {
     fail("Shop item of type " + std::to_string(static_cast<int>(type)) +
-             " not found in shop",
+             " not found in shop (or all items of this type are already being held)",
          location);
     return *this;
   }
@@ -2447,91 +2490,209 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
   // Store shop item ID since pointer might become invalid after merge
   afterhours::EntityID shop_item_id = shop_item->id;
   
-  // Wait for shop item to be merged so MarkIsHeldWhenHeld system can find it
-  log_error("TEST_APP: Waiting for shop item to merge (ID={})", shop_item_id);
-  for (int i = 0; i < 20; ++i) {
-    wait_for_frames(1);
+  // Check if item is already held (purchase in progress from previous call)
+  bool already_held = false;
+  afterhours::OptEntity shop_item_check =
+      afterhours::EntityQuery({.force_merge = true})
+          .whereID(shop_item_id)
+          .gen_first();
+  if (shop_item_check.has_value() && shop_item_check.asE().has<IsHeld>()) {
+    already_held = true;
+    log_error("TEST_APP: Shop item {} is already held - purchase in progress, skipping to drop", shop_item_id);
+    shop_item_pos = shop_item_check.asE().get<Transform>().center();
+    // Verify the item is actually held and has required components
+    if (!shop_item_check.asE().has<IsShopItem>()) {
+      log_error("TEST_APP: Held item missing IsShopItem - purchase may have completed, checking inventory");
+      // Item might have been purchased already - check inventory
+      bool found_in_inventory = false;
+      for (afterhours::Entity &entity :
+           afterhours::EntityQuery({.force_merge = true})
+               .whereHasComponent<IsInventoryItem>()
+               .whereHasComponent<IsDish>()
+               .gen()) {
+        const IsDish &dish = entity.get<IsDish>();
+        if (dish.type == type) {
+          found_in_inventory = true;
+          log_error("TEST_APP: Item found in inventory - purchase already completed");
+          // Mark operation as complete
+          completed_operations.insert(op_id);
+          return *this;
+        }
+      }
+      if (!found_in_inventory) {
+        log_error("TEST_APP: Held item missing IsShopItem but not in inventory - unexpected state");
+        fail("Shop item is held but missing IsShopItem and not in inventory - unexpected state", location);
+        test_input::clear_simulated_input();
+        return *this;
+      }
+    }
+  }
+  
+  if (!already_held) {
+    // Wait for shop item to be merged so MarkIsHeldWhenHeld system can find it
+    log_error("TEST_APP: Waiting for shop item to merge (ID={})", shop_item_id);
+    for (int i = 0; i < 20; ++i) {
+      wait_for_frames(1);
+      afterhours::OptEntity shop_item_merged_opt =
+          afterhours::EntityQuery()
+              .whereID(shop_item_id)
+              .gen_first();
+      if (shop_item_merged_opt.has_value()) {
+        // Entity is merged, get updated position
+        shop_item_pos = shop_item_merged_opt.asE().get<Transform>().center();
+        log_error("TEST_APP: Shop item merged after {} iterations", i + 1);
+        break;
+      }
+    }
+    
+    log_error("TEST_APP: Finished waiting for merge, verifying shop item");
+    
+    // Verify shop item is merged and has required components
     afterhours::OptEntity shop_item_merged_opt =
         afterhours::EntityQuery()
             .whereID(shop_item_id)
             .gen_first();
-    if (shop_item_merged_opt.has_value()) {
-      // Entity is merged, get updated position
-      shop_item_pos = shop_item_merged_opt.asE().get<Transform>().center();
-      log_error("TEST_APP: Shop item merged after {} iterations", i + 1);
+    if (!shop_item_merged_opt.has_value()) {
+      log_error("TEST_APP: Shop item not found after merge - FAILING");
+      fail("Shop item not found after merge - system cannot find it", location);
+      test_input::clear_simulated_input();
+      return *this;
+    }
+    
+    log_error("TEST_APP: Shop item found, checking components");
+    
+    afterhours::Entity &shop_item_merged = shop_item_merged_opt.asE();
+    if (!shop_item_merged.has<IsDraggable>() || !shop_item_merged.has<Transform>()) {
+      log_error("TEST_APP: Shop item missing components - FAILING");
+      fail("Shop item missing IsDraggable or Transform component", location);
+      test_input::clear_simulated_input();
+      return *this;
+    }
+    
+    log_error("TEST_APP: Shop item has required components, verifying system can find it");
+    
+    // CRITICAL: Verify the entity is queryable by MarkIsHeldWhenHeld system (without force_merge)
+    // The system uses EQ() which doesn't use force_merge, so we need to ensure the entity is in the main array
+    bool system_can_find_entity = false;
+  for (int check = 0; check < 10; ++check) {
+    wait_for_frames(1);
+    for (afterhours::Entity &entity :
+         afterhours::EntityQuery() // No force_merge, like MarkIsHeldWhenHeld uses
+             .whereHasComponent<IsDraggable>()
+             .whereHasComponent<Transform>()
+             .gen()) {
+      if (entity.id == shop_item_id) {
+        system_can_find_entity = true;
+        // Update position from the entity the system can see
+        shop_item_pos = entity.get<Transform>().center();
+        break;
+      }
+    }
+    if (system_can_find_entity) {
       break;
     }
   }
   
-  log_error("TEST_APP: Finished waiting for merge, verifying shop item");
+    if (!system_can_find_entity) {
+      log_error("TEST_APP: System cannot find entity - FAILING");
+      fail("Shop item not found by system query (without force_merge) - MarkIsHeldWhenHeld cannot find it", location);
+      test_input::clear_simulated_input();
+      return *this;
+    }
+    
+    log_error("TEST_APP: System can find entity, simulating mouse press");
+    
+    // Get position from merged entity
+    shop_item_pos = shop_item_merged.get<Transform>().center();
   
-  // Verify shop item is merged and has required components
-  afterhours::OptEntity shop_item_merged_opt =
-      afterhours::EntityQuery()
-          .whereID(shop_item_id)
-          .gen_first();
-  if (!shop_item_merged_opt.has_value()) {
-    log_error("TEST_APP: Shop item not found after merge - FAILING");
-    fail("Shop item not found after merge - system cannot find it", location);
+    // Ensure mouse position is within entity bounds (not just at center)
+    // MarkIsHeldWhenHeld uses CheckCollisionPointRec which needs the point to be within the rect
+    const Transform &entity_transform = shop_item_merged.get<Transform>();
+    Rectangle entity_rect = entity_transform.rect();
+    vec2 mouse_pos_within_entity = entity_transform.center();
+    
+    // Clamp mouse position to be within entity bounds with a small margin
+    mouse_pos_within_entity.x = std::max(entity_rect.x + 1.0f, 
+                                         std::min(entity_rect.x + entity_rect.width - 1.0f, 
+                                                  mouse_pos_within_entity.x));
+    mouse_pos_within_entity.y = std::max(entity_rect.y + 1.0f, 
+                                         std::min(entity_rect.y + entity_rect.height - 1.0f, 
+                                                  mouse_pos_within_entity.y));
+    
+    // Simulate mouse drag-and-drop:
+    // 1. Set mouse position to shop item position (within bounds)
+    // 2. Wait a frame to ensure position is set
+    // 3. Simulate mouse button press (to start drag) - flag persists until consumed
+    // 4. Wait for MarkIsHeldWhenHeld to process
+    // 5. Move mouse to target slot position
+    // 6. Simulate mouse button release (to drop)
+    // 7. Wait for DropWhenNoLongerHeld to process
+    
+    test_input::set_mouse_position(mouse_pos_within_entity);
+    wait_for_frames(1); // Ensure mouse position is set before press
+    log_error("TEST_APP: About to simulate mouse button press at ({}, {})", mouse_pos_within_entity.x, mouse_pos_within_entity.y);
+    test_input::simulate_mouse_button_press(raylib::MOUSE_BUTTON_LEFT);
+    log_error("TEST_APP: Simulated mouse button press, waiting for frames");
+    wait_for_frames(5); // Let MarkIsHeldWhenHeld process the press (flag persists until consumed)
+    log_error("TEST_APP: Finished waiting, re-querying for shop item");
+    
+    // Re-query for shop item to verify it's held
+    afterhours::OptEntity shop_item_held_check =
+        afterhours::EntityQuery({.force_merge = true})
+            .whereID(shop_item_id)
+            .gen_first();
+    if (!shop_item_held_check.has_value()) {
+      log_error("TEST_APP: Shop item {} not found after waiting", shop_item_id);
+      fail("Shop item not found after waiting", location);
+      test_input::clear_simulated_input();
+      return *this;
+    }
+    
+    afterhours::Entity &shop_item_held_temp = shop_item_held_check.asE();
+    log_error("TEST_APP: Found shop item {} after waiting, checking if held", shop_item_id);
+    
+    // Verify shop item is now held - poll for a few frames since the system might not have run yet
+    bool is_held = false;
+    for (int check = 0; check < 10; ++check) {
+      wait_for_frames(1);
+      afterhours::OptEntity check_opt =
+          afterhours::EntityQuery({.force_merge = true})
+              .whereID(shop_item_id)
+              .gen_first();
+      if (check_opt.has_value() && check_opt.asE().has<IsHeld>()) {
+        is_held = true;
+        log_error("TEST_APP: Shop item {} is held after {} checks", shop_item_id, check + 1);
+        break;
+      }
+    }
+    
+    if (!is_held) {
+      log_error("TEST_APP: Shop item {} not held after polling - FAILING. Has IsDraggable={}, Has Transform={}", 
+               shop_item_id, shop_item_held_temp.has<IsDraggable>(), shop_item_held_temp.has<Transform>());
+      fail("Shop item was not marked as held after mouse press", location);
+      test_input::clear_simulated_input();
+      return *this;
+    }
+    
+    // Re-query to get the held entity for later checks
+    shop_item_check =
+        afterhours::EntityQuery({.force_merge = true})
+            .whereID(shop_item_id)
+            .gen_first();
+  }
+  
+  // At this point, shop_item_check should have the entity (either already held or newly held)
+  if (!shop_item_check.has_value()) {
+    fail("Shop item not found after purchase setup", location);
     test_input::clear_simulated_input();
     return *this;
   }
   
-  log_error("TEST_APP: Shop item found, checking components");
-  
-  afterhours::Entity &shop_item_merged = shop_item_merged_opt.asE();
-  if (!shop_item_merged.has<IsDraggable>() || !shop_item_merged.has<Transform>()) {
-    log_error("TEST_APP: Shop item missing components - FAILING");
-    fail("Shop item missing IsDraggable or Transform component", location);
-    test_input::clear_simulated_input();
-    return *this;
-  }
-  
-  log_error("TEST_APP: Shop item has required components, simulating mouse press");
-  
-  // Get position from merged entity
-  shop_item_pos = shop_item_merged.get<Transform>().center();
-  
-  // Simulate mouse drag-and-drop:
-  // 1. Set mouse position to shop item position
-  // 2. Wait a frame to ensure position is set
-  // 3. Simulate mouse button press (to start drag) - flag will be consumed by system in next frame
-  // 4. Wait for MarkIsHeldWhenHeld to process
-  // 5. Move mouse to target slot position
-  // 6. Simulate mouse button release (to drop)
-  // 7. Wait for DropWhenNoLongerHeld to process
-  
-  test_input::set_mouse_position(shop_item_pos);
-  wait_for_frames(1); // Ensure mouse position is set before press
-  log_error("TEST_APP: About to simulate mouse button press");
-  test_input::simulate_mouse_button_press(raylib::MOUSE_BUTTON_LEFT);
-  log_error("TEST_APP: Simulated mouse button press, waiting for frames");
-  wait_for_frames(3); // Let MarkIsHeldWhenHeld process the press (flag consumed in first frame)
-  log_error("TEST_APP: Finished waiting, re-querying for shop item");
-  
-  // Re-query for shop item to verify it's held
-  afterhours::OptEntity shop_item_held_opt =
-      afterhours::EntityQuery({.force_merge = true})
-          .whereID(shop_item_id)
-          .gen_first();
-  if (!shop_item_held_opt.has_value()) {
-    fail("Shop item not found after waiting", location);
-    test_input::clear_simulated_input();
-    return *this;
-  }
-  
-  // Verify shop item is now held
-  if (!shop_item_held_opt.asE().has<IsHeld>()) {
-    log_error("TEST_APP: Shop item not held after press - FAILING");
-    fail("Shop item was not marked as held after mouse press", location);
-    test_input::clear_simulated_input();
-    return *this;
-  }
-  
+  afterhours::Entity &shop_item_held = shop_item_check.asE();
   log_error("TEST_APP: Shop item is held, verifying IsShopItem");
   
   // Verify shop item still has IsShopItem before drop (required for purchase)
-  if (!shop_item_held_opt.asE().has<IsShopItem>()) {
+  if (!shop_item_held.has<IsShopItem>()) {
     log_error("TEST_APP: Shop item missing IsShopItem - FAILING");
     fail("Shop item does not have IsShopItem before drop - purchase will fail. "
          "Item may have been modified unexpectedly.", location);

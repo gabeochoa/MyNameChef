@@ -7,6 +7,7 @@
 #include "../components/is_shop_item.h"
 #include "../components/transform.h"
 #include "../game_state_manager.h"
+#include "../log.h"
 #include "../query.h"
 #include "../rl.h"
 #include "../shop.h"
@@ -61,9 +62,12 @@ public:
       return;
     }
 
-    if (!test_input::is_mouse_button_pressed(raylib::MOUSE_BUTTON_LEFT)) {
+    bool button_pressed = test_input::is_mouse_button_pressed(raylib::MOUSE_BUTTON_LEFT);
+    if (!button_pressed) {
       return;
     }
+    
+    log_error("MARK_IS_HELD: Entity {} - mouse over and button pressed, marking as held", entity.id);
 
     if (entity.has<IsHeld>()) {
       return;
@@ -99,5 +103,10 @@ public:
     // Mark the slot this item was in as unoccupied
     int item_slot = get_slot_id(entity);
     mark_slot_unoccupied(item_slot);
+    
+    // Mark that the press flag was actually consumed
+    if (test_input::is_simulation_active()) {
+      test_input::mark_press_consumed();
+    }
   }
 };

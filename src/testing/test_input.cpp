@@ -21,6 +21,7 @@ void simulate_mouse_button_press(raylib::MouseButton button) {
     if (!state.mouse_button_left_held) {
       // Only set pressed flag if button wasn't already held
       state.mouse_button_left_pressed_this_frame = true;
+      state.mouse_button_left_pressed_consumed = false; // Reset consumed flag
     }
     state.mouse_button_left_held = true;
     state.mouse_button_left_released_this_frame = false;
@@ -52,8 +53,15 @@ void clear_simulated_input() {
   state.mouse_position = std::nullopt;
   state.mouse_button_left_held = false;
   state.mouse_button_left_pressed_this_frame = false;
+  state.mouse_button_left_pressed_consumed = false;
   state.mouse_button_left_released_this_frame = false;
   state.input_simulation_active = false;
+}
+
+void mark_press_consumed() {
+  auto &state = get_simulated_state();
+  state.mouse_button_left_pressed_consumed = true;
+  state.mouse_button_left_pressed_this_frame = false; // Clear flag now that it's consumed
 }
 
 vec2 get_mouse_position() {
@@ -84,9 +92,9 @@ bool is_mouse_button_released(raylib::MouseButton button) {
 bool is_mouse_button_pressed(raylib::MouseButton button) {
   auto &state = get_simulated_state();
   if (state.input_simulation_active && button == raylib::MOUSE_BUTTON_LEFT) {
-    if (state.mouse_button_left_pressed_this_frame) {
-      // One-shot: clear immediately after reading
-      state.mouse_button_left_pressed_this_frame = false;
+    if (state.mouse_button_left_pressed_this_frame && !state.mouse_button_left_pressed_consumed) {
+      // Flag is set and not yet consumed - return true but don't clear yet
+      // The flag will be cleared when mark_press_consumed() is called
       return true;
     }
   }
