@@ -329,12 +329,18 @@ bool wallet_can_afford(int cost) {
 
 bool wallet_charge(int cost) {
   auto wallet_entity = EntityHelper::get_singleton<Wallet>();
-  if (!wallet_entity.get().has<Wallet>())
+  if (!wallet_entity.get().has<Wallet>()) {
+    log_error("WALLET_CHARGE: Wallet singleton not found");
     return false;
+  }
   auto &wallet = wallet_entity.get().get<Wallet>();
-  if (wallet.gold < cost)
+  if (wallet.gold < cost) {
+    log_error("WALLET_CHARGE: Insufficient gold: have {}, need {}", wallet.gold, cost);
     return false;
+  }
+  int old_gold = wallet.gold;
   wallet.gold -= cost;
+  log_error("WALLET_CHARGE: Charged {} gold: {} -> {}", cost, old_gold, wallet.gold);
   return true;
 }
 

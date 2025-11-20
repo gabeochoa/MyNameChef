@@ -2,17 +2,29 @@
 #include "../components/can_drop_onto.h"
 #include "../components/dish_level.h"
 #include "../components/is_dish.h"
+#include "../components/is_held.h"
 #include "../components/is_inventory_item.h"
 #include "../components/is_shop_item.h"
 #include "../dish_types.h"
 #include "../game_state_manager.h"
+#include "../log.h"
 #include "../query.h"
 #include "../shop.h"
 #include "../testing/test_input.h"
 
 bool DropWhenNoLongerHeld::should_run(float) {
   auto &gsm = GameStateManager::get();
-  return gsm.active_screen == GameStateManager::Screen::Shop;
+  bool should = gsm.active_screen == GameStateManager::Screen::Shop;
+  if (should) {
+    // Count entities with IsHeld to see if system should process anything
+    int held_count = 0;
+    for (auto &ref : EQ({.force_merge = true}).whereHasComponent<IsHeld>().gen()) {
+      (void)ref; // Suppress unused variable warning
+      held_count++;
+    }
+    log_error("DROP_WHEN_NO_LONGER_HELD: should_run=true, found {} entities with IsHeld", held_count);
+  }
+  return should;
 }
 
 bool DropWhenNoLongerHeld::can_drop_item(const Entity &entity,
@@ -139,18 +151,30 @@ void DropWhenNoLongerHeld::merge_dishes(Entity &entity, Entity *target_item,
 
 bool DropWhenNoLongerHeld::try_purchase_shop_item(Entity &entity,
                                                   Entity *drop_slot) {
-  if (!entity.has<IsShopItem>() ||
-      !drop_slot->get<IsDropSlot>().accepts_inventory_items) {
+  bool has_shop_item = entity.has<IsShopItem>();
+  bool accepts_inventory = drop_slot->get<IsDropSlot>().accepts_inventory_items;
+  
+  if (!has_shop_item || !accepts_inventory) {
+    log_error("TRY_PURCHASE: Early return - entity.has<IsShopItem>()={}, accepts_inventory_items={}", 
+             has_shop_item, accepts_inventory);
+    // If entity doesn't have IsShopItem, we can't purchase it, but we still return true
+    // to allow the drop to proceed (it's not a shop purchase)
+    // BUT - if it doesn't have IsShopItem, we shouldn't remove it!
+    // The issue might be that set_slot_id is being called after this, which might
+    // be modifying the entity in a way that removes IsShopItem
     return true;
   }
 
   auto &dish = entity.get<IsDish>();
+  log_error("TRY_PURCHASE: Calling charge_for_shop_purchase for dish type {}", static_cast<int>(dish.type));
   if (!charge_for_shop_purchase(dish.type)) {
     const int price = get_dish_info(dish.type).price;
     make_toast("Not enough gold! Need " + std::to_string(price) + " gold");
+    log_error("TRY_PURCHASE: charge_for_shop_purchase returned false");
     return false;
   }
 
+  log_error("TRY_PURCHASE: charge_for_shop_purchase succeeded, removing IsShopItem and adding IsInventoryItem");
   entity.removeComponent<IsShopItem>();
   entity.addComponent<IsInventoryItem>();
   entity.get<IsInventoryItem>().slot = drop_slot->get<IsDropSlot>().slot_id;
@@ -188,12 +212,20 @@ void DropWhenNoLongerHeld::drop_into_empty_slot(Entity &entity,
     return;
   }
 
-  if (!try_purchase_shop_item(entity, drop_slot)) {
+  bool purchase_result = try_purchase_shop_item(entity, drop_slot);
+  log_error("DROP_INTO_EMPTY_SLOT: try_purchase_shop_item returned {}, entity.has<IsShopItem>()={}, entity.has<IsInventoryItem>()={}", 
+           purchase_result, entity.has<IsShopItem>(), entity.has<IsInventoryItem>());
+  
+  if (!purchase_result) {
     snap_back_to_original(entity, held);
     return;
   }
 
-  set_slot_id(entity, drop_slot->get<IsDropSlot>().slot_id);
+  // Only set slot_id if the entity has IsInventoryItem (purchase succeeded)
+  // or IsShopItem (early return, not a purchase)
+  if (entity.has<IsInventoryItem>() || entity.has<IsShopItem>()) {
+    set_slot_id(entity, drop_slot->get<IsDropSlot>().slot_id);
+  }
   drop_slot->get<IsDropSlot>().occupied = true;
 }
 
@@ -263,11 +295,17 @@ bool DropWhenNoLongerHeld::swap_items(Entity &entity, Entity *occupied_slot,
 
 void DropWhenNoLongerHeld::for_each_with(Entity &entity, IsHeld &held,
                                          Transform &transform, float) {
+  log_error("DROP_WHEN_NO_LONGER_HELD: System running for entity {}, has IsShopItem={}, has IsInventoryItem={}", 
+           entity.id, entity.has<IsShopItem>(), entity.has<IsInventoryItem>());
+  
   // Check test input wrapper first, then fall back to real input
   // If simulation is active, use test_input; otherwise use real input
   bool button_released = test_input::is_simulation_active()
                              ? test_input::is_mouse_button_released(raylib::MOUSE_BUTTON_LEFT)
                              : afterhours::input::is_mouse_button_released(raylib::MOUSE_BUTTON_LEFT);
+  
+  log_error("DROP_WHEN_NO_LONGER_HELD: button_released={}, simulation_active={}", 
+           button_released, test_input::is_simulation_active());
   
   if (!button_released) {
     vec2 mouse_pos = test_input::is_simulation_active()
@@ -282,11 +320,15 @@ void DropWhenNoLongerHeld::for_each_with(Entity &entity, IsHeld &held,
                        ? test_input::get_mouse_position()
                        : afterhours::input::get_mouse_position();
   Rectangle mouse_rect = {mouse_pos.x, mouse_pos.y, 1, 1};
+  
+  log_error("DROP_WHEN_NO_LONGER_HELD: Mouse released, searching for drop slots at ({}, {})", 
+           mouse_pos.x, mouse_pos.y);
 
   Entity *best_drop_slot = nullptr;
   Entity *occupied_slot = nullptr;
   float best_distance = std::numeric_limits<float>::max();
 
+  int drop_slot_count = 0;
   for (auto &ref : EQ().whereHasComponent<Transform>()
                        .whereHasComponent<CanDropOnto>()
                        .whereLambda([](const Entity &e) {
@@ -298,12 +340,19 @@ void DropWhenNoLongerHeld::for_each_with(Entity &entity, IsHeld &held,
                        })
                        .whereOverlaps(mouse_rect)
                        .gen()) {
+    drop_slot_count++;
     auto &slot_entity = ref.get();
 
     vec2 slot_center = slot_entity.get<Transform>().center();
     float distance =
         Vector2Distance(raylib::Vector2{mouse_pos.x, mouse_pos.y},
                         raylib::Vector2{slot_center.x, slot_center.y});
+
+    log_error("DROP_WHEN_NO_LONGER_HELD: Found drop slot {} at ({}, {}), distance={}, occupied={}, accepts_inventory={}, accepts_shop={}", 
+             slot_entity.id, slot_center.x, slot_center.y, distance, 
+             slot_entity.get<IsDropSlot>().occupied,
+             slot_entity.get<IsDropSlot>().accepts_inventory_items,
+             slot_entity.get<IsDropSlot>().accepts_shop_items);
 
     if (slot_entity.get<IsDropSlot>().occupied) {
       occupied_slot = &slot_entity;
@@ -312,13 +361,19 @@ void DropWhenNoLongerHeld::for_each_with(Entity &entity, IsHeld &held,
       best_drop_slot = &slot_entity;
     }
   }
+  
+  log_error("DROP_WHEN_NO_LONGER_HELD: Found {} drop slots, best_drop_slot={}, occupied_slot={}", 
+           drop_slot_count, best_drop_slot != nullptr, occupied_slot != nullptr);
 
   bool was_merged = false;
   if (best_drop_slot) {
+    log_error("DROP_WHEN_NO_LONGER_HELD: Calling drop_into_empty_slot");
     drop_into_empty_slot(entity, best_drop_slot, transform, held);
   } else if (occupied_slot) {
+    log_error("DROP_WHEN_NO_LONGER_HELD: Calling swap_items");
     was_merged = swap_items(entity, occupied_slot, transform, held);
   } else {
+    log_error("DROP_WHEN_NO_LONGER_HELD: No drop slot found, snapping back");
     snap_back_to_original(entity, held);
   }
 

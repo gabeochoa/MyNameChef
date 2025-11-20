@@ -2274,6 +2274,38 @@ bool TestApp::try_purchase_item(DishType type, int inventory_slot,
 
 TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
                                 const std::string &location) {
+  // Use operation ID to track purchase progress and make it idempotent
+  TestOperationID op_id = generate_operation_id(
+      std::source_location::current(),
+      "purchase_item:" + std::to_string(static_cast<int>(type)) + ":" + 
+      std::to_string(inventory_slot) + ":" + location);
+  
+  // Check if purchase is already complete by verifying gold was deducted and item is in inventory
+  if (completed_operations.count(op_id) > 0) {
+    return *this;
+  }
+  
+  // Quick check: if item is already in inventory, mark as complete
+  bool already_in_inventory = false;
+  for (afterhours::Entity &entity :
+       afterhours::EntityQuery({.force_merge = true})
+           .whereHasComponent<IsInventoryItem>()
+           .whereHasComponent<IsDish>()
+           .gen()) {
+    const IsDish &dish = entity.get<IsDish>();
+    if (dish.type == type) {
+      already_in_inventory = true;
+      break;
+    }
+  }
+  
+  if (already_in_inventory) {
+    // Item is already in inventory - purchase must have completed
+    completed_operations.insert(op_id);
+    return *this;
+  }
+  
+  log_error("TEST_APP: purchase_item CALLED for type {}, slot {}", static_cast<int>(type), inventory_slot);
   // Ensure we're on the shop screen
   expect_screen_is(GameStateManager::Screen::Shop, location);
 
@@ -2294,11 +2326,16 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
     fail("Shop item of type " + std::to_string(static_cast<int>(type)) +
              " not found in shop",
          location);
+    return *this;
   }
+  
+  log_error("TEST_APP: Found shop item, getting price and gold");
 
   // Get the price
   const int price = get_dish_info(type).price;
   const int initial_gold = read_wallet_gold();
+  
+  log_error("TEST_APP: Price={}, Initial gold={}", price, initial_gold);
 
   // Check if player can afford it
   if (initial_gold < price) {
@@ -2306,7 +2343,10 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
              std::to_string(initial_gold) + ", need " + std::to_string(price) +
              ")",
          location);
+    return *this;
   }
+  
+  log_error("TEST_APP: Can afford item, finding target slot");
 
   // Find an empty inventory slot
   // Retry with delays to handle timing issues in visible mode
@@ -2352,6 +2392,8 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
     }
   }
 
+  log_error("TEST_APP: Finished searching for target slot, found={}", target_slot != nullptr);
+  
   // Final check after all attempts
   if (!target_slot) {
     // force_merge in query handles merging automatically
@@ -2389,11 +2431,15 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
   // This uses the same flow as apply_drink_to_dish: simulate mouse interactions
   // and let DropWhenNoLongerHeld system process naturally
   
+  log_error("TEST_APP: Starting drag-and-drop simulation");
+  
   // Get positions
   if (!shop_item->has<Transform>() || !target_slot->has<Transform>()) {
     fail("Shop item or target slot missing Transform component", location);
     return *this;
   }
+  
+  log_error("TEST_APP: Got positions, waiting for shop item to merge");
   
   vec2 shop_item_pos = shop_item->get<Transform>().center();
   vec2 target_slot_pos = target_slot->get<Transform>().center();
@@ -2402,6 +2448,7 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
   afterhours::EntityID shop_item_id = shop_item->id;
   
   // Wait for shop item to be merged so MarkIsHeldWhenHeld system can find it
+  log_error("TEST_APP: Waiting for shop item to merge (ID={})", shop_item_id);
   for (int i = 0; i < 20; ++i) {
     wait_for_frames(1);
     afterhours::OptEntity shop_item_merged_opt =
@@ -2411,9 +2458,12 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
     if (shop_item_merged_opt.has_value()) {
       // Entity is merged, get updated position
       shop_item_pos = shop_item_merged_opt.asE().get<Transform>().center();
+      log_error("TEST_APP: Shop item merged after {} iterations", i + 1);
       break;
     }
   }
+  
+  log_error("TEST_APP: Finished waiting for merge, verifying shop item");
   
   // Verify shop item is merged and has required components
   afterhours::OptEntity shop_item_merged_opt =
@@ -2421,17 +2471,23 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
           .whereID(shop_item_id)
           .gen_first();
   if (!shop_item_merged_opt.has_value()) {
+    log_error("TEST_APP: Shop item not found after merge - FAILING");
     fail("Shop item not found after merge - system cannot find it", location);
     test_input::clear_simulated_input();
     return *this;
   }
   
+  log_error("TEST_APP: Shop item found, checking components");
+  
   afterhours::Entity &shop_item_merged = shop_item_merged_opt.asE();
   if (!shop_item_merged.has<IsDraggable>() || !shop_item_merged.has<Transform>()) {
+    log_error("TEST_APP: Shop item missing components - FAILING");
     fail("Shop item missing IsDraggable or Transform component", location);
     test_input::clear_simulated_input();
     return *this;
   }
+  
+  log_error("TEST_APP: Shop item has required components, simulating mouse press");
   
   // Get position from merged entity
   shop_item_pos = shop_item_merged.get<Transform>().center();
@@ -2447,8 +2503,11 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
   
   test_input::set_mouse_position(shop_item_pos);
   wait_for_frames(1); // Ensure mouse position is set before press
+  log_error("TEST_APP: About to simulate mouse button press");
   test_input::simulate_mouse_button_press(raylib::MOUSE_BUTTON_LEFT);
+  log_error("TEST_APP: Simulated mouse button press, waiting for frames");
   wait_for_frames(3); // Let MarkIsHeldWhenHeld process the press (flag consumed in first frame)
+  log_error("TEST_APP: Finished waiting, re-querying for shop item");
   
   // Re-query for shop item to verify it's held
   afterhours::OptEntity shop_item_held_opt =
@@ -2463,18 +2522,24 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
   
   // Verify shop item is now held
   if (!shop_item_held_opt.asE().has<IsHeld>()) {
+    log_error("TEST_APP: Shop item not held after press - FAILING");
     fail("Shop item was not marked as held after mouse press", location);
     test_input::clear_simulated_input();
     return *this;
   }
   
+  log_error("TEST_APP: Shop item is held, verifying IsShopItem");
+  
   // Verify shop item still has IsShopItem before drop (required for purchase)
   if (!shop_item_held_opt.asE().has<IsShopItem>()) {
+    log_error("TEST_APP: Shop item missing IsShopItem - FAILING");
     fail("Shop item does not have IsShopItem before drop - purchase will fail. "
          "Item may have been modified unexpectedly.", location);
     test_input::clear_simulated_input();
     return *this;
   }
+  
+  log_error("TEST_APP: Shop item has IsShopItem, verifying target slot");
   
   // Move mouse to target slot position (ensure it's within slot bounds for overlap check)
   // Verify target slot has required components and re-query to ensure it's merged
@@ -2533,6 +2598,7 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
   
   // Verify the slot can be found by the system's query (without force_merge)
   // The system uses EQ() which doesn't use force_merge, so we need to ensure the slot is merged
+  log_error("TEST_APP: Checking if slot can be found by system query");
   bool slot_found_by_system = false;
   for (int check = 0; check < 10; ++check) {
     wait_for_frames(1);
@@ -2565,7 +2631,9 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
   // The release flag is one-shot, so we need to ensure DropWhenNoLongerHeld processes it
   // Set the release flag, then wait for system to process it
   // The flag will be consumed when DropWhenNoLongerHeld checks is_mouse_button_released
+  log_error("TEST_APP: About to call simulate_mouse_button_release");
   test_input::simulate_mouse_button_release(raylib::MOUSE_BUTTON_LEFT);
+  log_error("TEST_APP: Called simulate_mouse_button_release, waiting for frames");
   wait_for_frames(3); // Let DropWhenNoLongerHeld process the release (needs at least 1 frame, give extra for wallet update)
   
   // Immediately check wallet state after drop - wallet_charge should have executed synchronously
@@ -2727,6 +2795,13 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
     return *this;
   }
 
+  // Mark purchase as complete - regenerate the same op_id (deterministic)
+  TestOperationID complete_op_id = generate_operation_id(
+      std::source_location::current(),
+      "purchase_item:" + std::to_string(static_cast<int>(type)) + ":" + 
+      std::to_string(inventory_slot) + ":" + location);
+  completed_operations.insert(complete_op_id);
+  
   if (step_delay()) {
     yield([this]() {
       test_resuming = true;

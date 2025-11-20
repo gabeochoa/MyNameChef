@@ -1,7 +1,11 @@
 #pragma once
 
+#include "../../components/is_dish.h"
+#include "../../components/is_inventory_item.h"
 #include "../../dish_types.h"
+#include "../../query.h"
 #include "../test_macros.h"
+#include <afterhours/ah.h>
 #include <source_location>
 
 // Test purchasing items from the shop
@@ -28,8 +32,27 @@ TEST(validate_shop_purchase) {
                      app.read_wallet_gold());
 
     app.expect_wallet_at_least(item_to_buy.price);
-    app.completed_operations.insert(purchase_stage);
     app.purchase_item(item_to_buy.type);
+    // purchase_item is now idempotent and tracks its own completion via completed_operations
+    // It will return early if the item is already in inventory
+    // Check if purchase completed by verifying item is in inventory
+    bool item_in_inventory = false;
+    for (afterhours::Entity &entity :
+         afterhours::EntityQuery({.force_merge = true})
+             .whereHasComponent<IsInventoryItem>()
+             .whereHasComponent<IsDish>()
+             .gen()) {
+      const IsDish &dish = entity.get<IsDish>();
+      if (dish.type == item_to_buy.type) {
+        item_in_inventory = true;
+        break;
+      }
+    }
+    if (item_in_inventory) {
+      // Purchase completed successfully - mark stage as complete
+      app.completed_operations.insert(purchase_stage);
+    }
+    // If purchase didn't complete yet, don't mark as complete - test will resume and call purchase_item again
     return;
   }
 
