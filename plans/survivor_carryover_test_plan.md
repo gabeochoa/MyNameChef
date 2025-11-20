@@ -129,34 +129,102 @@ Test that dishes that survive a course (have remaining Body after opponent finis
 - After course 2: `CombatQueue.complete == true` (opponent has 0 active dishes)
 - Active dish counts are correct at each stage
 
+### Test Case 5: Simultaneous Defeat (Both Dishes Die)
+
+**Setup**:
+- Player: 1 dish (medium Body, medium Zing) at slot 0
+- Opponent: 2 dishes (medium Body, medium Zing) at slots 0 and 1
+
+**Expected Behavior**:
+1. Course 1: Both dishes defeat each other simultaneously (both Body <= 0 in same tick)
+2. Both should be marked `Finished`
+3. Reorganization: Both teams skip the finished dishes
+4. Next course should start with next dishes in queue (if any)
+5. Battle completes when one team has no active dishes
+
+**Validation Points**:
+- After course 1: Both dishes have `phase == Finished`
+- Reorganization: Both dishes are skipped (not renumbered)
+- Next course starts with next dishes in queue (if available)
+- Battle completion logic handles simultaneous defeat correctly
+
+**Setup**:
+- Player: 2 dishes at slots 0 and 1
+- Opponent: 2 dishes at slots 0 and 1
+
+**Expected Behavior**:
+1. Course 1: Player dish 0 defeats opponent dish 0, survives
+2. Reorganization: Opponent dish 1 moves to index 0
+3. Course 2: Player dish 0 (survivor) fights opponent dish 1
+4. Battle should NOT complete after course 1 (opponent still has dish 1)
+5. Battle completes after course 2 when opponent has no active dishes
+
+**Validation Points**:
+- After course 1: `CombatQueue.complete == false` (opponent still has active dishes)
+- After course 2: `CombatQueue.complete == true` (opponent has 0 active dishes)
+- Active dish counts are correct at each stage
+
 ## Implementation Details
 
 ### Test File Structure
 
 **File**: `src/testing/tests/ValidateSurvivorCarryoverTest.h`
 
-**Test Function**: `validate_survivor_carryover`
+**Test Functions**: Create separate `TEST()` functions for each test case (not sequential):
+- `TEST(validate_survivor_carryover_single)` - Test Case 1
+- `TEST(validate_survivor_carryover_positions)` - Test Case 2
+- `TEST(validate_survivor_carryover_multiple)` - Test Case 3
+- `TEST(validate_survivor_carryover_battle_completion)` - Test Case 4
+- `TEST(validate_survivor_carryover_simultaneous_defeat)` - Test Case 5 (new edge case)
 
 ### Helper Functions Needed
 
-1. **Create Battle Setup**:
-   - `create_battle_with_teams(player_dishes, opponent_dishes)` - Sets up teams with specific dishes
-   - Each dish should have configurable Body/Zing to control survival outcomes
+**Step 0: Check Existing Helpers** (Do this first, as separate commit if needed)
+
+Check if these helper methods already exist in `src/testing/test_app.h`:
+- `wait_for_course_complete(course_index, timeout)`
+- `expect_dish_at_index(entity_id, expected_index, side)`
+- `expect_dish_position(entity_id, expected_x, expected_y)` 
+- `expect_dish_body(entity_id, expected_body_min)`
+- `expect_battle_not_complete()`
+- `expect_battle_complete()`
+- `expect_active_dish_count(side, expected_count)`
+
+**If helpers don't exist**: Create them in `test_app.h`/`test_app.cpp` as a **separate commit** before implementing the test.
+
+**Course Completion Detection**:
+- Investigate how to detect course completion (check `CombatQueue.current_index` and dish phases)
+- Consider adding helper method or `OnCourseComplete` event that tests can subscribe to
+- Look at existing battle completion detection patterns
+
+1. **Set Dish Stats Helper**:
+   - `app.set_dish_combat_stats(dish_id, body, zing)` - Helper to set Body/Zing values without branching
+   - **TODO**: Add badge system so tests can request permission to write (makes it easier to track who's using it)
 
 2. **Wait for Course Completion**:
-   - `wait_for_course_complete(course_index, timeout)` - Waits until both tracked dishes for a course are finished
-   - Checks `CombatQueue.current_player_dish_id` and `current_opponent_dish_id` are both `Finished`
+   - Investigate course completion detection (monitor `CombatQueue.current_index` and dish state)
+   - Can add helper method or consider `OnCourseComplete` event subscription approach
+   - Look at how `wait_for_battle_complete()` works for patterns
 
 3. **Validate Dish State**:
    - `expect_dish_at_index(entity_id, expected_index, side)` - Validates `queue_index` matches expected
-   - `expect_dish_position(entity_id, expected_x, expected_y)` - Validates `Transform.position`
-   - `expect_dish_phase(entity_id, expected_phase)` - Validates `DishBattleState.phase`
+   - `expect_dish_position(entity_id, expected_x, expected_y, epsilon)` - Validates `Transform.position` with tolerance (resolution-based strategy needed)
+   - `expect_dish_phase(entity_id, expected_phase)` - Already exists: `expect_dish_phase()`
    - `expect_dish_body(entity_id, expected_body_min)` - Validates `CombatStats.currentBody >= min`
 
 4. **Validate Battle State**:
-   - `expect_battle_not_complete()` - Validates `CombatQueue.complete == false`
-   - `expect_battle_complete()` - Validates `CombatQueue.complete == true`
+   - `expect_battle_not_complete()` - Validates `CombatQueue.complete == false` OR check active dish counts
+   - `expect_battle_complete()` - Validates `CombatQueue.complete == true` OR check active dish counts (see how game detects it in `ServerContext::is_battle_complete()`)
    - `expect_active_dish_count(side, expected_count)` - Counts active dishes (phase != `Finished`)
+
+**Position Validation Strategy**:
+- Position validation is resolution-based, so need better strategy than exact equality
+- Consider using epsilon tolerance (e.g., `abs(actual - expected) < 1.0f`) or relative tolerance
+- May need to account for screen resolution differences
+
+**Reorganization Timing**:
+- Use `app.wait_for_frames(2)` after course completion (what other tests do, usually enough)
+- **TODO**: Setup app API for `wait_until()` or similar conditional wait mechanism
 
 ### Test Implementation Pattern
 
@@ -168,26 +236,29 @@ Following PROJECT_RULES.md test structure requirements:
 
 ### Example Test Flow (Test Case 1)
 
-**Note**: `TestDishBuilder` doesn't have `.with_body()` or `.with_zing()` methods. After creating dishes, manually set `CombatStats` to control Body/Zing values for testing.
+**Note**: Use helper method `app.set_dish_combat_stats(dish_id, body, zing)` to set Body/Zing values (avoids branching).
+
+**Body/Zing Math**: Calculate values to ensure:
+- Player dishes survive course 1 (high Body, low Zing = slow but durable)
+- Opponent dishes die quickly (low Body, high Zing = fast but fragile)
+- Example: Player Body=20, Zing=2 vs Opponent Body=5, Zing=10
+  - Opponent deals 10 damage per tick, player has 20 Body = 2 ticks to kill player
+  - Player deals 2 damage per tick, opponent has 5 Body = 3 ticks to kill opponent
+  - Opponent dies first, player survives
 
 ```cpp
-TEST(validate_survivor_carryover) {
+TEST(validate_survivor_carryover_single) {
   app.wait_for_frames(1);
   
   // Setup: Create battle with specific dish configurations
   int player_dish_id = app.create_dish(DishType::Potato)
     .on_team(DishBattleState::TeamSide::Player)
     .at_slot(0)
-    .with_combat_stats()  // Add CombatStats component
+    .with_combat_stats()
     .commit();
   
-  // Manually set Body/Zing values after creation
-  afterhours::Entity *player_entity = app.find_entity_by_id(player_dish_id);
-  if (player_entity && player_entity->has<CombatStats>()) {
-    CombatStats &cs = player_entity->get<CombatStats>();
-    cs.currentBody = 20;  // High body to survive
-    cs.currentZing = 2;   // Low zing to take time
-  }
+  // Use helper to set Body/Zing (no branching)
+  app.set_dish_combat_stats(player_dish_id, 20, 2);  // High body, low zing
   
   int opponent_dish_0_id = app.create_dish(DishType::Potato)
     .on_team(DishBattleState::TeamSide::Opponent)
@@ -195,12 +266,7 @@ TEST(validate_survivor_carryover) {
     .with_combat_stats()
     .commit();
   
-  afterhours::Entity *opp_0_entity = app.find_entity_by_id(opponent_dish_0_id);
-  if (opp_0_entity && opp_0_entity->has<CombatStats>()) {
-    CombatStats &cs = opp_0_entity->get<CombatStats>();
-    cs.currentBody = 5;   // Low body to die quickly
-    cs.currentZing = 10;  // High zing to deal damage
-  }
+  app.set_dish_combat_stats(opponent_dish_0_id, 5, 10);  // Low body, high zing
   
   int opponent_dish_1_id = app.create_dish(DishType::Potato)
     .on_team(DishBattleState::TeamSide::Opponent)
@@ -208,47 +274,51 @@ TEST(validate_survivor_carryover) {
     .with_combat_stats()
     .commit();
   
-  afterhours::Entity *opp_1_entity = app.find_entity_by_id(opponent_dish_1_id);
-  if (opp_1_entity && opp_1_entity->has<CombatStats>()) {
-    CombatStats &cs = opp_1_entity->get<CombatStats>();
-    cs.currentBody = 5;
-    cs.currentZing = 10;
-  }
+  app.set_dish_combat_stats(opponent_dish_1_id, 5, 10);
   
-  // Start battle
+  app.wait_for_frames(1);  // Let entities merge
+  
+  // Start battle - investigate how dishes created with .on_team()/.at_slot() 
+  // are recognized by battle systems (may need manual setup)
   app.start_battle();
   app.wait_for_battle_initialized(10.0f);
   
-  // Wait for course 1 to complete
+  // Wait for course 1 to complete (use helper or detect via CombatQueue.current_index)
   app.wait_for_course_complete(0, 30.0f);
   
   // Validate: Player dish survived
   app.expect_dish_body(player_dish_id, 1, "Player dish should have remaining Body");
-  app.expect_dish_phase(player_dish_id, InQueue, "Survivor should be reset to InQueue");
+  app.expect_dish_phase(player_dish_id, DishBattleState::Phase::InQueue, "Survivor should be reset to InQueue");
   
-  // Wait for reorganization
+  // Wait for reorganization (2 frames is what other tests do)
   app.wait_for_frames(2);
   
-  // Validate: Positions updated correctly
-  app.expect_dish_at_index(player_dish_id, 0, Player, "Player dish should stay at index 0");
-  app.expect_dish_at_index(opponent_dish_1_id, 0, Opponent, "Opponent dish 1 should move to index 0");
-  app.expect_dish_position(player_dish_id, 120.0f, 150.0f, "Player dish position");
-  app.expect_dish_position(opponent_dish_1_id, 120.0f, 500.0f, "Opponent dish 1 position");
+  // Validate: Positions updated correctly (use epsilon for position validation)
+  app.expect_dish_at_index(player_dish_id, 0, DishBattleState::TeamSide::Player, "Player dish should stay at index 0");
+  app.expect_dish_at_index(opponent_dish_1_id, 0, DishBattleState::TeamSide::Opponent, "Opponent dish 1 should move to index 0");
+  app.expect_dish_position(player_dish_id, 120.0f, 150.0f, 1.0f, "Player dish position");  // epsilon = 1.0f
+  app.expect_dish_position(opponent_dish_1_id, 120.0f, 500.0f, 1.0f, "Opponent dish 1 position");
   
-  // Validate: Battle not complete yet
+  // Validate: Battle not complete yet (check CombatQueue.complete or active dish counts)
   app.expect_battle_not_complete("Battle should continue with opponent dish remaining");
   
   // Wait for course 2 to start
-  app.wait_for_dish_phase(player_dish_id, InCombat, 10.0f, "Survivor should enter combat with next opponent");
+  app.wait_for_dish_phase(player_dish_id, DishBattleState::Phase::InCombat, 10.0f, "Survivor should enter combat with next opponent");
   
   // Wait for course 2 to complete
   app.wait_for_course_complete(1, 30.0f);
   
-  // Validate: Battle complete
+  // Validate: Battle complete (see how game detects it - check CombatQueue.complete or active dish counts)
   app.expect_battle_complete("Battle should complete when opponent has no dishes");
-  app.expect_active_dish_count(Opponent, 0, "Opponent should have no active dishes");
+  app.expect_active_dish_count(DishBattleState::TeamSide::Opponent, 0, "Opponent should have no active dishes");
 }
 ```
+
+**Reference Other Tests**: Look at `ValidateFullBattleFlowTest.h` and other passing tests for patterns on:
+- Battle initialization flow
+- How dishes are set up for battle
+- Waiting patterns
+- Validation patterns
 
 ### Headless Mode Considerations
 
@@ -260,23 +330,34 @@ From memories and code analysis:
 
 ### Logging for Debugging
 
-Add detailed logging to track:
-- Course completion events
-- Reorganization events (queue_index changes)
-- Transform position updates
-- Phase transitions
-- Active dish counts
+**Only add logging if needed to debug the test** - not required for final implementation.
 
-Use existing log patterns:
+If debugging is needed, use existing log patterns:
 - `log_info("COMBAT: ...")` for combat events
 - `log_info("COMBAT_ADVANCE: ...")` for course advancement
+- `log_info("TEST_SURVIVOR: ...")` for test-specific events
 
 ## Validation Steps
 
+**Step 0: Check and Create Helper Methods** (Separate Commit)
+1. Check if helper methods exist in `test_app.h`/`test_app.cpp`
+2. If missing, implement:
+   - `set_dish_combat_stats(dish_id, body, zing)` - Set Body/Zing without branching
+   - `wait_for_course_complete(course_index, timeout)` - Wait for course completion
+   - `expect_dish_at_index(entity_id, expected_index, side)` - Validate queue_index
+   - `expect_dish_position(entity_id, expected_x, expected_y, epsilon)` - Validate position with tolerance
+   - `expect_dish_body(entity_id, expected_body_min)` - Validate Body >= min
+   - `expect_battle_not_complete()` - Validate battle not complete
+   - `expect_battle_complete()` - Validate battle complete
+   - `expect_active_dish_count(side, expected_count)` - Count active dishes
+3. **MANDATORY CHECKPOINT**: Build and commit helpers separately
+   - `git commit -m "be - add test helpers for survivor carryover test"`
+
 1. **Create Test File**: `src/testing/tests/ValidateSurvivorCarryoverTest.h`
-   - Implement all 4 test cases
+   - Implement all 5 test cases as separate `TEST()` functions
    - Use helper functions for setup and validation
    - Follow PROJECT_RULES.md test structure (no branching, assertions only)
+   - Reference other passing tests for patterns (`ValidateFullBattleFlowTest.h`, etc.)
 
 2. **MANDATORY CHECKPOINT**: Build
    - Run `xmake` - code must compile successfully
@@ -297,6 +378,7 @@ Use existing log patterns:
    - Test Case 2: Transform positions update correctly ✓
    - Test Case 3: Multiple survivors handle correctly ✓
    - Test Case 4: Battle completion only when team exhausted ✓
+   - Test Case 5: Simultaneous defeat handled correctly ✓
 
 6. **MANDATORY CHECKPOINT**: Commit
    - `git commit -m "add survivor carryover test coverage"`
@@ -325,7 +407,7 @@ Use existing log patterns:
 
 ## Success Criteria
 
-- All 4 test cases pass in both headless and non-headless modes
+- All 5 test cases pass in both headless and non-headless modes
 - Test validates:
   - ✅ Single survivor retargets next opponent correctly
   - ✅ Transform position (visual and index) updates correctly on retarget
@@ -337,9 +419,18 @@ Use existing log patterns:
 
 ## Estimated Time
 
-2-3 hours:
-- 1 hour: Test file creation and helper functions
-- 30 min: Test case implementation
+3-4 hours:
+- 30 min: Check existing helpers, create missing ones (separate commit)
+- 1 hour: Test file creation and test case implementation
+- 30 min: Investigate battle initialization flow and course completion detection
 - 30 min: Debugging and validation
 - 30 min: Headless/non-headless testing and fixes
+
+## TODOs for Future Improvements
+
+1. **Badge System for Test Write Permissions**: Add system so tests can request permission to write (makes it easier to track who's using write operations)
+
+2. **Wait Until API**: Setup app API for `wait_until()` or similar conditional wait mechanism (better than fixed frame delays)
+
+3. **Position Validation Strategy**: Improve position validation to handle resolution differences better
 
