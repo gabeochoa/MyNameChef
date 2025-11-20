@@ -2533,7 +2533,22 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
   }
   
   if (!item_no_longer_held) {
-    fail("Shop item still held after drop - DropWhenNoLongerHeld may not have processed the drop", location);
+    fail("Shop item still held after drop - DropWhenNoLongerHeld may not have processed the drop. "
+         "This could mean the drop slot wasn't found or the release flag wasn't processed.", location);
+    test_input::clear_simulated_input();
+    return *this;
+  }
+  
+  // If item is no longer held but purchase didn't complete, it might have snapped back
+  // Check if item still has IsShopItem (if it does, purchase didn't complete)
+  afterhours::OptEntity shop_item_check_opt2 =
+      afterhours::EntityQuery({.force_merge = true})
+          .whereID(shop_item_id)
+          .gen_first();
+  if (shop_item_check_opt2.has_value() && shop_item_check_opt2.asE().has<IsShopItem>()) {
+    // Item still has IsShopItem, which means it snapped back (drop slot not found)
+    fail("Shop item snapped back to original position - drop slot was not found. "
+         "Mouse position may not be overlapping the slot correctly.", location);
     test_input::clear_simulated_input();
     return *this;
   }
