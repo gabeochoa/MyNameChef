@@ -3,6 +3,7 @@
 #include "../components/is_draggable.h"
 #include "../components/is_drink_shop_item.h"
 #include "../components/render_order.h"
+#include "../components/test_drink_shop_override.h"
 #include "../components/transform.h"
 #include "../drink_types.h"
 #include "../game_state_manager.h"
@@ -14,9 +15,9 @@
 #include "../texture_library.h"
 #include <afterhours/ah.h>
 #include <afterhours/src/plugins/texture_manager.h>
-#include <afterhours/src/entity_helper.h>
 
 using namespace afterhours;
+using namespace afterhours::components;
 
 struct GenerateDrinkShop : System<> {
   GameStateManager::Screen last_screen = GameStateManager::Screen::Main;
@@ -50,17 +51,54 @@ private:
     float drink_shop_start_x =
         screen_width - (2 * (SLOT_SIZE + SLOT_GAP)) - 50.0f;
 
-    // Get current shop tier
-    auto shop_tier_entity = EntityHelper::get_singleton<ShopTier>();
-    int current_tier = 1; // Default to tier 1
-    if (shop_tier_entity.get().has<ShopTier>()) {
-      current_tier = shop_tier_entity.get().get<ShopTier>().current_tier;
+    // Check for test override first
+    bool use_override = false;
+    std::vector<DrinkType> override_drinks;
+    
+    // Check for test override using singleton map directly
+    try {
+      const auto override_id = get_type_id<TestDrinkShopOverride>();
+      auto &singleton_map = EntityHelper::get().singletonMap;
+      auto it = singleton_map.find(override_id);
+      if (it != singleton_map.end()) {
+        auto &override_entity = *it->second;
+        if (override_entity.has<TestDrinkShopOverride>()) {
+          auto &override = override_entity.get<TestDrinkShopOverride>();
+          if (!override.used && !override.drinks.empty()) {
+            use_override = true;
+            override_drinks = override.drinks;
+            override.used = true; // Mark as used so it's only applied once
+          }
+        }
+      }
+    } catch (...) {
+      // Override not available, use normal generation
+    }
+
+    // Get current shop tier (only needed if not using override)
+    int current_tier = 1;
+    if (!use_override) {
+      auto shop_tier_entity = EntityHelper::get_singleton<ShopTier>();
+      if (shop_tier_entity.get().has<ShopTier>()) {
+        current_tier = shop_tier_entity.get().get<ShopTier>().current_tier;
+      }
     }
 
     for (int i = 0; i < DRINK_SHOP_SLOTS; ++i) {
       auto position = calculate_slot_position(
           i, static_cast<int>(drink_shop_start_x), DRINK_SHOP_START_Y, 2);
-      DrinkType drink_type = get_random_drink_for_tier(current_tier);
+      
+      DrinkType drink_type;
+      if (use_override && i < static_cast<int>(override_drinks.size())) {
+        // Use override drink for this slot
+        drink_type = override_drinks[i];
+      } else if (use_override) {
+        // Override list is shorter than slots, fill remaining with random
+        drink_type = get_random_drink_for_tier(current_tier);
+      } else {
+        // Normal random generation
+        drink_type = get_random_drink_for_tier(current_tier);
+      }
 
       auto &e = EntityHelper::createEntity();
       e.addComponent<Transform>(position, vec2{SLOT_SIZE, SLOT_SIZE});
@@ -77,6 +115,10 @@ private:
           render_constants::kDishSpriteScale, raylib::WHITE);
     }
 
-    log_info("Generated drink shop with {} drinks", DRINK_SHOP_SLOTS);
+    if (use_override) {
+      log_info("Generated drink shop with {} drinks (test override)", DRINK_SHOP_SLOTS);
+    } else {
+      log_info("Generated drink shop with {} drinks", DRINK_SHOP_SLOTS);
+    }
   }
 };

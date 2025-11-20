@@ -11,6 +11,7 @@
 #include "../query.h"
 #include "../rl.h"
 #include "../shop.h"
+#include "../testing/test_input.h"
 #include <afterhours/ah.h>
 
 using namespace afterhours;
@@ -23,12 +24,12 @@ struct HandleDrinkDrop : System<IsHeld, Transform, IsDrinkShopItem> {
 
   void for_each_with(Entity &drink_entity, IsHeld &held, Transform &transform,
                      IsDrinkShopItem &drink_shop_item, float) override {
-    if (!afterhours::input::is_mouse_button_released(
-            raylib::MOUSE_BUTTON_LEFT)) {
+    // Check test input wrapper first, then fall back to real input
+    if (!test_input::is_mouse_button_released(raylib::MOUSE_BUTTON_LEFT)) {
       return;
     }
 
-    vec2 mouse_pos = afterhours::input::get_mouse_position();
+    vec2 mouse_pos = test_input::get_mouse_position();
     raylib::Vector2 mouse_vec{mouse_pos.x, mouse_pos.y};
 
     for (Entity &dish :

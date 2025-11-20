@@ -854,6 +854,58 @@ This section documents questions raised during plan review and their answers:
 - RandomTarget scope implementation
 - Negative amounts validation and bounds
 
+## Testing Framework Fixes (Completed)
+
+### Problem
+The `ValidateDrinkEffectsTest` was manually adding `DrinkPairing` components and calling systems directly, violating the principle that tests should use production code paths only. Tests should simulate normal game interactions (mouse/keyboard) and let systems run naturally.
+
+### Solution Implemented
+
+1. **Added Programmatic Mouse Input Support**:
+   - Created `src/testing/test_input.h` and `src/testing/test_input.cpp` with test input wrapper
+   - Functions: `set_mouse_position()`, `simulate_mouse_button_press()`, `simulate_mouse_button_release()`, `clear_simulated_input()`
+   - Updated `HandleDrinkDrop`, `MarkIsHeldWhenHeld`, and `DropWhenNoLongerHeld` systems to check test input wrapper first, then fall back to real input
+   - Test input wrapper allows simulating drag-and-drop interactions without modifying production code
+
+2. **Created Test Helper for Applying Drinks**:
+   - Added `TestApp::apply_drink_to_dish(int dish_slot, DrinkType drink_type)` method
+   - Simulates full drag-and-drop interaction:
+     - Finds drink shop item and dish in inventory
+     - Sets mouse position to drink, simulates mouse press
+     - Moves mouse to dish, simulates mouse release
+     - Waits for `HandleDrinkDrop` system to process naturally
+     - Verifies `DrinkPairing` component was added (read-only check)
+   - Uses mouse simulation internally, not manual component editing
+
+3. **Updated All Drink Effects Tests**:
+   - Removed all manual `addComponent<DrinkPairing>()` calls
+   - Removed manual system calls and trigger queue manipulation
+   - Created `setup_battle_with_drink()` helper that:
+     - Navigates to shop screen
+     - Creates dish in inventory
+     - Applies drink via `apply_drink_to_dish()` (uses drag-and-drop simulation)
+     - Transitions dish to battle state
+     - Sets up minimal battle state
+   - Tests now wait for battle systems to run naturally and process triggers automatically
+   - All state verification is read-only
+
+4. **Test Flow**:
+   - Tests use production code paths: shop → apply drink → battle → verify effects
+   - Systems run naturally through game loop
+   - No manual component editing or system calls
+   - Mouse interactions are simulated, but go through production systems
+
+### Key Principles Maintained
+- **Production code paths only**: Tests use normal game flow, systems run naturally
+- **Read-only verification**: Tests only read state to verify results, never modify
+- **Mouse simulation**: Drag-and-drop uses simulated mouse input that goes through production systems
+- **No manual system calls**: All systems run through normal game loop
+
+### TODO for Future Improvements
+1. Migrate ECS-level tests to use full game flow (shop → click "Next Round" → battle) instead of battle setup helpers
+2. Add more comprehensive mouse input simulation (drag velocity, timing, etc.)
+3. Consider adding keyboard input simulation for completeness
+
 ## Future Considerations
 
 - Drink combinations (applying multiple drinks to one dish) - **Not supported, single drink per dish only**

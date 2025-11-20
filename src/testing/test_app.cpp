@@ -19,13 +19,17 @@
 #include "../components/is_held.h"
 #include "../components/is_inventory_item.h"
 #include "../components/is_shop_item.h"
+#include "../components/is_drink_shop_item.h"
+#include "../components/drink_pairing.h"
 #include "../components/network_info.h"
+#include "../components/test_drink_shop_override.h"
 #include "../components/persistent_combat_modifiers.h"
 #include "../components/render_order.h"
 #include "../components/replay_state.h"
 #include "../components/transform.h"
 #include "../components/user_id.h"
 #include "../dish_types.h"
+#include "../drink_types.h"
 #include "../game_state_manager.h"
 #include "../log.h"
 #include "../query.h"
@@ -38,6 +42,7 @@
 #include "../systems/GameStateSaveSystem.h"
 #include "../systems/NetworkSystem.h"
 #include "../tooltip.h"
+#include "test_input.h"
 #include "test_macros.h"
 #include "test_state_inspector.h"
 #include <afterhours/ah.h>
@@ -632,6 +637,225 @@ TestApp &TestApp::create_inventory_item(DishType type, int slot,
   target_slot->get<IsDropSlot>().occupied = true;
 
   // Entity will be merged by system loop automatically
+  return *this;
+}
+
+TestApp &TestApp::apply_drink_to_dish(int dish_slot, DrinkType drink_type,
+                                       const std::source_location &loc) {
+  // Simulate drag-and-drop of drink onto dish using mouse input simulation
+  // This uses test_input wrapper to simulate mouse interactions
+  
+  // Wait for drinks to be generated (they might still be in temp entities)
+  afterhours::Entity *drink_entity = nullptr;
+  std::vector<DrinkType> available_drinks;
+  for (int attempt = 0; attempt < 30; ++attempt) {
+    wait_for_frames(1);
+    available_drinks.clear();
+    for (afterhours::Entity &entity :
+         afterhours::EntityQuery({.force_merge = true})
+             .whereHasComponent<IsDrinkShopItem>()
+             .gen()) {
+      const IsDrinkShopItem &drink_shop_item = entity.get<IsDrinkShopItem>();
+      available_drinks.push_back(drink_shop_item.drink_type);
+      if (drink_shop_item.drink_type == drink_type) {
+        drink_entity = &entity;
+        break;
+      }
+    }
+    if (drink_entity) {
+      break;
+    }
+  }
+  
+  if (!drink_entity) {
+    std::string available_str = "Available drinks: ";
+    for (size_t i = 0; i < available_drinks.size(); ++i) {
+      if (i > 0) available_str += ", ";
+      available_str += std::to_string(static_cast<int>(available_drinks[i]));
+    }
+    fail("Drink shop item with type " + std::to_string(static_cast<int>(drink_type)) + " not found after waiting. " + available_str);
+    return *this;
+  }
+  
+  // Find dish in inventory at dish_slot
+  afterhours::Entity *dish_entity = nullptr;
+  for (afterhours::Entity &entity :
+       afterhours::EntityQuery({.force_merge = true})
+           .whereHasComponent<IsInventoryItem>()
+           .whereHasComponent<IsDish>()
+           .gen()) {
+    if (entity.get<IsInventoryItem>().slot == dish_slot) {
+      dish_entity = &entity;
+      break;
+    }
+  }
+  
+  if (!dish_entity) {
+    fail("Dish not found in inventory slot " + std::to_string(dish_slot));
+    return *this;
+  }
+  
+  // Get positions of both entities
+  if (!drink_entity->has<Transform>() || !dish_entity->has<Transform>()) {
+    fail("Drink or dish entity missing Transform component");
+    return *this;
+  }
+  
+  vec2 drink_pos = drink_entity->get<Transform>().center();
+  vec2 dish_pos = dish_entity->get<Transform>().center();
+  
+  // Store drink entity ID since pointer might become invalid after merge
+  afterhours::EntityID drink_entity_id = drink_entity->id;
+  
+  // Wait for drink entity to be merged so MarkIsHeldWhenHeld system can find it
+  // The system queries without force_merge, so entity must be in main array
+  for (int i = 0; i < 20; ++i) {
+    wait_for_frames(1);
+    afterhours::OptEntity drink_merged_opt =
+        afterhours::EntityQuery()
+            .whereID(drink_entity_id)
+            .gen_first();
+    if (drink_merged_opt.has_value()) {
+      // Entity is merged, get updated position
+      drink_pos = drink_merged_opt.asE().get<Transform>().center();
+      break;
+    }
+  }
+  
+  // Verify entity is merged and has required components
+  afterhours::OptEntity drink_merged_opt =
+      afterhours::EntityQuery()
+          .whereID(drink_entity_id)
+          .gen_first();
+  if (!drink_merged_opt.has_value()) {
+    fail("Drink entity not found after merge - system cannot find it");
+    test_input::clear_simulated_input();
+    return *this;
+  }
+  
+  afterhours::Entity &drink_merged = drink_merged_opt.asE();
+  if (!drink_merged.has<IsDraggable>() || !drink_merged.has<Transform>()) {
+    fail("Drink entity missing IsDraggable or Transform component");
+    test_input::clear_simulated_input();
+    return *this;
+  }
+  
+  // Verify we're on Shop screen (required for MarkIsHeldWhenHeld system)
+  auto &gsm = GameStateManager::get();
+  if (gsm.active_screen != GameStateManager::Screen::Shop) {
+    fail("Must be on Shop screen to apply drinks");
+    test_input::clear_simulated_input();
+    return *this;
+  }
+  
+  // Get position from merged entity
+  drink_pos = drink_merged.get<Transform>().center();
+  
+  // Simulate mouse drag-and-drop:
+  // 1. Set mouse position to drink position
+  // 2. Simulate mouse button press (to start drag)
+  // 3. Wait a frame for MarkIsHeldWhenHeld to process
+  // 4. Move mouse to dish position
+  // 5. Simulate mouse button release (to drop)
+  // 6. Wait for HandleDrinkDrop to process
+  
+  test_input::set_mouse_position(drink_pos);
+  test_input::simulate_mouse_button_press(raylib::MOUSE_BUTTON_LEFT);
+  wait_for_frames(3); // Let MarkIsHeldWhenHeld process the press
+  
+  // Re-query for drink entity to verify it's held
+  afterhours::OptEntity drink_held_opt =
+      afterhours::EntityQuery({.force_merge = true})
+          .whereID(drink_entity_id)
+          .gen_first();
+  if (!drink_held_opt.has_value()) {
+    fail("Drink entity not found after waiting");
+    test_input::clear_simulated_input();
+    return *this;
+  }
+  
+  // Verify drink is now held
+  if (!drink_held_opt.asE().has<IsHeld>()) {
+    fail("Drink was not marked as held after mouse press");
+    test_input::clear_simulated_input();
+    return *this;
+  }
+  
+  // Move mouse to dish position
+  test_input::set_mouse_position(dish_pos);
+  wait_for_frames(1);
+  
+  // Release mouse button to drop
+  test_input::simulate_mouse_button_release(raylib::MOUSE_BUTTON_LEFT);
+  wait_for_frames(3); // Let HandleDrinkDrop process the release
+  
+  // Re-query for dish entity to verify DrinkPairing was added (read-only check)
+  afterhours::OptEntity dish_check_opt =
+      afterhours::EntityQuery({.force_merge = true})
+          .whereID(dish_entity->id)
+          .gen_first();
+  if (!dish_check_opt.has_value()) {
+    fail("Dish entity not found after drop");
+    test_input::clear_simulated_input();
+    return *this;
+  }
+  
+  if (!dish_check_opt.asE().has<DrinkPairing>()) {
+    fail("DrinkPairing component was not added to dish");
+    test_input::clear_simulated_input();
+    return *this;
+  }
+  
+  const DrinkPairing &pairing = dish_check_opt.asE().get<DrinkPairing>();
+  if (!pairing.drink.has_value() || pairing.drink.value() != drink_type) {
+    fail("DrinkPairing has wrong drink type");
+    test_input::clear_simulated_input();
+    return *this;
+  }
+  
+  // Clear simulated input state
+  test_input::clear_simulated_input();
+  
+  return *this;
+}
+
+TestApp &TestApp::set_drink_shop_override(const std::vector<DrinkType> &drinks,
+                                          const std::source_location &loc) {
+  // Get or create the test override singleton
+  // First check if singleton already exists
+  const auto override_id = afterhours::components::get_type_id<TestDrinkShopOverride>();
+  auto &singleton_map = afterhours::EntityHelper::get().singletonMap;
+  
+  if (singleton_map.find(override_id) != singleton_map.end()) {
+    // Singleton exists, update it
+    auto override_opt = afterhours::EntityHelper::get_singleton<TestDrinkShopOverride>();
+    if (override_opt.get().has<TestDrinkShopOverride>()) {
+      auto &override = override_opt.get().get<TestDrinkShopOverride>();
+      override.drinks = drinks;
+      override.used = false; // Reset used flag so it can be applied again
+    } else {
+      override_opt.get().addComponent<TestDrinkShopOverride>(drinks);
+    }
+  } else {
+    // Singleton doesn't exist, create it as a permanent entity so it's not cleaned up
+    auto &override_entity = afterhours::EntityHelper::createPermanentEntity();
+    override_entity.addComponent<TestDrinkShopOverride>(drinks);
+    afterhours::EntityHelper::registerSingleton<TestDrinkShopOverride>(override_entity);
+  }
+  return *this;
+}
+
+TestApp &TestApp::clear_drink_shop_override(const std::source_location &loc) {
+  // Remove the test override component
+  const auto override_id = afterhours::components::get_type_id<TestDrinkShopOverride>();
+  auto &singleton_map = afterhours::EntityHelper::get().singletonMap;
+  
+  if (singleton_map.find(override_id) != singleton_map.end()) {
+    auto override_opt = afterhours::EntityHelper::get_singleton<TestDrinkShopOverride>();
+    if (override_opt.get().has<TestDrinkShopOverride>()) {
+      override_opt.get().removeComponent<TestDrinkShopOverride>();
+    }
+  }
   return *this;
 }
 

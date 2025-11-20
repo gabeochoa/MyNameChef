@@ -13,6 +13,7 @@
 #include "../components/persistent_combat_modifiers.h"
 #include "../components/trigger_event.h"
 #include "../dish_types.h"
+#include "../drink_types.h"
 #include "../game_state_manager.h"
 #include "../query.h"
 #include "../shop.h"
@@ -196,6 +197,11 @@ struct TestApp {
   TestApp &set_wallet_gold(int gold, const std::string &location = "");
   TestApp &create_inventory_item(DishType type, int slot,
                                  std::optional<CuisineTagType> cuisine_tag = std::nullopt);
+  TestApp &apply_drink_to_dish(int dish_slot, DrinkType drink_type,
+                                const std::source_location &loc = std::source_location::current());
+  TestApp &set_drink_shop_override(const std::vector<DrinkType> &drinks,
+                                   const std::source_location &loc = std::source_location::current());
+  TestApp &clear_drink_shop_override(const std::source_location &loc = std::source_location::current());
   TestApp &trigger_game_state_save();
   TestApp &trigger_game_state_load();
   bool save_file_exists();

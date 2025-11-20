@@ -101,6 +101,7 @@ MAIN_SRC += $(wildcard src/ui/*.cpp)
 MAIN_SRC += src/server/file_storage.cpp
 MAIN_SRC += src/testing/test_app.cpp
 MAIN_SRC += src/testing/test_context.cpp
+MAIN_SRC += src/testing/test_input.cpp
 
 # Source files for battle_server
 SERVER_SRC := $(wildcard src/server/*.cpp)

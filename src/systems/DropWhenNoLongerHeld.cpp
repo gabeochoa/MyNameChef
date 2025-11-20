@@ -8,6 +8,7 @@
 #include "../game_state_manager.h"
 #include "../query.h"
 #include "../shop.h"
+#include "../testing/test_input.h"
 
 bool DropWhenNoLongerHeld::should_run(float) {
   auto &gsm = GameStateManager::get();
@@ -262,14 +263,15 @@ bool DropWhenNoLongerHeld::swap_items(Entity &entity, Entity *occupied_slot,
 
 void DropWhenNoLongerHeld::for_each_with(Entity &entity, IsHeld &held,
                                          Transform &transform, float) {
-  if (!afterhours::input::is_mouse_button_released(raylib::MOUSE_BUTTON_LEFT)) {
-    vec2 mouse_pos = afterhours::input::get_mouse_position();
+  // Check test input wrapper first, then fall back to real input
+  if (!test_input::is_mouse_button_released(raylib::MOUSE_BUTTON_LEFT)) {
+    vec2 mouse_pos = test_input::get_mouse_position();
     entity.get<Transform>().position =
         mouse_pos + held.offset - transform.size * 0.5f;
     return;
   }
 
-  vec2 mouse_pos = afterhours::input::get_mouse_position();
+  vec2 mouse_pos = test_input::get_mouse_position();
   Rectangle mouse_rect = {mouse_pos.x, mouse_pos.y, 1, 1};
 
   Entity *best_drop_slot = nullptr;

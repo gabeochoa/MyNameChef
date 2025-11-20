@@ -10,6 +10,7 @@
 #include "../query.h"
 #include "../rl.h"
 #include "../shop.h"
+#include "../testing/test_input.h"
 #include <afterhours/ah.h>
 
 using namespace afterhours;
@@ -47,7 +48,8 @@ public:
     }
 
     // Check if mouse is over this entity
-    vec2 mouse_pos = afterhours::input::get_mouse_position();
+    // Check test input wrapper first, then fall back to real input
+    vec2 mouse_pos = test_input::get_mouse_position();
     Rectangle entity_rect = transform.rect();
 
     bool mouse_over = CheckCollisionPointRec(
@@ -59,8 +61,7 @@ public:
       return;
     }
 
-    if (!afterhours::input::is_mouse_button_pressed(
-            raylib::MOUSE_BUTTON_LEFT)) {
+    if (!test_input::is_mouse_button_pressed(raylib::MOUSE_BUTTON_LEFT)) {
       return;
     }
 
