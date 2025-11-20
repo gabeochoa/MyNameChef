@@ -67,6 +67,7 @@ target("my_name_chef")
     add_files("src/server/file_storage.cpp")
     add_files("src/testing/test_app.cpp")
     add_files("src/testing/test_context.cpp")
+    add_files("src/testing/test_input.cpp")
     --
     add_includedirs("vendor")
 
@@ -116,8 +117,10 @@ target("battle_server")
     add_files("src/ui/*.cpp")
     
     remove_files("src/main.cpp")
-    remove_files("src/testing/*.cpp")
+    remove_files("src/testing/test_app.cpp")
+    remove_files("src/testing/test_context.cpp")
     remove_files("src/systems/TestSystem.cpp")
+    add_files("src/testing/test_input.cpp")
     
     add_includedirs("vendor")
     
