@@ -4,7 +4,7 @@
         "music_volume": 0.6917187571525574,
         "sfx_volume": 0.3560938835144043
     },
-    "battle_speed": 5.0,
+    "battle_speed": 1.0,
     "fullscreen_enabled": false,
     "language": "English",
     "post_processing_enabled": true,
