@@ -12,7 +12,7 @@ struct BattleReport : afterhours::BaseComponent {
   std::string opponentId;
   uint64_t seed = 0;
   std::vector<nlohmann::json> outcomes; // Course outcomes as JSON
-  std::vector<nlohmann::json> events;    // Battle events as JSON
+  std::vector<nlohmann::json> events;   // Battle events as JSON
   bool receivedFromServer = false;
   std::chrono::system_clock::time_point timestamp;
   std::string filePath; // Path to saved JSON file
@@ -63,4 +63,3 @@ struct BattleReport : afterhours::BaseComponent {
     return timestamp_str + "_" + battle_id + ".json";
   }
 };
-

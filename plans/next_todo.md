@@ -134,7 +134,7 @@
   2. Add JSON serialization/deserialization (server format compatible)
   3. Integrate with Results screen to auto-save reports (format: `YYYYMMDD_HHMMSS_<battle_id>.json`)
   4. Implement file retention (keep last 20, delete oldest when limit reached)
-  5. **MANDATORY CHECKPOINT**: Build: `xmake`
+  5. **MANDATORY CHECKPOINT**: Build: `make`
   6. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
   7. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
   8. Verify reports saved and can be loaded (check output/battles/results/ directory)
@@ -349,6 +349,7 @@
 These are potential enhancements to the tooltip system that can be implemented as needed:
 
 #### 1. Level Comparison & Progression Preview
+- **Plan**: See `plans/level_comparison_tooltip_plan.md`
 - Show stat/effect changes between current level and next level
 - Example: "Level 2: +2 Freshness (Level 3: +3 Freshness)"
 - Highlight which effects unlock at higher levels

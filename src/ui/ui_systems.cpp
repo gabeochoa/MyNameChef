@@ -11,8 +11,11 @@
 #include <afterhours/src/developer.h>
 #include <afterhours/src/logging.h>
 
+#include "../components/battle_history.h"
+#include "../components/battle_load_request.h"
 #include "../components/continue_button_disabled.h"
 #include "../components/continue_game_request.h"
+#include "../components/replay_state.h"
 #include "../components/is_draggable.h"
 #include "../components/is_drink_shop_item.h"
 #include "../components/is_gallery_item.h"
@@ -30,6 +33,7 @@
 #include "../render_constants.h"
 #include "../seeded_rng.h"
 #include "../server/file_storage.h"
+#include <fmt/format.h>
 #include "../settings.h"
 #include "../shop.h"
 #include "../systems/ExportMenuSnapshotSystem.h"
@@ -164,6 +168,10 @@ struct ScheduleMainMenuUI : System<afterhours::ui::UIContext<InputAction>> {
       gsm.active_screen = results_screen(entity, context);
       return;
     }
+    if (gsm.active_screen == Screen::History) {
+      gsm.active_screen = history_screen(entity, context);
+      return;
+    }
     gsm.active_screen = gsm.active_screen;
   }
 
@@ -173,6 +181,7 @@ struct ScheduleMainMenuUI : System<afterhours::ui::UIContext<InputAction>> {
   Screen shop_screen(Entity &entity, UIContext<InputAction> &context);
   Screen battle_screen(Entity &entity, UIContext<InputAction> &context);
   Screen results_screen(Entity &entity, UIContext<InputAction> &context);
+  Screen history_screen(Entity &entity, UIContext<InputAction> &context);
 
   void exit_game() { running = false; }
 };
@@ -326,6 +335,12 @@ Screen ScheduleMainMenuUI::main_screen(Entity &entity,
   button_labeled<InputAction>(
       context, top_left.ent(), "Dishes",
       []() { navigation::to(GameStateManager::Screen::Dishes); },
+      button_index++);
+
+  // History button
+  button_labeled<InputAction>(
+      context, top_left.ent(), "History",
+      []() { navigation::to(GameStateManager::Screen::History); },
       button_index++);
 
   // Exit button
@@ -799,6 +814,154 @@ Screen ScheduleMainMenuUI::results_screen(Entity &entity,
         GameStateManager::get().set_next_screen(Screen::Shop);
       },
       0);
+
+  return GameStateManager::get().next_screen.value_or(
+      GameStateManager::get().active_screen);
+}
+
+Screen ScheduleMainMenuUI::history_screen(Entity &entity,
+                                          UIContext<InputAction> &context) {
+  auto elem = ui_helpers::create_screen_container(context, entity, "screen");
+
+  // Add a background
+  auto bg =
+      imm::div(context, mk(elem.ent()),
+               ComponentConfig{}
+                   .with_size(ComponentSize{screen_pct(1.f), screen_pct(1.f)})
+                   .with_color_usage(Theme::Usage::Background)
+                   .with_debug_name("history_background")
+                   .with_rounded_corners(RoundedCorners().all_sharp()));
+
+  auto top_left =
+      column_left<InputAction>(context, bg.ent(), "history_top_left", 0);
+
+  // Back button
+  button_labeled<InputAction>(
+      context, top_left.ent(), "Back",
+      []() { navigation::to(GameStateManager::Screen::Main); }, 0);
+
+  // Get battle history
+  const auto componentId =
+      afterhours::components::get_type_id<BattleHistory>();
+  bool hasHistory = afterhours::EntityHelper::get().singletonMap.contains(
+      componentId);
+
+  if (hasHistory) {
+    auto history_entity =
+        afterhours::EntityHelper::get_singleton<BattleHistory>();
+    if (history_entity.get().has<BattleHistory>()) {
+      const BattleHistory &history =
+          history_entity.get().get<BattleHistory>();
+
+      if (!history.entries.empty()) {
+        // Display battle history entries
+        int button_index = 1;
+        for (size_t i = 0; i < history.entries.size() && i < 20; ++i) {
+          const auto &entry = history.entries[i];
+
+          // Format date/time from filename
+          std::string display_text = entry.filename;
+          if (display_text.length() > 30) {
+            display_text = display_text.substr(0, 27) + "...";
+          }
+
+          // Add outcome summary
+          std::string outcome_str = fmt::format(" ({}W-{}L-{}T)", entry.playerWins,
+                                                entry.opponentWins, entry.ties);
+          display_text += outcome_str;
+
+          // Create button for each battle
+          std::string filepath = entry.filePath; // Capture for lambda
+
+          button_labeled<InputAction>(
+              context, top_left.ent(), display_text,
+              [filepath]() {
+                // Load battle report and start replay
+                log_info("History: Loading battle from {}", filepath);
+
+                // Load the battle report JSON
+                nlohmann::json report_json =
+                    server::FileStorage::load_json_from_file(filepath);
+
+                if (report_json.contains("seed")) {
+                  uint64_t report_seed = report_json["seed"].get<uint64_t>();
+
+                  // Set seed in SeededRng
+                  SeededRng::get().set_seed(report_seed);
+
+                  // Create or update ReplayState
+                  const auto replay_component_id =
+                      afterhours::components::get_type_id<ReplayState>();
+                  auto &singletonMap =
+                      afterhours::EntityHelper::get().singletonMap;
+
+                  if (singletonMap.contains(replay_component_id)) {
+                    auto replay_entity =
+                        afterhours::EntityHelper::get_singleton<ReplayState>();
+                    if (replay_entity.get().has<ReplayState>()) {
+                      ReplayState &rs =
+                          replay_entity.get().get<ReplayState>();
+                      rs.seed = report_seed;
+                      rs.active = true;
+                      rs.paused = false;
+                      rs.timeScale = 1.0f;
+                      // Reconstruct paths from seed (battles are stored with
+                      // seed-based filenames)
+                      rs.playerJsonPath =
+                          "output/battles/temp_player_" +
+                          std::to_string(report_seed) + ".json";
+                      rs.opponentJsonPath =
+                          "output/battles/temp_opponent_" +
+                          std::to_string(report_seed) + ".json";
+                    }
+                  } else {
+                    auto &replay_entity =
+                        afterhours::EntityHelper::createEntity();
+                    ReplayState rs;
+                    rs.seed = report_seed;
+                    rs.active = true;
+                    rs.paused = false;
+                    rs.timeScale = 1.0f;
+                    rs.playerJsonPath =
+                        "output/battles/temp_player_" +
+                        std::to_string(report_seed) + ".json";
+                    rs.opponentJsonPath =
+                        "output/battles/temp_opponent_" +
+                        std::to_string(report_seed) + ".json";
+                    replay_entity.addComponent<ReplayState>(std::move(rs));
+                    afterhours::EntityHelper::registerSingleton<ReplayState>(
+                        replay_entity);
+                  }
+
+                  // Set up BattleLoadRequest
+                  const auto request_component_id =
+                      afterhours::components::get_type_id<BattleLoadRequest>();
+                  if (singletonMap.contains(request_component_id)) {
+                    auto request_entity =
+                        afterhours::EntityHelper::get_singleton<
+                            BattleLoadRequest>();
+                    if (request_entity.get().has<BattleLoadRequest>()) {
+                      BattleLoadRequest &request =
+                          request_entity.get().get<BattleLoadRequest>();
+                      request.playerJsonPath =
+                          "output/battles/temp_player_" +
+                          std::to_string(report_seed) + ".json";
+                      request.opponentJsonPath =
+                          "output/battles/temp_opponent_" +
+                          std::to_string(report_seed) + ".json";
+                      request.loaded = false;
+                    }
+                  }
+
+                  // Navigate to battle screen
+                  GameStateManager::get().to_battle();
+                }
+              },
+              button_index++);
+        }
+      }
+    }
+  }
 
   return GameStateManager::get().next_screen.value_or(
       GameStateManager::get().active_screen);

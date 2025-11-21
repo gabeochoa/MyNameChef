@@ -22,11 +22,12 @@
 #include "InitCombatState.h"
 #include "InitialShopFill.h"
 #include "InstantiateBattleTeamSystem.h"
+#include "LoadBattleHistorySystem.h"
 #include "LoadBattleResults.h"
 #include "ProcessBattleRewards.h"
-#include "SaveBattleReportSystem.h"
 #include "ReplayControllerSystem.h"
 #include "ResolveCombatTickSystem.h"
+#include "SaveBattleReportSystem.h"
 #include "ServerBattleRequestSystem.h"
 #include "SimplifiedOnServeSystem.h"
 #include "StartCourseSystem.h"
@@ -84,6 +85,7 @@ void register_battle_systems(afterhours::SystemManager &systems) {
 
   systems.register_update_system(std::make_unique<LoadBattleResults>());
   systems.register_update_system(std::make_unique<SaveBattleReportSystem>());
+  systems.register_update_system(std::make_unique<LoadBattleHistorySystem>());
   systems.register_update_system(std::make_unique<ProcessBattleRewards>());
   systems.register_update_system(std::make_unique<GameStateLoadSystem>());
   systems.register_update_system(std::make_unique<InitialShopFill>());

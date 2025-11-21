@@ -69,7 +69,8 @@ struct SaveBattleReportSystem : afterhours::System<> {
         if (!replay.opponentJsonPath.empty()) {
           std::filesystem::path opp_path(replay.opponentJsonPath);
           std::string filename = opp_path.filename().string();
-          // Extract opponent ID from filename (e.g., "temp_opponent_12345.json")
+          // Extract opponent ID from filename (e.g.,
+          // "temp_opponent_12345.json")
           if (filename.find("opponent_") != std::string::npos) {
             size_t start = filename.find("opponent_") + 9;
             size_t end = filename.find(".json");
@@ -122,7 +123,8 @@ struct SaveBattleReportSystem : afterhours::System<> {
     server::FileStorage::ensure_directory_exists(results_dir);
 
     std::string filename = report.get_filename();
-    std::string filepath = (std::filesystem::path(results_dir) / filename).string();
+    std::string filepath =
+        (std::filesystem::path(results_dir) / filename).string();
 
     // Serialize to JSON
     nlohmann::json report_json;
@@ -132,7 +134,8 @@ struct SaveBattleReportSystem : afterhours::System<> {
     report_json["events"] = report.events;
 
     if (!server::FileStorage::save_json_to_file(filepath, report_json)) {
-      log_error("SaveBattleReport: Failed to save battle report to {}", filepath);
+      log_error("SaveBattleReport: Failed to save battle report to {}",
+                filepath);
       saved = true; // Mark as saved to avoid repeated attempts
       return;
     }
@@ -146,4 +149,3 @@ struct SaveBattleReportSystem : afterhours::System<> {
     saved = true;
   }
 };
-

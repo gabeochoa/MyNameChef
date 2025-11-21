@@ -44,7 +44,8 @@ static void ensure_replay_state_exists(uint64_t seed) {
   auto &replayEntity = afterhours::EntityHelper::createEntity();
   ReplayState replay;
   replay.seed = seed;
-  replay.opponentJsonPath = "output/battles/temp_opponent_" + std::to_string(seed) + ".json";
+  replay.opponentJsonPath =
+      "output/battles/temp_opponent_" + std::to_string(seed) + ".json";
   replay.active = true;
   replayEntity.addComponent<ReplayState>(std::move(replay));
   afterhours::EntityHelper::registerSingleton<ReplayState>(replayEntity);
@@ -72,27 +73,31 @@ TEST(validate_battle_report_persistence) {
 
   app.clear_battle_dishes();
 
-  ValidateBattleReportPersistenceTestHelpers::ensure_battle_load_request_exists();
+  ValidateBattleReportPersistenceTestHelpers::
+      ensure_battle_load_request_exists();
   app.setup_battle();
   app.wait_for_frames(1);
 
   // Set a known seed for testing
   uint64_t test_seed = 12345678901234567890ULL;
   SeededRng::get().set_seed(test_seed);
-  ValidateBattleReportPersistenceTestHelpers::ensure_replay_state_exists(test_seed);
+  ValidateBattleReportPersistenceTestHelpers::ensure_replay_state_exists(
+      test_seed);
 
   // Create a simple battle scenario
-  afterhours::EntityID player_dish_id = app.create_dish(DishType::Potato)
-                                           .on_team(DishBattleState::TeamSide::Player)
-                                           .at_slot(0)
-                                           .with_combat_stats()
-                                           .commit();
+  afterhours::EntityID player_dish_id =
+      app.create_dish(DishType::Potato)
+          .on_team(DishBattleState::TeamSide::Player)
+          .at_slot(0)
+          .with_combat_stats()
+          .commit();
 
-  afterhours::EntityID opponent_dish_id = app.create_dish(DishType::Potato)
-                                             .on_team(DishBattleState::TeamSide::Opponent)
-                                             .at_slot(0)
-                                             .with_combat_stats()
-                                             .commit();
+  afterhours::EntityID opponent_dish_id =
+      app.create_dish(DishType::Potato)
+          .on_team(DishBattleState::TeamSide::Opponent)
+          .at_slot(0)
+          .with_combat_stats()
+          .commit();
 
   app.wait_for_frames(5);
 
@@ -177,9 +182,10 @@ TEST(validate_battle_report_persistence) {
                     "Battle report 'events' should be an array");
 
     // Verify filename format (should contain timestamp and seed)
-    std::string filename = std::filesystem::path(latest_report_file).filename().string();
+    std::string filename =
+        std::filesystem::path(latest_report_file).filename().string();
     log_info("TEST: Battle report filename: {}", filename);
-    
+
     // Filename should match pattern: YYYYMMDD_HHMMSS_<seed>.json
     // Check that it contains the seed
     std::string seed_str = std::to_string(test_seed);
@@ -223,25 +229,29 @@ TEST(validate_battle_report_file_retention) {
 
   app.clear_battle_dishes();
 
-  ValidateBattleReportPersistenceTestHelpers::ensure_battle_load_request_exists();
+  ValidateBattleReportPersistenceTestHelpers::
+      ensure_battle_load_request_exists();
   app.setup_battle();
   app.wait_for_frames(1);
 
   uint64_t test_seed = 9876543210ULL;
   SeededRng::get().set_seed(test_seed);
-  ValidateBattleReportPersistenceTestHelpers::ensure_replay_state_exists(test_seed);
+  ValidateBattleReportPersistenceTestHelpers::ensure_replay_state_exists(
+      test_seed);
 
-  afterhours::EntityID player_dish_id = app.create_dish(DishType::Potato)
-                                           .on_team(DishBattleState::TeamSide::Player)
-                                           .at_slot(0)
-                                           .with_combat_stats()
-                                           .commit();
+  afterhours::EntityID player_dish_id =
+      app.create_dish(DishType::Potato)
+          .on_team(DishBattleState::TeamSide::Player)
+          .at_slot(0)
+          .with_combat_stats()
+          .commit();
 
-  afterhours::EntityID opponent_dish_id = app.create_dish(DishType::Potato)
-                                             .on_team(DishBattleState::TeamSide::Opponent)
-                                             .at_slot(0)
-                                             .with_combat_stats()
-                                             .commit();
+  afterhours::EntityID opponent_dish_id =
+      app.create_dish(DishType::Potato)
+          .on_team(DishBattleState::TeamSide::Opponent)
+          .at_slot(0)
+          .with_combat_stats()
+          .commit();
 
   app.wait_for_frames(5);
 
@@ -254,7 +264,8 @@ TEST(validate_battle_report_file_retention) {
   app.wait_for_battle_complete(60.0f);
 
   app.wait_for_screen(GameStateManager::Screen::Results, 10.0f);
-  app.wait_for_frames(30); // Give SaveBattleReportSystem time to run and apply retention
+  app.wait_for_frames(
+      30); // Give SaveBattleReportSystem time to run and apply retention
 
   // Count files after save
   size_t final_count = 0;
@@ -274,4 +285,3 @@ TEST(validate_battle_report_file_retention) {
 
   log_info("TEST: File retention verified ({} files, max 20)", final_count);
 }
-

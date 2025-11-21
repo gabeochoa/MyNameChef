@@ -21,6 +21,7 @@ struct GameStateManager {
     Shop,
     Battle,
     Results,
+    History,
   } active_screen = Screen::Main;
 
   std::optional<Screen> next_screen = std::nullopt;
@@ -83,6 +84,7 @@ struct GameStateManager {
       return true;
     case Screen::Main:
     case Screen::Settings:
+    case Screen::History:
       return false;
     }
     return false;
@@ -97,6 +99,7 @@ struct GameStateManager {
     case Screen::Results:
     case Screen::Main:
     case Screen::Settings:
+    case Screen::History:
       return false;
     }
     return false;
@@ -113,6 +116,7 @@ struct GameStateManager {
     case Screen::Dishes:
     case Screen::Main:
     case Screen::Settings:
+    case Screen::History:
     default:
       return 1 | 2 | 4; // RenderScreen::All
     }
