@@ -110,7 +110,7 @@ SERVER_SRC += $(wildcard src/server/async/*.cpp)
 SERVER_SRC += $(wildcard src/server/tests/*.cpp)
 SERVER_SRC += $(filter-out src/main.cpp, $(wildcard src/*.cpp))
 SERVER_SRC += $(wildcard src/components/*.cpp)
-SERVER_SRC += $(filter-out src/systems/TestSystem.cpp, $(wildcard src/systems/*.cpp))
+SERVER_SRC += $(filter-out src/systems/TestSystem.cpp src/systems/DropWhenNoLongerHeld.cpp, $(wildcard src/systems/*.cpp))
 SERVER_SRC += $(wildcard src/ui/*.cpp)
 SERVER_SRC += $(wildcard src/utils/*.cpp)
 
@@ -133,10 +133,11 @@ $(CODE_HASH_GENERATED): scripts/generate_code_hash.sh
 	@echo "Generating code hash..."
 	@./scripts/generate_code_hash.sh
 
-# Default target
-all: $(CODE_HASH_GENERATED) $(MAIN_EXE)
+# Default target - builds both client and server
+.DEFAULT_GOAL := all
+all: $(CODE_HASH_GENERATED) $(MAIN_EXE) $(SERVER_EXE)
 
-# Build both targets
+# Build both targets (alias for all)
 both: $(CODE_HASH_GENERATED) $(MAIN_EXE) $(SERVER_EXE)
 
 # Main executable
