@@ -98,6 +98,7 @@ MAIN_SRC += src/main.cpp
 MAIN_SRC += $(wildcard src/components/*.cpp)
 MAIN_SRC += $(wildcard src/systems/*.cpp)
 MAIN_SRC += $(wildcard src/ui/*.cpp)
+MAIN_SRC += $(wildcard src/utils/*.cpp)
 MAIN_SRC += src/server/file_storage.cpp
 MAIN_SRC += src/testing/test_app.cpp
 MAIN_SRC += src/testing/test_context.cpp
@@ -111,6 +112,7 @@ SERVER_SRC += $(filter-out src/main.cpp, $(wildcard src/*.cpp))
 SERVER_SRC += $(wildcard src/components/*.cpp)
 SERVER_SRC += $(filter-out src/systems/TestSystem.cpp, $(wildcard src/systems/*.cpp))
 SERVER_SRC += $(wildcard src/ui/*.cpp)
+SERVER_SRC += $(wildcard src/utils/*.cpp)
 
 # Object files
 MAIN_OBJS := $(MAIN_SRC:src/%.cpp=$(OBJ_DIR)/main/%.o)
@@ -124,33 +126,40 @@ SERVER_DEPS := $(SERVER_OBJS:.o=.d)
 MAIN_EXE := $(OUTPUT_DIR)/my_name_chef$(EXT)
 SERVER_EXE := $(OUTPUT_DIR)/battle_server$(EXT)
 
+# Code hash generation
+CODE_HASH_GENERATED := src/utils/code_hash_generated.h
+
+$(CODE_HASH_GENERATED): scripts/generate_code_hash.sh
+	@echo "Generating code hash..."
+	@./scripts/generate_code_hash.sh
+
 # Default target
-all: $(MAIN_EXE)
+all: $(CODE_HASH_GENERATED) $(MAIN_EXE)
 
 # Build both targets
-both: $(MAIN_EXE) $(SERVER_EXE)
+both: $(CODE_HASH_GENERATED) $(MAIN_EXE) $(SERVER_EXE)
 
 # Main executable
-$(MAIN_EXE): $(MAIN_OBJS) | $(OUTPUT_DIR)/.stamp
+$(MAIN_EXE): $(CODE_HASH_GENERATED) $(MAIN_OBJS) | $(OUTPUT_DIR)/.stamp
 	@echo "Linking $(MAIN_EXE)..."
 	$(CXX) $(CXXFLAGS) $(MAIN_OBJS) $(LDFLAGS) -o $@
 	@echo "Built $(MAIN_EXE)"
 
 # Battle server executable
 $(SERVER_EXE): CXXFLAGS += -DHEADLESS_MODE
-$(SERVER_EXE): $(SERVER_OBJS) | $(OUTPUT_DIR)/.stamp
+$(SERVER_EXE): $(CODE_HASH_GENERATED) $(SERVER_OBJS) | $(OUTPUT_DIR)/.stamp
 	@echo "Linking $(SERVER_EXE)..."
 	$(CXX) $(CXXFLAGS) $(SERVER_OBJS) $(LDFLAGS) -o $@
 	@echo "Built $(SERVER_EXE)"
 
 # Compile main object files
-$(OBJ_DIR)/main/%.o: src/%.cpp | $(OBJ_DIR)/main
+$(OBJ_DIR)/main/%.o: src/%.cpp $(CODE_HASH_GENERATED) | $(OBJ_DIR)/main
 	@echo "Compiling $<..."
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@ -MMD -MP -MF $(@:.o=.d) -MT $@
 
 # Compile server object files
-$(OBJ_DIR)/server/%.o: src/%.cpp | $(OBJ_DIR)/server
+$(OBJ_DIR)/server/%.o: src/%.cpp $(CODE_HASH_GENERATED) | $(OBJ_DIR)/server
 	@echo "Compiling $<..."
 	@mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -DHEADLESS_MODE $(INCLUDES) -c $< -o $@ -MMD -MP -MF $(@:.o=.d) -MT $@

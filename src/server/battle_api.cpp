@@ -143,6 +143,7 @@ void BattleAPI::handle_health_request(const httplib::Request &,
     response["issues"] = issues;
   }
   response["opponent_count"] = opponent_count;
+  response["codeHash"] = SHARED_CODE_HASH;
 
   res.set_content(response.dump(), "application/json");
   res.status = 200;
@@ -174,6 +175,28 @@ void BattleAPI::handle_battle_request(const httplib::Request &req,
     return_if(req.body.empty(), 400, "Request body is empty");
 
     nlohmann::json request_json = nlohmann::json::parse(req.body);
+
+    std::string client_hash = request_json.value("codeHash", std::string(""));
+    std::string server_hash = SHARED_CODE_HASH;
+
+    if (client_hash != server_hash) {
+      log_error(
+          "[{}] CODE_HASH: Version mismatch - Client hash: {}, Server hash: {}",
+          request_id, client_hash, server_hash);
+      nlohmann::json error_response;
+      error_response["error"] =
+          "Code version mismatch. Client hash: " + client_hash +
+          ", Server hash: " + server_hash +
+          ". Please update client/server to matching version.";
+      error_response["clientHash"] = client_hash;
+      error_response["serverHash"] = server_hash;
+      res.set_content(error_response.dump(), "application/json");
+      res.status = 400;
+      return;
+    }
+
+    log_info("[{}] CODE_HASH: Client hash: {}, Server hash: {}, Match: true",
+             request_id, client_hash, server_hash);
 
     return_if(
         !TeamManager::validate_team_json(request_json, config.max_team_size),

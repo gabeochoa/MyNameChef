@@ -8,6 +8,7 @@
 #include "../log.h"
 #include "../server/file_storage.h"
 #include "../systems/GameStateSaveSystem.h"
+#include "../utils/code_hash_generated.h"
 #include "../utils/http_helpers.h"
 #include <afterhours/ah.h>
 #include <filesystem>
@@ -60,6 +61,9 @@ struct ServerBattleRequestSystem : afterhours::System<BattleLoadRequest> {
     if (save_result.success) {
       player_team_json["checksum"] = save_result.checksum;
     }
+
+    player_team_json["codeHash"] = SHARED_CODE_HASH;
+    log_info("SERVER_BATTLE_REQUEST: Client code hash: {}", SHARED_CODE_HASH);
 
     http_helpers::ServerUrlParts url_parts =
         http_helpers::parse_server_url(request.serverUrl);
