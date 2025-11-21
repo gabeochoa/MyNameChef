@@ -425,8 +425,16 @@ Screen ScheduleMainMenuUI::settings_screen(Entity &entity,
   // Battle Speed selector
   {
     float current_speed = Settings::get().get_battle_speed();
-    std::string speed_label =
-        fmt::format("Battle Speed: ×{:.0f}", current_speed);
+    std::string speed_label;
+    if (current_speed == 1.0f) {
+      speed_label = "Battle Speed: ×0.5";
+    } else if (current_speed == 2.0f) {
+      speed_label = "Battle Speed: ×1";
+    } else if (current_speed == 4.0f) {
+      speed_label = "Battle Speed: ×2";
+    } else {
+      speed_label = "Battle Speed: ×4";
+    }
     button_labeled<InputAction>(
         context, top_left.ent(), speed_label,
         []() {
@@ -436,6 +444,8 @@ Screen ScheduleMainMenuUI::settings_screen(Entity &entity,
             next_speed = 2.0f;
           } else if (current == 2.0f) {
             next_speed = 4.0f;
+          } else if (current == 4.0f) {
+            next_speed = 8.0f;
           } else {
             next_speed = 1.0f;
           }
@@ -703,30 +713,38 @@ Screen ScheduleMainMenuUI::battle_screen(Entity &entity,
               .with_debug_name("speed_label")
               .with_label(speed_text));
 
-      // Battle speed control buttons (1x, 2x, 4x)
+      // Battle speed control buttons (0.5x, 1x, 2x, 4x)
       button_labeled<InputAction>(
-          context, replay_bar.ent(), "1x",
+          context, replay_bar.ent(), "0.5x",
           []() {
             render_backend::timing_speed_scale = 1.0f;
             Settings::get().set_battle_speed(1.0f);
           },
-          3, "battle_speed_1x");
+          3, "battle_speed_0.5x");
 
       button_labeled<InputAction>(
-          context, replay_bar.ent(), "2x",
+          context, replay_bar.ent(), "1x",
           []() {
             render_backend::timing_speed_scale = 2.0f;
             Settings::get().set_battle_speed(2.0f);
           },
-          4, "battle_speed_2x");
+          4, "battle_speed_1x");
 
       button_labeled<InputAction>(
-          context, replay_bar.ent(), "4x",
+          context, replay_bar.ent(), "2x",
           []() {
             render_backend::timing_speed_scale = 4.0f;
             Settings::get().set_battle_speed(4.0f);
           },
-          5, "battle_speed_4x");
+          5, "battle_speed_2x");
+
+      button_labeled<InputAction>(
+          context, replay_bar.ent(), "4x",
+          []() {
+            render_backend::timing_speed_scale = 8.0f;
+            Settings::get().set_battle_speed(8.0f);
+          },
+          6, "battle_speed_4x");
     }
   } else {
     // Show battle speed controls even when not in replay mode
@@ -759,30 +777,38 @@ Screen ScheduleMainMenuUI::battle_screen(Entity &entity,
                  .with_debug_name("speed_label")
                  .with_label(speed_text));
 
-    // Battle speed control buttons (1x, 2x, 4x)
+    // Battle speed control buttons (0.5x, 1x, 2x, 4x)
     button_labeled<InputAction>(
-        context, battle_bar.ent(), "1x",
+        context, battle_bar.ent(), "0.5x",
         []() {
           render_backend::timing_speed_scale = 1.0f;
           Settings::get().set_battle_speed(1.0f);
         },
-        1, "battle_speed_1x");
+        1, "battle_speed_0.5x");
 
     button_labeled<InputAction>(
-        context, battle_bar.ent(), "2x",
+        context, battle_bar.ent(), "1x",
         []() {
           render_backend::timing_speed_scale = 2.0f;
           Settings::get().set_battle_speed(2.0f);
         },
-        2, "battle_speed_2x");
+        2, "battle_speed_1x");
 
     button_labeled<InputAction>(
-        context, battle_bar.ent(), "4x",
+        context, battle_bar.ent(), "2x",
         []() {
           render_backend::timing_speed_scale = 4.0f;
           Settings::get().set_battle_speed(4.0f);
         },
-        3, "battle_speed_4x");
+        3, "battle_speed_2x");
+
+    button_labeled<InputAction>(
+        context, battle_bar.ent(), "4x",
+        []() {
+          render_backend::timing_speed_scale = 8.0f;
+          Settings::get().set_battle_speed(8.0f);
+        },
+        4, "battle_speed_4x");
   }
 
   return GameStateManager::get().next_screen.value_or(
