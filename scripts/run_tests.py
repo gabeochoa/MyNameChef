@@ -450,6 +450,8 @@ def categorize_tests(tests: List[str]) -> Tuple[List[str], List[str]]:
         "validate_seeded_rng_determinism",
         "validate_seeded_rng_helper_methods",
         "validate_combat_system",
+        "validate_battle_report_persistence",
+        "validate_battle_report_file_retention",
         "validate_battle_results",
         "validate_survivor_carryover_single",
         "validate_survivor_carryover_positions",
