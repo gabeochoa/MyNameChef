@@ -16,7 +16,7 @@ TEST(validate_shop_freeze) {
 
   // Navigate to shop screen
   app.navigate_to_shop();
-  app.wait_for_ui_exists("Reroll (1)");
+  app.wait_for_ui_exists("Reroll (1 gold)");
   app.wait_for_frames(5); // Allow shop systems to fully initialize
 
   // Get initial shop items with their IDs and dish types
@@ -66,7 +66,7 @@ TEST(validate_shop_freeze) {
   wallet.gold = 200;
 
   // Click reroll
-  app.click("Reroll (1)");
+  app.click("Reroll (1 gold)");
   app.wait_for_frames(5); // Wait for reroll to process
 
   // Verify frozen items still exist with same dish types

@@ -14,7 +14,7 @@ TEST(validate_shop_freeze_unfreeze) {
   // Test that frozen shop items can be manually unfrozen by toggling freeze state
 
   app.navigate_to_shop();
-  app.wait_for_ui_exists("Reroll (1)");
+  app.wait_for_ui_exists("Reroll (1 gold)");
   app.wait_for_frames(5);
 
   // Find a shop item and freeze it

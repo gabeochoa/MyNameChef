@@ -32,7 +32,7 @@ TEST(validate_full_game_flow) {
 
   // Step 3: Validate shop functionality
   app.wait_for_ui_exists("Next Round");
-  app.wait_for_ui_exists("Reroll (1)");
+  app.wait_for_ui_exists("Reroll (1 gold)");
 
   // Step 3.5: Create dishes if inventory is empty
   const auto inventory = app.read_player_inventory();

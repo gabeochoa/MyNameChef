@@ -15,7 +15,7 @@ TEST(validate_reroll_cost) {
 
   // Navigate to shop screen
   app.navigate_to_shop();
-  app.wait_for_ui_exists("Reroll (1)");
+  app.wait_for_ui_exists("Reroll (1 gold)");
   app.wait_for_frames(5); // Allow shop systems to fully initialize
 
   // Get initial shop items to compare later
@@ -60,7 +60,7 @@ TEST(validate_reroll_cost) {
   // The callback will charge the wallet and reroll shop items
   // Callback logs confirm it charges correctly (we see "Charged X gold, wallet
   // now has Y")
-  app.click("Reroll (1)");
+  app.click("Reroll (1 gold)");
 
   // Wait for systems to process the reroll
   app.wait_for_frames(3);
@@ -100,7 +100,7 @@ TEST(validate_reroll_cost) {
 
   // Try to click reroll (should not work, wallet should stay at 0)
   int gold_before_attempt = app.read_wallet_gold();
-  app.click("Reroll (1)");
+  app.click("Reroll (1 gold)");
   app.wait_for_frames(2);
 
   int gold_after_attempt = app.read_wallet_gold();

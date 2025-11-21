@@ -20,7 +20,7 @@ TEST(validate_shop_freeze_battle_persistence) {
   app.wait_for_ui_exists("Play");
   app.click("Play");
   app.wait_for_screen(GameStateManager::Screen::Shop, 10.0f);
-  app.wait_for_ui_exists("Reroll (1)");
+  app.wait_for_ui_exists("Reroll (1 gold)");
   app.wait_for_frames(10);
 
   // Get initial shop items and freeze some
@@ -73,7 +73,7 @@ TEST(validate_shop_freeze_battle_persistence) {
   app.wait_for_ui_exists("Back to Shop", 5.0f);
   app.click("Back to Shop");
   app.wait_for_screen(GameStateManager::Screen::Shop, 10.0f);
-  app.wait_for_ui_exists("Reroll (1)");
+  app.wait_for_ui_exists("Reroll (1 gold)");
   app.wait_for_frames(15);
 
   // Wait for shop items to be restored using read_store_options

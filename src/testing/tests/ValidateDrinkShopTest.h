@@ -11,7 +11,7 @@ TEST(validate_drink_shop) {
 
   // Verify UI elements exist
   app.wait_for_ui_exists("Next Round");
-  app.wait_for_ui_exists("Reroll (1)");
+  app.wait_for_ui_exists("Reroll (1 gold)");
 
   // Wait for systems to create drink shop items
   app.wait_for_frames(10);

@@ -16,7 +16,7 @@ TEST(validate_shop_freeze_purchase) {
 
   app.launch_game();
   app.navigate_to_shop();
-  app.wait_for_ui_exists("Reroll (1)");
+  app.wait_for_ui_exists("Reroll (1 gold)");
   app.wait_for_frames(10);
 
   // Wait for shop items to be created using read_store_options

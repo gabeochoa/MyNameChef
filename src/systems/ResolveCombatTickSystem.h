@@ -14,6 +14,7 @@
 #include "../render_backend.h"
 #include "../render_constants.h"
 #include "../shop.h"
+#include "../systems/SimplifiedOnServeSystem.h"
 #include <afterhours/ah.h>
 #include <afterhours/src/plugins/animation.h>
 #include <afterhours/src/plugins/texture_manager.h>
@@ -247,22 +248,42 @@ private:
     for (DishBattleState::TeamSide side :
          {DishBattleState::TeamSide::Player,
           DishBattleState::TeamSide::Opponent}) {
-      afterhours::RefEntities active_dishes =
+      // Get all dishes for this side, including Finished ones (we'll check if they should be reset)
+      afterhours::RefEntities all_dishes =
           EQ({.ignore_temp_warning = true})
               .whereHasComponent<DishBattleState>()
               .whereTeamSide(side)
-              .whereLambda([](const afterhours::Entity &e) {
-                const DishBattleState &dbs = e.get<DishBattleState>();
-                return dbs.phase == DishBattleState::Phase::InQueue ||
-                       dbs.phase == DishBattleState::Phase::Entering ||
-                       dbs.phase == DishBattleState::Phase::InCombat;
-              })
               .orderByLambda(
                   [](const afterhours::Entity &a, const afterhours::Entity &b) {
                     return a.get<DishBattleState>().queue_index <
                            b.get<DishBattleState>().queue_index;
                   })
               .gen();
+      
+      // Filter to active dishes (exclude Finished dishes - they shouldn't be renumbered)
+      afterhours::RefEntities active_dishes;
+      afterhours::RefEntities finished_with_body; // Finished dishes with body > 0 that need reset
+      for (afterhours::RefEntity dish_ref : all_dishes) {
+        afterhours::Entity &dish = dish_ref.get();
+        const DishBattleState &dbs = dish.get<DishBattleState>();
+        bool is_active = dbs.phase == DishBattleState::Phase::InQueue ||
+                        dbs.phase == DishBattleState::Phase::Entering ||
+                        dbs.phase == DishBattleState::Phase::InCombat;
+        
+        // Track Finished dishes with body remaining separately (they need reset but not renumbering)
+        if (!is_active && dbs.phase == DishBattleState::Phase::Finished) {
+          if (dish.has<CombatStats>()) {
+            const CombatStats &cs = dish.get<CombatStats>();
+            if (cs.currentBody > 0) {
+              finished_with_body.push_back(dish_ref); // Will reset later, but don't renumber
+            }
+          }
+        }
+        
+        if (is_active) {
+          active_dishes.push_back(dish_ref);
+        }
+      }
 
       int new_index = 0;
       for (afterhours::Entity &dish : active_dishes) {
@@ -293,16 +314,32 @@ private:
         // Reset dishes that were InCombat or Entering to InQueue so they can
         // start new fights (survivors from previous combat need to reset combat
         // state)
+        // Also reset dishes that are Finished but have body remaining (shouldn't happen,
+        // but can occur due to timing issues or incorrect state transitions)
+        bool should_reset = false;
+        const char *old_phase = "";
         if (dbs.phase == DishBattleState::Phase::InCombat ||
             dbs.phase == DishBattleState::Phase::Entering) {
-          const char *old_phase =
-              (dbs.phase == DishBattleState::Phase::InCombat) ? "InCombat"
-                                                              : "Entering";
+          should_reset = true;
+          old_phase = (dbs.phase == DishBattleState::Phase::InCombat) ? "InCombat" : "Entering";
+        } else if (dbs.phase == DishBattleState::Phase::Finished) {
+          // Check if dish has body remaining - if so, it shouldn't be Finished
+          if (dish.has<CombatStats>()) {
+            const CombatStats &cs = dish.get<CombatStats>();
+            if (cs.currentBody > 0) {
+              should_reset = true;
+              old_phase = "Finished (but has body remaining)";
+            }
+          }
+        }
+        
+        if (should_reset) {
           dbs.phase = DishBattleState::Phase::InQueue;
           dbs.enter_progress = 0.0f;
           dbs.first_bite_decided = false;
           dbs.bite_cadence = DishBattleState::BiteCadence::PrePause;
           dbs.bite_cadence_timer = 0.0f;
+          dbs.onserve_fired = false;
           log_info("COMBAT: Resetting {} side dish {} from {} to InQueue after "
                    "reorganization",
                    side == DishBattleState::TeamSide::Player ? "Player"
@@ -311,6 +348,51 @@ private:
         }
 
         new_index++;
+      }
+      
+      // Reset Finished dishes with body remaining (they shouldn't be Finished)
+      for (afterhours::Entity &dish : finished_with_body) {
+        DishBattleState &dbs = dish.get<DishBattleState>();
+        dbs.phase = DishBattleState::Phase::InQueue;
+        dbs.enter_progress = 0.0f;
+        dbs.first_bite_decided = false;
+        dbs.bite_cadence = DishBattleState::BiteCadence::PrePause;
+        dbs.bite_cadence_timer = 0.0f;
+        dbs.onserve_fired = false;
+        log_info("COMBAT: Resetting {} side dish {} from Finished to InQueue (has body remaining, not renumbered)",
+                 side == DishBattleState::TeamSide::Player ? "Player" : "Opponent",
+                 dish.id);
+      }
+    }
+    
+    bool any_reset = false;
+    for (DishBattleState::TeamSide side :
+         {DishBattleState::TeamSide::Player,
+          DishBattleState::TeamSide::Opponent}) {
+      afterhours::RefEntities active_dishes =
+          EQ({.ignore_temp_warning = true})
+              .whereHasComponent<DishBattleState>()
+              .whereTeamSide(side)
+              .whereLambda([](const afterhours::Entity &e) {
+                const DishBattleState &dbs = e.get<DishBattleState>();
+                return dbs.phase == DishBattleState::Phase::InQueue &&
+                       !dbs.onserve_fired;
+              })
+              .gen();
+      if (!active_dishes.empty()) {
+        any_reset = true;
+        break;
+      }
+    }
+    
+    if (any_reset) {
+      for (afterhours::Entity &e :
+           afterhours::EntityQuery({.ignore_temp_warning = true})
+               .whereHasComponent<OnServeState>()
+               .gen()) {
+        OnServeState &state = e.get<OnServeState>();
+        state.allFired = false;
+        log_info("COMBAT: Reset OnServeState.allFired=false after reorganization");
       }
     }
   }

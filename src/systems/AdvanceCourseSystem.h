@@ -11,6 +11,7 @@
 #include "../render_backend.h"
 #include "../render_constants.h"
 #include "../shop.h"
+#include "../systems/SimplifiedOnServeSystem.h"
 #include "../utils/battle_fingerprint.h"
 #include <afterhours/ah.h>
 #include <afterhours/src/plugins/texture_manager.h>
@@ -81,10 +82,30 @@ struct AdvanceCourseSystem : afterhours::System<CombatQueue> {
                  "{}, Opponent: {})",
                  player_active_count, opponent_active_count);
       } else if (cq.current_index >= cq.total_courses - 1) {
-        cq.complete = true;
-        log_info("COMBAT: All courses complete - reached max courses {} "
-                 "(Player: {} active, Opponent: {} active)",
+        // Reached max courses, but both teams still have dishes
+        // Don't mark complete - let the battle continue until one team is exhausted
+        // This can happen in survivor carryover scenarios where dishes fight multiple courses
+        log_info("COMBAT: Reached max courses {} but both teams have dishes "
+                 "(Player: {} active, Opponent: {} active) - continuing battle",
                  cq.total_courses, player_active_count, opponent_active_count);
+        // Extend total_courses to allow battle to continue
+        cq.total_courses = cq.current_index + 2;
+        cq.current_index++;
+        // Clear tracked dish IDs so the next course can track its own dishes
+        cq.current_player_dish_id = std::nullopt;
+        cq.current_opponent_dish_id = std::nullopt;
+        log_info("COMBAT: Extended total_courses to {} and advancing to course {}",
+                 cq.total_courses, cq.current_index);
+        
+        // Reset OnServeState so SimplifiedOnServeSystem can fire OnServe
+        for (afterhours::Entity &e :
+             afterhours::EntityQuery({.ignore_temp_warning = true})
+                 .whereHasComponent<OnServeState>()
+                 .gen()) {
+          OnServeState &state = e.get<OnServeState>();
+          state.allFired = false;
+          log_info("COMBAT: Reset OnServeState.allFired=false for course {}", cq.current_index);
+        }
       } else {
         cq.current_index++;
         // Clear tracked dish IDs so the next course can track its own dishes
@@ -93,6 +114,18 @@ struct AdvanceCourseSystem : afterhours::System<CombatQueue> {
         log_info("COMBAT: Advancing to course {} - Player: {} active dishes, "
                  "Opponent: {} active dishes",
                  cq.current_index, player_active_count, opponent_active_count);
+        
+        // CRITICAL: Reset OnServeState so SimplifiedOnServeSystem can fire OnServe
+        // for dishes that were reset to InQueue after reorganization
+        // Dishes that survive a course are reset to InQueue and need OnServe to fire again
+        for (afterhours::Entity &e :
+             afterhours::EntityQuery({.ignore_temp_warning = true})
+                 .whereHasComponent<OnServeState>()
+                 .gen()) {
+          OnServeState &state = e.get<OnServeState>();
+          state.allFired = false;
+          log_info("COMBAT: Reset OnServeState.allFired=false for course {}", cq.current_index);
+        }
       }
     }
   }
@@ -138,8 +171,9 @@ private:
                    : -1,
                player_finished);
     } else {
-      log_info("COMBAT_ADVANCE: Tracked player dish {} not found",
+      log_info("COMBAT_ADVANCE: Tracked player dish {} not found - treating as finished",
                player_dish_id);
+      player_finished = true;
     }
 
     auto opponent_entity_opt =
@@ -164,8 +198,9 @@ private:
                    : -1,
                opponent_finished);
     } else {
-      log_info("COMBAT_ADVANCE: Tracked opponent dish {} not found",
+      log_info("COMBAT_ADVANCE: Tracked opponent dish {} not found - treating as finished",
                opponent_dish_id);
+      opponent_finished = true;
     }
 
     // Course is finished when either dish is Finished (one defeated means course is done)

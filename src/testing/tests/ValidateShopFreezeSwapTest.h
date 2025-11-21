@@ -15,7 +15,7 @@ TEST(validate_shop_freeze_swap) {
   // Test that frozen shop items maintain their freeze state when swapped with other shop items
 
   app.navigate_to_shop();
-  app.wait_for_ui_exists("Reroll (1)");
+  app.wait_for_ui_exists("Reroll (1 gold)");
   app.wait_for_frames(5);
 
   // Get initial shop items

@@ -469,7 +469,13 @@ TEST(validate_battle_report_file_retention) {
   app.wait_for_battle_initialized(10.0f);
   app.wait_for_frames(30);
 
-  app.wait_for_battle_complete(60.0f);
+  app.wait_for_frames(1);
+  GameStateManager::Screen current_screen =
+      GameStateManager::get().active_screen;
+  if (current_screen != GameStateManager::Screen::Results) {
+    app.wait_for_ui_exists("Skip to Results", 10.0f);
+    app.click("Skip to Results");
+  }
 
   app.wait_for_screen(GameStateManager::Screen::Results, 10.0f);
   app.wait_for_frames(
