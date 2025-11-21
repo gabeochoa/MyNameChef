@@ -85,12 +85,17 @@ struct SaveBattleReportSystem : afterhours::System<> {
     // Fallback to SeededRng seed if ReplayState not available
     if (seed == 0) {
       seed = SeededRng::get().seed;
+      log_info("SAVE_BATTLE_REPORT: Using SeededRng seed: {}", seed);
+    } else {
+      log_info("SAVE_BATTLE_REPORT: Using ReplayState seed: {}", seed);
     }
 
     // Create BattleReport
     BattleReport report;
     report.seed = seed;
     report.opponentId = opponent_id;
+    log_info("SAVE_BATTLE_REPORT: Saving report with seed: {}, opponentId: {}",
+             report.seed, report.opponentId);
     report.receivedFromServer = false;
     report.timestamp = std::chrono::system_clock::now();
 

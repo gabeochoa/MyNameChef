@@ -211,7 +211,10 @@ private:
       // - seed (already deterministic)
       // - totalFrames (from server simulation completion)
       // - Any other state needed for accurate replay
-      rs.seed = 1234567890;
+      // Use seed from SeededRng if not already set in ReplayState
+      if (rs.seed == 0) {
+        rs.seed = SeededRng::get().seed;
+      }
       rs.active = true;
       rs.paused = false;
       rs.timeScale = 1.0f;

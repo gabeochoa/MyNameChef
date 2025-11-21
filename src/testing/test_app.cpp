@@ -3457,11 +3457,37 @@ TestApp &TestApp::set_dish_combat_stats(afterhours::EntityID dish_id, int body,
     return *this;
   }
 
+  if (!entity->has<IsDish>()) {
+    fail("Entity is not a dish: " + std::to_string(dish_id), location);
+    return *this;
+  }
+
+  // Get base flavor stats for this dish type
+  const IsDish &dish = entity->get<IsDish>();
+  DishInfo dish_info = get_dish_info(dish.type);
+  int base_flavor_body = dish_info.flavor.body();
+  int base_flavor_zing = dish_info.flavor.zing();
+
+  // Calculate deltas needed to achieve desired stats
+  // ComputeCombatStatsSystem will add PersistentCombatModifiers to base flavor stats
+  int body_delta = body - base_flavor_body;
+  int zing_delta = zing - base_flavor_zing;
+
+  // Set PersistentCombatModifiers so ComputeCombatStatsSystem applies them
+  PersistentCombatModifiers &mod =
+      entity->addComponentIfMissing<PersistentCombatModifiers>();
+  mod.bodyDelta = body_delta;
+  mod.zingDelta = zing_delta;
+
+  // Also ensure CombatStats exists and set current values directly
+  // ComputeCombatStatsSystem will sync these from base stats
   if (!entity->has<CombatStats>()) {
     entity->addComponent<CombatStats>();
   }
 
   CombatStats &stats = entity->get<CombatStats>();
+  // Set base stats (ComputeCombatStatsSystem will recalculate, but this ensures
+  // they're set initially)
   stats.baseBody = body;
   stats.baseZing = zing;
   stats.currentBody = body;

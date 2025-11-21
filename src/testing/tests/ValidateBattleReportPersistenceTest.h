@@ -1,10 +1,12 @@
 #pragma once
 
 #include "../../components/battle_load_request.h"
+#include "../../components/battle_processor.h"
 #include "../../components/battle_result.h"
 #include "../../components/replay_state.h"
 #include "../../game_state_manager.h"
 #include "../../log.h"
+#include "../../query.h"
 #include "../../seeded_rng.h"
 #include "../../server/file_storage.h"
 #include "../test_macros.h"
@@ -53,7 +55,49 @@ static void ensure_replay_state_exists(uint64_t seed) {
 } // namespace ValidateBattleReportPersistenceTestHelpers
 
 TEST(validate_battle_report_persistence) {
-  log_info("TEST: Starting validate_battle_report_persistence test");
+  // Use global static flag to prevent test from running multiple times
+  static bool test_completed = false;
+  static bool test_started = false;
+  static const TestOperationID main_test_op =
+      TestApp::generate_operation_id(std::source_location::current(),
+                                     "validate_battle_report_persistence.main");
+
+  log_info(
+      "TEST: validate_battle_report_persistence - Entry: test_completed={}, "
+      "test_started={}, test_in_progress={}, main_test_op_completed={}",
+      test_completed, test_started, app.test_in_progress,
+      app.completed_operations.count(main_test_op) > 0 ? 1 : 0);
+
+  // If test already completed, don't run again
+  if (test_completed) {
+    log_info("TEST: validate_battle_report_persistence - Exiting early: "
+             "test_completed=true");
+    return; // Test already completed, exit early
+  }
+
+  // Use operation ID to ensure main test logic only runs once
+  // Only check, don't insert until test completes - this allows the test to
+  // yield and resume properly
+  if (app.completed_operations.count(main_test_op) > 0) {
+    log_info("TEST: validate_battle_report_persistence - Exiting early: "
+             "main_test_op already completed");
+    return; // Main test logic already completed, exit early
+  }
+
+  // Note: We don't check test_started && test_in_progress here because
+  // the test framework calls the function from the beginning each time it
+  // resumes. Operations with operation IDs (like launch_game) will skip if
+  // already done, allowing the test to continue from where it left off.
+
+  if (!test_started) {
+    log_info("TEST: ========== STARTING validate_battle_report_persistence "
+             "test ==========");
+    test_started = true;
+  } else {
+    log_info("TEST: validate_battle_report_persistence - Resuming "
+             "(test_started=true, test_in_progress={})",
+             app.test_in_progress);
+  }
 
   // Clean up any existing battle reports for this test
   std::string results_dir = "output/battles/results";
@@ -68,54 +112,208 @@ TEST(validate_battle_report_persistence) {
     log_info("TEST: Found {} existing battle report files", initial_file_count);
   }
 
+  log_info("TEST: Step 1 - Launching game (test_in_progress={})",
+           app.test_in_progress);
   app.launch_game();
+  log_info("TEST: Step 1 - After launch_game() (test_in_progress={})",
+           app.test_in_progress);
   app.wait_for_frames(1);
+  log_info("TEST: Step 1 - After wait_for_frames(1) (test_in_progress={})",
+           app.test_in_progress);
 
-  app.clear_battle_dishes();
+  // Use operation IDs to prevent these steps from running multiple times
+  static const TestOperationID setup_op = TestApp::generate_operation_id(
+      std::source_location::current(),
+      "validate_battle_report_persistence.setup");
+  log_info("TEST: Checking setup_op - completed={}",
+           app.completed_operations.count(setup_op) > 0 ? 1 : 0);
+  if (app.completed_operations.count(setup_op) == 0) {
+    log_info("TEST: Step 2 - Clearing battle dishes (setup_op not completed)");
+    app.clear_battle_dishes();
 
-  ValidateBattleReportPersistenceTestHelpers::
-      ensure_battle_load_request_exists();
-  app.setup_battle();
-  app.wait_for_frames(1);
+    log_info("TEST: Step 3 - Setting up battle load request");
+    ValidateBattleReportPersistenceTestHelpers::
+        ensure_battle_load_request_exists();
 
-  // Set a known seed for testing
+    log_info("TEST: Step 4 - Setting up battle screen");
+    app.setup_battle();
+    app.wait_for_frames(1);
+
+    // Set a known seed for testing
+    uint64_t test_seed = 12345678901234567890ULL;
+    log_info("TEST: Step 5 - Setting seed to {}", test_seed);
+    SeededRng::get().set_seed(test_seed);
+    ValidateBattleReportPersistenceTestHelpers::ensure_replay_state_exists(
+        test_seed);
+
+    // Create a simple battle scenario
+    log_info("TEST: Step 6 - Creating player dish");
+    afterhours::EntityID player_dish_id =
+        app.create_dish(DishType::Potato)
+            .on_team(DishBattleState::TeamSide::Player)
+            .at_slot(0)
+            .with_combat_stats()
+            .commit();
+    log_info("TEST: Created player dish with ID {}", player_dish_id);
+
+    log_info("TEST: Step 7 - Creating opponent dish");
+    afterhours::EntityID opponent_dish_id =
+        app.create_dish(DishType::Potato)
+            .on_team(DishBattleState::TeamSide::Opponent)
+            .at_slot(0)
+            .with_combat_stats()
+            .commit();
+    log_info("TEST: Created opponent dish with ID {}", opponent_dish_id);
+
+    app.completed_operations.insert(setup_op);
+    log_info("TEST: Setup completed, marked setup_op as done");
+  } else {
+    log_info("TEST: Setup already completed (setup_op found), skipping dish "
+             "creation");
+  }
+
+  // Find dishes by querying - they may have been created in a previous call
+  // Set a known seed for testing (needed for BattleLoadRequest paths)
   uint64_t test_seed = 12345678901234567890ULL;
-  SeededRng::get().set_seed(test_seed);
-  ValidateBattleReportPersistenceTestHelpers::ensure_replay_state_exists(
-      test_seed);
 
-  // Create a simple battle scenario
-  afterhours::EntityID player_dish_id =
-      app.create_dish(DishType::Potato)
-          .on_team(DishBattleState::TeamSide::Player)
-          .at_slot(0)
-          .with_combat_stats()
-          .commit();
+  // Use operation ID to prevent these steps from running multiple times
+  static const TestOperationID battle_setup_op = TestApp::generate_operation_id(
+      std::source_location::current(),
+      "validate_battle_report_persistence.battle_setup");
+  if (app.completed_operations.count(battle_setup_op) == 0) {
+    app.wait_for_frames(5);
 
-  afterhours::EntityID opponent_dish_id =
-      app.create_dish(DishType::Potato)
-          .on_team(DishBattleState::TeamSide::Opponent)
-          .at_slot(0)
-          .with_combat_stats()
-          .commit();
+    // Set up BattleLoadRequest with valid paths and mark as loaded
+    // This is needed for BattleProcessorSystem to start the battle
+    log_info("TEST: Step 8 - Setting up BattleLoadRequest");
+    auto request_entity =
+        afterhours::EntityHelper::get_singleton<BattleLoadRequest>();
+    if (request_entity.get().has<BattleLoadRequest>()) {
+      BattleLoadRequest &request =
+          request_entity.get().get<BattleLoadRequest>();
+      request.playerJsonPath =
+          "output/battles/temp_player_" + std::to_string(test_seed) + ".json";
+      request.opponentJsonPath =
+          "output/battles/temp_opponent_" + std::to_string(test_seed) + ".json";
+      request.loaded = true;
+      log_info("TEST: Set BattleLoadRequest - playerPath='{}', "
+               "opponentPath='{}', loaded={}",
+               request.playerJsonPath, request.opponentJsonPath,
+               request.loaded);
+    } else {
+      log_error("TEST: ERROR - BattleLoadRequest singleton not found!");
+    }
 
-  app.wait_for_frames(5);
+    log_info("TEST: Step 9 - Waiting for battle to initialize");
+    app.wait_for_battle_initialized(10.0f);
+    log_info("TEST: Battle initialized");
 
-  // Set stats so player wins quickly
-  app.set_dish_combat_stats(player_dish_id, 30, 10);
-  app.set_dish_combat_stats(opponent_dish_id, 3, 5);
+    app.completed_operations.insert(battle_setup_op);
+  } else {
+    log_info("TEST: Battle setup already completed, skipping");
+  }
 
-  app.wait_for_battle_initialized(10.0f);
-  app.wait_for_frames(30);
+  // Use operation ID to prevent stats setup from running multiple times
+  static const TestOperationID stats_setup_op = TestApp::generate_operation_id(
+      std::source_location::current(),
+      "validate_battle_report_persistence.stats_setup");
+  if (app.completed_operations.count(stats_setup_op) == 0) {
+    // Wait a frame for ComputeCombatStatsSystem to run, then set stats
+    // ComputeCombatStatsSystem recalculates stats from dish type every frame,
+    // so we need to set stats AFTER it has run
+    app.wait_for_frames(2);
 
-  // Wait for battle to complete
-  app.wait_for_battle_complete(60.0f);
+    // Find dishes by querying - always find them fresh since EntityIDs might
+    // change after entity cleanup/merging
+    log_info("TEST: Step 10 - Finding dishes to set combat stats");
+    afterhours::EntityID player_dish_id = -1;
+    afterhours::EntityID opponent_dish_id = -1;
+
+    for (afterhours::Entity &entity : EQ({.force_merge = true})
+                                          .whereHasComponent<IsDish>()
+                                          .whereHasComponent<DishBattleState>()
+                                          .whereInSlotIndex(0)
+                                          .gen()) {
+      const DishBattleState &dbs = entity.get<DishBattleState>();
+      if (dbs.team_side == DishBattleState::TeamSide::Player) {
+        player_dish_id = entity.id;
+        log_info("TEST: Found player dish with ID {}", player_dish_id);
+      } else if (dbs.team_side == DishBattleState::TeamSide::Opponent) {
+        opponent_dish_id = entity.id;
+        log_info("TEST: Found opponent dish with ID {}", opponent_dish_id);
+      }
+    }
+
+    if (player_dish_id == -1 || opponent_dish_id == -1) {
+      log_error("TEST: ERROR - Could not find dishes! player_id={}, "
+                "opponent_id={}. Waiting...",
+                player_dish_id, opponent_dish_id);
+      // Wait a bit and try again - dishes might not be created yet
+      app.wait_for_frames(5);
+      return;
+    }
+
+    // Set stats so player wins quickly - do this AFTER battle initialization
+    // so ComputeCombatStatsSystem doesn't overwrite them immediately
+    log_info(
+        "TEST: Step 11 - Setting combat stats (player: 30/10, opponent: 3/5)");
+    app.set_dish_combat_stats(player_dish_id, 30, 10);
+    app.set_dish_combat_stats(opponent_dish_id, 3, 5);
+
+    // Wait another frame to ensure stats are set before combat starts
+    app.wait_for_frames(1);
+
+    app.completed_operations.insert(stats_setup_op);
+  } else {
+    log_info("TEST: Stats setup already completed, skipping");
+  }
+
+  log_info("TEST: Checking BattleProcessor state");
+
+  // Check BattleProcessor state
+  auto processor_entity =
+      afterhours::EntityHelper::get_singleton<BattleProcessor>();
+  if (processor_entity.get().has<BattleProcessor>()) {
+    const BattleProcessor &processor =
+        processor_entity.get().get<BattleProcessor>();
+    log_info("TEST: BattleProcessor state - isBattleActive={}, "
+             "simulationStarted={}, simulationComplete={}",
+             processor.isBattleActive(), processor.simulationStarted,
+             processor.simulationComplete);
+  }
+
+  // Wait for dishes to enter combat - in visual mode, animations take time
+  // Wait longer to ensure combat actually progresses
+  log_info(
+      "TEST: Step 12 - Waiting 120 frames for animations and initial combat");
+  app.wait_for_frames(120); // 2 seconds for animations and initial combat
+  log_info("TEST: Finished waiting 120 frames");
+
+  // Check dish counts
+  int player_count = app.count_active_player_dishes();
+  int opponent_count = app.count_active_opponent_dishes();
+  log_info("TEST: Active dishes - Player: {}, Opponent: {}", player_count,
+           opponent_count);
+
+  // Wait for battle to complete - give it plenty of time in visual mode
+  log_info("TEST: Step 13 - Waiting for battle to complete (timeout: 120s)");
+  app.wait_for_battle_complete(120.0f);
+  log_info("TEST: Battle completed!");
 
   // Wait for Results screen
+  log_info("TEST: Step 14 - Waiting for Results screen");
   app.wait_for_screen(GameStateManager::Screen::Results, 10.0f);
-  app.wait_for_frames(20); // Give SaveBattleReportSystem time to run
+  log_info("TEST: On Results screen");
+
+  // Wait for SaveBattleReportSystem to run (it runs once when Results screen is
+  // shown) Give it a few frames to save the file
+  log_info("TEST: Step 15 - Waiting 10 frames for SaveBattleReportSystem to "
+           "save file");
+  app.wait_for_frames(10);
+  log_info("TEST: Finished waiting for SaveBattleReportSystem");
 
   // Verify BattleResult exists
+  log_info("TEST: Step 16 - Verifying BattleResult exists");
   const auto componentId = afterhours::components::get_type_id<BattleResult>();
   app.expect_true(
       afterhours::EntityHelper::get().singletonMap.contains(componentId),
@@ -205,6 +403,16 @@ TEST(validate_battle_report_persistence) {
 
     log_info("TEST: Battle report JSON structure verified successfully");
   }
+
+  log_info("TEST: ========== validate_battle_report_persistence test COMPLETED "
+           "SUCCESSFULLY ==========");
+
+  // Mark main test logic as completed to prevent re-running
+  app.completed_operations.insert(main_test_op);
+
+  // Mark test as completed to prevent re-running (use same static variable from
+  // start)
+  test_completed = true;
 }
 
 TEST(validate_battle_report_file_retention) {

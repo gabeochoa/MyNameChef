@@ -15,7 +15,6 @@
 #include "../components/battle_load_request.h"
 #include "../components/continue_button_disabled.h"
 #include "../components/continue_game_request.h"
-#include "../components/replay_state.h"
 #include "../components/is_draggable.h"
 #include "../components/is_drink_shop_item.h"
 #include "../components/is_gallery_item.h"
@@ -33,7 +32,6 @@
 #include "../render_constants.h"
 #include "../seeded_rng.h"
 #include "../server/file_storage.h"
-#include <fmt/format.h>
 #include "../settings.h"
 #include "../shop.h"
 #include "../systems/ExportMenuSnapshotSystem.h"
@@ -47,6 +45,7 @@
 #include <afterhours/src/plugins/texture_manager.h>
 #include <cstdlib>
 #include <filesystem>
+#include <fmt/format.h>
 #include <httplib.h>
 
 using namespace afterhours;
@@ -806,14 +805,40 @@ Screen ScheduleMainMenuUI::results_screen(Entity &entity,
   auto top_left =
       column_left<InputAction>(context, bg.ent(), "results_top_left", 0);
 
-  // Create Back to Shop button
-  button_labeled<InputAction>(
-      context, top_left.ent(), "Back to Shop",
-      []() {
-        log_info("Back to Shop button clicked!");
-        GameStateManager::get().set_next_screen(Screen::Shop);
-      },
-      0);
+  // Check if we're in replay mode (from History)
+  bool is_replay_mode = false;
+  const auto replay_component_id =
+      afterhours::components::get_type_id<ReplayState>();
+  auto &singletonMap = afterhours::EntityHelper::get().singletonMap;
+  if (singletonMap.contains(replay_component_id)) {
+    auto replay_entity = afterhours::EntityHelper::get_singleton<ReplayState>();
+    if (replay_entity.get().has<ReplayState>()) {
+      const ReplayState &rs = replay_entity.get().get<ReplayState>();
+      // If replay is active and we came from History (opponentJsonPath contains
+      // temp_opponent)
+      is_replay_mode = rs.active && rs.opponentJsonPath.find("temp_opponent") !=
+                                        std::string::npos;
+    }
+  }
+
+  // Create Back button (to Shop or History depending on mode)
+  if (is_replay_mode) {
+    button_labeled<InputAction>(
+        context, top_left.ent(), "Back to History",
+        []() {
+          log_info("Back to History button clicked!");
+          GameStateManager::get().set_next_screen(Screen::History);
+        },
+        0);
+  } else {
+    button_labeled<InputAction>(
+        context, top_left.ent(), "Back to Shop",
+        []() {
+          log_info("Back to Shop button clicked!");
+          GameStateManager::get().set_next_screen(Screen::Shop);
+        },
+        0);
+  }
 
   return GameStateManager::get().next_screen.value_or(
       GameStateManager::get().active_screen);
@@ -841,17 +866,15 @@ Screen ScheduleMainMenuUI::history_screen(Entity &entity,
       []() { navigation::to(GameStateManager::Screen::Main); }, 0);
 
   // Get battle history
-  const auto componentId =
-      afterhours::components::get_type_id<BattleHistory>();
-  bool hasHistory = afterhours::EntityHelper::get().singletonMap.contains(
-      componentId);
+  const auto componentId = afterhours::components::get_type_id<BattleHistory>();
+  bool hasHistory =
+      afterhours::EntityHelper::get().singletonMap.contains(componentId);
 
   if (hasHistory) {
     auto history_entity =
         afterhours::EntityHelper::get_singleton<BattleHistory>();
     if (history_entity.get().has<BattleHistory>()) {
-      const BattleHistory &history =
-          history_entity.get().get<BattleHistory>();
+      const BattleHistory &history = history_entity.get().get<BattleHistory>();
 
       if (!history.entries.empty()) {
         // Display battle history entries
@@ -866,8 +889,9 @@ Screen ScheduleMainMenuUI::history_screen(Entity &entity,
           }
 
           // Add outcome summary
-          std::string outcome_str = fmt::format(" ({}W-{}L-{}T)", entry.playerWins,
-                                                entry.opponentWins, entry.ties);
+          std::string outcome_str =
+              fmt::format(" ({}W-{}L-{}T)", entry.playerWins,
+                          entry.opponentWins, entry.ties);
           display_text += outcome_str;
 
           // Create button for each battle
@@ -899,20 +923,18 @@ Screen ScheduleMainMenuUI::history_screen(Entity &entity,
                     auto replay_entity =
                         afterhours::EntityHelper::get_singleton<ReplayState>();
                     if (replay_entity.get().has<ReplayState>()) {
-                      ReplayState &rs =
-                          replay_entity.get().get<ReplayState>();
+                      ReplayState &rs = replay_entity.get().get<ReplayState>();
                       rs.seed = report_seed;
                       rs.active = true;
                       rs.paused = false;
                       rs.timeScale = 1.0f;
                       // Reconstruct paths from seed (battles are stored with
                       // seed-based filenames)
-                      rs.playerJsonPath =
-                          "output/battles/temp_player_" +
-                          std::to_string(report_seed) + ".json";
-                      rs.opponentJsonPath =
-                          "output/battles/temp_opponent_" +
-                          std::to_string(report_seed) + ".json";
+                      rs.playerJsonPath = "output/battles/temp_player_" +
+                                          std::to_string(report_seed) + ".json";
+                      rs.opponentJsonPath = "output/battles/temp_opponent_" +
+                                            std::to_string(report_seed) +
+                                            ".json";
                     }
                   } else {
                     auto &replay_entity =
@@ -922,18 +944,16 @@ Screen ScheduleMainMenuUI::history_screen(Entity &entity,
                     rs.active = true;
                     rs.paused = false;
                     rs.timeScale = 1.0f;
-                    rs.playerJsonPath =
-                        "output/battles/temp_player_" +
-                        std::to_string(report_seed) + ".json";
-                    rs.opponentJsonPath =
-                        "output/battles/temp_opponent_" +
-                        std::to_string(report_seed) + ".json";
+                    rs.playerJsonPath = "output/battles/temp_player_" +
+                                        std::to_string(report_seed) + ".json";
+                    rs.opponentJsonPath = "output/battles/temp_opponent_" +
+                                          std::to_string(report_seed) + ".json";
                     replay_entity.addComponent<ReplayState>(std::move(rs));
                     afterhours::EntityHelper::registerSingleton<ReplayState>(
                         replay_entity);
                   }
 
-                  // Set up BattleLoadRequest
+                  // Set up BattleLoadRequest (create if doesn't exist)
                   const auto request_component_id =
                       afterhours::components::get_type_id<BattleLoadRequest>();
                   if (singletonMap.contains(request_component_id)) {
@@ -943,14 +963,30 @@ Screen ScheduleMainMenuUI::history_screen(Entity &entity,
                     if (request_entity.get().has<BattleLoadRequest>()) {
                       BattleLoadRequest &request =
                           request_entity.get().get<BattleLoadRequest>();
-                      request.playerJsonPath =
-                          "output/battles/temp_player_" +
-                          std::to_string(report_seed) + ".json";
+                      request.playerJsonPath = "output/battles/temp_player_" +
+                                               std::to_string(report_seed) +
+                                               ".json";
                       request.opponentJsonPath =
                           "output/battles/temp_opponent_" +
                           std::to_string(report_seed) + ".json";
                       request.loaded = false;
                     }
+                  } else {
+                    // Create BattleLoadRequest if it doesn't exist
+                    auto &request_entity =
+                        afterhours::EntityHelper::createEntity();
+                    BattleLoadRequest request;
+                    request.playerJsonPath = "output/battles/temp_player_" +
+                                             std::to_string(report_seed) +
+                                             ".json";
+                    request.opponentJsonPath = "output/battles/temp_opponent_" +
+                                               std::to_string(report_seed) +
+                                               ".json";
+                    request.loaded = false;
+                    request_entity.addComponent<BattleLoadRequest>(
+                        std::move(request));
+                    afterhours::EntityHelper::registerSingleton<
+                        BattleLoadRequest>(request_entity);
                   }
 
                   // Navigate to battle screen
