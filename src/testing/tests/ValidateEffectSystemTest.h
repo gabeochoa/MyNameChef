@@ -984,12 +984,12 @@ static void test_salmon_neighbor_freshness_persists_to_combat(TestApp &app) {
                         .with_combat_stats()
                         .commit();
 
-  auto bagel3_id = app.create_dish(DishType::Bagel)
-                       .on_team(DishBattleState::TeamSide::Player)
-                       .at_slot(3)
-                       .in_phase(DishBattleState::Phase::InQueue)
-                       .with_combat_stats()
-                       .commit();
+  app.create_dish(DishType::Bagel)
+      .on_team(DishBattleState::TeamSide::Player)
+      .at_slot(3)
+      .in_phase(DishBattleState::Phase::InQueue)
+      .with_combat_stats()
+      .commit();
 
   // Wait a frame for entities to be merged by system loop
   app.wait_for_frames(1);

@@ -939,7 +939,7 @@ TestApp &TestApp::apply_drink_to_dish(int dish_slot, DrinkType drink_type,
 }
 
 TestApp &TestApp::set_drink_shop_override(const std::vector<DrinkType> &drinks,
-                                          const std::source_location &loc) {
+                                          const std::source_location &) {
   // Get or create the test override singleton
   // First check if singleton already exists
   const auto override_id =
@@ -968,7 +968,7 @@ TestApp &TestApp::set_drink_shop_override(const std::vector<DrinkType> &drinks,
   return *this;
 }
 
-TestApp &TestApp::clear_drink_shop_override(const std::source_location &loc) {
+TestApp &TestApp::clear_drink_shop_override(const std::source_location &) {
   // Remove the test override component
   const auto override_id =
       afterhours::components::get_type_id<TestDrinkShopOverride>();
@@ -1204,7 +1204,6 @@ bool TestApp::check_wait_conditions() {
         std::chrono::duration_cast<std::chrono::milliseconds>(
             now - wait_state.start_time);
     if (ms.count() > static_cast<int>(wait_state.timeout_sec * 1000.0f)) {
-      GameStateManager &gsm = GameStateManager::get();
       gsm.update_screen();
       // For Battle screen, if we're on Shop or Results, that might be
       // acceptable (battle might have completed instantly or not started)
@@ -2628,7 +2627,7 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
   log_error("TEST_APP: Got positions, waiting for shop item to merge");
 
   vec2 shop_item_pos = shop_item->get<Transform>().center();
-  vec2 target_slot_pos = target_slot->get<Transform>().center();
+  (void)target_slot->get<Transform>().center();
 
   // Store shop item ID since pointer might become invalid after merge
   afterhours::EntityID shop_item_id = shop_item->id;

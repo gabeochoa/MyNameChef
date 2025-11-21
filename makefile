@@ -30,7 +30,6 @@ CXXSTD := -std=c++23
 
 # Base compiler flags from xmake.lua
 CXXFLAGS_BASE := -g \
-    -fmax-errors=10 \
     -Wall -Wextra -Wpedantic \
     -Wuninitialized -Wshadow -Wconversion \
     -Wcast-qual -Wchar-subscripts \

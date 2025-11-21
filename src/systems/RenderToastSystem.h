@@ -17,7 +17,7 @@ struct RenderToastSystem
   }
 
   virtual void
-  for_each_with(const afterhours::Entity &entity, const ToastMessage &toast,
+  for_each_with(const afterhours::Entity &, const ToastMessage &toast,
                 const Transform &transform, const HasColor &hasColor,
                 const HasRenderOrder &renderOrder, float) const override {
     auto &gsm = GameStateManager::get();

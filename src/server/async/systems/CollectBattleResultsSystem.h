@@ -11,7 +11,7 @@
 
 namespace server::async {
 struct CollectBattleResultsSystem : afterhours::System<BattleInfo> {
-  void for_each_with(afterhours::Entity &battle_entity, BattleInfo &info,
+  void for_each_with(afterhours::Entity &, BattleInfo &info,
                      float) override {
     // Only process battles that are complete but don't have results yet
     if (info.status != BattleStatus::Complete || !info.result.empty()) {

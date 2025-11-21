@@ -17,8 +17,8 @@ namespace {
 
 void perform_merge(TestApp &app, afterhours::Entity &donor,
                    afterhours::Entity &target) {
-  afterhours::EntityID donor_id = donor.id;
-  afterhours::EntityID target_id = target.id;
+  (void)donor.id;
+  (void)target.id;
 
   app.expect_true(donor.has<IsDish>(), "donor has IsDish");
   app.expect_true(target.has<IsDish>(), "target has IsDish");

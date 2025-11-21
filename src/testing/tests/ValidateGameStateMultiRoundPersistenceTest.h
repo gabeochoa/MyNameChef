@@ -39,11 +39,10 @@ TEST(validate_game_state_multi_round_persistence) {
   app.wait_for_frames(20);
 
   // Round 1: Initial state
-  const int round1_gold = app.read_wallet_gold();
-  const int round1_health = app.read_player_health();
-  const int round1_shop_tier = app.read_shop_tier();
-  auto round1_inventory = app.read_player_inventory();
-  const int round1_inventory_count = static_cast<int>(round1_inventory.size());
+  (void)app.read_wallet_gold();
+  (void)app.read_player_health();
+  (void)app.read_shop_tier();
+  (void)app.read_player_inventory();
 
   // Purchase an item in round 1
   const auto shop_items_round1 = app.read_store_options();
@@ -72,6 +71,12 @@ TEST(validate_game_state_multi_round_persistence) {
   const int round2_shop_tier = app.read_shop_tier();
   auto round2_inventory = app.read_player_inventory();
   const int round2_inventory_count = static_cast<int>(round2_inventory.size());
+  
+  (void)round2_gold;
+  (void)round2_health;
+  (void)round2_round;
+  (void)round2_shop_tier;
+  (void)round2_inventory_count;
 
   // Verify round incremented
   app.expect_count_gt(round2_round, 1, "round should have incremented");

@@ -821,31 +821,16 @@ void add_dish_tags(afterhours::Entity &entity, DishType type) {
     entity.addComponent<BrandTag>(BrandTagType::Restaurant);
     entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Grain);
     break;
-  // Higher tier dishes - commented for future implementation
-  // case DishType::MacNCheese:
-  //   // Starts as Side archetype only, levels up to also be Entree course
-  //   // Level 1: No course tag, just Side archetype
-  //   // entity.addComponent<CourseTag>(CourseTagType::Entree); // Level 2+
-  //   entity.addComponent<CuisineTag>(CuisineTagType::American);
-  //   entity.addComponent<BrandTag>(BrandTagType::Homemade);
-  //   entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Side);
-  //   entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Grain);
-  //   break;
-  // case DishType::Meatball:
-  //   entity.addComponent<CourseTag>(CourseTagType::Appetizer);
-  //   // Note: Side is an archetype, not a course tag
-  //   entity.addComponent<CuisineTag>(CuisineTagType::Italian);
-  //   entity.addComponent<BrandTag>(BrandTagType::Restaurant);
-  //   entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Protein);
-  //   // entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Side); //
-  //   Level 2+ break;
-  // case DishType::Burger:
-  //   entity.addComponent<CourseTag>(CourseTagType::Entree);
-  //   entity.addComponent<CuisineTag>(CuisineTagType::American);
-  //   entity.addComponent<BrandTag>(BrandTagType::FastFood);
-  //   entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Protein);
-  //   entity.addComponent<DishArchetypeTag>(DishArchetypeTagType::Grain);
-  //   break;
+  case DishType::Burger:
+  case DishType::MacNCheese:
+  case DishType::Meatball:
+  case DishType::Nacho:
+  case DishType::Omlet:
+  case DishType::Pancakes:
+  case DishType::RoastedChicken:
+  case DishType::Sandwich:
+  case DishType::Steak:
+  case DishType::DebugDish:
   default:
     break;
   }

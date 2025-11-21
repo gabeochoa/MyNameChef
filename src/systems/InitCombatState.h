@@ -60,12 +60,10 @@ struct InitCombatState : afterhours::System<CombatQueue> {
           if (!last_initialized) {
             // Only check for blocking animations if we haven't initialized yet
             // This prevents running InitCombatState repeatedly when it creates new animations
-            for (afterhours::Entity &e :
-                 afterhours::EntityQuery()
-                     .whereHasComponent<IsBlockingAnimationEvent>()
-                     .gen()) {
+            if (afterhours::EntityQuery()
+                    .whereHasComponent<IsBlockingAnimationEvent>()
+                    .has_values()) {
               has_blocking_animations = true;
-              break;
             }
           }
           
@@ -176,7 +174,7 @@ struct InitCombatState : afterhours::System<CombatQueue> {
     }
 
     log_info("COMBAT: Creating SlideIn animation at battle start");
-    auto &anim_entity = make_animation_event(AnimationEventType::SlideIn, true);
+    make_animation_event(AnimationEventType::SlideIn, true);
 
     if (auto tq = afterhours::EntityHelper::get_singleton<TriggerQueue>();
         tq.get().has<TriggerQueue>()) {

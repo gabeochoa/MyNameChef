@@ -49,7 +49,6 @@ struct BattleProcessorSystem : afterhours::System<BattleProcessor> {
 
   void for_each_with(afterhours::Entity &, BattleProcessor &processor,
                      float dt) override {
-    auto &gsm = GameStateManager::get();
 
     // CRITICAL: If we have a loaded request, we MUST start a new battle
     // Even if isBattleActive() is true, if we have a new loaded request, the

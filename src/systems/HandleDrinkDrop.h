@@ -22,7 +22,7 @@ struct HandleDrinkDrop : System<IsHeld, Transform, IsDrinkShopItem> {
     return gsm.active_screen == GameStateManager::Screen::Shop;
   }
 
-  void for_each_with(Entity &drink_entity, IsHeld &held, Transform &transform,
+  void for_each_with(Entity &drink_entity, IsHeld &held, Transform &,
                      IsDrinkShopItem &drink_shop_item, float) override {
     // Check test input wrapper first, then fall back to real input
     if (!test_input::is_mouse_button_released(raylib::MOUSE_BUTTON_LEFT)) {

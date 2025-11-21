@@ -11,7 +11,7 @@
 
 namespace server::async {
 struct DebugServerEventLoggerSystem : afterhours::System<BattleInfo> {
-  void for_each_with(afterhours::Entity &battle_entity, BattleInfo &info,
+  void for_each_with(afterhours::Entity &, BattleInfo &info,
                      float dt) override {
     if (info.status != BattleStatus::Running) {
       return;

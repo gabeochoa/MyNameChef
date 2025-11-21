@@ -365,8 +365,7 @@ bool hasActiveAnimation() {
     return false;
   }
 
-  for (afterhours::Entity &e :
-       EntityQuery().whereHasComponent<IsBlockingAnimationEvent>().gen()) {
+  if (EntityQuery().whereHasComponent<IsBlockingAnimationEvent>().has_values()) {
     return true;
   }
   return false;

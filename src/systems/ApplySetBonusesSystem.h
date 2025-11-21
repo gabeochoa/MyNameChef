@@ -124,6 +124,18 @@ private:
       break;
     }
 
+    case TargetScope::Self:
+    case TargetScope::Opponent:
+    case TargetScope::DishesAfterSelf:
+    case TargetScope::FutureAllies:
+    case TargetScope::FutureOpponents:
+    case TargetScope::Previous:
+    case TargetScope::Next:
+    case TargetScope::SelfAndAdjacent:
+    case TargetScope::RandomAlly:
+    case TargetScope::RandomOpponent:
+    case TargetScope::RandomDish:
+    case TargetScope::RandomOtherAlly:
     default:
       break;
     }

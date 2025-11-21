@@ -25,8 +25,8 @@ afterhours::OptEntity find_entity_by_id(afterhours::EntityID id) {
 // Simulate drag-and-drop merge between two dish entities
 bool simulate_drag_and_drop(afterhours::Entity &donor,
                             afterhours::Entity &target) {
-  afterhours::EntityID donor_id = donor.id;
-  afterhours::EntityID target_id = target.id;
+  (void)donor.id;
+  (void)target.id;
 
   // Validate both entities are dishes with matching types
   if (!donor.has<IsDish>() || !target.has<IsDish>() ||

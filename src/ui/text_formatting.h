@@ -335,6 +335,13 @@ private:
       return raylib::WHITE;
     case SemanticColor::TextMuted:
       return raylib::GRAY;
+    case SemanticColor::Primary:
+    case SemanticColor::Secondary:
+    case SemanticColor::Info:
+    case SemanticColor::Gold:
+    case SemanticColor::Health:
+    case SemanticColor::Positive:
+    case SemanticColor::Negative:
     default:
       return raylib::WHITE;
     }
@@ -380,13 +387,13 @@ inline std::string format_stat_change(int value) {
 
 inline std::string
 format_currency(int amount,
-                FormattingContext context = FormattingContext::HUD) {
+                FormattingContext = FormattingContext::HUD) {
   return "[COLOR:Gold]" + std::to_string(amount) + " gold[/COLOR]";
 }
 
 inline std::string
 format_health(int current, int max,
-              FormattingContext context = FormattingContext::HUD) {
+              FormattingContext = FormattingContext::HUD) {
   float ratio =
       max > 0 ? static_cast<float>(current) / static_cast<float>(max) : 0.0f;
   std::string health_text = std::to_string(current) + "/" + std::to_string(max);

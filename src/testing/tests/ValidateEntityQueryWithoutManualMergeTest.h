@@ -182,10 +182,7 @@ TEST(validate_entity_query_without_manual_merge) {
   app.wait_for_frames(3);
 
   // Query for shop items
-  int shop_items = 0;
-  for (Entity &entity : EQ().whereHasComponent<IsShopItem>().gen()) {
-    shop_items++;
-  }
+  int shop_items = static_cast<int>(EQ().whereHasComponent<IsShopItem>().gen_count());
 
   app.expect_true(shop_items > 0, "shop items found after system runs");
   log_info("VALIDATION_TEST: Test 7 PASSED - Shop items queryable");

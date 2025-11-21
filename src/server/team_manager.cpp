@@ -49,7 +49,7 @@ std::optional<TeamFilePath> TeamManager::select_random_opponent_with_fallback(
 
   SeededRng &rng = SeededRng::get();
   std::shuffle(indices.begin(), indices.end(),
-               std::mt19937(rng.gen_index(UINT32_MAX)));
+               std::mt19937(static_cast<unsigned int>(rng.gen_index(UINT32_MAX))));
 
   int attempts = std::min(max_attempts, static_cast<int>(files.size()));
   for (int attempt = 0; attempt < attempts; ++attempt) {

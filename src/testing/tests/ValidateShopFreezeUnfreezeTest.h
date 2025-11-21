@@ -19,7 +19,6 @@ TEST(validate_shop_freeze_unfreeze) {
 
   // Find a shop item and freeze it
   afterhours::Entity *item_to_toggle = nullptr;
-  int item_slot = -1;
 
   for (afterhours::Entity &entity :
        afterhours::EntityQuery({.force_merge = true})
@@ -28,8 +27,6 @@ TEST(validate_shop_freeze_unfreeze) {
            .gen()) {
     if (!item_to_toggle) {
       item_to_toggle = &entity;
-      const IsShopItem &shop_item = entity.get<IsShopItem>();
-      item_slot = shop_item.slot;
 
       if (!entity.has<Freezeable>()) {
         entity.addComponent<Freezeable>(false);

@@ -162,7 +162,7 @@ nlohmann::json BattleSerializer::serialize_battle_result(
   return result;
 }
 
-std::string BattleSerializer::compute_checksum(const nlohmann::json &state) {
+std::string BattleSerializer::compute_checksum(const nlohmann::json &) {
   uint64_t fp = BattleFingerprint::compute();
 
   std::stringstream ss;

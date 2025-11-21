@@ -127,7 +127,7 @@ private:
   }
 
   bool has_remaining_active_dishes(DishBattleState::TeamSide side) {
-    int count = EQ().whereHasComponent<DishBattleState>()
+    int count = static_cast<int>(EQ().whereHasComponent<DishBattleState>()
                .whereTeamSide(side)
                .whereLambda([](const afterhours::Entity &e) {
                  const DishBattleState &dbs = e.get<DishBattleState>();
@@ -135,7 +135,7 @@ private:
                         dbs.phase == DishBattleState::Phase::Entering ||
                         dbs.phase == DishBattleState::Phase::InCombat;
                })
-               .gen_count();
+               .gen_count());
     return count > 0;
   }
 
