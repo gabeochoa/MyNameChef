@@ -213,7 +213,7 @@ struct StatusEffect {
    - Remove expired effects
 
 6. **MANDATORY CHECKPOINT**: Build
-   - Run `xmake` - code must compile successfully
+   - Run `make` - code must compile successfully
 
 7. **MANDATORY CHECKPOINT**: Run Headless Tests
    - Run `./scripts/run_all_tests.sh` (ALL must pass)

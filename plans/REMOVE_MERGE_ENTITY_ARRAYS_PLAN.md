@@ -158,7 +158,7 @@ After analyzing the codebase and comparing with `kart-afterhours`:
 
 ## Validation Steps
 
-1. Build: `xmake`
+1. Build: `make`
 2. Run headless tests: `./scripts/run_all_tests.sh`
 3. Run non-headless tests: `./scripts/run_all_tests.sh -v`
 4. Verify all tests pass, especially validation tests and `validate_effect_system`

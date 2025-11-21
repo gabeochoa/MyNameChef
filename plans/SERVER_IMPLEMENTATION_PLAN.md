@@ -852,11 +852,11 @@ int main(int argc, char *argv[]) {
 
 ### Step 8: Update Build System ✅ COMPLETE
 
-**Goal**: Add battle_server target to xmake.lua.
+**Goal**: Add battle_server target to make.lua.
 
-**Status**: ✅ Implemented. `battle_server` target exists in xmake.lua and builds successfully.
+**Status**: ✅ Implemented. `battle_server` target exists in make.lua and builds successfully.
 
-**File**: `xmake.lua` (add after existing target)
+**File**: `make.lua` (add after existing target)
 
 ```lua
 target("battle_server")
@@ -934,7 +934,7 @@ target("battle_server")
 
 Before considering implementation complete:
 
-- [x] Server builds successfully (`xmake battle_server`)
+- [x] Server builds successfully (`make battle_server`)
 - [x] Server starts and responds to `/health` endpoint
 - [x] Server processes `/battle` requests and returns valid JSON (verified)
 - [x] Battle simulation produces deterministic results (tests pass - determinism verified)
@@ -965,7 +965,7 @@ Before considering implementation complete:
 5. ✅ **Step 5**: Create battle serializer (result formatting)
 6. ✅ **Step 6**: Create HTTP API (expose endpoints)
 7. ✅ **Step 7**: Create server main (entry point)
-8. ✅ **Step 8**: Update build system (xmake target)
+8. ✅ **Step 8**: Update build system (make target)
 9. ✅ **Step 9**: Update preload (headless support)
 10. ✅ **Step 10**: Configuration file infrastructure (single `--config` flag, JSON config files)
 11. ✅ **Step 11**: Configuration features implementation (timeout, error detail, base path, debug mode)
@@ -1157,7 +1157,7 @@ All core implementation steps (1-12) are complete. The server builds, runs, and 
 ### Validation Commands
 
 After each change:
-- Build: `xmake build battle_server`
+- Build: `make build battle_server`
 - Run server tests: `./output/battle_server.exe --run-tests`
 - Run endpoint verification: `./scripts/verify_battle_endpoint.sh`
 - Run client-server test: `./output/my_name_chef.exe --run-test validate_server_checksum_match --headless`

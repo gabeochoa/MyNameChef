@@ -337,7 +337,7 @@ struct RenderShopItemMatchIndicatorSystem : System<IsShopItem, Transform, IsDish
    - No system registration needed (already in UI system)
 
 5. **MANDATORY CHECKPOINT**: Build
-   - Run `xmake` - code must compile successfully
+   - Run `make` - code must compile successfully
 
 5. **MANDATORY CHECKPOINT**: Run Headless Tests
    - Run `./scripts/run_all_tests.sh` (ALL must pass)

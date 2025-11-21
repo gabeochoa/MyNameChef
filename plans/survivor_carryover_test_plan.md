@@ -360,7 +360,7 @@ If debugging is needed, use existing log patterns:
    - Reference other passing tests for patterns (`ValidateFullBattleFlowTest.h`, etc.)
 
 2. **MANDATORY CHECKPOINT**: Build
-   - Run `xmake` - code must compile successfully
+   - Run `make` - code must compile successfully
    - Fix any compilation errors
 
 3. **MANDATORY CHECKPOINT**: Run Headless Tests

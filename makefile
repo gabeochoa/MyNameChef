@@ -28,7 +28,7 @@ endif
 # C++ standard
 CXXSTD := -std=c++23
 
-# Base compiler flags from xmake.lua
+# Base compiler flags
 CXXFLAGS_BASE := -g \
     -Wall -Wextra -Wpedantic \
     -Wuninitialized -Wshadow -Wconversion \
@@ -49,7 +49,7 @@ CXXFLAGS_BASE := -g \
     -fno-stack-protector \
     -fno-common
 
-# Warning suppressions from xmake.lua
+# Warning suppressions
 CXXFLAGS_SUPPRESS := -Wno-deprecated-volatile -Wno-missing-field-initializers \
     -Wno-c99-extensions -Wno-unused-function -Wno-sign-conversion \
     -Wno-implicit-int-float-conversion -Wno-implicit-float-conversion \

@@ -157,7 +157,7 @@ case EffectOperation::ApplyStatus: {
    - Before advancing to next course
 
 5. **MANDATORY CHECKPOINT**: Build
-   - Run `xmake` - code must compile successfully
+   - Run `make` - code must compile successfully
 
 6. **MANDATORY CHECKPOINT**: Run Headless Tests
    - Run `./scripts/run_all_tests.sh` (ALL must pass)

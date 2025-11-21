@@ -204,7 +204,7 @@ All test cases in `ValidateSetBonusSystemTest.h` pass:
 
 If implementing visual feedback or real-time updates:
 
-1. **Build**: Run `xmake` - code must compile successfully
+1. **Build**: Run `make` - code must compile successfully
 2. **Headless Tests**: Run `./scripts/run_all_tests.sh` (ALL must pass)
 3. **Non-Headless Tests**: Run `./scripts/run_all_tests.sh -v` (ALL must pass)
 4. **Manual Testing**: Verify visual feedback appears correctly

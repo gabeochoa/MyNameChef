@@ -22,7 +22,7 @@
 
 **CRITICAL: Before moving to the next task, you MUST:**
 
-1. **Build**: Run `xmake` - code must compile successfully
+1. **Build**: Run `make` - code must compile successfully
 2. **Test (Headless)**: Run `./scripts/run_all_tests.sh` - ALL tests must pass
 3. **Test (Non-Headless)**: Run `./scripts/run_all_tests.sh -v` - ALL tests must pass  
 4. **Commit**: `git commit -m "<message>"` with appropriate prefix:
@@ -56,7 +56,7 @@
   4. Battle completion only occurs when one team exhausted
 - **Validation Steps**:
   1. Create test file with survivor carryover scenarios
-  2. **MANDATORY CHECKPOINT**: Build: `xmake`
+  2. **MANDATORY CHECKPOINT**: Build: `make`
   3. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
   4. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
   5. Verify test passes and survivor carryover works correctly
@@ -103,7 +103,7 @@
   2. Replace random_device in ProcessCommandQueueSystem.h with SeededRng
   3. Ensure seeds are properly set before use
   4. Create test that runs same battle twice with same seed and compares outputs
-  5. **MANDATORY CHECKPOINT**: Build: `xmake`
+  5. **MANDATORY CHECKPOINT**: Build: `make`
   6. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
   7. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
   8. Verify server determinism works correctly (test with same seed produces same results)
@@ -166,7 +166,7 @@
   1. Create ReplayUISystem for speed control buttons (0.5x/1x/2x/4x)
   2. Add BattleReport loading from JSON (integrate with Task 3)
   3. Integrate with Results screen
-  4. **MANDATORY CHECKPOINT**: Build: `xmake`
+  4. **MANDATORY CHECKPOINT**: Build: `make`
   5. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
   6. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
   7. Verify can replay any saved battle, speed controls work (manual test)
@@ -193,7 +193,7 @@
   1. Add animation/particle system for threshold achievements
   2. Detect threshold crossing in `ApplySetBonusesSystem`
   3. Trigger visual feedback on threshold achievement
-  4. **MANDATORY CHECKPOINT**: Build: `xmake`
+  4. **MANDATORY CHECKPOINT**: Build: `make`
   5. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
   6. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
   7. Verify visual feedback appears correctly (manual test)
@@ -221,7 +221,7 @@
   1. Add price display to shop UI (show "3 gold" somewhere visible)
   2. Add drop target highlighting (faint highlight on empty slots or merge targets)
   3. Update reroll cost display
-  4. **MANDATORY CHECKPOINT**: Build: `xmake`
+  4. **MANDATORY CHECKPOINT**: Build: `make`
   5. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
   6. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
   7. Verify all UX improvements work correctly (manual test)
@@ -259,7 +259,7 @@
   2. Create status effect components based on design
   3. Extend EffectResolutionSystem with status effect tracking
   4. Add visual indicators for status effects
-  5. **MANDATORY CHECKPOINT**: Build: `xmake`
+  5. **MANDATORY CHECKPOINT**: Build: `make`
   6. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
   7. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
   8. Verify status effects work correctly (manual test)
@@ -280,7 +280,7 @@
   1. Extend EffectResolutionSystem with duration tracking
   2. Add course tracking for effects
   3. Implement expiration logic
-  4. **MANDATORY CHECKPOINT**: Build: `xmake`
+  4. **MANDATORY CHECKPOINT**: Build: `make`
   5. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
   6. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
   7. Verify duration-based effects work correctly (manual test)
@@ -302,7 +302,7 @@
   1. Design effect chain system
   2. Implement effect dependency tracking
   3. Add effect chain resolution logic
-  4. **MANDATORY CHECKPOINT**: Build: `xmake`
+  4. **MANDATORY CHECKPOINT**: Build: `make`
   5. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
   6. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
   7. Verify effect chains work correctly (manual test)
@@ -332,7 +332,7 @@
   2. Add level-up sound effect
   3. Add "Ready to merge!" visual indicator
   4. Add level display badge on dishes
-  5. **MANDATORY CHECKPOINT**: Build: `xmake`
+  5. **MANDATORY CHECKPOINT**: Build: `make`
   6. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
   7. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
   8. Verify visual enhancements work correctly (manual test)

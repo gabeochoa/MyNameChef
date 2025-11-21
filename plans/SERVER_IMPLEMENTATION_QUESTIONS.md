@@ -99,7 +99,7 @@ Create a server that can simulate battles using the **exact same code** as the m
 - Entity IDs: TODO - need design for dishes that generate new dishes (won't match across executables)
 
 #### Step 6: Build System Integration
-**Files**: Update `xmake.lua`
+**Files**: Update `make.lua`
 
 **New Target**:
 - `target("battle_server")` - Server executable
@@ -140,7 +140,7 @@ Create a server that can simulate battles using the **exact same code** as the m
 - **Result Serialization**: Full event log with `debug` flag (turn off for production), snapshots only in debug mode, no animations
 - **Logging**: Existing `log_info()` system, INFO level
 - **Testing**: Separate test suite, unit + integration (with `--use-server` flag), checksum comparison
-- **Build**: Separate xmake target, share source files with main game
+- **Build**: Separate make target, share source files with main game
 - **Configuration**: Config file (JSON/YAML)
 - **Concurrency**: One battle at a time (scale with multiple instances + message queue)
 - **Results Persistence**: Save results, but audit and keep only last 10 (implement cleanup/rotation)
@@ -160,8 +160,8 @@ Create a server that can simulate battles using the **exact same code** as the m
 7. **Regression Test Suite**: Ensure existing battle functionality still works
 
 **Validation Commands** (after each step):
-1. Build server: `xmake build battle_server`
-2. Build client: `xmake build my_name_chef`
+1. Build server: `make build battle_server`
+2. Build client: `make build my_name_chef`
 3. Run existing tests: `./scripts/run_all_tests.sh` (verify no regressions)
 4. Run server determinism: `./output/battle_server.exe --test-determinism`
 5. Run client-server match: `./output/my_name_chef.exe --run-test validate_server_client_match`
@@ -417,7 +417,7 @@ This document lists all questions that need to be answered before a junior engin
 
 ## 9. Build System & Dependencies
 
-**Q9.1: Should the server be a separate xmake target?**
+**Q9.1: Should the server be a separate make target?**
 - a) Yes, `target("battle_server")` (recommended) ✅ **USER ANSWER: a**
 - b) No, build as part of main game
 - c) Conditional build flag
@@ -874,7 +874,7 @@ These questions emerged from reviewing the detailed implementation plan and need
 - Result Serialization: Full event log with debug flag, snapshots only in debug mode, no animations
 - Logging: Existing `log_info()` system, INFO level
 - Testing: Separate test suite, unit + integration (with `--use-server` flag), checksum comparison
-- Build: Separate xmake target, share source files
+- Build: Separate make target, share source files
 - Configuration: Config file (JSON/YAML)
 - Concurrency: One battle at a time (scale with multiple instances + message queue)
 - Results Persistence: Save results, but audit and keep only last 10

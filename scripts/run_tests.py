@@ -554,7 +554,7 @@ def main():
     # Check if executables exist
     if not os.path.exists(EXECUTABLE):
         print(f"{Colors.RED}❌ Error: Executable not found at {EXECUTABLE}{Colors.NC}")
-        print("Please build the project first with: xmake")
+        print("Please build the project first with: make")
         return 1
     
     # Discover tests

@@ -124,7 +124,7 @@ for (int i = 1; i < lvl.level; ++i) {
    - Verify consistency across systems
 
 4. **MANDATORY CHECKPOINT**: Build
-   - Run `xmake` - code must compile successfully
+   - Run `make` - code must compile successfully
 
 5. **MANDATORY CHECKPOINT**: Run Headless Tests
    - Run `./scripts/run_all_tests.sh` (ALL must pass)

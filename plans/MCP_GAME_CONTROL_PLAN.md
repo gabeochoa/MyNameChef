@@ -243,7 +243,7 @@ The game client will:
 
 ### Modified Files:
 - `src/main.cpp` - Add `--mcp` flag and initialization
-- `xmake.lua` - Add MCP source files to build
+- `makefile` - Add MCP source files to build
 
 ## Key Design Decisions
 

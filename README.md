@@ -4,12 +4,7 @@ A game project forked from supermarket-afterhours template.
 
 ## Building
 
-Use `xmake` for building:
-```bash
-xmake
-```
-
-Or use `make` as alternative:
+Use `make` for building:
 ```bash
 make
 ```

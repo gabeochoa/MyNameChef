@@ -7,8 +7,7 @@ BASE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$BASE_DIR"
 
 echo "Building with coverage..."
-xmake config --coverage=y
-xmake
+make COVERAGE=1
 
 echo ""
 echo "Running tests..."

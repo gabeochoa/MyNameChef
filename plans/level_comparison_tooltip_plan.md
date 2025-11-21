@@ -248,7 +248,7 @@ if (level < 4) {
    - Verify scaled effects show preview
 
 **Validation**:
-- Build: `xmake`
+- Build: `make`
 - Run headless tests: `./scripts/run_all_tests.sh`
 - Run non-headless tests: `./scripts/run_all_tests.sh -v`
 - Manual test: Hover over dishes at different levels in shop/inventory
