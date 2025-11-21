@@ -13,7 +13,6 @@
 #include <cstdint>
 #include <magic_enum/magic_enum.hpp>
 #include <nlohmann/json.hpp>
-#include <random>
 
 namespace server::async {
 struct ProcessCommandQueueSystem : afterhours::System<CommandQueueEntry> {
@@ -210,8 +209,7 @@ private:
     }
 
     // Generate unique seed for this battle (non-deterministic, one-time)
-    std::random_device rd;
-    uint64_t battle_seed = static_cast<uint64_t>(rd()) << 32 | rd();
+    uint64_t battle_seed = SeededRng::get_actually_random_number_random_seed();
 
     // Set seed for deterministic battle simulation
     SeededRng::get().set_seed(battle_seed);

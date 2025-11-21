@@ -12,7 +12,6 @@
 #include <filesystem>
 #include <iomanip>
 #include <nlohmann/json.hpp>
-#include <random>
 #include <sstream>
 
 namespace server {
@@ -215,8 +214,7 @@ void BattleAPI::handle_battle_request(const httplib::Request &req,
     return_if(opponent_team.empty(), 500, "Failed to load opponent team");
 
     // Generate unique seed for this battle (non-deterministic, one-time)
-    std::random_device rd;
-    uint64_t seed = static_cast<uint64_t>(rd()) << 32 | rd();
+    uint64_t seed = SeededRng::get_actually_random_number_random_seed();
 
     // Set seed for deterministic battle simulation
     SeededRng::get().set_seed(seed);
