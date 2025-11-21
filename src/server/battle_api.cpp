@@ -214,10 +214,12 @@ void BattleAPI::handle_battle_request(const httplib::Request &req,
         opponent_path.value(), config.file_operation_retries);
     return_if(opponent_team.empty(), 500, "Failed to load opponent team");
 
-    // Explicitly not using SeededRng here because
-    // this is the real seed generation for the battle
+    // Generate unique seed for this battle (non-deterministic, one-time)
     std::random_device rd;
     uint64_t seed = static_cast<uint64_t>(rd()) << 32 | rd();
+
+    // Set seed for deterministic battle simulation
+    SeededRng::get().set_seed(seed);
 
     const float fixed_dt = 1.0f / 60.0f;
     int max_iterations =

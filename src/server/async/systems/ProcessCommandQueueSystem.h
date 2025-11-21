@@ -209,7 +209,7 @@ private:
       }
     }
 
-    // Generate battle seed
+    // Generate unique seed for this battle (non-deterministic, one-time)
     std::random_device rd;
     uint64_t battle_seed = static_cast<uint64_t>(rd()) << 32 | rd();
 
