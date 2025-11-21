@@ -58,33 +58,17 @@ TEST(validate_code_hash) {
 }
 
 TEST(validate_code_hash_mismatch_rejection) {
-  app.launch_game();
-  app.wait_for_ui_exists("Play");
-  app.click("Play");
-  app.wait_for_screen(GameStateManager::Screen::Shop, 10.0f);
-  app.wait_for_ui_exists("Next Round");
-
-  const auto inventory = app.read_player_inventory();
-  if (inventory.empty()) {
-    const auto shop_items = app.read_store_options();
-    if (!shop_items.empty()) {
-      const int item_price = shop_items[0].price;
-      app.set_wallet_gold(item_price + 10);
-      app.purchase_item(shop_items[0].type);
-      app.wait_for_frames(2);
-    } else {
-      app.create_inventory_item(DishType::Potato, 0);
-      app.wait_for_frames(2);
-    }
-  }
-
   test_server_helpers::server_integration_test_setup("CODE_HASH_MISMATCH_TEST");
-
-  app.wait_for_frames(1);
 
   httplib::Client client("localhost", 8080);
   client.set_read_timeout(5, 0);
   client.set_connection_timeout(2, 0);
+
+  app.wait_for_frames(180);
+
+  auto health_res = client.Get("/health");
+  app.expect_true(health_res != nullptr, "Server health check should respond - ensure server is running on localhost:8080");
+  app.expect_true(health_res->status == 200, "Server should be healthy");
 
   nlohmann::json test_request;
   test_request["team"] = nlohmann::json::array();
@@ -97,7 +81,7 @@ TEST(validate_code_hash_mismatch_rejection) {
 
   auto res = client.Post("/battle", test_request.dump(), "application/json");
 
-  app.expect_true(res != nullptr, "Server should respond");
+  app.expect_true(res != nullptr, "Server should respond to battle request");
   app.expect_true(res->status == 400, "Server should reject with 400 for hash mismatch");
 
   nlohmann::json error_response = nlohmann::json::parse(res->body);

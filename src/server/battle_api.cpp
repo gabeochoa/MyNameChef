@@ -2,6 +2,7 @@
 #include "../log.h"
 #include "../seeded_rng.h"
 #include "../utils/battle_fingerprint.h"
+#include "../utils/code_hash_generated.h"
 #include "async/components/team_pool.h"
 #include "battle_serializer.h"
 #include "file_storage.h"

@@ -107,13 +107,16 @@ class ServerManager:
                 cwd=BASE_DIR
             )
             
+            # Set TEST_SERVER_PID environment variable for tests that need it
+            os.environ["TEST_SERVER_PID"] = str(self.server_process.pid)
+            
             # Wait for server to start
             max_attempts = 15
             for attempt in range(max_attempts):
                 try:
                     import urllib.request
                     urllib.request.urlopen(f"http://localhost:{self.port}/health", timeout=1)
-                    print(f"  {Colors.GREEN}✅ Server started{Colors.NC}")
+                    print(f"  {Colors.GREEN}✅ Server started (PID: {self.server_process.pid}){Colors.NC}")
                     return True
                 except:
                     if not self.server_process.poll() is None:
@@ -141,6 +144,8 @@ class ServerManager:
                 except:
                     pass
             self.server_process = None
+            # Clear TEST_SERVER_PID environment variable
+            os.environ.pop("TEST_SERVER_PID", None)
 
 
 class TestExecutor:
@@ -450,6 +455,8 @@ def categorize_tests(tests: List[str]) -> Tuple[List[str], List[str]]:
         "validate_full_game_flow",
         "validate_server_failure_during_shop",
         "validate_server_failure_during_battle",
+        "validate_code_hash",
+        "validate_code_hash_mismatch_rejection",
     ]
     
     # Integration tests that start their own server (from bash script)
