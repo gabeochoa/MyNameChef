@@ -15,6 +15,10 @@
 - **Tags and SynergyCountingSystem**: ✅ Complete (all tag components exist, SynergyCountingSystem counts tags, tooltips display tags and synergy counts)
 - **Dish Merging System**: ✅ Complete (merge system implemented, 2 level N dishes make 1 level N+1, uses DishLevel.contribution_value())
 - **RerollCost, Freezeable, and Seeded RNG Cleanup**: ✅ Complete (all shop RNG uses SeededRng, RerollCost is deterministic, Freezeable works correctly, tests pass)
+- **Survivor Carryover Test**: ✅ Complete (ValidateSurvivorCarryoverTest.h exists and tests survivor retargeting and position updates)
+- **BattleReport Persistence**: ✅ Complete (BattleReport component, SaveBattleReportSystem, JSON serialization, file retention, tests pass)
+- **Set Bonus Effects & Legend UI**: ✅ Complete (set bonuses apply, legend displays, tests pass - core functionality complete)
+- **Server RNG Determinism**: ✅ Complete (random_device replaced with SeededRng, seed stored in response, determinism test created)
 
 ---
 
@@ -38,32 +42,6 @@
 
 ## Tier 1: Critical Bug Fixes & Test Coverage (2-4hrs each)
 
-### Task 1: Add Survivor Carryover Test
-**Files**: Create `src/testing/tests/ValidateSurvivorCarryoverTest.h`
-- **Plan**: See `plans/survivor_carryover_test_plan.md`
-- **Goal**: Test that dishes that survive a course carry over to the next course correctly
-- **Key Behaviors to Test**:
-  - When a dish survives (has remaining Body after opponent finishes), it should retarget the next opponent
-  - The dish stays in the same slot position, but the opponent moves forward (next opponent in queue)
-  - Transform position should update correctly: both visual position (dish appears in correct spot) AND internal slot index should be correct
-  - This is important for future features where dishes spawn other dishes - we need to verify spawned dishes are in the right spots too
-  - Multiple survivors should handle correctly (each retargets appropriately)
-  - Battle should only complete when one team has no active dishes (not when a single course finishes)
-- **Test Cases**:
-  1. Single survivor retargets next opponent correctly
-  2. Transform position (visual and index) updates correctly on retarget
-  3. Multiple survivors all retarget correctly
-  4. Battle completion only occurs when one team exhausted
-- **Validation Steps**:
-  1. Create test file with survivor carryover scenarios
-  2. **MANDATORY CHECKPOINT**: Build: `make`
-  3. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
-  4. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
-  5. Verify test passes and survivor carryover works correctly
-  6. **MANDATORY CHECKPOINT**: Commit: `git commit -m "add survivor carryover test coverage"`
-  7. **Only after successful commit, proceed to Task 2**
-- **Estimated**: 2-3 hours
-
 ---
 
 ## Plan Creation Tasks
@@ -76,71 +54,9 @@
    - **Plan**: See `plans/shop_ux_affordances_plan.md`
    - Implement the UI/UX improvements per the plan, including tests or headless verifications that confirm highlights appear only on valid targets.
 
-3. **Set Bonus Effects & Legend UI**
-   - **Plan**: See `plans/set_bonus_system_plan.md`
-   - **Status**: ✅ Core functionality complete (set bonuses apply, legend displays, tests pass). Optional: visual feedback for threshold achievements.
-   - Implement set bonus calculations, PreBattleModifiers plumbing, and the battle legend UI according to the plan with supporting tests/logs.
-
 ---
 
 ## Tier 2: Core Gameplay Features (4-8hrs each)
-
-### Task 2: Replace random_device with SeededRng in Server
-**Files**: `src/server/battle_api.cpp`, `src/server/async/systems/ProcessCommandQueueSystem.h`
-- **Plan**: See `plans/server_rng_determinism_plan.md`
-- **Issue**: Server code still uses `std::random_device` instead of `SeededRng` for deterministic RNG
-- **Locations**:
-  - `battle_api.cpp:195` - Battle seed generation
-  - `ProcessCommandQueueSystem.h:213` - Command processing
-- **Fix**: Replace `std::random_device` calls with `SeededRng::get()` calls
-- **Verification Method**: Run the same battle twice with the same seed and compare outputs. Verify:
-  - Order of effects is identical
-  - Order of dishes entering combat is identical
-  - All RNG-dependent behavior is identical
-  - Any other deterministic aspects match
-- **Validation Steps**:
-  1. Replace random_device in battle_api.cpp with SeededRng
-  2. Replace random_device in ProcessCommandQueueSystem.h with SeededRng
-  3. Ensure seeds are properly set before use
-  4. Create test that runs same battle twice with same seed and compares outputs
-  5. **MANDATORY CHECKPOINT**: Build: `make`
-  6. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
-  7. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
-  8. Verify server determinism works correctly (test with same seed produces same results)
-  9. **MANDATORY CHECKPOINT**: Commit: `git commit -m "be - replace random_device with SeededRng in server code"`
-  10. **Only after successful commit, proceed to Task 3**
-- **Estimated**: 1-2 hours
-
-### Task 3: Implement BattleReport Persistence
-**Files**: Create/update `src/components/battle_report.h`, add JSON serialization
-- **Plan**: See `plans/battle_report_persistence_plan.md`
-- **Architecture**: Server-authoritative battle system
-  - Server returns JSON: `{ seed, opponentId, outcomes[], events[] }`
-  - Client receives JSON and uses seed to replay battle visually
-  - Store reports locally for later replay
-- **Components**: `BattleReport{ opponentId, seed, outcomes[], events[], receivedFromServer, timestamp }`
-- **Storage**: Write to `output/battles/results/*.json` on Results screen
-- **File Naming**: Same as server format: `YYYYMMDD_HHMMSS_<battle_id>.json`
-- **When to Save**: Auto-save after every battle completes (on Results screen)
-- **File Retention**: Keep only the last 20 battle reports (delete oldest when limit reached)
-- **Future Enhancement**: Will add "History" button on main menu to show last 20 battles and allow replaying simulations
-- **Note**: Server already saves results to `output/battles/results/` with format `YYYYMMDD_HHMMSS_<battle_id>.json`. Client should be able to load these files.
-- **Fun Ideas**:
-  - Battle history viewer showing past matches (future: main menu "History" button)
-  - "Replay Last Battle" quick button
-  - Share battle results (export JSON)
-- **Validation Steps**:
-  1. Create BattleReport component
-  2. Add JSON serialization/deserialization (server format compatible)
-  3. Integrate with Results screen to auto-save reports (format: `YYYYMMDD_HHMMSS_<battle_id>.json`)
-  4. Implement file retention (keep last 20, delete oldest when limit reached)
-  5. **MANDATORY CHECKPOINT**: Build: `make`
-  6. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
-  7. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
-  8. Verify reports saved and can be loaded (check output/battles/results/ directory)
-  9. **MANDATORY CHECKPOINT**: Commit: `git commit -m "implement BattleReport persistence with JSON serialization"`
-  10. **Only after successful commit, proceed to Task 4**
-- **Estimated**: 4-5 hours
 
 ---
 
@@ -171,35 +87,8 @@
   6. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
   7. Verify can replay any saved battle, speed controls work (manual test)
   8. **MANDATORY CHECKPOINT**: Commit: `git commit -m "enhance replay system with speed controls and battle history"`
-  9. **Only after successful commit, proceed to Task 5**
-- **Estimated**: 4-6 hours
-
-### Task 5: Implement Set Bonus Effects (Optional: Visual Feedback)
-**Files**: Add visual feedback systems
-- **Plan**: See `plans/set_bonus_system_plan.md`
-- **Status**: ✅ Core functionality complete (set bonuses apply, legend displays, tests pass)
-- **Remaining Work**: Optional visual feedback for threshold achievements
-- **Current State**:
-  - ✅ Set bonus definitions exist for all 10 cuisines
-  - ✅ Bonuses apply correctly via `ApplySetBonusesSystem`
-  - ✅ Battle synergy legend displays active synergies
-  - ✅ Effect-based bonuses work (e.g., OnBiteTaken triggers)
-  - ✅ Tests pass and verify functionality
-- **Optional Enhancement**: Visual feedback when thresholds achieved
-  - Celebration animation when hitting 4-piece or 6-piece bonus
-  - Particle effects or glow around dishes
-  - Sound effects (optional)
-- **Validation Steps** (if implementing visual feedback):
-  1. Add animation/particle system for threshold achievements
-  2. Detect threshold crossing in `ApplySetBonusesSystem`
-  3. Trigger visual feedback on threshold achievement
-  4. **MANDATORY CHECKPOINT**: Build: `make`
-  5. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
-  6. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
-  7. Verify visual feedback appears correctly (manual test)
-  8. **MANDATORY CHECKPOINT**: Commit: `git commit -m "ui - add visual feedback for set bonus thresholds"`
   9. **Only after successful commit, proceed to Task 6**
-- **Estimated**: 2-4 hours (if implementing visual feedback)
+- **Estimated**: 4-6 hours
 
 ### Task 6: Enhanced Shop UX
 **Files**: Update shop systems and UI
@@ -226,7 +115,6 @@
   6. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
   7. Verify all UX improvements work correctly (manual test)
   8. **MANDATORY CHECKPOINT**: Commit: `git commit -m "ui - enhance shop UX with prices, drop highlights, and reroll cost"`
-  9. **Only after successful commit, proceed to Task 7**
 - **Estimated**: 3-4 hours
 
 ## Tier 4: Advanced Systems (10+ hours each)
@@ -472,15 +360,13 @@ These are potential enhancements to the tooltip system that can be implemented a
 ## Priority Recommendations
 
 **Immediate (This Week)**:
-- Tier 1: Survivor carryover test (2-3 hours)
-- Tier 2: Server determinism fixes (1-2 hours)
-
-**Short Term (Next 2 Weeks)**:
-- Tier 2: BattleReport persistence (4-5 hours)
 - Tier 3: Replay enhancements and shop UX (7-10 hours)
 
+**Short Term (Next 2 Weeks)**:
+- Tier 3: Shop UX improvements (3-4 hours)
+
 **Medium Term (Next Month)**:
-- Tier 3: Set bonuses, font standardization, text formatting, tooltip positioning (14-20 hours)
+- Tier 3: Font standardization, text formatting, tooltip positioning (14-20 hours)
 - Tier 4: Start advanced effects (status effects, duration, chains) (16-22 hours)
 
 **Long Term (Future)**:
@@ -532,5 +418,5 @@ These are potential enhancements to the tooltip system that can be implemented a
 
 **Implementation Order**:
 1. First ensure deterministic simulation works with local seeds ✅
-2. Then add server JSON deserialization (Task 3)
+2. Then add server JSON deserialization ✅
 3. Finally add HTTP client for server communication (future task)
