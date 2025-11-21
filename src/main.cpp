@@ -49,6 +49,7 @@ backward::SignalHandling sh;
 #include "systems/RenderDebugWindowInfo.h"
 #include "systems/RenderDishProgressBars.h"
 #include "systems/RenderDrinkIcon.h"
+#include "systems/RenderDropTargetHighlightsSystem.h"
 #include "systems/RenderDrinkShopSlots.h"
 #include "systems/RenderEntitiesByOrder.h"
 #include "systems/RenderFPS.h"
@@ -240,6 +241,8 @@ void game(const std::optional<std::string> &run_test) {
       systems.register_render_system(std::make_unique<RenderLetterboxBars>());
       systems.register_render_system(std::make_unique<RenderSellSlot>());
       systems.register_render_system(std::make_unique<RenderFreezeIcon>());
+      systems.register_render_system(
+          std::make_unique<RenderDropTargetHighlightsSystem>());
       systems.register_render_system(std::make_unique<RenderDrinkIcon>());
       systems.register_render_system(std::make_unique<RenderBattleResults>());
       // ReplayUISystem is now integrated into ScheduleMainMenuUI::battle_screen

@@ -485,7 +485,7 @@ Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
   } catch (...) {
     // RerollCost singleton not registered yet, use default
   }
-  std::string reroll_label = fmt::format("Reroll ({})", reroll_cost);
+  std::string reroll_label = fmt::format("Reroll ({} gold)", reroll_cost);
 
   button_labeled<InputAction>(
       context, top_right.ent(), reroll_label,

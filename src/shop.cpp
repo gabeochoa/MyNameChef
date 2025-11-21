@@ -28,10 +28,13 @@
 #include "render_constants.h"
 #include "seeded_rng.h"
 #include "systems/GenerateDrinkShop.h"
-#include "systems/RenderDrinkShopSlots.h"
 #include "systems/GenerateInventorySlots.h"
 #include "systems/GenerateShopSlots.h"
 #include "systems/NetworkSystem.h"
+#include "systems/RenderDrinkShopSlots.h"
+#include "systems/RenderDropTargetHighlightsSystem.h"
+#include "systems/RenderShopItemMatchIndicatorSystem.h"
+#include "systems/RenderShopPriceDisplaySystem.h"
 #include "systems/SynergyCountingSystem.h"
 #include "tooltip.h"
 #include <afterhours/src/plugins/color.h>
@@ -317,6 +320,10 @@ void register_shop_update_systems(afterhours::SystemManager &systems) {
 
 void register_shop_render_systems(afterhours::SystemManager &systems) {
   systems.register_render_system(std::make_unique<RenderDrinkShopSlots>());
+  systems.register_render_system(
+      std::make_unique<RenderShopPriceDisplaySystem>());
+  systems.register_render_system(
+      std::make_unique<RenderShopItemMatchIndicatorSystem>());
 }
 
 bool wallet_can_afford(int cost) {
@@ -335,12 +342,14 @@ bool wallet_charge(int cost) {
   }
   auto &wallet = wallet_entity.get().get<Wallet>();
   if (wallet.gold < cost) {
-    log_error("WALLET_CHARGE: Insufficient gold: have {}, need {}", wallet.gold, cost);
+    log_error("WALLET_CHARGE: Insufficient gold: have {}, need {}", wallet.gold,
+              cost);
     return false;
   }
   int old_gold = wallet.gold;
   wallet.gold -= cost;
-  log_error("WALLET_CHARGE: Charged {} gold: {} -> {}", cost, old_gold, wallet.gold);
+  log_error("WALLET_CHARGE: Charged {} gold: {} -> {}", cost, old_gold,
+            wallet.gold);
   return true;
 }
 
