@@ -12,20 +12,20 @@
 #include "../components/cuisine_tag.h"
 #include "../components/dish_battle_state.h"
 #include "../components/dish_level.h"
+#include "../components/drink_pairing.h"
 #include "../components/has_tooltip.h"
 #include "../components/is_dish.h"
 #include "../components/is_draggable.h"
+#include "../components/is_drink_shop_item.h"
 #include "../components/is_drop_slot.h"
 #include "../components/is_held.h"
 #include "../components/is_inventory_item.h"
 #include "../components/is_shop_item.h"
-#include "../components/is_drink_shop_item.h"
-#include "../components/drink_pairing.h"
 #include "../components/network_info.h"
-#include "../components/test_drink_shop_override.h"
 #include "../components/persistent_combat_modifiers.h"
 #include "../components/render_order.h"
 #include "../components/replay_state.h"
+#include "../components/test_drink_shop_override.h"
 #include "../components/transform.h"
 #include "../components/user_id.h"
 #include "../dish_types.h"
@@ -159,7 +159,7 @@ TestApp &TestApp::launch_game(const std::source_location &loc) {
            .gen()) {
     entity.cleanup = true;
   }
-  
+
   // Clear inventory items to ensure clean state for tests
   for (afterhours::Entity &entity :
        afterhours::EntityQuery({.force_merge = true})
@@ -168,7 +168,7 @@ TestApp &TestApp::launch_game(const std::source_location &loc) {
            .gen()) {
     entity.cleanup = true;
   }
-  
+
   afterhours::EntityHelper::cleanup();
   wait_for_frames(1); // Let cleanup complete
 
@@ -180,10 +180,10 @@ TestApp &TestApp::launch_game(const std::source_location &loc) {
            "next_screen={}",
            (int)gsm.active_screen,
            gsm.next_screen.has_value() ? (int)gsm.next_screen.value() : -1);
-  
+
   // Wait for screen transition to complete (important in visible mode)
   wait_for_screen(GameStateManager::Screen::Main, 5.0f);
-  
+
   game_launched = true;
   completed_operations.insert(op_id);
   if (step_delay()) {
@@ -500,9 +500,8 @@ TestApp &TestApp::wait_for_shop_items(int min_count, float timeout_sec,
   std::chrono::duration<float> elapsed = now - wait_start[op_id];
   if (elapsed.count() >= timeout_sec) {
     wait_start.erase(op_id);
-    fail("Timeout waiting for shop items (needed " +
-             std::to_string(min_count) + ", found " +
-             std::to_string(item_count) + ")",
+    fail("Timeout waiting for shop items (needed " + std::to_string(min_count) +
+             ", found " + std::to_string(item_count) + ")",
          location);
     return *this;
   }
@@ -556,8 +555,9 @@ TestApp &TestApp::set_wallet_gold(int gold, const std::string &location) {
   return *this;
 }
 
-TestApp &TestApp::create_inventory_item(DishType type, int slot,
-                                        std::optional<CuisineTagType> cuisine_tag) {
+TestApp &
+TestApp::create_inventory_item(DishType type, int slot,
+                               std::optional<CuisineTagType> cuisine_tag) {
   // Manually create an item in a specific inventory slot
   // Bypasses normal purchase logic - used for testing scenarios
   // If slot is already occupied, this will overwrite/replace it
@@ -604,7 +604,7 @@ TestApp &TestApp::create_inventory_item(DishType type, int slot,
   dish.addComponent<Transform>(position, vec2{80.0f, 80.0f});
   dish.addComponent<IsDish>(type);
   add_dish_tags(dish, type);
-  
+
   // Override cuisine tag if specified
   if (cuisine_tag.has_value()) {
     // Remove existing CuisineTag if present and add the specified one
@@ -613,7 +613,7 @@ TestApp &TestApp::create_inventory_item(DishType type, int slot,
     }
     dish.addComponent<CuisineTag>(cuisine_tag.value());
   }
-  
+
   dish.addComponent<DishLevel>(1);
   IsInventoryItem &inv_item = dish.addComponent<IsInventoryItem>();
   inv_item.slot = slot;
@@ -641,12 +641,12 @@ TestApp &TestApp::create_inventory_item(DishType type, int slot,
 }
 
 TestApp &TestApp::apply_drink_to_dish(int dish_slot, DrinkType drink_type,
-                                       const std::source_location &loc) {
+                                      const std::source_location &loc) {
   // Use operation ID to track progress and make it idempotent
   TestOperationID op_id = generate_operation_id(
-      loc, "apply_drink_to_dish:" + std::to_string(dish_slot) + ":" + 
-      std::to_string(static_cast<int>(drink_type)));
-  
+      loc, "apply_drink_to_dish:" + std::to_string(dish_slot) + ":" +
+               std::to_string(static_cast<int>(drink_type)));
+
   // Check if operation is already complete by verifying DrinkPairing exists
   bool already_applied = false;
   for (afterhours::Entity &entity :
@@ -654,7 +654,8 @@ TestApp &TestApp::apply_drink_to_dish(int dish_slot, DrinkType drink_type,
            .whereHasComponent<IsInventoryItem>()
            .whereHasComponent<IsDish>()
            .gen()) {
-    if (entity.get<IsInventoryItem>().slot == dish_slot && entity.has<DrinkPairing>()) {
+    if (entity.get<IsInventoryItem>().slot == dish_slot &&
+        entity.has<DrinkPairing>()) {
       const DrinkPairing &pairing = entity.get<DrinkPairing>();
       if (pairing.drink.has_value() && pairing.drink.value() == drink_type) {
         already_applied = true;
@@ -662,21 +663,21 @@ TestApp &TestApp::apply_drink_to_dish(int dish_slot, DrinkType drink_type,
       }
     }
   }
-  
+
   if (already_applied) {
     // Drink is already applied - operation must have completed
     completed_operations.insert(op_id);
     return *this;
   }
-  
+
   // Check if operation is already in progress (marked as complete)
   if (completed_operations.count(op_id) > 0) {
     return *this;
   }
-  
+
   // Simulate drag-and-drop of drink onto dish using mouse input simulation
   // This uses test_input wrapper to simulate mouse interactions
-  
+
   // Wait for drinks to be generated (they might still be in temp entities)
   afterhours::Entity *drink_entity = nullptr;
   std::vector<DrinkType> available_drinks;
@@ -698,17 +699,20 @@ TestApp &TestApp::apply_drink_to_dish(int dish_slot, DrinkType drink_type,
       break;
     }
   }
-  
+
   if (!drink_entity) {
     std::string available_str = "Available drinks: ";
     for (size_t i = 0; i < available_drinks.size(); ++i) {
-      if (i > 0) available_str += ", ";
+      if (i > 0)
+        available_str += ", ";
       available_str += std::to_string(static_cast<int>(available_drinks[i]));
     }
-    fail("Drink shop item with type " + std::to_string(static_cast<int>(drink_type)) + " not found after waiting. " + available_str);
+    fail("Drink shop item with type " +
+         std::to_string(static_cast<int>(drink_type)) +
+         " not found after waiting. " + available_str);
     return *this;
   }
-  
+
   // Find dish in inventory at dish_slot
   afterhours::Entity *dish_entity = nullptr;
   for (afterhours::Entity &entity :
@@ -721,57 +725,53 @@ TestApp &TestApp::apply_drink_to_dish(int dish_slot, DrinkType drink_type,
       break;
     }
   }
-  
+
   if (!dish_entity) {
     fail("Dish not found in inventory slot " + std::to_string(dish_slot));
     return *this;
   }
-  
+
   // Get positions of both entities
   if (!drink_entity->has<Transform>() || !dish_entity->has<Transform>()) {
     fail("Drink or dish entity missing Transform component");
     return *this;
   }
-  
+
   vec2 drink_pos = drink_entity->get<Transform>().center();
   vec2 dish_pos = dish_entity->get<Transform>().center();
-  
+
   // Store drink entity ID since pointer might become invalid after merge
   afterhours::EntityID drink_entity_id = drink_entity->id;
-  
+
   // Wait for drink entity to be merged so MarkIsHeldWhenHeld system can find it
   // The system queries without force_merge, so entity must be in main array
   for (int i = 0; i < 20; ++i) {
     wait_for_frames(1);
     afterhours::OptEntity drink_merged_opt =
-        afterhours::EntityQuery()
-            .whereID(drink_entity_id)
-            .gen_first();
+        afterhours::EntityQuery().whereID(drink_entity_id).gen_first();
     if (drink_merged_opt.has_value()) {
       // Entity is merged, get updated position
       drink_pos = drink_merged_opt.asE().get<Transform>().center();
       break;
     }
   }
-  
+
   // Verify entity is merged and has required components
   afterhours::OptEntity drink_merged_opt =
-      afterhours::EntityQuery()
-          .whereID(drink_entity_id)
-          .gen_first();
+      afterhours::EntityQuery().whereID(drink_entity_id).gen_first();
   if (!drink_merged_opt.has_value()) {
     fail("Drink entity not found after merge - system cannot find it");
     test_input::clear_simulated_input();
     return *this;
   }
-  
+
   afterhours::Entity &drink_merged = drink_merged_opt.asE();
   if (!drink_merged.has<IsDraggable>() || !drink_merged.has<Transform>()) {
     fail("Drink entity missing IsDraggable or Transform component");
     test_input::clear_simulated_input();
     return *this;
   }
-  
+
   // Verify we're on Shop screen (required for MarkIsHeldWhenHeld system)
   auto &gsm = GameStateManager::get();
   if (gsm.active_screen != GameStateManager::Screen::Shop) {
@@ -779,14 +779,16 @@ TestApp &TestApp::apply_drink_to_dish(int dish_slot, DrinkType drink_type,
     test_input::clear_simulated_input();
     return *this;
   }
-  
-  // CRITICAL: Verify the entity is queryable by MarkIsHeldWhenHeld system (without force_merge)
-  // The system uses EQ() which doesn't use force_merge, so we need to ensure the entity is in the main array
+
+  // CRITICAL: Verify the entity is queryable by MarkIsHeldWhenHeld system
+  // (without force_merge) The system uses EQ() which doesn't use force_merge,
+  // so we need to ensure the entity is in the main array
   bool system_can_find_entity = false;
   for (int check = 0; check < 10; ++check) {
     wait_for_frames(1);
     for (afterhours::Entity &entity :
-         afterhours::EntityQuery() // No force_merge, like MarkIsHeldWhenHeld uses
+         afterhours::EntityQuery() // No force_merge, like MarkIsHeldWhenHeld
+                                   // uses
              .whereHasComponent<IsDraggable>()
              .whereHasComponent<Transform>()
              .gen()) {
@@ -801,44 +803,49 @@ TestApp &TestApp::apply_drink_to_dish(int dish_slot, DrinkType drink_type,
       break;
     }
   }
-  
+
   if (!system_can_find_entity) {
-    fail("Drink entity not found by system query (without force_merge) - MarkIsHeldWhenHeld cannot find it");
+    fail("Drink entity not found by system query (without force_merge) - "
+         "MarkIsHeldWhenHeld cannot find it");
     test_input::clear_simulated_input();
     return *this;
   }
-  
+
   // Get position from merged entity
   drink_pos = drink_merged.get<Transform>().center();
-  
+
   // Ensure mouse position is within entity bounds (not just at center)
-  // MarkIsHeldWhenHeld uses CheckCollisionPointRec which needs the point to be within the rect
+  // MarkIsHeldWhenHeld uses CheckCollisionPointRec which needs the point to be
+  // within the rect
   const Transform &entity_transform = drink_merged.get<Transform>();
   Rectangle entity_rect = entity_transform.rect();
   vec2 mouse_pos_within_entity = entity_transform.center();
-  
+
   // Clamp mouse position to be within entity bounds with a small margin
-  mouse_pos_within_entity.x = std::max(entity_rect.x + 1.0f, 
-                                       std::min(entity_rect.x + entity_rect.width - 1.0f, 
-                                                mouse_pos_within_entity.x));
-  mouse_pos_within_entity.y = std::max(entity_rect.y + 1.0f, 
-                                       std::min(entity_rect.y + entity_rect.height - 1.0f, 
-                                                mouse_pos_within_entity.y));
-  
+  mouse_pos_within_entity.x = std::max(
+      entity_rect.x + 1.0f, std::min(entity_rect.x + entity_rect.width - 1.0f,
+                                     mouse_pos_within_entity.x));
+  mouse_pos_within_entity.y = std::max(
+      entity_rect.y + 1.0f, std::min(entity_rect.y + entity_rect.height - 1.0f,
+                                     mouse_pos_within_entity.y));
+
   // Simulate mouse drag-and-drop:
   // 1. Set mouse position to drink position (within bounds)
-  // 2. Simulate mouse button press (to start drag) - flag persists until consumed
+  // 2. Simulate mouse button press (to start drag) - flag persists until
+  // consumed
   // 3. Wait for MarkIsHeldWhenHeld to process
   // 4. Move mouse to dish position
   // 5. Simulate mouse button release (to drop)
   // 6. Wait for HandleDrinkDrop to process
-  
+
   test_input::set_mouse_position(mouse_pos_within_entity);
   wait_for_frames(1); // Ensure mouse position is set before press
   test_input::simulate_mouse_button_press(raylib::MOUSE_BUTTON_LEFT);
-  wait_for_frames(5); // Let MarkIsHeldWhenHeld process the press (flag persists until consumed)
-  
-  // Verify drink is now held - poll for a few frames since the system might not have run yet
+  wait_for_frames(5); // Let MarkIsHeldWhenHeld process the press (flag persists
+                      // until consumed)
+
+  // Verify drink is now held - poll for a few frames since the system might not
+  // have run yet
   bool is_held = false;
   for (int check = 0; check < 20; ++check) {
     wait_for_frames(1);
@@ -848,34 +855,37 @@ TestApp &TestApp::apply_drink_to_dish(int dish_slot, DrinkType drink_type,
             .gen_first();
     if (check_opt.has_value() && check_opt.asE().has<IsHeld>()) {
       is_held = true;
-      log_error("TEST_APP: Drink {} is held after {} checks", drink_entity_id, check + 1);
+      log_error("TEST_APP: Drink {} is held after {} checks", drink_entity_id,
+                check + 1);
       break;
     }
   }
-  
+
   if (!is_held) {
     // Final check - maybe the entity ID changed or something else happened
     int held_count = 0;
-    for (afterhours::Entity &e :
-         afterhours::EntityQuery({.force_merge = true})
-             .whereHasComponent<IsHeld>()
-             .gen()) {
+    for (afterhours::Entity &e : afterhours::EntityQuery({.force_merge = true})
+                                     .whereHasComponent<IsHeld>()
+                                     .gen()) {
       held_count++;
       if (e.id == drink_entity_id) {
         is_held = true;
-        log_error("TEST_APP: Found held drink {} in separate query", drink_entity_id);
+        log_error("TEST_APP: Found held drink {} in separate query",
+                  drink_entity_id);
         break;
       }
     }
-    log_error("TEST_APP: After polling, is_held={}, held_count={}, drink_entity_id={}", is_held, held_count, drink_entity_id);
+    log_error("TEST_APP: After polling, is_held={}, held_count={}, "
+              "drink_entity_id={}",
+              is_held, held_count, drink_entity_id);
   }
-  
+
   if (!is_held) {
     fail("Drink was not marked as held after mouse press");
     test_input::clear_simulated_input();
     return *this;
   }
-  
+
   // Re-query for drink entity to use for drop
   afterhours::OptEntity drink_held_opt =
       afterhours::EntityQuery({.force_merge = true})
@@ -886,15 +896,15 @@ TestApp &TestApp::apply_drink_to_dish(int dish_slot, DrinkType drink_type,
     test_input::clear_simulated_input();
     return *this;
   }
-  
+
   // Move mouse to dish position
   test_input::set_mouse_position(dish_pos);
   wait_for_frames(1);
-  
+
   // Release mouse button to drop
   test_input::simulate_mouse_button_release(raylib::MOUSE_BUTTON_LEFT);
   wait_for_frames(3); // Let HandleDrinkDrop process the release
-  
+
   // Re-query for dish entity to verify DrinkPairing was added (read-only check)
   afterhours::OptEntity dish_check_opt =
       afterhours::EntityQuery({.force_merge = true})
@@ -905,26 +915,26 @@ TestApp &TestApp::apply_drink_to_dish(int dish_slot, DrinkType drink_type,
     test_input::clear_simulated_input();
     return *this;
   }
-  
+
   if (!dish_check_opt.asE().has<DrinkPairing>()) {
     fail("DrinkPairing component was not added to dish");
     test_input::clear_simulated_input();
     return *this;
   }
-  
+
   const DrinkPairing &pairing = dish_check_opt.asE().get<DrinkPairing>();
   if (!pairing.drink.has_value() || pairing.drink.value() != drink_type) {
     fail("DrinkPairing has wrong drink type");
     test_input::clear_simulated_input();
     return *this;
   }
-  
+
   // Clear simulated input state
   test_input::clear_simulated_input();
-  
+
   // Mark operation as complete
   completed_operations.insert(op_id);
-  
+
   return *this;
 }
 
@@ -932,12 +942,14 @@ TestApp &TestApp::set_drink_shop_override(const std::vector<DrinkType> &drinks,
                                           const std::source_location &loc) {
   // Get or create the test override singleton
   // First check if singleton already exists
-  const auto override_id = afterhours::components::get_type_id<TestDrinkShopOverride>();
+  const auto override_id =
+      afterhours::components::get_type_id<TestDrinkShopOverride>();
   auto &singleton_map = afterhours::EntityHelper::get().singletonMap;
-  
+
   if (singleton_map.find(override_id) != singleton_map.end()) {
     // Singleton exists, update it
-    auto override_opt = afterhours::EntityHelper::get_singleton<TestDrinkShopOverride>();
+    auto override_opt =
+        afterhours::EntityHelper::get_singleton<TestDrinkShopOverride>();
     if (override_opt.get().has<TestDrinkShopOverride>()) {
       auto &override = override_opt.get().get<TestDrinkShopOverride>();
       override.drinks = drinks;
@@ -946,21 +958,25 @@ TestApp &TestApp::set_drink_shop_override(const std::vector<DrinkType> &drinks,
       override_opt.get().addComponent<TestDrinkShopOverride>(drinks);
     }
   } else {
-    // Singleton doesn't exist, create it as a permanent entity so it's not cleaned up
+    // Singleton doesn't exist, create it as a permanent entity so it's not
+    // cleaned up
     auto &override_entity = afterhours::EntityHelper::createPermanentEntity();
     override_entity.addComponent<TestDrinkShopOverride>(drinks);
-    afterhours::EntityHelper::registerSingleton<TestDrinkShopOverride>(override_entity);
+    afterhours::EntityHelper::registerSingleton<TestDrinkShopOverride>(
+        override_entity);
   }
   return *this;
 }
 
 TestApp &TestApp::clear_drink_shop_override(const std::source_location &loc) {
   // Remove the test override component
-  const auto override_id = afterhours::components::get_type_id<TestDrinkShopOverride>();
+  const auto override_id =
+      afterhours::components::get_type_id<TestDrinkShopOverride>();
   auto &singleton_map = afterhours::EntityHelper::get().singletonMap;
-  
+
   if (singleton_map.find(override_id) != singleton_map.end()) {
-    auto override_opt = afterhours::EntityHelper::get_singleton<TestDrinkShopOverride>();
+    auto override_opt =
+        afterhours::EntityHelper::get_singleton<TestDrinkShopOverride>();
     if (override_opt.get().has<TestDrinkShopOverride>()) {
       override_opt.get().removeComponent<TestDrinkShopOverride>();
     }
@@ -1469,7 +1485,7 @@ void TestApp::setup_wait_state(WaitState::Type type, float timeout_sec,
 
 afterhours::Entity *TestApp::find_entity_by_id(afterhours::EntityID id) {
   afterhours::OptEntity opt_entity =
-      afterhours::EntityQuery().whereID(id).gen_first();
+      afterhours::EntityQuery({.force_merge = true}).whereID(id).gen_first();
   if (opt_entity) {
     return &opt_entity.asE();
   }
@@ -2386,14 +2402,15 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
   // Use operation ID to track purchase progress and make it idempotent
   TestOperationID op_id = generate_operation_id(
       std::source_location::current(),
-      "purchase_item:" + std::to_string(static_cast<int>(type)) + ":" + 
-      std::to_string(inventory_slot) + ":" + location);
-  
-  // Check if purchase is already complete by verifying gold was deducted and item is in inventory
+      "purchase_item:" + std::to_string(static_cast<int>(type)) + ":" +
+          std::to_string(inventory_slot) + ":" + location);
+
+  // Check if purchase is already complete by verifying gold was deducted and
+  // item is in inventory
   if (completed_operations.count(op_id) > 0) {
     return *this;
   }
-  
+
   // Quick check: if item is already in inventory, mark as complete
   bool already_in_inventory = false;
   for (afterhours::Entity &entity :
@@ -2407,25 +2424,28 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
       break;
     }
   }
-  
+
   if (already_in_inventory) {
     // Item is already in inventory - purchase must have completed
     completed_operations.insert(op_id);
     return *this;
   }
-  
-  log_error("TEST_APP: purchase_item CALLED for type {}, slot {}", static_cast<int>(type), inventory_slot);
+
+  log_error("TEST_APP: purchase_item CALLED for type {}, slot {}",
+            static_cast<int>(type), inventory_slot);
   // Ensure we're on the shop screen
   expect_screen_is(GameStateManager::Screen::Shop, location);
 
   // Find a shop item of the specified type
-  // IMPORTANT: If an item of this type is already being held, continue with that item
-  // This ensures we always purchase the same item when the test resumes
+  // IMPORTANT: If an item of this type is already being held, continue with
+  // that item This ensures we always purchase the same item when the test
+  // resumes
   afterhours::Entity *shop_item = nullptr;
   afterhours::EntityID held_item_id = -1;
-  
-  // First, check if there's already a held item of this type (purchase in progress)
-  // IMPORTANT: Only continue with held item if it matches the exact type we're trying to purchase
+
+  // First, check if there's already a held item of this type (purchase in
+  // progress) IMPORTANT: Only continue with held item if it matches the exact
+  // type we're trying to purchase
   for (afterhours::Entity &entity :
        afterhours::EntityQuery({.force_merge = true})
            .whereHasComponent<IsShopItem>()
@@ -2435,15 +2455,21 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
       const IsDish &dish = entity.get<IsDish>();
       if (dish.type == type) {
         held_item_id = entity.id;
-        log_error("TEST_APP: Found held item {} of type {} - continuing with this item", entity.id, static_cast<int>(type));
+        log_error("TEST_APP: Found held item {} of type {} - continuing with "
+                  "this item",
+                  entity.id, static_cast<int>(type));
         break;
       } else {
-        log_error("TEST_APP: Found held item {} of type {} but need type {} - ignoring", entity.id, static_cast<int>(dish.type), static_cast<int>(type));
+        log_error("TEST_APP: Found held item {} of type {} but need type {} - "
+                  "ignoring",
+                  entity.id, static_cast<int>(dish.type),
+                  static_cast<int>(type));
       }
     }
   }
-  
-  // If we found a held item, use it; otherwise find any available item of this type
+
+  // If we found a held item, use it; otherwise find any available item of this
+  // type
   if (held_item_id >= 0) {
     afterhours::OptEntity held_opt =
         afterhours::EntityQuery({.force_merge = true})
@@ -2453,18 +2479,24 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
       shop_item = &held_opt.asE();
     }
   }
-  
+
   // If no held item found, find any available item of this type
-  // IMPORTANT: Skip items that are already being held (purchase in progress for a different type)
+  // IMPORTANT: Skip items that are already being held (purchase in progress for
+  // a different type)
   if (!shop_item) {
     for (afterhours::Entity &entity :
-         afterhours::EntityQuery({.force_merge = true}).whereHasComponent<IsShopItem>().gen()) {
+         afterhours::EntityQuery({.force_merge = true})
+             .whereHasComponent<IsShopItem>()
+             .gen()) {
       if (entity.has<IsDish>()) {
         const IsDish &dish = entity.get<IsDish>();
         if (dish.type == type) {
-          // Skip if this item is already being held (purchase in progress for a different operation)
+          // Skip if this item is already being held (purchase in progress for a
+          // different operation)
           if (entity.has<IsHeld>()) {
-            log_error("TEST_APP: Skipping shop item {} - already being held (different purchase in progress)", entity.id);
+            log_error("TEST_APP: Skipping shop item {} - already being held "
+                      "(different purchase in progress)",
+                      entity.id);
             continue;
           }
           shop_item = &entity;
@@ -2473,20 +2505,21 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
       }
     }
   }
-  
+
   if (!shop_item) {
     fail("Shop item of type " + std::to_string(static_cast<int>(type)) +
-             " not found in shop (or all items of this type are already being held)",
+             " not found in shop (or all items of this type are already being "
+             "held)",
          location);
     return *this;
   }
-  
+
   log_error("TEST_APP: Found shop item, getting price and gold");
 
   // Get the price
   const int price = get_dish_info(type).price;
   const int initial_gold = read_wallet_gold();
-  
+
   log_error("TEST_APP: Price={}, Initial gold={}", price, initial_gold);
 
   // Check if player can afford it
@@ -2497,7 +2530,7 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
          location);
     return *this;
   }
-  
+
   log_error("TEST_APP: Can afford item, finding target slot");
 
   // Find an empty inventory slot
@@ -2544,8 +2577,9 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
     }
   }
 
-  log_error("TEST_APP: Finished searching for target slot, found={}", target_slot != nullptr);
-  
+  log_error("TEST_APP: Finished searching for target slot, found={}",
+            target_slot != nullptr);
+
   // Final check after all attempts
   if (!target_slot) {
     // force_merge in query handles merging automatically
@@ -2582,23 +2616,23 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
   // Simulate drag-and-drop using test_input (production code path)
   // This uses the same flow as apply_drink_to_dish: simulate mouse interactions
   // and let DropWhenNoLongerHeld system process naturally
-  
+
   log_error("TEST_APP: Starting drag-and-drop simulation");
-  
+
   // Get positions
   if (!shop_item->has<Transform>() || !target_slot->has<Transform>()) {
     fail("Shop item or target slot missing Transform component", location);
     return *this;
   }
-  
+
   log_error("TEST_APP: Got positions, waiting for shop item to merge");
-  
+
   vec2 shop_item_pos = shop_item->get<Transform>().center();
   vec2 target_slot_pos = target_slot->get<Transform>().center();
-  
+
   // Store shop item ID since pointer might become invalid after merge
   afterhours::EntityID shop_item_id = shop_item->id;
-  
+
   // Check if item is already held (purchase in progress from previous call)
   bool already_held = false;
   afterhours::OptEntity shop_item_check =
@@ -2607,11 +2641,14 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
           .gen_first();
   if (shop_item_check.has_value() && shop_item_check.asE().has<IsHeld>()) {
     already_held = true;
-    log_error("TEST_APP: Shop item {} is already held - purchase in progress, skipping to drop", shop_item_id);
+    log_error("TEST_APP: Shop item {} is already held - purchase in progress, "
+              "skipping to drop",
+              shop_item_id);
     shop_item_pos = shop_item_check.asE().get<Transform>().center();
     // Verify the item is actually held and has required components
     if (!shop_item_check.asE().has<IsShopItem>()) {
-      log_error("TEST_APP: Held item missing IsShopItem - purchase may have completed, checking inventory");
+      log_error("TEST_APP: Held item missing IsShopItem - purchase may have "
+                "completed, checking inventory");
       // Item might have been purchased already - check inventory
       bool found_in_inventory = false;
       for (afterhours::Entity &entity :
@@ -2622,30 +2659,32 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
         const IsDish &dish = entity.get<IsDish>();
         if (dish.type == type) {
           found_in_inventory = true;
-          log_error("TEST_APP: Item found in inventory - purchase already completed");
+          log_error(
+              "TEST_APP: Item found in inventory - purchase already completed");
           // Mark operation as complete
           completed_operations.insert(op_id);
           return *this;
         }
       }
       if (!found_in_inventory) {
-        log_error("TEST_APP: Held item missing IsShopItem but not in inventory - unexpected state");
-        fail("Shop item is held but missing IsShopItem and not in inventory - unexpected state", location);
+        log_error("TEST_APP: Held item missing IsShopItem but not in inventory "
+                  "- unexpected state");
+        fail("Shop item is held but missing IsShopItem and not in inventory - "
+             "unexpected state",
+             location);
         test_input::clear_simulated_input();
         return *this;
       }
     }
   }
-  
+
   if (!already_held) {
     // Wait for shop item to be merged so MarkIsHeldWhenHeld system can find it
     log_error("TEST_APP: Waiting for shop item to merge (ID={})", shop_item_id);
     for (int i = 0; i < 20; ++i) {
       wait_for_frames(1);
       afterhours::OptEntity shop_item_merged_opt =
-          afterhours::EntityQuery()
-              .whereID(shop_item_id)
-              .gen_first();
+          afterhours::EntityQuery().whereID(shop_item_id).gen_first();
       if (shop_item_merged_opt.has_value()) {
         // Entity is merged, get updated position
         shop_item_pos = shop_item_merged_opt.asE().get<Transform>().center();
@@ -2653,98 +2692,107 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
         break;
       }
     }
-    
+
     log_error("TEST_APP: Finished waiting for merge, verifying shop item");
-    
+
     // Verify shop item is merged and has required components
     afterhours::OptEntity shop_item_merged_opt =
-        afterhours::EntityQuery()
-            .whereID(shop_item_id)
-            .gen_first();
+        afterhours::EntityQuery().whereID(shop_item_id).gen_first();
     if (!shop_item_merged_opt.has_value()) {
       log_error("TEST_APP: Shop item not found after merge - FAILING");
       fail("Shop item not found after merge - system cannot find it", location);
       test_input::clear_simulated_input();
       return *this;
     }
-    
+
     log_error("TEST_APP: Shop item found, checking components");
-    
+
     afterhours::Entity &shop_item_merged = shop_item_merged_opt.asE();
-    if (!shop_item_merged.has<IsDraggable>() || !shop_item_merged.has<Transform>()) {
+    if (!shop_item_merged.has<IsDraggable>() ||
+        !shop_item_merged.has<Transform>()) {
       log_error("TEST_APP: Shop item missing components - FAILING");
       fail("Shop item missing IsDraggable or Transform component", location);
       test_input::clear_simulated_input();
       return *this;
     }
-    
-    log_error("TEST_APP: Shop item has required components, verifying system can find it");
-    
-    // CRITICAL: Verify the entity is queryable by MarkIsHeldWhenHeld system (without force_merge)
-    // The system uses EQ() which doesn't use force_merge, so we need to ensure the entity is in the main array
+
+    log_error("TEST_APP: Shop item has required components, verifying system "
+              "can find it");
+
+    // CRITICAL: Verify the entity is queryable by MarkIsHeldWhenHeld system
+    // (without force_merge) The system uses EQ() which doesn't use force_merge,
+    // so we need to ensure the entity is in the main array
     bool system_can_find_entity = false;
-  for (int check = 0; check < 10; ++check) {
-    wait_for_frames(1);
-    for (afterhours::Entity &entity :
-         afterhours::EntityQuery() // No force_merge, like MarkIsHeldWhenHeld uses
-             .whereHasComponent<IsDraggable>()
-             .whereHasComponent<Transform>()
-             .gen()) {
-      if (entity.id == shop_item_id) {
-        system_can_find_entity = true;
-        // Update position from the entity the system can see
-        shop_item_pos = entity.get<Transform>().center();
+    for (int check = 0; check < 10; ++check) {
+      wait_for_frames(1);
+      for (afterhours::Entity &entity :
+           afterhours::EntityQuery() // No force_merge, like MarkIsHeldWhenHeld
+                                     // uses
+               .whereHasComponent<IsDraggable>()
+               .whereHasComponent<Transform>()
+               .gen()) {
+        if (entity.id == shop_item_id) {
+          system_can_find_entity = true;
+          // Update position from the entity the system can see
+          shop_item_pos = entity.get<Transform>().center();
+          break;
+        }
+      }
+      if (system_can_find_entity) {
         break;
       }
     }
-    if (system_can_find_entity) {
-      break;
-    }
-  }
-  
+
     if (!system_can_find_entity) {
       log_error("TEST_APP: System cannot find entity - FAILING");
-      fail("Shop item not found by system query (without force_merge) - MarkIsHeldWhenHeld cannot find it", location);
+      fail("Shop item not found by system query (without force_merge) - "
+           "MarkIsHeldWhenHeld cannot find it",
+           location);
       test_input::clear_simulated_input();
       return *this;
     }
-    
+
     log_error("TEST_APP: System can find entity, simulating mouse press");
-    
+
     // Get position from merged entity
     shop_item_pos = shop_item_merged.get<Transform>().center();
-  
+
     // Ensure mouse position is within entity bounds (not just at center)
-    // MarkIsHeldWhenHeld uses CheckCollisionPointRec which needs the point to be within the rect
+    // MarkIsHeldWhenHeld uses CheckCollisionPointRec which needs the point to
+    // be within the rect
     const Transform &entity_transform = shop_item_merged.get<Transform>();
     Rectangle entity_rect = entity_transform.rect();
     vec2 mouse_pos_within_entity = entity_transform.center();
-    
+
     // Clamp mouse position to be within entity bounds with a small margin
-    mouse_pos_within_entity.x = std::max(entity_rect.x + 1.0f, 
-                                         std::min(entity_rect.x + entity_rect.width - 1.0f, 
-                                                  mouse_pos_within_entity.x));
-    mouse_pos_within_entity.y = std::max(entity_rect.y + 1.0f, 
-                                         std::min(entity_rect.y + entity_rect.height - 1.0f, 
-                                                  mouse_pos_within_entity.y));
-    
+    mouse_pos_within_entity.x = std::max(
+        entity_rect.x + 1.0f, std::min(entity_rect.x + entity_rect.width - 1.0f,
+                                       mouse_pos_within_entity.x));
+    mouse_pos_within_entity.y =
+        std::max(entity_rect.y + 1.0f,
+                 std::min(entity_rect.y + entity_rect.height - 1.0f,
+                          mouse_pos_within_entity.y));
+
     // Simulate mouse drag-and-drop:
     // 1. Set mouse position to shop item position (within bounds)
     // 2. Wait a frame to ensure position is set
-    // 3. Simulate mouse button press (to start drag) - flag persists until consumed
+    // 3. Simulate mouse button press (to start drag) - flag persists until
+    // consumed
     // 4. Wait for MarkIsHeldWhenHeld to process
     // 5. Move mouse to target slot position
     // 6. Simulate mouse button release (to drop)
     // 7. Wait for DropWhenNoLongerHeld to process
-    
+
     test_input::set_mouse_position(mouse_pos_within_entity);
     wait_for_frames(1); // Ensure mouse position is set before press
-    log_error("TEST_APP: About to simulate mouse button press at ({}, {})", mouse_pos_within_entity.x, mouse_pos_within_entity.y);
+    log_error("TEST_APP: About to simulate mouse button press at ({}, {})",
+              mouse_pos_within_entity.x, mouse_pos_within_entity.y);
     test_input::simulate_mouse_button_press(raylib::MOUSE_BUTTON_LEFT);
     log_error("TEST_APP: Simulated mouse button press, waiting for frames");
-    wait_for_frames(5); // Let MarkIsHeldWhenHeld process the press (flag persists until consumed)
+    wait_for_frames(5); // Let MarkIsHeldWhenHeld process the press (flag
+                        // persists until consumed)
     log_error("TEST_APP: Finished waiting, re-querying for shop item");
-    
+
     // Re-query for shop item to verify it's held
     afterhours::OptEntity shop_item_held_check =
         afterhours::EntityQuery({.force_merge = true})
@@ -2756,11 +2804,13 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
       test_input::clear_simulated_input();
       return *this;
     }
-    
+
     afterhours::Entity &shop_item_held_temp = shop_item_held_check.asE();
-    log_error("TEST_APP: Found shop item {} after waiting, checking if held", shop_item_id);
-    
-    // Verify shop item is now held - poll for a few frames since the system might not have run yet
+    log_error("TEST_APP: Found shop item {} after waiting, checking if held",
+              shop_item_id);
+
+    // Verify shop item is now held - poll for a few frames since the system
+    // might not have run yet
     bool is_held = false;
     for (int check = 0; check < 10; ++check) {
       wait_for_frames(1);
@@ -2770,49 +2820,54 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
               .gen_first();
       if (check_opt.has_value() && check_opt.asE().has<IsHeld>()) {
         is_held = true;
-        log_error("TEST_APP: Shop item {} is held after {} checks", shop_item_id, check + 1);
+        log_error("TEST_APP: Shop item {} is held after {} checks",
+                  shop_item_id, check + 1);
         break;
       }
     }
-    
+
     if (!is_held) {
-      log_error("TEST_APP: Shop item {} not held after polling - FAILING. Has IsDraggable={}, Has Transform={}", 
-               shop_item_id, shop_item_held_temp.has<IsDraggable>(), shop_item_held_temp.has<Transform>());
+      log_error("TEST_APP: Shop item {} not held after polling - FAILING. Has "
+                "IsDraggable={}, Has Transform={}",
+                shop_item_id, shop_item_held_temp.has<IsDraggable>(),
+                shop_item_held_temp.has<Transform>());
       fail("Shop item was not marked as held after mouse press", location);
       test_input::clear_simulated_input();
       return *this;
     }
-    
+
     // Re-query to get the held entity for later checks
-    shop_item_check =
-        afterhours::EntityQuery({.force_merge = true})
-            .whereID(shop_item_id)
-            .gen_first();
+    shop_item_check = afterhours::EntityQuery({.force_merge = true})
+                          .whereID(shop_item_id)
+                          .gen_first();
   }
-  
-  // At this point, shop_item_check should have the entity (either already held or newly held)
+
+  // At this point, shop_item_check should have the entity (either already held
+  // or newly held)
   if (!shop_item_check.has_value()) {
     fail("Shop item not found after purchase setup", location);
     test_input::clear_simulated_input();
     return *this;
   }
-  
+
   afterhours::Entity &shop_item_held = shop_item_check.asE();
   log_error("TEST_APP: Shop item is held, verifying IsShopItem");
-  
+
   // Verify shop item still has IsShopItem before drop (required for purchase)
   if (!shop_item_held.has<IsShopItem>()) {
     log_error("TEST_APP: Shop item missing IsShopItem - FAILING");
     fail("Shop item does not have IsShopItem before drop - purchase will fail. "
-         "Item may have been modified unexpectedly.", location);
+         "Item may have been modified unexpectedly.",
+         location);
     test_input::clear_simulated_input();
     return *this;
   }
-  
+
   log_error("TEST_APP: Shop item has IsShopItem, verifying target slot");
-  
-  // Move mouse to target slot position (ensure it's within slot bounds for overlap check)
-  // Verify target slot has required components and re-query to ensure it's merged
+
+  // Move mouse to target slot position (ensure it's within slot bounds for
+  // overlap check) Verify target slot has required components and re-query to
+  // ensure it's merged
   afterhours::OptEntity target_slot_merged_opt =
       afterhours::EntityQuery({.force_merge = true})
           .whereID(target_slot->id)
@@ -2822,52 +2877,60 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
     test_input::clear_simulated_input();
     return *this;
   }
-  
+
   afterhours::Entity &target_slot_merged = target_slot_merged_opt.asE();
-  if (!target_slot_merged.has<CanDropOnto>() || !target_slot_merged.get<CanDropOnto>().enabled) {
+  if (!target_slot_merged.has<CanDropOnto>() ||
+      !target_slot_merged.get<CanDropOnto>().enabled) {
     fail("Target slot missing CanDropOnto or it's disabled", location);
     test_input::clear_simulated_input();
     return *this;
   }
-  
+
   // Verify drop slot accepts inventory items (required for purchase)
   const IsDropSlot &drop_slot = target_slot_merged.get<IsDropSlot>();
   if (!drop_slot.accepts_inventory_items) {
     fail("Target slot does not accept inventory items - purchase will fail. "
-         "Slot ID: " + std::to_string(drop_slot.slot_id) + 
-         ", accepts_inventory: " + std::to_string(drop_slot.accepts_inventory_items) +
-         ", accepts_shop: " + std::to_string(drop_slot.accepts_shop_items), location);
+         "Slot ID: " +
+             std::to_string(drop_slot.slot_id) + ", accepts_inventory: " +
+             std::to_string(drop_slot.accepts_inventory_items) +
+             ", accepts_shop: " + std::to_string(drop_slot.accepts_shop_items),
+         location);
     test_input::clear_simulated_input();
     return *this;
   }
-  
-  // Verify slot is not occupied (if it is, swap_items will be called instead of drop_into_empty_slot)
+
+  // Verify slot is not occupied (if it is, swap_items will be called instead of
+  // drop_into_empty_slot)
   if (drop_slot.occupied) {
-    fail("Target slot is occupied - swap_items will be called instead of drop_into_empty_slot. "
-         "This may cause different behavior. Slot ID: " + std::to_string(drop_slot.slot_id), location);
+    fail("Target slot is occupied - swap_items will be called instead of "
+         "drop_into_empty_slot. "
+         "This may cause different behavior. Slot ID: " +
+             std::to_string(drop_slot.slot_id),
+         location);
     test_input::clear_simulated_input();
     return *this;
   }
-  
+
   // Ensure mouse position is within slot bounds (not just at center)
   // The overlap check uses a 1x1 rectangle at mouse position
   const Transform &slot_transform = target_slot_merged.get<Transform>();
   Rectangle slot_rect = slot_transform.rect();
   vec2 mouse_pos_within_slot = target_slot_merged.get<Transform>().center();
-  
+
   // Clamp mouse position to be within slot bounds with a small margin
-  mouse_pos_within_slot.x = std::max(slot_rect.x + 1.0f, 
-                                     std::min(slot_rect.x + slot_rect.width - 1.0f, 
-                                              mouse_pos_within_slot.x));
-  mouse_pos_within_slot.y = std::max(slot_rect.y + 1.0f, 
-                                     std::min(slot_rect.y + slot_rect.height - 1.0f, 
-                                              mouse_pos_within_slot.y));
-  
+  mouse_pos_within_slot.x = std::max(
+      slot_rect.x + 1.0f,
+      std::min(slot_rect.x + slot_rect.width - 1.0f, mouse_pos_within_slot.x));
+  mouse_pos_within_slot.y = std::max(
+      slot_rect.y + 1.0f,
+      std::min(slot_rect.y + slot_rect.height - 1.0f, mouse_pos_within_slot.y));
+
   test_input::set_mouse_position(mouse_pos_within_slot);
   wait_for_frames(2); // Ensure mouse position is set and slot is ready
-  
+
   // Verify the slot can be found by the system's query (without force_merge)
-  // The system uses EQ() which doesn't use force_merge, so we need to ensure the slot is merged
+  // The system uses EQ() which doesn't use force_merge, so we need to ensure
+  // the slot is merged
   log_error("TEST_APP: Checking if slot can be found by system query");
   bool slot_found_by_system = false;
   for (int check = 0; check < 10; ++check) {
@@ -2890,44 +2953,56 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
       break;
     }
   }
-  
+
   if (!slot_found_by_system) {
-    fail("Target slot not found by system query (without force_merge) - system may not find it for drop", location);
+    fail("Target slot not found by system query (without force_merge) - system "
+         "may not find it for drop",
+         location);
     test_input::clear_simulated_input();
     return *this;
   }
-  
+
   // Release mouse button to drop
-  // The release flag is one-shot, so we need to ensure DropWhenNoLongerHeld processes it
-  // Set the release flag, then wait for system to process it
-  // The flag will be consumed when DropWhenNoLongerHeld checks is_mouse_button_released
+  // The release flag is one-shot, so we need to ensure DropWhenNoLongerHeld
+  // processes it Set the release flag, then wait for system to process it The
+  // flag will be consumed when DropWhenNoLongerHeld checks
+  // is_mouse_button_released
   log_error("TEST_APP: About to call simulate_mouse_button_release");
   test_input::simulate_mouse_button_release(raylib::MOUSE_BUTTON_LEFT);
-  log_error("TEST_APP: Called simulate_mouse_button_release, waiting for frames");
-  wait_for_frames(3); // Let DropWhenNoLongerHeld process the release (needs at least 1 frame, give extra for wallet update)
-  
-  // Immediately check wallet state after drop - wallet_charge should have executed synchronously
-  // But wait a frame first to ensure DropWhenNoLongerHeld has processed
+  log_error(
+      "TEST_APP: Called simulate_mouse_button_release, waiting for frames");
+  wait_for_frames(3); // Let DropWhenNoLongerHeld process the release (needs at
+                      // least 1 frame, give extra for wallet update)
+
+  // Immediately check wallet state after drop - wallet_charge should have
+  // executed synchronously But wait a frame first to ensure
+  // DropWhenNoLongerHeld has processed
   wait_for_frames(1);
   int gold_immediately_after_drop = read_wallet_gold();
-  
+
   // Debug: Check if wallet singleton exists
-  afterhours::RefEntity wallet_check = afterhours::EntityHelper::get_singleton<Wallet>();
+  afterhours::RefEntity wallet_check =
+      afterhours::EntityHelper::get_singleton<Wallet>();
   if (!wallet_check.get().has<Wallet>()) {
-    fail("Wallet singleton not found after drop - wallet_charge cannot work", location);
+    fail("Wallet singleton not found after drop - wallet_charge cannot work",
+         location);
     test_input::clear_simulated_input();
     return *this;
   }
-  
-  if (gold_immediately_after_drop != initial_gold - price && gold_immediately_after_drop != initial_gold) {
-    // Wallet changed but not by the expected amount - something else modified it
-    fail("Wallet gold changed unexpectedly after drop: expected " + 
-         std::to_string(initial_gold - price) + " or " + std::to_string(initial_gold) + 
-         ", got " + std::to_string(gold_immediately_after_drop), location);
+
+  if (gold_immediately_after_drop != initial_gold - price &&
+      gold_immediately_after_drop != initial_gold) {
+    // Wallet changed but not by the expected amount - something else modified
+    // it
+    fail("Wallet gold changed unexpectedly after drop: expected " +
+             std::to_string(initial_gold - price) + " or " +
+             std::to_string(initial_gold) + ", got " +
+             std::to_string(gold_immediately_after_drop),
+         location);
     test_input::clear_simulated_input();
     return *this;
   }
-  
+
   // Wait for purchase to complete (DropWhenNoLongerHeld processes the drop)
   // Poll until gold is deducted or item appears in inventory
   // Store target slot ID before waiting (pointer might become invalid)
@@ -2935,7 +3010,7 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
   int new_gold = read_wallet_gold();
   bool found_in_inventory = false;
   bool item_no_longer_held = false;
-  
+
   // First, verify the item is no longer held (drop was processed)
   for (int check_held = 0; check_held < 10; ++check_held) {
     wait_for_frames(1);
@@ -2943,76 +3018,97 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
         afterhours::EntityQuery({.force_merge = true})
             .whereID(shop_item_id)
             .gen_first();
-    if (shop_item_check_opt.has_value() && !shop_item_check_opt.asE().has<IsHeld>()) {
+    if (shop_item_check_opt.has_value() &&
+        !shop_item_check_opt.asE().has<IsHeld>()) {
       item_no_longer_held = true;
       break;
     }
   }
-  
+
   if (!item_no_longer_held) {
-    fail("Shop item still held after drop - DropWhenNoLongerHeld may not have processed the drop. "
-         "This could mean the drop slot wasn't found or the release flag wasn't processed.", location);
+    fail("Shop item still held after drop - DropWhenNoLongerHeld may not have "
+         "processed the drop. "
+         "This could mean the drop slot wasn't found or the release flag "
+         "wasn't processed.",
+         location);
     test_input::clear_simulated_input();
     return *this;
   }
-  
-  // If item is no longer held but purchase didn't complete, it might have snapped back
-  // Check if item still has IsShopItem (if it does, purchase didn't complete)
+
+  // If item is no longer held but purchase didn't complete, it might have
+  // snapped back Check if item still has IsShopItem (if it does, purchase
+  // didn't complete)
   afterhours::OptEntity shop_item_check_opt2 =
       afterhours::EntityQuery({.force_merge = true})
           .whereID(shop_item_id)
           .gen_first();
-  
+
   bool item_still_exists = shop_item_check_opt2.has_value();
-  bool item_has_shop_item = item_still_exists && shop_item_check_opt2.asE().has<IsShopItem>();
-  bool item_has_inventory_item = item_still_exists && shop_item_check_opt2.asE().has<IsInventoryItem>();
-  
+  bool item_has_shop_item =
+      item_still_exists && shop_item_check_opt2.asE().has<IsShopItem>();
+  bool item_has_inventory_item =
+      item_still_exists && shop_item_check_opt2.asE().has<IsInventoryItem>();
+
   // Debug: Check wallet state immediately after drop
   int gold_after_drop = read_wallet_gold();
-  
+
   if (item_still_exists && item_has_shop_item) {
-    // Item still has IsShopItem, which means it snapped back (drop slot not found)
-    fail("Shop item snapped back to original position - drop slot was not found. "
+    // Item still has IsShopItem, which means it snapped back (drop slot not
+    // found)
+    fail("Shop item snapped back to original position - drop slot was not "
+         "found. "
          "Mouse position may not be overlapping the slot correctly. "
-         "Gold: " + std::to_string(gold_after_drop) + " (unchanged)", location);
+         "Gold: " +
+             std::to_string(gold_after_drop) + " (unchanged)",
+         location);
     test_input::clear_simulated_input();
     return *this;
   }
-  
+
   // Debug: Check if item exists and what components it has
   if (item_still_exists && !item_has_shop_item && !item_has_inventory_item) {
-    // Item exists but has neither IsShopItem nor IsInventoryItem - this is unexpected
-    // It might have been cleaned up or something else happened
-    fail("Shop item exists but has neither IsShopItem nor IsInventoryItem - item may have been cleaned up unexpectedly. "
-         "Gold: " + std::to_string(gold_after_drop), location);
+    // Item exists but has neither IsShopItem nor IsInventoryItem - this is
+    // unexpected It might have been cleaned up or something else happened
+    fail("Shop item exists but has neither IsShopItem nor IsInventoryItem - "
+         "item may have been cleaned up unexpectedly. "
+         "Gold: " +
+             std::to_string(gold_after_drop),
+         location);
     test_input::clear_simulated_input();
     return *this;
   }
-  
+
   // If item has IsInventoryItem, try_purchase_shop_item succeeded
   // But if gold wasn't deducted, charge_for_shop_purchase failed silently
   if (item_has_inventory_item && gold_after_drop == initial_gold) {
-    // Item has IsInventoryItem but gold wasn't deducted - this means try_purchase_shop_item
-    // removed IsShopItem and added IsInventoryItem, but charge_for_shop_purchase didn't work
-    fail("Item has IsInventoryItem but gold was not deducted - charge_for_shop_purchase may have failed silently. "
-         "Gold: " + std::to_string(gold_after_drop) + ", expected: " + std::to_string(initial_gold - price) +
-         ". This suggests wallet_charge() returned true but didn't actually deduct gold.", location);
+    // Item has IsInventoryItem but gold wasn't deducted - this means
+    // try_purchase_shop_item removed IsShopItem and added IsInventoryItem, but
+    // charge_for_shop_purchase didn't work
+    fail("Item has IsInventoryItem but gold was not deducted - "
+         "charge_for_shop_purchase may have failed silently. "
+         "Gold: " +
+             std::to_string(gold_after_drop) +
+             ", expected: " + std::to_string(initial_gold - price) +
+             ". This suggests wallet_charge() returned true but didn't "
+             "actually deduct gold.",
+         location);
     test_input::clear_simulated_input();
     return *this;
   }
-  
+
   // If item doesn't exist, it might be in inventory with a different entity ID
   // We'll check for it in the polling loop below
-  
+
   // Now poll for purchase completion
   // The purchase should have completed - check if item is in inventory first
   // (gold deduction happens immediately in try_purchase_shop_item)
   for (int attempt = 0; attempt < 30; ++attempt) {
     wait_for_frames(1);
-    
-    // Check gold first - this should be updated immediately when charge_for_shop_purchase succeeds
+
+    // Check gold first - this should be updated immediately when
+    // charge_for_shop_purchase succeeds
     new_gold = read_wallet_gold();
-    
+
     // Check if item is in inventory (this is the most reliable indicator)
     for (afterhours::Entity &entity :
          afterhours::EntityQuery({.force_merge = true})
@@ -3026,31 +3122,35 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
         break;
       }
     }
-    
+
     // If both conditions are met, purchase completed successfully
     if (found_in_inventory && new_gold == initial_gold - price) {
       break; // Purchase completed successfully
     }
-    
+
     // If item is in inventory but gold wasn't deducted - this is a bug
     if (found_in_inventory && new_gold != initial_gold - price) {
-      fail("Item is in inventory but gold was not deducted correctly: expected " +
-           std::to_string(initial_gold - price) + ", got " + std::to_string(new_gold) +
-           " (initial: " + std::to_string(initial_gold) + ", price: " + std::to_string(price) + ")",
+      fail("Item is in inventory but gold was not deducted correctly: "
+           "expected " +
+               std::to_string(initial_gold - price) + ", got " +
+               std::to_string(new_gold) +
+               " (initial: " + std::to_string(initial_gold) +
+               ", price: " + std::to_string(price) + ")",
            location);
       test_input::clear_simulated_input();
       return *this;
     }
-    
-    // If gold was deducted but item not found in inventory yet - wait a bit more
+
+    // If gold was deducted but item not found in inventory yet - wait a bit
+    // more
     if (new_gold == initial_gold - price && !found_in_inventory) {
       continue;
     }
   }
-  
+
   // Clear simulated input now that purchase is complete
   test_input::clear_simulated_input();
-  
+
   // Verify purchase succeeded by checking gold and inventory
   if (new_gold != initial_gold - price) {
     fail("Gold not deducted correctly: expected " +
@@ -3059,7 +3159,7 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
          location);
     return *this;
   }
-  
+
   if (!found_in_inventory) {
     fail("Item not found in inventory after purchase", location);
     return *this;
@@ -3068,10 +3168,10 @@ TestApp &TestApp::purchase_item(DishType type, int inventory_slot,
   // Mark purchase as complete - regenerate the same op_id (deterministic)
   TestOperationID complete_op_id = generate_operation_id(
       std::source_location::current(),
-      "purchase_item:" + std::to_string(static_cast<int>(type)) + ":" + 
-      std::to_string(inventory_slot) + ":" + location);
+      "purchase_item:" + std::to_string(static_cast<int>(type)) + ":" +
+          std::to_string(inventory_slot) + ":" + location);
   completed_operations.insert(complete_op_id);
-  
+
   if (step_delay()) {
     yield([this]() {
       test_resuming = true;
@@ -3338,13 +3438,397 @@ TestApp &TestApp::clear_inspection_history() {
 }
 
 TestApp &TestApp::clear_battle_dishes() {
-  for (afterhours::Entity &entity : afterhours::EntityQuery()
-                                        .whereHasComponent<IsDish>()
-                                        .whereHasComponent<DishBattleState>()
-                                        .gen()) {
+  for (afterhours::Entity &entity :
+       afterhours::EntityQuery({.force_merge = true})
+           .whereHasComponent<IsDish>()
+           .whereHasComponent<DishBattleState>()
+           .gen()) {
     entity.cleanup = true;
   }
   afterhours::EntityHelper::cleanup();
-  wait_for_frames(1);
+  wait_for_frames(5);
+  return *this;
+}
+
+TestApp &TestApp::set_dish_combat_stats(afterhours::EntityID dish_id, int body,
+                                        int zing, const std::string &location) {
+  afterhours::Entity *entity = find_entity_by_id(dish_id);
+  if (!entity) {
+    fail("Dish entity not found: " + std::to_string(dish_id), location);
+    return *this;
+  }
+
+  if (!entity->has<CombatStats>()) {
+    entity->addComponent<CombatStats>();
+  }
+
+  CombatStats &stats = entity->get<CombatStats>();
+  stats.baseBody = body;
+  stats.baseZing = zing;
+  stats.currentBody = body;
+  stats.currentZing = zing;
+
+  return *this;
+}
+
+TestApp &TestApp::wait_for_course_complete(int course_index, float timeout_sec,
+                                           const std::string &location) {
+  TestOperationID op_id = generate_operation_id(
+      std::source_location::current(),
+      "wait_for_course_complete:" + std::to_string(course_index));
+
+  static std::chrono::steady_clock::time_point start_time;
+  static bool started = false;
+  if (!started) {
+    start_time = std::chrono::steady_clock::now();
+    started = true;
+  }
+
+  if (completed_operations.count(op_id) > 0) {
+    started = false;
+    return *this;
+  }
+
+  auto combat_queue_opt =
+      afterhours::EntityHelper::get_singleton<CombatQueue>();
+  if (!combat_queue_opt.get().has<CombatQueue>()) {
+    wait_state.type = WaitState::FrameDelay;
+    wait_state.frame_delay_count = 2;
+    wait_state.operation_id = op_id;
+    yield([this]() { TestRegistry::get().run_test(current_test_name, *this); });
+    return *this;
+  }
+
+  const CombatQueue &cq = combat_queue_opt.get().get<CombatQueue>();
+
+  if (cq.current_index > course_index) {
+    completed_operations.insert(op_id);
+    started = false;
+    return *this;
+  }
+
+  std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+  std::chrono::milliseconds ms =
+      std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time);
+  if (ms.count() > static_cast<int>(timeout_sec * 1000.0f)) {
+    fail("Timeout waiting for course " + std::to_string(course_index) +
+             " to complete - current_index=" + std::to_string(cq.current_index),
+         location);
+    started = false;
+    return *this;
+  }
+
+  wait_state.type = WaitState::FrameDelay;
+  wait_state.frame_delay_count = 2;
+  wait_state.operation_id = op_id;
+  yield([this]() { TestRegistry::get().run_test(current_test_name, *this); });
+  return *this;
+}
+
+TestApp &TestApp::expect_dish_at_index(afterhours::EntityID dish_id,
+                                       int expected_index,
+                                       DishBattleState::TeamSide side,
+                                       const std::string &location) {
+  afterhours::Entity *entity = find_entity_by_id(dish_id);
+  if (!entity) {
+    fail("Dish entity not found: " + std::to_string(dish_id), location);
+    return *this;
+  }
+
+  if (!entity->has<DishBattleState>()) {
+    fail("Dish does not have DishBattleState component", location);
+    return *this;
+  }
+
+  const DishBattleState &dbs = entity->get<DishBattleState>();
+  if (dbs.team_side != side) {
+    fail("Dish team_side mismatch - expected " +
+             std::to_string(static_cast<int>(side)) + " but got " +
+             std::to_string(static_cast<int>(dbs.team_side)),
+         location);
+    return *this;
+  }
+
+  if (dbs.queue_index != expected_index) {
+    fail("Dish queue_index mismatch - expected " +
+             std::to_string(expected_index) + " but got " +
+             std::to_string(dbs.queue_index),
+         location);
+    return *this;
+  }
+
+  return *this;
+}
+
+TestApp &TestApp::expect_dish_position(afterhours::EntityID dish_id,
+                                       float expected_x, float expected_y,
+                                       float epsilon,
+                                       const std::string &location) {
+  afterhours::Entity *entity = find_entity_by_id(dish_id);
+  if (!entity) {
+    fail("Dish entity not found: " + std::to_string(dish_id), location);
+    return *this;
+  }
+
+  if (!entity->has<Transform>()) {
+    fail("Dish does not have Transform component", location);
+    return *this;
+  }
+
+  const Transform &transform = entity->get<Transform>();
+  float dx = std::abs(transform.position.x - expected_x);
+  float dy = std::abs(transform.position.y - expected_y);
+
+  if (dx > epsilon || dy > epsilon) {
+    fail("Dish position mismatch - expected (" + std::to_string(expected_x) +
+             ", " + std::to_string(expected_y) + ") but got (" +
+             std::to_string(transform.position.x) + ", " +
+             std::to_string(transform.position.y) +
+             ") - epsilon=" + std::to_string(epsilon),
+         location);
+    return *this;
+  }
+
+  return *this;
+}
+
+TestApp &TestApp::expect_dish_body(afterhours::EntityID dish_id,
+                                   int expected_body_min,
+                                   const std::string &location) {
+  afterhours::Entity *entity = find_entity_by_id(dish_id);
+  if (!entity) {
+    fail("Dish entity not found: " + std::to_string(dish_id), location);
+    return *this;
+  }
+
+  if (!entity->has<CombatStats>()) {
+    fail("Dish does not have CombatStats component", location);
+    return *this;
+  }
+
+  const CombatStats &stats = entity->get<CombatStats>();
+  if (stats.currentBody < expected_body_min) {
+    fail("Dish currentBody too low - expected at least " +
+             std::to_string(expected_body_min) + " but got " +
+             std::to_string(stats.currentBody),
+         location);
+    return *this;
+  }
+
+  return *this;
+}
+
+TestApp &TestApp::expect_battle_not_complete(const std::string &location) {
+  auto combat_queue_opt =
+      afterhours::EntityHelper::get_singleton<CombatQueue>();
+  if (!combat_queue_opt.get().has<CombatQueue>()) {
+    fail("CombatQueue singleton not found", location);
+    return *this;
+  }
+
+  const CombatQueue &cq = combat_queue_opt.get().get<CombatQueue>();
+  if (cq.complete) {
+    fail("Battle is complete but expected it not to be", location);
+    return *this;
+  }
+
+  int player_count = count_active_player_dishes();
+  int opponent_count = count_active_opponent_dishes();
+  if (player_count == 0 || opponent_count == 0) {
+    fail("Battle should not be complete but one team has no active dishes - "
+         "player: " +
+             std::to_string(player_count) +
+             ", opponent: " + std::to_string(opponent_count),
+         location);
+    return *this;
+  }
+
+  return *this;
+}
+
+TestApp &TestApp::expect_battle_complete(const std::string &location) {
+  auto combat_queue_opt =
+      afterhours::EntityHelper::get_singleton<CombatQueue>();
+  if (!combat_queue_opt.get().has<CombatQueue>()) {
+    fail("CombatQueue singleton not found", location);
+    return *this;
+  }
+
+  const CombatQueue &cq = combat_queue_opt.get().get<CombatQueue>();
+  int player_count = count_active_player_dishes();
+  int opponent_count = count_active_opponent_dishes();
+
+  if (!cq.complete && (player_count > 0 && opponent_count > 0)) {
+    fail("Battle is not complete but expected it to be - player: " +
+             std::to_string(player_count) +
+             ", opponent: " + std::to_string(opponent_count),
+         location);
+    return *this;
+  }
+
+  return *this;
+}
+
+TestApp &TestApp::expect_active_dish_count(DishBattleState::TeamSide side,
+                                           int expected_count,
+                                           const std::string &location) {
+  int actual_count = 0;
+  for (afterhours::Entity &entity :
+       afterhours::EntityQuery().whereHasComponent<DishBattleState>().gen()) {
+    const DishBattleState &dbs = entity.get<DishBattleState>();
+    if (dbs.team_side == side &&
+        dbs.phase != DishBattleState::Phase::Finished) {
+      actual_count++;
+    }
+  }
+
+  if (actual_count != expected_count) {
+    fail("Active dish count mismatch for side " +
+             std::to_string(static_cast<int>(side)) + " - expected " +
+             std::to_string(expected_count) + " but got " +
+             std::to_string(actual_count),
+         location);
+    return *this;
+  }
+
+  return *this;
+}
+
+TestApp &TestApp::wait_for_reorganization(float timeout_sec,
+                                          const std::string &location) {
+  TestOperationID op_id = generate_operation_id(std::source_location::current(),
+                                                "wait_for_reorganization");
+
+  static std::chrono::steady_clock::time_point start_time;
+  static bool started = false;
+  if (!started) {
+    start_time = std::chrono::steady_clock::now();
+    started = true;
+  }
+
+  if (completed_operations.count(op_id) > 0) {
+    started = false;
+    return *this;
+  }
+
+  bool reorganization_complete = true;
+
+  for (DishBattleState::TeamSide side : {DishBattleState::TeamSide::Player,
+                                         DishBattleState::TeamSide::Opponent}) {
+    afterhours::RefEntities active_dishes =
+        afterhours::EntityQuery({.force_merge = true})
+            .whereHasComponent<DishBattleState>()
+            .whereLambda([side](const afterhours::Entity &e) {
+              const DishBattleState &dbs = e.get<DishBattleState>();
+              return dbs.team_side == side &&
+                     (dbs.phase == DishBattleState::Phase::InQueue ||
+                      dbs.phase == DishBattleState::Phase::Entering ||
+                      dbs.phase == DishBattleState::Phase::InCombat);
+            })
+            .orderByLambda(
+                [](const afterhours::Entity &a, const afterhours::Entity &b) {
+                  return a.get<DishBattleState>().queue_index <
+                         b.get<DishBattleState>().queue_index;
+                })
+            .gen();
+
+    int expected_index = 0;
+    for (afterhours::Entity &dish : active_dishes) {
+      const DishBattleState &dbs = dish.get<DishBattleState>();
+      if (dbs.queue_index != expected_index) {
+        reorganization_complete = false;
+        break;
+      }
+      expected_index++;
+    }
+
+    if (!reorganization_complete) {
+      break;
+    }
+  }
+
+  if (reorganization_complete) {
+    completed_operations.insert(op_id);
+    started = false;
+    return *this;
+  }
+
+  std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+  std::chrono::milliseconds ms =
+      std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time);
+  if (ms.count() > static_cast<int>(timeout_sec * 1000.0f)) {
+    fail("Timeout waiting for queue reorganization", location);
+    started = false;
+    return *this;
+  }
+
+  wait_state.type = WaitState::FrameDelay;
+  wait_state.frame_delay_count = 2;
+  wait_state.operation_id = op_id;
+  yield([this]() { TestRegistry::get().run_test(current_test_name, *this); });
+  return *this;
+}
+
+TestApp &TestApp::wait_for_dish_at_index(afterhours::EntityID dish_id,
+                                         int expected_index,
+                                         DishBattleState::TeamSide side,
+                                         float timeout_sec,
+                                         const std::string &location) {
+  TestOperationID op_id = generate_operation_id(
+      std::source_location::current(),
+      "wait_for_dish_at_index:" + std::to_string(dish_id) + ":" +
+          std::to_string(expected_index));
+
+  static std::chrono::steady_clock::time_point start_time;
+  static bool started = false;
+  if (!started) {
+    start_time = std::chrono::steady_clock::now();
+    started = true;
+  }
+
+  if (completed_operations.count(op_id) > 0) {
+    started = false;
+    return *this;
+  }
+
+  afterhours::Entity *entity = find_entity_by_id(dish_id);
+  if (!entity) {
+    wait_state.type = WaitState::FrameDelay;
+    wait_state.frame_delay_count = 2;
+    wait_state.operation_id = op_id;
+    yield([this]() { TestRegistry::get().run_test(current_test_name, *this); });
+    return *this;
+  }
+
+  if (entity->has<DishBattleState>()) {
+    const DishBattleState &dbs = entity->get<DishBattleState>();
+    if (dbs.team_side == side && dbs.queue_index == expected_index) {
+      completed_operations.insert(op_id);
+      started = false;
+      return *this;
+    }
+  }
+
+  std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
+  std::chrono::milliseconds ms =
+      std::chrono::duration_cast<std::chrono::milliseconds>(now - start_time);
+  if (ms.count() > static_cast<int>(timeout_sec * 1000.0f)) {
+    std::string current_index = "unknown";
+    if (entity && entity->has<DishBattleState>()) {
+      current_index =
+          std::to_string(entity->get<DishBattleState>().queue_index);
+    }
+    fail("Timeout waiting for dish " + std::to_string(dish_id) +
+             " to be at index " + std::to_string(expected_index) +
+             " - current index: " + current_index,
+         location);
+    started = false;
+    return *this;
+  }
+
+  wait_state.type = WaitState::FrameDelay;
+  wait_state.frame_delay_count = 2;
+  wait_state.operation_id = op_id;
+  yield([this]() { TestRegistry::get().run_test(current_test_name, *this); });
   return *this;
 }

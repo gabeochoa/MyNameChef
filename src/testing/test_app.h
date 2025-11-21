@@ -169,10 +169,9 @@ struct TestApp {
       const std::source_location &loc = std::source_location::current());
   TestApp &navigate_to_battle(
       const std::source_location &loc = std::source_location::current());
-  TestApp &
-  wait_for_shop_items(int min_count, float timeout_sec = 10.0f,
-                      const std::source_location &loc =
-                          std::source_location::current());
+  TestApp &wait_for_shop_items(
+      int min_count, float timeout_sec = 10.0f,
+      const std::source_location &loc = std::source_location::current());
 
   std::vector<TestDishInfo> read_player_inventory();
   std::vector<TestShopItemInfo> read_store_options();
@@ -195,13 +194,17 @@ struct TestApp {
   // These bypass normal game logic to set up specific test scenarios
   TestApp &set_battle_speed(float speed);
   TestApp &set_wallet_gold(int gold, const std::string &location = "");
-  TestApp &create_inventory_item(DishType type, int slot,
-                                 std::optional<CuisineTagType> cuisine_tag = std::nullopt);
-  TestApp &apply_drink_to_dish(int dish_slot, DrinkType drink_type,
-                                const std::source_location &loc = std::source_location::current());
-  TestApp &set_drink_shop_override(const std::vector<DrinkType> &drinks,
-                                   const std::source_location &loc = std::source_location::current());
-  TestApp &clear_drink_shop_override(const std::source_location &loc = std::source_location::current());
+  TestApp &create_inventory_item(
+      DishType type, int slot,
+      std::optional<CuisineTagType> cuisine_tag = std::nullopt);
+  TestApp &apply_drink_to_dish(
+      int dish_slot, DrinkType drink_type,
+      const std::source_location &loc = std::source_location::current());
+  TestApp &set_drink_shop_override(
+      const std::vector<DrinkType> &drinks,
+      const std::source_location &loc = std::source_location::current());
+  TestApp &clear_drink_shop_override(
+      const std::source_location &loc = std::source_location::current());
   TestApp &trigger_game_state_save();
   TestApp &trigger_game_state_load();
   bool save_file_exists();
@@ -224,8 +227,7 @@ struct TestApp {
   void set_test_int(const std::string &key, int value);
   std::optional<int> get_test_int(const std::string &key) const;
   bool has_test_int(const std::string &key) const;
-  void set_test_shop_item(const std::string &key,
-                          const TestShopItemInfo &info);
+  void set_test_shop_item(const std::string &key, const TestShopItemInfo &info);
   std::optional<TestShopItemInfo>
   get_test_shop_item(const std::string &key) const;
   bool has_test_shop_item(const std::string &key) const;
@@ -348,6 +350,33 @@ struct TestApp {
 
   // Battle state helpers
   TestApp &clear_battle_dishes();
+
+  // Survivor carryover test helpers
+  TestApp &set_dish_combat_stats(afterhours::EntityID dish_id, int body,
+                                 int zing, const std::string &location = "");
+  TestApp &wait_for_course_complete(int course_index, float timeout_sec = 30.0f,
+                                    const std::string &location = "");
+  TestApp &expect_dish_at_index(afterhours::EntityID dish_id,
+                                int expected_index,
+                                DishBattleState::TeamSide side,
+                                const std::string &location = "");
+  TestApp &expect_dish_position(afterhours::EntityID dish_id, float expected_x,
+                                float expected_y, float epsilon,
+                                const std::string &location = "");
+  TestApp &expect_dish_body(afterhours::EntityID dish_id, int expected_body_min,
+                            const std::string &location = "");
+  TestApp &expect_battle_not_complete(const std::string &location = "");
+  TestApp &expect_battle_complete(const std::string &location = "");
+  TestApp &expect_active_dish_count(DishBattleState::TeamSide side,
+                                    int expected_count,
+                                    const std::string &location = "");
+  TestApp &wait_for_reorganization(float timeout_sec = 5.0f,
+                                   const std::string &location = "");
+  TestApp &wait_for_dish_at_index(afterhours::EntityID dish_id,
+                                  int expected_index,
+                                  DishBattleState::TeamSide side,
+                                  float timeout_sec = 5.0f,
+                                  const std::string &location = "");
 
   // Kill the test server and wait for NetworkSystem to detect the failure
   TestApp &kill_server();
