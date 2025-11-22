@@ -49,8 +49,8 @@ backward::SignalHandling sh;
 #include "systems/RenderDebugWindowInfo.h"
 #include "systems/RenderDishProgressBars.h"
 #include "systems/RenderDrinkIcon.h"
-#include "systems/RenderDropTargetHighlightsSystem.h"
 #include "systems/RenderDrinkShopSlots.h"
+#include "systems/RenderDropTargetHighlightsSystem.h"
 #include "systems/RenderEntitiesByOrder.h"
 #include "systems/RenderFPS.h"
 #include "systems/RenderFreezeIcon.h"
@@ -122,6 +122,7 @@ void game(const std::optional<std::string> &run_test) {
     ui::enforce_singletons<InputAction>(systems);
     input::enforce_singletons(systems);
     texture_manager::enforce_singletons(systems);
+    translation_manager::TranslationPlugin::enforce_singletons(systems);
     enforce_ui_singletons(systems);
     make_shop_manager(sophie);
     make_combat_manager(sophie);

@@ -1,20 +1,18 @@
 #pragma once
 
-#include "rl.h"
-//
 #include "font_info.h"
-#include "preload.h"
 #include "strings.h"
-#include <afterhours/src/plugins/autolayout.h>
+#include <afterhours/src/plugins/translation.h>
+#include <afterhours/src/plugins/ui/components.h>
 #include <fmt/format.h>
+#include <functional>
 #include <magic_enum/magic_enum.hpp>
 #include <map>
 #include <string>
 
 namespace translation_manager {
 
-// Language enum for type safety
-enum struct Language { English, Korean, Japanese };
+using Language = afterhours::translation::Language;
 
 enum struct i18nParam {
   number_count,
@@ -41,67 +39,33 @@ const std::map<i18nParam, std::string> translation_param = {
     {i18nParam::player_name, "player_name"},
 };
 
-class TranslatableString {
-public:
-  static constexpr int MAX_LENGTH = 100;
+using TranslationPlugin = afterhours::translation::translation_plugin<
+    strings::i18n, i18nParam, FontID, decltype(&get_font_name)>;
 
-  explicit TranslatableString() {}
-  explicit TranslatableString(const std::string &s) : content(s) {}
-  explicit TranslatableString(const std::string &s, const std::string &desc)
-      : content(s), description(desc) {}
-  explicit TranslatableString(const char *s, const char *desc)
-      : content(s), description(desc) {}
+using BaseTranslatableString =
+    afterhours::translation::TranslatableString<i18nParam>;
+
+struct TranslatableString : public BaseTranslatableString {
+  using BaseTranslatableString::BaseTranslatableString;
+
   explicit TranslatableString(const strings::i18n &key);
-  explicit TranslatableString(const std::string &s, bool ignore_translate)
-      : content(s), no_translate(ignore_translate) {}
 
-  [[nodiscard]] bool skip_translate() const { return no_translate; }
-  [[nodiscard]] bool empty() const { return content.empty(); }
-  [[nodiscard]] const char *debug() const { return content.c_str(); }
-  [[nodiscard]] const char *underlying_TL_ONLY() const {
-    return content.c_str();
-  }
-
-  [[nodiscard]] const std::string &str() const { return content; }
-  [[nodiscard]] const std::string &get_description() const {
-    return description;
-  }
-
-  [[nodiscard]] const std::string &get_text() const { return content; }
-  [[nodiscard]] size_t size() const { return content.size(); }
-  void resize(size_t len) { content.resize(len); }
-
-  // Parameter setting methods
   auto &set_param(const i18nParam &param, const std::string &arg) {
-    if (!formatted)
-      formatted = true;
-    params[param] = arg;
-    return *this;
+    return BaseTranslatableString::set_param(param, arg, translation_param);
   }
 
   template <typename T> auto &set_param(const i18nParam &param, const T &arg) {
-    return set_param(param, fmt::format("{}", arg));
+    return BaseTranslatableString::set_param(param, arg, translation_param);
   }
 
-  auto &set_param(const i18nParam &param, const TranslatableString &arg) {
-    return set_param(param, fmt::format("{}", arg.underlying_TL_ONLY()));
+  auto &set_param(const i18nParam &param, const BaseTranslatableString &arg) {
+    return BaseTranslatableString::set_param(param, arg, translation_param);
   }
 
-  [[nodiscard]] bool is_formatted() const { return formatted; }
-
-  // Get formatted parameters for fmt::format
   fmt::dynamic_format_arg_store<fmt::format_context> get_params() const {
-    fmt::dynamic_format_arg_store<fmt::format_context> store;
-    for (const auto &kv : params) {
-      if (translation_param.contains(kv.first)) {
-        const char *param_name = translation_param.at(kv.first).c_str();
-        store.push_back(fmt::arg(param_name, kv.second));
-      }
-    }
-    return store;
+    return BaseTranslatableString::get_params(translation_param);
   }
 
-  // Implicit conversion to string for backward compatibility
   operator std::string() const {
     if (skip_translate())
       return underlying_TL_ONLY();
@@ -110,13 +74,6 @@ public:
     }
     return underlying_TL_ONLY();
   }
-
-private:
-  std::string content;
-  std::string description;
-  std::map<i18nParam, std::string> params;
-  bool formatted = false;
-  bool no_translate = false;
 };
 
 // Helper function to create parameter for fmt::format
@@ -131,7 +88,6 @@ fmt::detail::named_arg<char, T> create_param(const i18nParam &param,
   return fmt::arg(param_name, arg);
 }
 
-// Simple translation manager
 class TranslationManager {
 public:
   static TranslationManager &get() {
@@ -139,70 +95,92 @@ public:
     return instance;
   }
 
-  // Get translated string
-  std::string get_string(strings::i18n key) const;
+  std::string get_string(strings::i18n key) const {
+    return TranslationPlugin::get_string(key);
+  }
 
-  TranslatableString get_translatable_string(strings::i18n key) const;
+  TranslatableString get_translatable_string(strings::i18n key) const {
+    auto base = TranslationPlugin::get_translatable_string(key);
+    return TranslatableString(base.get_text(), base.get_description());
+  }
 
-  std::map<strings::i18n, TranslatableString>::const_iterator
-  find_translation(strings::i18n key) const;
+  std::map<strings::i18n, BaseTranslatableString>::const_iterator
+  find_translation(strings::i18n key) const {
+    auto *provides = afterhours::EntityHelper::get_singleton_cmp<
+        TranslationPlugin::ProvidesTranslation>();
+    if (!provides) {
+      static std::map<strings::i18n, BaseTranslatableString> empty;
+      return empty.end();
+    }
+    const auto &trans_map =
+        provides->get_translations_for_language(provides->current_language);
+    return trans_map.find(key);
+  }
 
-  // Get translations for a specific language
-  const std::map<strings::i18n, TranslatableString> &
-  get_translations_for_language(Language language) const;
+  const std::map<strings::i18n, BaseTranslatableString> &
+  get_translations_for_language(Language language) const {
+    auto *provides = afterhours::EntityHelper::get_singleton_cmp<
+        TranslationPlugin::ProvidesTranslation>();
+    if (!provides) {
+      static std::map<strings::i18n, BaseTranslatableString> empty;
+      return empty;
+    }
+    return provides->get_translations_for_language(language);
+  }
 
-  // Get appropriate font ID for the current language
   FontID get_font_for_language() const {
-    switch (current_language) {
-    case Language::Korean:
-      return FontID::Korean;
-    case Language::Japanese:
-      return FontID::Japanese;
-    case Language::English:
-    default:
-      return FontID::English;
-    }
+    return TranslationPlugin::get_font_for_language(
+        get_language(), [](Language lang) -> FontID {
+          switch (lang) {
+          case Language::Korean:
+            return FontID::Korean;
+          case Language::Japanese:
+            return FontID::Japanese;
+          case Language::English:
+          default:
+            return FontID::English;
+          }
+        });
   }
 
-  // Set language
-  void set_language(Language language);
+  void set_language(Language language) {
+    TranslationPlugin::set_language(language);
+  }
 
-  // Get current language
-  Language get_language() const { return current_language; }
+  Language get_language() const { return TranslationPlugin::get_language(); }
 
-  // Get language name for display
   std::string get_language_name() const {
-    return get_language_name(current_language);
+    return TranslationPlugin::get_language_name(get_language());
   }
 
-  // Get language name for a specific language
   static std::string get_language_name(Language language) {
-    return std::string(magic_enum::enum_name(language));
+    return TranslationPlugin::get_language_name(language);
   }
 
-  // Get vector of all available language names
   static std::vector<std::string> get_available_languages() {
-    std::vector<std::string> languages;
-    auto enum_values = magic_enum::enum_values<Language>();
-    for (auto lang : enum_values) {
-      languages.push_back(std::string(magic_enum::enum_name(lang)));
-    }
-    return languages;
+    return TranslationPlugin::get_available_languages();
   }
 
-  // Get index of a specific language in the available languages list
   static size_t get_language_index(Language language) {
-    auto index = magic_enum::enum_index(language);
-    return index.value_or(0);
+    return TranslationPlugin::get_language_index(language);
   }
 
-  // Load CJK fonts for all the strings this manager needs
-  void load_cjk_fonts(afterhours::ui::FontManager &font_manager,
-                      const std::string &font_file) const;
-
-private:
-  TranslationManager();
-  Language current_language;
+  template <typename FontManager>
+  void load_cjk_fonts(FontManager &font_manager,
+                      const std::string &font_file) const {
+    TranslationPlugin::load_cjk_fonts(font_manager, font_file, get_font_name,
+                                      [](Language lang) -> FontID {
+                                        switch (lang) {
+                                        case Language::Korean:
+                                          return FontID::Korean;
+                                        case Language::Japanese:
+                                          return FontID::Japanese;
+                                        case Language::English:
+                                        default:
+                                          return FontID::English;
+                                        }
+                                      });
+  }
 };
 
 // Global get_string function
@@ -211,7 +189,7 @@ inline std::string get_string(strings::i18n key) {
 }
 
 inline TranslatableString get_translatable_string(strings::i18n key) {
-  return TranslationManager::get().get_translatable_string(key);
+  return TranslatableString(key);
 }
 
 // Global get_font_for_language function
@@ -250,7 +228,9 @@ inline size_t get_language_index(translation_manager::Language language) {
 
 [[nodiscard]] inline std::string
 translate_formatted(const TranslatableString &trs) {
-  return fmt::vformat(trs.underlying_TL_ONLY(), trs.get_params());
+  return static_cast<std::string>(trs);
 }
+
+void initialize_translation_plugin(afterhours::Entity &entity);
 
 } // namespace translation_manager

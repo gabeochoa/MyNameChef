@@ -281,4 +281,9 @@ deps-check: deps
 	@[ -f tools/dependency_baseline.json ] || (echo "No baseline found at tools/dependency_baseline.json" && exit 2)
 	@diff -u tools/dependency_baseline.json output/dependency_summary.json || (echo "Dependency summary changed. Run 'make deps' and update baseline if intentional." && exit 1)
 
-.PHONY: cba clean-cba prof leak alloc count countall cppcheck deps deps-dot deps-svg deps-html deps-check
+# Plugin boundary check
+check-plugins:
+	@echo "Checking plugin API boundaries..."
+	@cd vendor/afterhours && ./check_plugin_boundaries.sh
+
+.PHONY: cba clean-cba prof leak alloc count countall cppcheck deps deps-dot deps-svg deps-html deps-check check-plugins
