@@ -1,9 +1,9 @@
 #pragma once
 
+#include "magic_enum/magic_enum.hpp"
 #include <functional>
 #include <map>
 #include <string>
-#include "magic_enum/magic_enum.hpp"
 
 namespace strings {
 
