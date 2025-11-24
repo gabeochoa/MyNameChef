@@ -250,12 +250,13 @@ class EndpointVerifier:
     def verify(self) -> Tuple[bool, str]:
         """Run endpoint verification and return (success, message)."""
         try:
-            # 1. Check server health
-            if not self._check_health():
+            # 1. Check server health and get code hash
+            code_hash = self._check_health()
+            if not code_hash:
                 return (False, "Server health check failed")
             
             # 2. Test /battle endpoint
-            battle_response = self._test_battle_endpoint()
+            battle_response = self._test_battle_endpoint(code_hash)
             if battle_response is None:
                 return (False, "Battle endpoint test failed")
             
@@ -271,26 +272,29 @@ class EndpointVerifier:
         except Exception as e:
             return (False, f"Endpoint verification error: {e}")
     
-    def _check_health(self) -> bool:
-        """Check if server health endpoint responds."""
+    def _check_health(self) -> Optional[str]:
+        """Check if server health endpoint responds and return code hash."""
         try:
             req = urllib.request.Request(f"{self.base_url}/health")
             with urllib.request.urlopen(req, timeout=5) as response:
                 health_data = response.read().decode('utf-8')
+                health_json = json.loads(health_data)
+                code_hash = health_json.get("codeHash", "")
                 print(f"  {Colors.GREEN}✅ Health check passed: {health_data}{Colors.NC}")
-                return True
+                return code_hash
         except Exception as e:
             print(f"  {Colors.RED}❌ ERROR: Server not responding on {self.base_url}/health{Colors.NC}")
-            return False
+            return None
     
-    def _test_battle_endpoint(self) -> Optional[dict]:
+    def _test_battle_endpoint(self, code_hash: str) -> Optional[dict]:
         """Test /battle endpoint with a test team."""
         test_team = {
             "team": [
                 {"dishType": "Potato", "slot": 0, "level": 1},
                 {"dishType": "Burger", "slot": 1, "level": 1},
                 {"dishType": "Pizza", "slot": 2, "level": 1}
-            ]
+            ],
+            "codeHash": code_hash
         }
         
         try:

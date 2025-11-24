@@ -57,21 +57,26 @@ struct AdvanceCourseSystem : afterhours::System<CombatQueue> {
       for (DishBattleState::TeamSide side :
            {DishBattleState::TeamSide::Player,
             DishBattleState::TeamSide::Opponent}) {
-        afterhours::RefEntities active =
+        afterhours::RefEntities all_dishes =
             EQ({.ignore_temp_warning = true})
                 .whereHasComponent<DishBattleState>()
-                .whereLambda([side](const afterhours::Entity &e) {
-                  const DishBattleState &dbs = e.get<DishBattleState>();
-                  return dbs.team_side == side &&
-                         dbs.phase != DishBattleState::Phase::Finished;
-                })
+                .whereTeamSide(side)
                 .gen();
-        if (side == DishBattleState::TeamSide::Player) {
-          player_active_count = static_cast<int>(active.size());
-        } else {
-          opponent_active_count = static_cast<int>(active.size());
+        
+        int active_count = 0;
+        for (afterhours::Entity &dish : all_dishes) {
+          const DishBattleState &dbs = dish.get<DishBattleState>();
+          if (dbs.phase != DishBattleState::Phase::Finished) {
+            active_count++;
+          }
         }
-        if (!active.empty()) {
+        
+        if (side == DishBattleState::TeamSide::Player) {
+          player_active_count = active_count;
+        } else {
+          opponent_active_count = active_count;
+        }
+        if (active_count > 0) {
           has_remaining_dishes = true;
         }
       }
@@ -81,6 +86,13 @@ struct AdvanceCourseSystem : afterhours::System<CombatQueue> {
         log_info("COMBAT: All courses complete - no remaining dishes (Player: "
                  "{}, Opponent: {})",
                  player_active_count, opponent_active_count);
+        GameStateManager::get().to_results();
+      } else if (player_active_count == 0 || opponent_active_count == 0) {
+        cq.complete = true;
+        log_info("COMBAT: Battle complete - one team exhausted (Player: "
+                 "{}, Opponent: {})",
+                 player_active_count, opponent_active_count);
+        GameStateManager::get().to_results();
       } else if (cq.current_index >= cq.total_courses - 1) {
         // Reached max courses, but both teams still have dishes
         // Don't mark complete - let the battle continue until one team is exhausted
