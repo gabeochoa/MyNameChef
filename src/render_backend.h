@@ -143,7 +143,8 @@ inline void DrawTextWithActiveFont(const char *text, int posX, int posY,
       font_manager_opt.get<afterhours::ui::FontManager>();
   std::string font_name = get_active_font_name();
   fm.set_active(font_name);
-  raylib::Font font = fm.get_active_font();
+  afterhours::Font font_ah = fm.get_active_font();
+  raylib::Font font = *reinterpret_cast<raylib::Font *>(&font_ah);
   raylib::DrawTextEx(
       font, text,
       raylib::Vector2{static_cast<float>(posX), static_cast<float>(posY)},
@@ -165,7 +166,8 @@ inline float MeasureTextWithActiveFont(const char *text, float fontSize) {
       font_manager_opt.get<afterhours::ui::FontManager>();
   std::string font_name = get_active_font_name();
   fm.set_active(font_name);
-  raylib::Font font = fm.get_active_font();
+  afterhours::Font font_ah = fm.get_active_font();
+  raylib::Font font = *reinterpret_cast<raylib::Font *>(&font_ah);
   raylib::Vector2 size = raylib::MeasureTextEx(font, text, fontSize, 1.0f);
   return size.x;
 }

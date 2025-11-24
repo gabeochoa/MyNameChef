@@ -1,5 +1,6 @@
 #pragma once
 
+#include "external.h"  // Must be first to define AFTER_HOURS_USE_RAYLIB and type macros
 #include "font_info.h"
 #include "strings.h"
 #include <afterhours/src/plugins/translation.h>

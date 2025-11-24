@@ -32,7 +32,7 @@ static void ensure_replay_state_exists(uint64_t seed) {
   const auto componentId = afterhours::components::get_type_id<ReplayState>();
   auto &singletonMap = afterhours::EntityHelper::get().singletonMap;
   if (singletonMap.contains(componentId)) {
-    auto &replayEntity = afterhours::EntityHelper::get_singleton<ReplayState>();
+    auto replayEntity = afterhours::EntityHelper::get_singleton<ReplayState>();
     if (replayEntity.get().has<ReplayState>()) {
       auto &replay = replayEntity.get().get<ReplayState>();
       replay.seed = seed;
@@ -112,17 +112,19 @@ TEST(validate_server_battle_determinism) {
   const uint64_t test_seed = 9876543210987654321ULL;
 
   static const TestOperationID first_run_op = TestApp::generate_operation_id(
-      std::source_location::current(), "validate_server_battle_determinism.first_run");
+      std::source_location::current(),
+      "validate_server_battle_determinism.first_run");
   static const TestOperationID second_run_op = TestApp::generate_operation_id(
-      std::source_location::current(), "validate_server_battle_determinism.second_run");
+      std::source_location::current(),
+      "validate_server_battle_determinism.second_run");
   static BattleRunResult first_run_result;
 
   if (app.completed_operations.count(first_run_op) == 0) {
     app.launch_game();
     app.wait_for_frames(1);
     app.clear_battle_dishes();
-    ValidateServerBattleDeterminismTestHelpers::ensure_battle_load_request_exists(
-        test_seed);
+    ValidateServerBattleDeterminismTestHelpers::
+        ensure_battle_load_request_exists(test_seed);
     app.setup_battle();
     app.wait_for_frames(1);
 
@@ -164,8 +166,8 @@ TEST(validate_server_battle_determinism) {
     app.launch_game();
     app.wait_for_frames(1);
     app.clear_battle_dishes();
-    ValidateServerBattleDeterminismTestHelpers::ensure_battle_load_request_exists(
-        test_seed);
+    ValidateServerBattleDeterminismTestHelpers::
+        ensure_battle_load_request_exists(test_seed);
     app.setup_battle();
     app.wait_for_frames(1);
 
@@ -234,4 +236,3 @@ TEST(validate_server_battle_determinism) {
              "server battle determinism verified");
   }
 }
-

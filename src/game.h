@@ -1,7 +1,9 @@
 
 #pragma once
 
-#include "std_include.h"
+// Include external.h first to ensure AFTER_HOURS_USE_RAYLIB and type macros
+// are defined before any afterhours headers
+#include "external.h"
 
 #include "rl.h"
 

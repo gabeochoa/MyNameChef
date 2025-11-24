@@ -1,4 +1,4 @@
-#include <afterhours/ah.h>
+#include "../rl.h"
 #if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wswitch-enum"
@@ -7,8 +7,6 @@
 #if defined(__clang__)
 #pragma clang diagnostic pop
 #endif
-
-#include <afterhours/src/developer.h>
 #include <afterhours/src/logging.h>
 
 #include "../components/battle_history.h"

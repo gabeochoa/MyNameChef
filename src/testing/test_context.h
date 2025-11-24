@@ -1,11 +1,11 @@
 #pragma once
 
+#include "../rl.h"
 #include <chrono>
 #include <string>
 #include <vector>
 
 #include "../game_state_manager.h"
-#include <afterhours/ah.h>
 
 struct TestContext {
   enum class Mode { Interactive, Headless };

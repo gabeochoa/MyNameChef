@@ -2,7 +2,10 @@
 
 #pragma once
 
-#include "std_include.h"
+// Include external.h first to ensure AFTER_HOURS_USE_RAYLIB and type macros
+// are defined before any afterhours headers. external.h already includes
+// raylib in the raylib namespace, so we just add our custom functions here.
+#include "external.h"
 
 #ifdef __clang__
 #pragma clang diagnostic push
@@ -21,24 +24,8 @@
 #pragma GCC diagnostic ignored "-Wdangling-reference"
 #endif
 
+// raylib namespace is already opened in external.h, just add custom functions
 namespace raylib {
-#if defined(__has_include)
-#if __has_include(<raylib.h>)
-#include <raylib.h>
-#include <raymath.h>
-#include <rlgl.h>
-#elif __has_include("raylib/raylib.h")
-#include "raylib/raylib.h"
-#include "raylib/raymath.h"
-#include "raylib/rlgl.h"
-#else
-#error "raylib headers not found"
-#endif
-#else
-#include <raylib.h>
-#include <raymath.h>
-#include <rlgl.h>
-#endif
 
 // Only add missing scalar-left multiplication overloads
 inline Vector2 operator*(float s, Vector2 a) { return Vector2Scale(a, s); }
@@ -165,6 +152,7 @@ inline void DrawSplineLinear(const Vector2 *points, int pointCount, float thick,
 
 } // namespace raylib
 
+// Macros are now defined in external.h, included at the top of this file
 #include <GLFW/glfw3.h>
 
 // We redefine the max here because the max keyboardkey is in the 300s
@@ -179,13 +167,13 @@ inline void DrawSplineLinear(const Vector2 *points, int pointCount, float thick,
 #define AFTER_HOURS_ENTITY_QUERY
 #define AFTER_HOURS_SYSTEM
 #define AFTER_HOURS_IMM_UI
-#define AFTER_HOURS_USE_RAYLIB
 
-#define RectangleType raylib::Rectangle
-#define Vector2Type raylib::Vector2
-#define TextureType raylib::Texture2D
-#include <afterhours/ah.h>
 #include <afterhours/src/developer.h>
+#include <afterhours/ah.h>
+
+namespace afterhours {
+using vec2 = raylib::Vector2;
+}
 #include <afterhours/src/plugins/input_system.h>
 #include <afterhours/src/plugins/texture_manager.h>
 #include <afterhours/src/plugins/window_manager.h>

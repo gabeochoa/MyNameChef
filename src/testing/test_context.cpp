@@ -1,3 +1,5 @@
+#include "../rl.h"
+#include "../preload.h"
 #include "test_context.h"
 #include "../game.h"
 #include "../input_mapping.h"
