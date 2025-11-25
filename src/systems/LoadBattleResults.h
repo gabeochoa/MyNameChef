@@ -101,7 +101,7 @@ private:
       else
         out.outcome = BattleResult::Outcome::Tie;
     }
-    // Ignore legacy totals/judge breakdown in new model
+    // Ignore legacy totals in new model
     return true;
   }
 

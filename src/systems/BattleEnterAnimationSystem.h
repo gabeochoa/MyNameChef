@@ -46,8 +46,8 @@ struct BattleEnterAnimationSystem : afterhours::System<DishBattleState> {
         dbs.enter_progress = std::min(0.0f, dbs.enter_progress + effective_dt);
         return;
       }
-      dbs.enter_progress =
-          std::min(1.0f, dbs.enter_progress + effective_dt / scaled_enter_duration);
+      dbs.enter_progress = std::min(
+          1.0f, dbs.enter_progress + effective_dt / scaled_enter_duration);
     }
 
     if (dbs.enter_progress >= 1.0f) {
@@ -68,8 +68,8 @@ struct BattleEnterAnimationSystem : afterhours::System<DishBattleState> {
       // jump when we stop applying the draw-time offset.
       if (e.has<Transform>()) {
         Transform &tr = e.get<Transform>();
-        float judge_center_y = 360.0f; // must match renderers
-        float delta_y = (judge_center_y - tr.position.y);
+        float battle_midline_y = 360.0f; // must match renderers
+        float delta_y = (battle_midline_y - tr.position.y);
         tr.position.y += delta_y;
       }
 

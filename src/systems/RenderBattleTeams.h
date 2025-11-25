@@ -75,8 +75,8 @@ struct RenderBattleTeams : afterhours::System<Transform, IsDish> {
     float present_offset_y = 0.0f;
     if (dbs.phase == DishBattleState::Phase::Entering) {
       float present_v = std::clamp(dbs.enter_progress, 0.0f, 1.0f);
-      float judge_center_y = 360.0f;
-      present_offset_y = (judge_center_y - transform.position.y) * present_v;
+      float battle_midline_y = 360.0f;
+      present_offset_y = (battle_midline_y - transform.position.y) * present_v;
     }
 
     // Draw the dish sprite or fallback rectangle
@@ -139,23 +139,27 @@ struct RenderBattleTeams : afterhours::System<Transform, IsDish> {
 
     // Draw dish name above the rectangle
     std::string dishName = dish.name();
-    float textWidth = render_backend::MeasureTextWithActiveFont(dishName.c_str(), font_sizes::Normal);
+    float textWidth = render_backend::MeasureTextWithActiveFont(
+        dishName.c_str(), font_sizes::Normal);
     float textX =
         transform.position.x + offset_x + (transform.size.x - textWidth) / 2.0f;
     float textY = transform.position.y + offset_y + present_offset_y - 25.0f;
 
-    render_backend::DrawTextWithActiveFont(dishName.c_str(), (int)textX, (int)textY, font_sizes::Normal,
-                                          text_color);
+    render_backend::DrawTextWithActiveFont(dishName.c_str(), (int)textX,
+                                           (int)textY, font_sizes::Normal,
+                                           text_color);
 
     // Draw team label
     std::string teamLabel = isPlayer ? "PLAYER" : "OPPONENT";
-    float labelWidth = render_backend::MeasureTextWithActiveFont(teamLabel.c_str(), font_sizes::Small);
+    float labelWidth = render_backend::MeasureTextWithActiveFont(
+        teamLabel.c_str(), font_sizes::Small);
     float labelX = transform.position.x + offset_x +
                    (transform.size.x - labelWidth) / 2.0f;
     float labelY = transform.position.y + offset_y + present_offset_y +
                    transform.size.y + 5.0f;
 
-    render_backend::DrawTextWithActiveFont(teamLabel.c_str(), (int)labelX, (int)labelY, font_sizes::Small,
-                                          borderColor);
+    render_backend::DrawTextWithActiveFont(teamLabel.c_str(), (int)labelX,
+                                           (int)labelY, font_sizes::Small,
+                                           borderColor);
   }
 };

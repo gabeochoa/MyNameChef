@@ -108,7 +108,8 @@ private:
     // +1 text
     std::string boostText = "+1";
     float fontSize = overlaySize * 0.4f;
-    float textWidth = render_backend::MeasureTextWithActiveFont(boostText.c_str(), fontSize);
+    float textWidth =
+        render_backend::MeasureTextWithActiveFont(boostText.c_str(), fontSize);
 
     raylib::Color textColor = raylib::Color{0, 0, 0, (unsigned char)alpha};
     render_backend::DrawTextWithActiveFont(
@@ -125,7 +126,8 @@ private:
 
     if (!statType.empty()) {
       float smallFontSize = overlaySize * 0.2f;
-      float smallTextWidth = render_backend::MeasureTextWithActiveFont(statType.c_str(), smallFontSize);
+      float smallTextWidth = render_backend::MeasureTextWithActiveFont(
+          statType.c_str(), smallFontSize);
       render_backend::DrawTextWithActiveFont(
           statType.c_str(), static_cast<int>(centerX - smallTextWidth / 2.0f),
           static_cast<int>(bounceY + overlaySize / 2.0f + 5.0f), smallFontSize,
@@ -227,8 +229,9 @@ private:
       // Draw "+1 Freshness" text
       raylib::Color textColor =
           raylib::Color{255, 255, 255, (unsigned char)alpha};
-      render_backend::DrawTextWithActiveFont("+1", static_cast<int>(centerX - 10),
-                                            static_cast<int>(bounceY - 5), font_sizes::Small, textColor);
+      render_backend::DrawTextWithActiveFont(
+          "+1", static_cast<int>(centerX - 10), static_cast<int>(bounceY - 5),
+          font_sizes::Small, textColor);
     }
   }
 
@@ -262,8 +265,8 @@ private:
     if (dbs.phase == DishBattleState::Phase::Entering &&
         dbs.enter_progress >= 0.0f) {
       float present_v = std::clamp(dbs.enter_progress, 0.0f, 1.0f);
-      float judge_center_y = 360.0f;
-      offset_y += (judge_center_y - transform.position.y) * present_v;
+      float battle_midline_y = 360.0f;
+      offset_y += (battle_midline_y - transform.position.y) * present_v;
     }
 
     // Calculate center position

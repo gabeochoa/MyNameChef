@@ -91,13 +91,14 @@ struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
       if (dbs.phase == DishBattleState::Phase::Entering &&
           dbs.enter_progress >= 0.0f) {
         float present_v = std::clamp(dbs.enter_progress, 0.0f, 1.0f);
-        float judge_center_y = 360.0f;
-        offset_y += (judge_center_y - transform.position.y) * present_v;
+        float battle_midline_y = 360.0f;
+        offset_y += (battle_midline_y - transform.position.y) * present_v;
       }
 
       // In head-to-head, avoid overlap by separating slightly on the Y axis
       if (dbs.phase == DishBattleState::Phase::InCombat) {
-        const float headToHeadYSeparation = std::max(24.0f, transform.size.y * 0.12f);
+        const float headToHeadYSeparation =
+            std::max(24.0f, transform.size.y * 0.12f);
         offset_y += isPlayer ? -headToHeadYSeparation : headToHeadYSeparation;
       }
     }
@@ -109,8 +110,8 @@ struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
     bool is_in_combat = is_battle_dish && entity.get<DishBattleState>().phase ==
                                               DishBattleState::Phase::InCombat;
 
-    // Use CombatStats if available (whether in combat or not) to ensure consistency
-    // with ComputeCombatStatsSystem calculations
+    // Use CombatStats if available (whether in combat or not) to ensure
+    // consistency with ComputeCombatStatsSystem calculations
     if (is_battle_dish && entity.has<CombatStats>()) {
       const auto &cs = entity.get<CombatStats>();
       // Gate "current" view on animation completion to avoid premature drop
@@ -190,10 +191,11 @@ struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
     // Zing number (supports up to two digits)
     const float fontSize = badgeSize * 0.72f;
     const std::string zingText = std::to_string(zing);
-    const float zw = render_backend::MeasureTextWithActiveFont(zingText.c_str(), fontSize);
-    render_backend::DrawTextWithActiveFont(zingText.c_str(), static_cast<int>(zx - zw / 2.0f),
-                                          static_cast<int>(zy - fontSize / 2.0f), fontSize,
-                                          raylib::BLACK);
+    const float zw =
+        render_backend::MeasureTextWithActiveFont(zingText.c_str(), fontSize);
+    render_backend::DrawTextWithActiveFont(
+        zingText.c_str(), static_cast<int>(zx - zw / 2.0f),
+        static_cast<int>(zy - fontSize / 2.0f), fontSize, raylib::BLACK);
 
     // Body: pale yellow square top-right
     const float bx = rect.x + rect.width - padding - badgeSize;
@@ -205,11 +207,12 @@ struct RenderZingBodyOverlay : afterhours::System<HasRenderOrder, IsDish> {
                                   static_cast<int>(badgeSize), bodyColor);
 
     const std::string bodyText = std::to_string(body);
-    const float bw = render_backend::MeasureTextWithActiveFont(bodyText.c_str(), fontSize);
+    const float bw =
+        render_backend::MeasureTextWithActiveFont(bodyText.c_str(), fontSize);
     const float bh = fontSize;
-    render_backend::DrawTextWithActiveFont(bodyText.c_str(),
-                                          static_cast<int>(bx + (badgeSize - bw) * 0.5f),
-                             static_cast<int>(by + (badgeSize - bh) * 0.5f),
-                             fontSize, raylib::BLACK);
+    render_backend::DrawTextWithActiveFont(
+        bodyText.c_str(), static_cast<int>(bx + (badgeSize - bw) * 0.5f),
+        static_cast<int>(by + (badgeSize - bh) * 0.5f), fontSize,
+        raylib::BLACK);
   }
 };

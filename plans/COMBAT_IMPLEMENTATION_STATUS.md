@@ -25,11 +25,6 @@
 
 ### ❌ **MISSING/INCOMPLETE**
 
-**Phase 0 - Legacy Removal (CRITICAL):**
-- ❌ `JudgingSystems.h` systems still exist and may conflict
-- ❌ Legacy judging UI (`RenderJudges`, `RenderScoringBar`) still active
-- ❌ `JudgingState` component still referenced in some systems
-
 **Missing Components:**
 - ❌ `CourseOutcome` component (exists in BattleResult but not as standalone)
 - ❌ Trigger system components (`TriggerEvent`, `TriggerQueue`)
@@ -48,36 +43,6 @@
 - ❌ Missing transition to Results when combat completes
 
 ## Implementation Plan
-
-### **Phase 0: Remove Legacy Judging (IMMEDIATE PRIORITY)**
-
-**Goal:** Remove legacy tug-of-war judging systems to prevent conflicts
-
-**Tasks:**
-1. **Remove JudgingSystems.h registrations from main.cpp**
-   - Remove `#include "systems/JudgingSystems.h"` 
-   - Remove `InitJudgingState` and `AdvanceJudging` system registrations
-   - Verify no other files include `JudgingSystems.h`
-
-2. **Guard/Remove Legacy UI Systems**
-   - Comment out `RenderJudges` system registration
-   - Comment out `RenderScoringBar` system registration  
-   - Add `#ifdef LEGACY_JUDGING` guards around judge UI code
-
-3. **Remove JudgingState References**
-   - Update `BattleDebugSystem` to not check for `JudgingState`
-   - Remove `JudgingState` includes from systems that don't need it
-   - Mark `src/components/judging_state.h` as legacy (keep file for rollback)
-
-4. **Verify Build**
-   - Ensure project compiles clean after removal
-   - Test that battle screen loads without judge totals
-
-**Files to modify:**
-- `src/main.cpp` - Remove JudgingSystems includes/registrations
-- `src/systems/BattleDebugSystem.h` - Remove JudgingState checks
-- `src/systems/RenderJudges.h` - Add LEGACY_JUDGING guards
-- `src/systems/RenderScoringBar.h` - Add LEGACY_JUDGING guards
 
 ### **Phase 1: Fix Core Combat Issues**
 
@@ -224,12 +189,11 @@
 
 ## Priority Order
 
-1. **Phase 0** - Remove legacy judging (CRITICAL - prevents conflicts)
-2. **Phase 1** - Fix core combat issues (CRITICAL - system doesn't work without these)
-3. **Phase 2** - Complete missing components (HIGH - needed for advanced features)
-4. **Phase 3** - Implement missing systems (MEDIUM - adds functionality)
-5. **Phase 4** - Test complete flow (HIGH - verify everything works)
-6. **Phase 5** - Advanced features (LOW - future enhancements)
+1. **Phase 1** - Fix core combat issues (CRITICAL - system doesn't work without these)
+2. **Phase 2** - Complete missing components (HIGH - needed for advanced features)
+3. **Phase 3** - Implement missing systems (MEDIUM - adds functionality)
+4. **Phase 4** - Test complete flow (HIGH - verify everything works)
+5. **Phase 5** - Advanced features (LOW - future enhancements)
 
 ## Success Criteria
 
@@ -242,11 +206,10 @@
 
 ## Estimated Completion
 
-- **Phase 0**: 1-2 hours (straightforward removal)
 - **Phase 1**: 2-3 hours (fixing core bugs)
 - **Phase 2**: 1-2 hours (adding components)
 - **Phase 3**: 3-4 hours (implementing systems)
 - **Phase 4**: 1-2 hours (testing)
-- **Total**: 8-13 hours for basic working combat system
+- **Total**: 7-11 hours for basic working combat system
 
 The combat system is ~70% complete with solid foundations, but needs these critical fixes to function properly.
