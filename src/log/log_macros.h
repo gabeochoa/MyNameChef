@@ -16,7 +16,8 @@
 #define log_error(...)                                                         \
   if (static_cast<int>(LogLevel::LOG_ERROR) >=                                 \
       static_cast<int>(AFTER_HOURS_LOG_LEVEL))                                 \
-    log_me(LogLevel::LOG_ERROR, __FILE__, __LINE__, __VA_ARGS__)
+    log_me(LogLevel::LOG_ERROR, __FILE__, __LINE__, __VA_ARGS__);              \
+  assert(false)
 
 #define log_clean(level, ...)                                                  \
   if (static_cast<int>(level) >= static_cast<int>(AFTER_HOURS_LOG_LEVEL))      \
