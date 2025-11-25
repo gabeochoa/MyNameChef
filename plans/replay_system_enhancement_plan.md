@@ -29,10 +29,24 @@ Enhance replay system to:
 
 ### Missing Features
 
-- UI buttons for speed controls (currently keyboard-only)
-- BattleReport loading from JSON files
-- Integration with Results screen
-- "Watch Again" button
+- ⚠️ UI buttons for speed controls - **PARTIALLY IMPLEMENTED** (speed controls exist in `ui_systems.cpp` lines 714-745, but they control battle speed, not replay `timeScale`. Speed controls are integrated into battle screen UI, not a separate ReplayUISystem)
+- ❌ BattleReport loading from JSON files - **NOT IMPLEMENTED**
+- ❌ Integration with Results screen - **NOT IMPLEMENTED**
+- ❌ "Watch Again" button - **NOT IMPLEMENTED**
+
+## Current Implementation Status
+
+### What Exists:
+- ✅ `ReplayControllerSystem.h` with keyboard controls (Space, R, 1-4 keys)
+- ✅ Speed controls exist in battle UI (`ui_systems.cpp` lines 714-745) but control `render_backend::timing_speed_scale`, not `ReplayState.timeScale`
+- ✅ `ReplayState` component exists with `timeScale`, `paused`, `active` fields
+- ✅ Comment in `main.cpp` line 249: "ReplayUISystem is now integrated into ScheduleMainMenuUI::battle_screen"
+
+### What's Missing:
+- ❌ Separate `ReplayUISystem` for replay-specific controls
+- ❌ BattleReport loading functionality (`load_battle_report()` function)
+- ❌ "Watch Again" button on Results screen
+- ⚠️ Speed controls need to be connected to `ReplayState.timeScale` when in replay mode (currently they control general battle speed)
 
 ## Implementation Details
 

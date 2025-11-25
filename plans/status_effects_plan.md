@@ -30,11 +30,30 @@ Implement complete status effects system with:
 
 ### Missing/Incomplete Features
 
-- ❌ Status effect type definitions (what effects exist)
-- ❌ Status effect sources (drinks, synergies, dish effects)
-- ❌ Visual indicators (badges on dishes)
-- ❌ Duration tracking (currently `duration = 0` means permanent)
-- ❌ Status effect removal/expiration
+- ❌ Status effect type definitions (what effects exist) - **NOT IMPLEMENTED** (no `StatusEffectType` enum)
+- ⚠️ Status effect sources - **PARTIALLY IMPLEMENTED**:
+  - ✅ Dish effects can apply status via `EffectOperation::ApplyStatus`
+  - ✅ `ApplyDrinkPairingEffects` exists but applies `DishEffect`, not status effects
+  - ❌ Synergies don't apply status effects yet
+- ❌ Visual indicators (badges on dishes) - **NOT IMPLEMENTED** (no `RenderStatusEffectBadgesSystem`)
+- ❌ Duration tracking (currently `duration = 0` means permanent) - **NOT IMPLEMENTED** (no `courseApplied` field)
+- ❌ Status effect removal/expiration - **NOT IMPLEMENTED** (no expiration logic in `AdvanceCourseSystem`)
+
+## Current Implementation Status
+
+### What Exists:
+- ✅ `StatusEffects` component with `std::vector<StatusEffect>`
+- ✅ `StatusEffect` structure with `zingDelta`, `bodyDelta`, `duration` fields
+- ✅ `EffectOperation::ApplyStatus` can apply status effects via dish effects
+- ✅ `ComputeCombatStatsSystem` reads and applies status effect deltas (lines 155-162)
+
+### What's Missing:
+- ❌ `StatusEffectType` enum to define effect types
+- ❌ `courseApplied` field to track when effect was applied
+- ❌ Visual badge system (`RenderStatusEffectBadgesSystem`)
+- ❌ Expiration logic in `AdvanceCourseSystem`
+- ❌ Status effect application from drinks (currently drinks apply `DishEffect`, not status)
+- ❌ Status effect application from synergies
 
 ## Design Decisions Needed (CRITICAL)
 

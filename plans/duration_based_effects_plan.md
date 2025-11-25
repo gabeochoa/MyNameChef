@@ -21,9 +21,22 @@ Implement duration tracking for effects:
 
 ### Missing Features
 
-- ❌ Course tracking for effects (when was effect applied?)
-- ❌ Duration decrement logic
-- ❌ Effect expiration/removal
+- ❌ Course tracking for effects (when was effect applied?) - **NOT IMPLEMENTED** (no `courseApplied` field in `StatusEffect`)
+- ❌ Duration decrement logic - **NOT IMPLEMENTED** (no expiration logic in `AdvanceCourseSystem`)
+- ❌ Effect expiration/removal - **NOT IMPLEMENTED** (no `expire_status_effects()` function)
+
+## Current Implementation Status
+
+### What Exists:
+- ✅ `StatusEffect` has `duration` field (0 = permanent, >0 = courses remaining)
+- ✅ `StatusEffects` component exists
+- ✅ `AdvanceCourseSystem` exists and tracks course completion
+
+### What's Missing:
+- ❌ `courseApplied` field in `StatusEffect` structure
+- ❌ Logic to set `courseApplied` when effect is applied
+- ❌ Expiration logic in `AdvanceCourseSystem` to remove expired effects
+- ❌ `expire_status_effects()` function to calculate and remove expired effects
 
 ## Implementation Details
 

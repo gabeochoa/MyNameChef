@@ -7,6 +7,18 @@ Many tests in `src/testing/tests/` duplicate helper functions and battle setup p
 - Battle setup boilerplate (`ensure...`, `GameStateManager::get().to_battle()`, `app.wait_for_frames(1)`) is repeated everywhere.
 - Trigger events are manually pushed in slightly different ways instead of using a consistent helper.
 
+## Current Implementation Status
+
+### What Exists:
+- ✅ `src/testing/test_server_helpers.h` exists with server-specific helpers (`server_integration_test_setup`, `read_json_file`)
+- ✅ Some test files have local helper namespaces (e.g., `ValidateSetBonusSystemTestHelpers`, `ValidateDebugDishTestHelpers`)
+
+### What's Missing:
+- ❌ Shared `src/testing/test_battle_helpers.h` file does not exist
+- ❌ Common helpers like `get_or_create_trigger_queue()` are duplicated across test files
+- ❌ `setup_battle_for_test()` function does not exist
+- ❌ Shared trigger event helpers do not exist
+
 ### Implementation Steps
 1. **Create shared helpers (`src/testing/test_battle_helpers.h`):**
    - Provide singleton helpers for trigger queue and battle load request.

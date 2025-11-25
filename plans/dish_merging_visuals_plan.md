@@ -23,10 +23,23 @@ Add visual enhancements for dish merging:
 
 ### Missing Visual Features
 
-- ❌ Merge animation
-- ❌ Level-up sound effect
-- ❌ "Ready to merge!" indicator
-- ❌ Level display badge
+- ❌ Merge animation - **NOT IMPLEMENTED**
+- ❌ Level-up sound effect - **NOT IMPLEMENTED**
+- ❌ "Ready to merge!" indicator - **NOT IMPLEMENTED**
+- ⚠️ Level display badge - **PARTIALLY IMPLEMENTED** (`RenderDishProgressBars.h` shows "L2" text for level 2+ dishes, but no dedicated badge system)
+
+## Current Implementation Status
+
+### What Exists:
+- ✅ `RenderDishProgressBars.h` displays level text ("L2", "L3", etc.) for level 2+ dishes
+- ✅ Level text appears below dish sprites with progress bars
+- ✅ Merge logic works correctly (2 level N → 1 level N+1)
+
+### What's Missing:
+- ❌ Merge animation when dishes combine
+- ❌ Level-up sound effect on merge
+- ❌ "Ready to merge!" visual hints for mergeable pairs
+- ❌ Dedicated level badge system (current implementation uses text, not badge)
 
 ## Implementation Details
 

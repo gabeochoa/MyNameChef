@@ -27,6 +27,20 @@ Implement merge system where:
 - Checks: Same dish type, both have `DishLevel`, donor level <= target level
 - Action: Adds donor's `contribution_value()` to target
 - Result: Target level increases based on contribution
+- **Only supports 2-of-a-kind merge** - no detection for 3 dishes
+
+## Current Implementation Status
+
+### What Exists:
+- ✅ 2-of-a-kind merge fully implemented in `DropWhenNoLongerHeld::merge_dishes()`
+- ✅ Merge logic checks same type and level compatibility
+- ✅ Uses `DishLevel.contribution_value()` and `add_merge_value()`
+
+### What's Missing:
+- ❌ Detection for third dish of same type during merge
+- ❌ `find_third_same_type_dish()` function
+- ❌ `perform_triple_merge()` function
+- ❌ Logic to combine 3 dishes into level +1 (currently only 2 dishes add contribution)
 
 ## Implementation Strategy
 
