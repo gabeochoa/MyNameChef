@@ -328,14 +328,42 @@ With SOA, "temp entities" could mean:
 
 Before starting SOA implementation, we need to answer the following questions and gather information:
 
+### Key Decisions Made ✅
+
+**API Compatibility**: **Full backward compatibility maintained**
+- OptEntity, RefEntity, EntityQuery APIs remain unchanged
+- Only internal library implementation changes
+- Library users don't need to know about SOA
+
+**Entity Implementation**: **Lightweight wrapper accessing SOA storage**
+- Keep Entity struct with same API (`get<T>()`, `has<T>()`, etc.)
+- Entity internally accesses SOA component storages
+- Very little changes for library users
+
+**Migration Strategy**: **All-at-once with API transparency**
+- Migrate entire library to SOA internally
+- Users see no API changes
+- Entity wrapper handles SOA access transparently
+
+**Singleton Components**: **Normal entities, not special case**
+- Singletons are normal entities stored in SOA
+- Product side assumes there's only one entity with that component
+- Helper `get_singleton<Component>()` queries for entity with component (assumes only one)
+- Easy to go from component -> sophie entity
+
+**Component Operations**: **API unchanged, fastest internal implementation**
+- `entity.addComponent<T>()` and `entity.removeComponent<T>()` work the same
+- `entity.get<T>()` returns reference as before
+- Use fastest implementation internally (lookup with caching if beneficial)
+- No API changes, optimize internally
+
 ### 1. API Compatibility and Migration Strategy
 
 **Q1.1: Do we need to maintain backward compatibility with existing code?**
 - **Option A**: Maintain full API compatibility (RefEntity, OptEntity work the same)
 - **Option B**: Break API but provide migration helpers
 - **Option C**: Dual-mode API (SOA and AoS both supported)
-- **Recommendation**: Option C for gradual migration
-- **Status**: ⚠️ **NEEDS DECISION**
+- **✅ DECISION**: **Option A** - Maintain full API compatibility. OptEntity and RefEntity should not change. EntityQuery should not change API. Only the internals to the library should change - library users shouldn't need to know about SOA.
 
 **Q1.2: How should we handle RefEntity and OptEntity in SOA?**
 - **Current**: `RefEntity = std::reference_wrapper<Entity>` (references Entity object)
@@ -344,13 +372,12 @@ Before starting SOA implementation, we need to answer the following questions an
   - Create lightweight Entity wrapper that accesses SOA storage
   - Change RefEntity to store EntityID + component accessors
   - Keep Entity struct but it's just metadata (ID, tags, cleanup flag)
-- **Status**: ⚠️ **NEEDS DECISION**
+- **✅ DECISION**: **Keep real Entity struct for now**. Lightweight wrapper is fine as long as `entity->get<Component>()` still works. There should be very little actual changes for library users. Entity struct will access SOA storage internally but maintain the same API.
 
 **Q1.3: Should we support gradual migration or all-at-once?**
 - **Option A**: Dual-mode system (SOA + AoS run simultaneously)
 - **Option B**: All-at-once migration (higher risk, faster)
-- **Recommendation**: Option A for safety
-- **Status**: ⚠️ **NEEDS CONFIRMATION**
+- **✅ DECISION**: **Option B (all-at-once)** but with API compatibility maintained. Since the API doesn't change, from the user's perspective it's seamless, but internally we migrate everything to SOA at once. The Entity wrapper handles the SOA access transparently.
 
 ### 2. Component Storage and Access
 
@@ -360,15 +387,135 @@ Before starting SOA implementation, we need to answer the following questions an
   - Keep singletonMap but point to EntityID
   - Store singletons in separate storage (not SOA)
   - Use special EntityID (e.g., -1) for singletons
-- **Status**: ⚠️ **NEEDS DECISION**
+- **✅ DECISION**: **Singletons are normal entities**. On the game/product side, assume there's only one. Used as a "Global King Entity" that holds information that would otherwise be static singletons. Need to easily go from component -> sophie entity. Store as normal EntityID in SOA, use helper `get_singleton<Component>()` that queries for entity with that component (assuming only one exists).
 
 **Q2.2: How are tags stored in SOA?**
-- **Current**: `TagBitset tags` in Entity struct
+- **Current**: `TagBitset tags` in Entity struct (64 bits, stored per entity)
 - **SOA Options**:
-  - Separate `TagStorage` with dense array of TagBitset
-  - Keep tags in Entity metadata (if Entity struct still exists)
-  - Store tags alongside fingerprints
-- **Status**: ⚠️ **NEEDS DECISION**
+
+  **Option A: Separate TagStorage (parallel to fingerprints)**
+  ```cpp
+  struct TagStorage {
+    std::vector<TagBitset> tags;           // Dense array of tag bitsets
+    std::vector<EntityID> entity_ids;      // Parallel array
+    std::unordered_map<EntityID, size_t> entity_to_index;
+  };
+  ```
+  - **Pros**: 
+    - ✅ Cache-friendly (dense array iteration for tag queries)
+    - ✅ Can use SIMD for tag filtering (same as fingerprints)
+    - ✅ Tags stored alongside fingerprints (same access pattern)
+    - ✅ Fast tag-only queries (iterate tag array directly)
+    - ✅ Can filter by tags + fingerprints in parallel
+  - **Cons**: 
+    - ❌ Extra storage structure to maintain
+    - ❌ Need to keep in sync with fingerprints (two arrays)
+    - ❌ Slightly more complex (two lookups for entity metadata)
+
+  **Option B: Keep tags in Entity metadata struct**
+  ```cpp
+  struct EntityMetadata {
+    EntityID id;
+    TagBitset tags;
+    bool cleanup;
+  };
+  std::vector<EntityMetadata> entity_metadata;
+  ```
+  - **Pros**: 
+    - ✅ Simpler (tags stay with entity metadata)
+    - ✅ No extra storage structure
+    - ✅ Tags always available when you have Entity reference
+    - ✅ Natural: tags are entity properties, not component properties
+  - **Cons**: 
+    - ❌ Entity metadata array still needed (can't eliminate entirely)
+    - ❌ Less cache-friendly (tags scattered with metadata)
+    - ❌ Can't easily filter by tags without iterating all entities
+    - ❌ Harder to use SIMD for tag filtering (metadata mixed with tags)
+
+  **Option C: Store tags alongside fingerprints**
+  ```cpp
+  struct FingerprintStorage {
+    std::vector<ComponentBitSet> fingerprints;
+    std::vector<TagBitset> tags;           // Parallel array
+    std::vector<EntityID> entity_ids;
+  };
+  ```
+  - **Pros**: 
+    - ✅ Single storage structure (simpler management)
+    - ✅ Tags and fingerprints together (same access pattern)
+    - ✅ Can filter by both in one pass (same iteration)
+    - ✅ Cache-friendly (both arrays dense and parallel)
+  - **Cons**: 
+    - ❌ Fingerprint storage becomes more complex (mixing concerns)
+    - ❌ Tags are conceptually different from components (entity property vs component)
+    - ❌ If you only need tags, still iterate fingerprint array
+
+  **Option D: Hybrid - Tags in metadata, but cache in TagStorage for queries**
+  ```cpp
+  // Entity metadata (always up-to-date)
+  struct EntityMetadata { EntityID id; TagBitset tags; bool cleanup; };
+  
+  // Cached for fast queries (regenerated on tag changes)
+  struct TagStorage { std::vector<TagBitset> tags; ... };
+  ```
+  - **Pros**: 
+    - ✅ Tags always available in Entity (natural API)
+    - ✅ Fast tag queries via cached storage
+    - ✅ Best of both worlds
+  - **Cons**: 
+    - ❌ Most complex (two storage locations)
+    - ❌ Need to keep in sync (cache invalidation)
+    - ❌ More memory usage
+
+- **Recommendation**: **Option A (Separate TagStorage)** - Best performance for tag queries, clean separation, enables SIMD optimization. Tags are used frequently in queries (whereHasTag, whereHasAllTags), so fast filtering is important.
+- **Status**: ⚠️ **NEEDS MORE ANALYSIS** - User wants to think about this more
+
+### Additional Considerations for Q2.2 (Tag Storage)
+
+**Factors to Consider**:
+
+1. **Tag Query Frequency vs Component Query Frequency**
+   - How often are tag-only queries used? (e.g., `whereHasTag<T>()` without component filters)
+   - How often are tag+component queries used? (e.g., `whereHasComponent<T>().whereHasTag<U>()`)
+   - If tags are mostly used WITH components, Option C (tags with fingerprints) might be better
+   - If tags are frequently queried alone, Option A (separate storage) is better
+
+2. **Tag Mutation Frequency**
+   - How often are tags added/removed? (`enableTag()`, `disableTag()`)
+   - If tags change frequently, keeping them in Entity metadata (Option B) might be simpler
+   - If tags are mostly set at creation and rarely change, separate storage (Option A) is fine
+
+3. **Memory Layout and Cache Behavior**
+   - Option A: Tags in separate array = good for tag-only queries, but need two lookups for entity+tags
+   - Option B: Tags with metadata = always available with entity, but scattered memory
+   - Option C: Tags with fingerprints = single lookup, but mixes concerns
+
+4. **Query Performance Requirements**
+   - Are tag queries performance-critical? (e.g., filtering hundreds of entities per frame)
+   - If yes, Option A or C (dense arrays) are better
+   - If no, Option B (metadata) might be sufficient
+
+5. **API Simplicity**
+   - Option B keeps tags naturally with Entity (matches current API)
+   - Option A/C require Entity wrapper to access tags from storage
+   - But since API doesn't change, this is internal only
+
+6. **Future Extensibility**
+   - Will we add more entity metadata? (e.g., entity groups, layers, etc.)
+   - If yes, Option B (metadata struct) might scale better
+   - If no, Option A (separate storage) is cleaner
+
+**Questions to Answer**:
+- What percentage of queries use tags vs components?
+- How many entities typically have tags vs components?
+- Are tag queries in hot paths (every frame) or cold paths (occasional)?
+- Do we need SIMD optimization for tag filtering, or is simple iteration fast enough?
+
+**Next Steps**: 
+- Profile current tag usage patterns
+- Measure tag query performance
+- Consider future use cases
+- Decide based on actual usage patterns
 
 **Q2.3: How do we handle component add/remove operations?**
 - **Current**: `entity.addComponent<T>()` modifies Entity's componentArray
@@ -377,7 +524,7 @@ Before starting SOA implementation, we need to answer the following questions an
   - Do we maintain Entity wrapper that provides same API?
   - How do we handle component removal (sparse arrays vs compaction)?
   - What about component move semantics?
-- **Status**: ⚠️ **NEEDS DESIGN**
+- **✅ DECISION**: **API should not change**. `entity.addComponent<T>()` and `entity.removeComponent<T>()` work the same. Entity wrapper internally adds/removes from ComponentStorage<T> and updates fingerprint. Implementation details (sparse arrays, compaction) are internal optimizations.
 
 **Q2.4: How do we handle component access patterns?**
 - **Current**: `entity.get<T>()` returns reference to component
@@ -386,7 +533,7 @@ Before starting SOA implementation, we need to answer the following questions an
   - Cache component pointers in Entity wrapper?
   - Always lookup (safer but slower)?
   - Provide both APIs (fast path + safe path)?
-- **Status**: ⚠️ **NEEDS DESIGN**
+- **✅ DECISION**: **API should not change**. `entity.get<T>()` returns reference as before. Use fastest implementation internally - likely lookup in ComponentStorage<T> with caching if beneficial. No API changes, optimize internally.
 
 ### 3. Query System
 
@@ -397,7 +544,7 @@ Before starting SOA implementation, we need to answer the following questions an
   - Keep exact same API?
   - Add SOA-specific query methods?
   - Auto-detect SOA vs AoS and optimize accordingly?
-- **Status**: ⚠️ **NEEDS DECISION**
+- **✅ DECISION**: **Keep exact same API**. EntityQuery API should not change - only internals change. Users call the same methods, but internally we use SOA fingerprint filtering for performance.
 
 **Q3.2: How do we handle component fingerprint filtering?**
 - **Questions**:
@@ -405,15 +552,102 @@ Before starting SOA implementation, we need to answer the following questions an
   - Fallback for non-SIMD platforms?
   - Batch size for SIMD operations?
   - Cache fingerprint masks for common queries?
-- **Status**: ⚠️ **NEEDS RESEARCH**
+
+**Option A: SIMD-Optimized Fingerprint Filtering**
+  ```cpp
+  // Use SSE4.2/AVX2 for bitset comparisons
+  // Process 4-8 fingerprints at once
+  for (size_t i = 0; i < fingerprints.size(); i += 4) {
+    __m128i fp1 = _mm_load_si128(&fingerprints[i]);
+    __m128i fp2 = _mm_load_si128(&fingerprints[i+1]);
+    __m128i fp3 = _mm_load_si128(&fingerprints[i+2]);
+    __m128i fp4 = _mm_load_si128(&fingerprints[i+3]);
+    __m128i mask = _mm_set1_epi64x(query_mask.to_ullong());
+    
+    // AND operation, compare to mask
+    __m128i result1 = _mm_and_si128(fp1, mask);
+    __m128i result2 = _mm_and_si128(fp2, mask);
+    // ... check if result == mask
+  }
+  ```
+  - **Pros**:
+    - ✅ **4-8x faster** for fingerprint filtering (process multiple at once)
+    - ✅ **Cache-friendly** (sequential memory access)
+    - ✅ **Scalable** (AVX2 can process 8 fingerprints, AVX-512 can do 16)
+    - ✅ **Best for large entity counts** (hundreds/thousands)
+  - **Cons**:
+    - ❌ **Platform-specific** (need different code for x86_64 vs ARM)
+    - ❌ **Complexity** (SIMD intrinsics are harder to read/debug)
+    - ❌ **Fallback needed** (non-SIMD platforms or when SIMD unavailable)
+    - ❌ **Bitset size matters** (ComponentBitSet is 128 bits = 2x uint64_t, need to handle carefully)
+
+**Option B: Scalar Fingerprint Filtering with Optimizations**
+  ```cpp
+  // Simple scalar loop with optimizations
+  for (size_t i = 0; i < fingerprints.size(); ++i) {
+    if ((fingerprints[i] & query_mask) == query_mask) {
+      // Match found
+    }
+  }
+  ```
+  - **Pros**:
+    - ✅ **Simple** (easy to read, debug, maintain)
+    - ✅ **Portable** (works everywhere)
+    - ✅ **Compiler optimizations** (compiler can auto-vectorize)
+    - ✅ **Sufficient for small-medium entity counts** (< 1000 entities)
+  - **Cons**:
+    - ❌ **Slower** (process one at a time)
+    - ❌ **Less cache-efficient** (though still good with dense arrays)
+    - ❌ **May not scale** (performance degrades with many entities)
+
+**Option C: Hybrid - SIMD with Scalar Fallback**
+  ```cpp
+  #ifdef __SSE4_2__
+    // Use SIMD for bulk processing
+    process_fingerprints_simd(fingerprints, query_mask);
+  #else
+    // Fallback to scalar
+    process_fingerprints_scalar(fingerprints, query_mask);
+  #endif
+  ```
+  - **Pros**:
+    - ✅ **Best performance** when SIMD available
+    - ✅ **Portable** (fallback for non-SIMD platforms)
+    - ✅ **Future-proof** (can add AVX2, AVX-512, NEON support)
+  - **Cons**:
+    - ❌ **Most complex** (need both implementations)
+    - ❌ **Code duplication** (SIMD + scalar versions)
+    - ❌ **Testing complexity** (test both paths)
+
+**Recommendation**: **Option C (Hybrid)** - Use SIMD when available (SSE4.2/AVX2 for x86_64, NEON for ARM), fallback to scalar. Cache fingerprint masks for common queries. Start with SSE4.2 (widely supported), add AVX2 later if needed.
+
+**Additional Optimizations**:
+- **Cache fingerprint masks**: Pre-compute common query masks (e.g., `Transform + Health`)
+- **Early exit**: Stop iteration once we have enough results (for `take(N)` queries)
+- **Batch processing**: Process fingerprints in chunks to improve cache locality
+
+- **Status**: ⚠️ **NEEDS DECISION** - See options above with pros/cons
 
 **Q3.3: How do we handle queries with multiple component types?**
 - **Current**: Iterate entities, check each component
 - **SOA Options**:
-  - Filter by fingerprint first, then check components
-  - Use intersection of component storage entity sets
-  - Hybrid approach
-- **Status**: ⚠️ **NEEDS BENCHMARKING**
+  - **Option A**: Filter by fingerprint first, then check components
+    - Filter fingerprints to get candidate EntityIDs
+    - Then access component storages for those EntityIDs
+    - **Pros**: Fast fingerprint filtering, minimal component access
+    - **Cons**: Two-pass (fingerprint then components)
+  - **Option B**: Use intersection of component storage entity sets
+    - Get EntityID sets from each ComponentStorage<T>
+    - Intersect sets to find entities with all components
+    - **Pros**: Single-pass for components, set operations are fast
+    - **Cons**: Need to maintain EntityID sets per component storage
+  - **Option C**: Hybrid approach
+    - Filter by fingerprint first (fast)
+    - For remaining candidates, check component storages
+    - **Pros**: Best of both worlds
+    - **Cons**: More complex
+
+- **✅ DECISION**: **Option C (Hybrid) - Whatever is fastest**. Since queries are currently slow, prioritize performance. Filter by fingerprint first (SIMD-optimized), then access component storages for matching entities. Benchmark to verify this is fastest approach.
 
 ### 4. System Integration
 
@@ -423,7 +657,7 @@ Before starting SOA implementation, we need to answer the following questions an
   - Entity wrapper that looks up components on-demand
   - Pass EntityID + component references directly
   - Keep Entity wrapper but it accesses SOA storage
-- **Status**: ⚠️ **NEEDS DECISION**
+- **✅ DECISION**: **Keep Entity wrapper that accesses SOA storage**. Systems still receive `Entity &entity` and call `entity.get<Component>()` - the Entity struct internally looks up components from SOA storage. No API changes for systems.
 
 **Q4.2: How do we handle system iteration?**
 - **Current**: Iterate `entities` vector, call `for_each` on each Entity
@@ -450,7 +684,25 @@ Before starting SOA implementation, we need to answer the following questions an
   - Component access patterns (frequency, cache misses)
   - System iteration overhead
   - Memory usage patterns
-- **Status**: ⚠️ **NEEDS BENCHMARKING**
+- **✅ SOLUTION**: **Performance benchmark example created**
+  - **File**: `vendor/afterhours/example/performance_benchmark/main.cpp`
+  - **Features**:
+    - Creates configurable number of entities (default 10,000)
+    - Tests entity creation performance
+    - Tests component access patterns
+    - Tests various query types (single component, multiple components, with tags)
+    - Tests system iteration performance
+    - Tests memory usage at different entity counts
+    - Tests query scaling (100 to 50,000 entities)
+  - **Usage**: 
+    ```bash
+    cd vendor/afterhours/example/performance_benchmark
+    make                    # Run all benchmarks
+    ./performance_benchmark.exe --queries    # Run only query benchmarks
+    ./performance_benchmark.exe --scaling   # Run scaling benchmarks
+    ```
+  - **Output**: Detailed timing statistics (min, max, mean, median) for each benchmark
+- **Status**: ✅ **READY** - Benchmark example created, ready to establish baselines
 
 **Q5.2: How do we test SOA without breaking existing code?**
 - **Options**:
@@ -499,7 +751,7 @@ Before starting SOA implementation, we need to answer the following questions an
   - Keep AoS code until SOA is proven stable
   - Feature flag to switch between SOA and AoS
   - Gradual migration allows partial rollback
-- **Status**: ⚠️ **NEEDS PLAN**
+- **✅ DECISION**: Since API compatibility is maintained, we can keep AoS code as fallback behind a feature flag or compile-time option. Entity wrapper can switch between SOA and AoS storage based on configuration. This allows rollback without breaking user code.
 
 **Q7.2: Which systems should we migrate first?**
 - **Priority candidates**:
@@ -552,6 +804,8 @@ Before starting SOA implementation, we need to answer the following questions an
 
 ### Implementation Plan: SOA Architecture (SELECTED)
 
+**Key Principle**: **Zero API Changes** - All changes are internal to the library. Users continue using the same API (`Entity`, `RefEntity`, `OptEntity`, `EntityQuery`) but get SOA performance benefits.
+
 #### Phase 1: Design Component Fingerprint Storage
 - **File**: Create `vendor/afterhours/src/core/component_fingerprint_storage.h`
 - **Design**: Dense array storage for `ComponentBitSet` with entity ID mapping
@@ -560,6 +814,7 @@ Before starting SOA implementation, we need to answer the following questions an
   - `std::vector<EntityID> entity_ids` - parallel array for entity IDs
   - `std::unordered_map<EntityID, size_t> entity_to_index` - fast lookup
 - **SIMD Support**: Design for 128-bit/256-bit SIMD operations on bitsets
+- **API**: Internal only - users don't see this
 
 #### Phase 2: Implement Component Storages
 - **File**: Create `vendor/afterhours/src/core/component_storage.h`
@@ -569,34 +824,61 @@ Before starting SOA implementation, we need to answer the following questions an
   - Parallel `std::vector<EntityID> entity_ids`
   - Lookup map for O(1) access
 - **Migration**: Start with hot components (Transform, Health, IsDish, etc.)
+- **API**: Internal only - users don't see this
 
-#### Phase 3: Dual-Mode System
-- **Goal**: Run SOA alongside current AoS system
+#### Phase 3: Modify Entity Struct to Access SOA Storage
+- **Goal**: Entity struct becomes lightweight wrapper that accesses SOA storage
 - **Implementation**:
-  - Add SOA storage alongside existing `entities` array
-  - Systems can choose which to use
-  - Gradual migration path
-- **Files**: Modify `entity_helper.h` to support both modes
+  - Keep Entity struct with same API (`get<T>()`, `has<T>()`, etc.)
+  - Entity stores EntityID, tags, cleanup flag (metadata only)
+  - `entity.get<T>()` internally looks up component from `ComponentStorage<T>`
+  - `entity.has<T>()` checks fingerprint storage
+  - `entity.addComponent<T>()` adds to SOA storage and updates fingerprint
+- **Files**: Modify `vendor/afterhours/src/core/entity.h`
+- **API**: **No changes** - same API, different implementation
 
-#### Phase 4: Optimize Query System for SOA
+#### Phase 4: Update EntityHelper to Use SOA
+- **Goal**: Entity creation and management uses SOA internally
+- **Implementation**:
+  - `createEntity()` creates EntityID and adds to fingerprint storage
+  - `get_entities()` returns Entity wrappers that access SOA storage
+  - Remove `temp_entities` - components added directly to SOA storage
+  - Remove `merge_entity_arrays()` - no longer needed
+- **Files**: Modify `vendor/afterhours/src/core/entity_helper.h`
+- **API**: **No changes** - same methods, SOA implementation
+
+#### Phase 5: Optimize Query System for SOA
 - **File**: `vendor/afterhours/src/core/entity_query.h`
 - **Changes**:
-  - Add SOA query path that filters by fingerprints first
-  - Use SIMD for bitset comparisons when available
+  - Internally use SOA fingerprint filtering
+  - Filter by fingerprints first (SIMD-optimized)
   - Early rejection of non-matching entities
+  - Return Entity wrappers (same RefEntity API)
 - **Performance Target**: 5-10x faster for component fingerprint queries
+- **API**: **No changes** - same query API, SOA-optimized internals
 
-#### Phase 5: Migrate Systems Gradually
-- **Priority Order**:
-  1. Query-heavy systems (combat, rendering)
-  2. Hot path systems (Transform updates, Health checks)
-  3. Remaining systems
-- **Strategy**: Migrate one system at a time, test thoroughly
+#### Phase 6: Update System Iteration
+- **Goal**: Systems iterate over Entity wrappers that access SOA
+- **Implementation**:
+  - System loop iterates fingerprint storage
+  - Creates Entity wrappers for matching entities
+  - Calls `for_each(Entity &entity, ...)` as before
+  - Entity wrapper accesses SOA storage when components accessed
+- **Files**: Modify `vendor/afterhours/src/core/system.h`
+- **API**: **No changes** - systems use same API
 
-#### Phase 6: Remove AoS Implementation
-- **After**: All systems migrated to SOA
-- **Remove**: `entities` array, `temp_entities`, merge logic
-- **Cleanup**: Remove AoS-specific code paths
+#### Phase 7: Testing and Validation
+- **Goal**: Ensure SOA works correctly with zero API changes
+- **Tests**:
+  - All existing tests should pass without modification
+  - Performance benchmarks to verify improvements
+  - Regression tests for component access patterns
+- **Validation**: Users shouldn't need to change any code
+
+#### Phase 8: Cleanup (Optional)
+- **After**: SOA proven stable
+- **Remove**: Old AoS code paths (if kept for fallback)
+- **Optimize**: Further SOA-specific optimizations
 
 ### Implementation Plan: Check Both Arrays (Alternative)
 
