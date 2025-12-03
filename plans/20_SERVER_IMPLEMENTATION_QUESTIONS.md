@@ -1,5 +1,21 @@
 # Battle Server Implementation - Plan and Questions
 
+## At-a-Glance
+- **Sequence:** 20 / 21 — backend initiative to bring deterministic server simulations online.
+- **Mission:** Stand up a headless battle server that reuses game code, exposes HTTP APIs, and guarantees parity with client replays.
+- **Status:** Decisions captured (HTTP library, architecture, sequencing); implementation pending resource allocation.
+- **Dependencies:** SOA refactor (Plan 03), library cleanups (Plan 04), replay UX (Plan 19), MCP tooling (Plan 21).
+- **Success Metrics:** 100% deterministic checksums, API stability, server-hosted battles processed under latency budget.
+
+## Work Breakdown Snapshot
+|Phase|Scope|Key Tasks|Exit Criteria|
+|---|---|---|---|
+|1. Core Simulator|Headless ECS init + system registration|Server context, GameState manager setup, battle loop parity|Server runs local sims deterministically with CLI|
+|2. HTTP API Layer|Expose `/battle`, `/health` endpoints|Integrate cpp-httplib, JSON IO, error handling|Curl tests succeed, request validation solid|
+|3. Persistence & Rotation|Handle inputs/outputs|Opponent pool management, BattleReport storage, file rotation helper|Disk footprint capped, reports consumable|
+|4. Determinism & Tests|Verification + CI|Client/server checksum tests, timeout handling, telemetry|CI job compares outputs, alarms on mismatch|
+|5. Deployment Tooling|Config + monitoring|Config file, logging, timeout snapshots, CORS setup|Server deployable w/ configs + monitoring hooks|
+
 ## Implementation Plan Overview
 
 ### Goal
@@ -1001,3 +1017,10 @@ These questions require explicit answers before implementation:
 - ✅ Q14.18: Compile-time check for BattleFingerprint
 - ✅ Q14.19: Skip Preload, modify BattleTeamLoaderSystem to skip sprite creation
 - ✅ Q14.20: Set default CORS headers in setup_routes()
+
+## Outstanding Questions
+1. **Entity ID Strategy:** Q6.3 remains a TODO—how will we design a server/client-safe entity ID scheme that supports spawned dishes?
+2. **Test Target (Q9.4):** Are we creating a dedicated `battle_server_tests` binary, or folding server unit tests into the main suite?
+3. **Config Format:** Should the config file be JSON or YAML, and do we need environment overrides (e.g., prod vs staging)?
+4. **Timeout Artifacts:** Where exactly do timeout snapshots live, and what retention policy applies to those debug files?
+5. **Deployment Model:** Are we running a single-threaded server per core behind a load balancer, or should the binary eventually support concurrent battles?

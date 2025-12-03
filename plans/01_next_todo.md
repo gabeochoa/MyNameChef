@@ -1,5 +1,39 @@
 # Next TODO - Game Development Priorities
 
+## At-a-Glance
+- **Sequence:** 01 / 21 (feeds every other plan)
+- **Mission:** Maintain a single source of truth for short- and mid-term priorities plus the gating workflow that keeps builds releasable.
+- **Current Status:** Active. Immediate focus is unblocking Tier 3 replay + shop UX while queuing Tier 4 systems (status/duration/effect chains).
+- **Next Governance Check:** Friday backlog review (verify Tier 3 burndown + Tier 4 design assets are ready).
+- **Dependencies:** 
+  - Engine plumbing (`03_TEMP_ENTITIES_REFACTORING_COMPREHENSIVE_PLAN.md`, `04_afterhours_library_improvements_plan.md`)
+  - Combat + replay tracks (`07_COMBAT_IMPLEMENTATION_STATUS.md`, `08_HEAD_TO_HEAD_COMBAT_PLAN.md`, `19_replay_system_enhancement_plan.md`)
+- **Success KPIs:** 
+  - 100% of tasks exit with `make && ./scripts/run_all_tests.sh && ./scripts/run_all_tests.sh -v`.
+  - Each task references its plan doc ID and files touched.
+  - Weekly priority update posted without regressions in Tier 1/2 checklists.
+
+## Structured Work Breakdown
+|Sequence|Goal|Key Deliverables|Exit Criteria|
+|---|---|---|---|
+|0. Baseline Guardrails|Ensure build/test gates never regress|`make`, headless + non-headless suites, commit messaging rubric|Green CI dashboard + no open regressions|
+|1. Plan Creation Spike|Finalize implementation briefs for 3-of-a-kind (`15_three_of_a_kind_merge_plan.md`) and Shop UX (`17_shop_ux_affordances_plan.md`)|Approved briefs shared with engineering + design|Stakeholders sign off + tasks slotted into sprint|
+|2. Tier 3 Delivery (Week 1-2)|Replay UI/UX + shop affordances + tooltip polish (`19`, `17`, `18`)|Feature flags validated, smoke tests recorded|Release build with replay speeds + clearer shop interactions|
+|3. Tier 4 Foundations (Week 3-4)|Advanced effect stack (status/duration/chains) plus combat polish (`11`, `10`, `09`, `07`, `08`)|Design docs signed, feature flags in place, perf budget respected|All new systems hidden behind config until QA complete|
+|4. Content + Meta (Week 5+)|Dish/drink expansions, SAP-inspired updates, merging QoL (`12`, `13`, `16`, `15`)|Feature-complete content packs w/ tests + telemetry hooks|Live build showcases new progression loop without regressions|
+
+## Cross-Plan Dependencies
+- **Engine Readiness:** `03_TEMP_ENTITIES...` and `04_afterhours...` must report completion before Tier 4 gameplay work starts.
+- **Testing Tooling:** `06_test_helper_refactor_plan.md` is required before expanding automated combat/effect coverage.
+- **Backend/Automation:** `20_SERVER_IMPLEMENTATION_QUESTIONS.md` and `21_MCP_GAME_CONTROL_PLAN.md` feed back into deterministic replay + CI orchestration.
+- **Content Unlocks:** `12_DISH_EFFECTS_IMPLEMENTATION.md`, `13_SAP_INSPIRED_UPDATES_PLAN.md`, and `14_synergy_counting_plan.md` ship only after Tier 4 systems stabilize.
+
+## Reporting Cadence
+1. **Daily:** Update active Tier board, ensure failing tests are triaged before noon.
+2. **Twice Weekly:** Sync with design for scope or sequencing adjustments.
+3. **Weekly:** Publish status snapshot covering burn charts, risk register, upcoming unlocks.
+4. **Release Readiness:** 48h before ship, confirm all checklist items in this doc are signed off.
+
 ## ✅ Completed Systems
 
 - **Server Implementation**: ✅ Complete (all steps done, server builds and runs)
@@ -47,11 +81,11 @@
 ## Plan Creation Tasks
 
 1. **Combine Duplicates into Levels (3-of-a-kind)**
-   - **Plan**: See `plans/three_of_a_kind_merge_plan.md`
+   - **Plan**: See `plans/15_three_of_a_kind_merge_plan.md`
    - Implement the merge system changes and tests guided by that plan to ensure entities consolidate correctly and grant level-ups.
 
 2. **Shop UX Affordances (Prices & Drop Highlights)**
-   - **Plan**: See `plans/shop_ux_affordances_plan.md`
+   - **Plan**: See `plans/17_shop_ux_affordances_plan.md`
    - Implement the UI/UX improvements per the plan, including tests or headless verifications that confirm highlights appear only on valid targets.
 
 ---
@@ -64,7 +98,7 @@
 
 ### Task 4: Enhance Replay System
 **Files**: Enhance `src/systems/ReplayControllerSystem.h`, create `src/systems/ReplayUISystem.h`
-- **Plan**: See `plans/replay_system_enhancement_plan.md`
+- **Plan**: See `plans/19_replay_system_enhancement_plan.md`
 - **Current State**: Basic ReplayState exists, pause/play works
 - **Enhancements Needed**:
   - Speed controls (0.5x/1x/2x/4x) - partially exists, needs UI buttons
@@ -92,7 +126,7 @@
 
 ### Task 6: Enhanced Shop UX
 **Files**: Update shop systems and UI
-- **Plan**: See `plans/shop_ux_affordances_plan.md` (from Plan Creation Tasks #4)
+- **Plan**: See `plans/17_shop_ux_affordances_plan.md` (from Plan Creation Tasks #4)
 - **Features**:
   - Show price in shop (all items cost 3 gold, so display this in shop UI, not on each item)
   - Note: Eventually drinks will cost 1 gold and get paired with dishes, but not implementing that yet
@@ -121,7 +155,7 @@
 
 ### Task 10: Implement Status Effects
 **Files**: Create status effect components, extend `EffectResolutionSystem.h`
-- **Plan**: See `plans/status_effects_plan.md` (explicitly marked as "NEEDS FULL DESIGN PLAN" in task)
+- **Plan**: See `plans/11_status_effects_plan.md` (explicitly marked as "NEEDS FULL DESIGN PLAN" in task)
 - **Goal**: Implement status effects system (e.g., PalateCleanser, Heat, SweetTooth, Fatigue)
 - **Implementation**:
   - Create status effect components
@@ -157,7 +191,7 @@
 
 ### Task 11: Implement Duration-Based Effects
 **Files**: Extend `EffectResolutionSystem.h`
-- **Plan**: See `plans/duration_based_effects_plan.md`
+- **Plan**: See `plans/10_duration_based_effects_plan.md`
 - **Goal**: Implement effects that last N courses (duration-based effects)
 - **Implementation**:
   - Add duration tracking to effects
@@ -178,7 +212,7 @@
 
 ### Task 12: Implement Effect Chains and Dependencies
 **Files**: Extend `EffectResolutionSystem.h`
-- **Plan**: See `plans/effect_chains_plan.md`
+- **Plan**: See `plans/09_effect_chains_plan.md`
 - **Goal**: Implement effect chains where one effect can trigger another effect
 - **Implementation**:
   - Add effect dependency tracking
@@ -200,7 +234,7 @@
 
 ### Task 13: Visual Enhancements for Dish Merging
 **Files**: Update rendering systems
-- **Plan**: See `plans/dish_merging_visuals_plan.md`
+- **Plan**: See `plans/16_dish_merging_visuals_plan.md`
 - **Goal**: Add visual feedback for dish merging (merge system already implemented)
 - **Note**: Dish merging is already implemented (2 level N dishes make 1 level N+1). This task is just visual polish.
 - **Level Scaling**: Uses existing 2x per level system (level 2 = 2x, level 3 = 4x, level 4 = 8x). See `ComputeCombatStatsSystem.h` lines 95-104.
@@ -237,7 +271,7 @@
 These are potential enhancements to the tooltip system that can be implemented as needed:
 
 #### 1. Level Comparison & Progression Preview
-- **Plan**: See `plans/level_comparison_tooltip_plan.md`
+- **Plan**: See `plans/18_level_comparison_tooltip_plan.md`
 - Show stat/effect changes between current level and next level
 - Example: "Level 2: +2 Freshness (Level 3: +3 Freshness)"
 - Highlight which effects unlock at higher levels
@@ -420,3 +454,10 @@ These are potential enhancements to the tooltip system that can be implemented a
 1. First ensure deterministic simulation works with local seeds ✅
 2. Then add server JSON deserialization ✅
 3. Finally add HTTP client for server communication (future task)
+
+## Outstanding Questions
+1. **Ownership:** Who is the DRI for each numbered plan now that sequencing is locked? (Need explicit names for cross-functional reviews.)
+2. **Scope Freeze:** Should Tier 3 stay frozen once replay + shop UX land, or can new UX tickets enter mid-sprint?
+3. **Feature Flags:** Do Tier 4 systems require environment-specific toggles, or is a single `advanced_effects` flag sufficient?
+4. **Metrics:** What telemetry slices are mandatory before promoting Tier 4 systems to production (e.g., combat duration, effect cascade depth)?
+5. **Fun Ideas Backlog:** Should the "Fun Ideas" section live here or move to a dedicated sandbox plan once Tier 4 locks?

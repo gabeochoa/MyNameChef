@@ -1,5 +1,19 @@
 # MCP Game Control Integration Plan
 
+## At-a-Glance
+- **Sequence:** 21 / 21 — final automation layer enabling Cursor/AI control over the client via MCP.
+- **Mission:** Expose deterministic game control (input injection + state observation) through an MCP server so automated workflows/tests can drive the game.
+- **Status:** Architecture + requirements documented; implementation pending battle server (Plan 20) progress.
+- **Success Metrics:** MCP clients can launch the game, navigate UI, run tests, and verify state without manual intervention.
+
+## Work Breakdown Snapshot
+|Phase|Scope|Key Tasks|Exit Criteria|
+|---|---|---|---|
+|1. Game-side MCP Server|Stdio transport + command processing|Implement `MCPServer`, `MCPServerSystem`, input/state helpers, non-blocking IO|Game responds to JSON commands, processes inputs deterministically|
+|2. Python MCP Adapter|Bridge Cursor ↔ game|Build Python MCP server, define tools (get_state, click_button, send_input, etc.)|Cursor can call tools; errors surfaced cleanly|
+|3. Configuration + Security|Configs, flags, CORS|Add config file, `--mcp` flag, sanitize logs, add CORS headers|MCP mode opt-in, safe defaults|
+|4. Test Observation|Validate automated tests|Implement observe_test_execution tool, integrate with game’s test mode|AI can watch/validate tests and report mismatches|
+
 ## Overview
 
 Set up MCP (Model Context Protocol) integration so Cursor AI can control the game client (`my_name_chef.exe`) during interactive runs. The MCP server will communicate with the game via stdio, allowing AI to inject input (UI clicks and keyboard) and observe game state for both gameplay and test validation.
@@ -314,4 +328,11 @@ The game client will:
 - Consider adding logging for debugging MCP communication
 - May need to handle edge cases (game crashes, stdin/stdout errors)
 - Test observation should not interfere with test execution timing
+
+## Outstanding Questions
+1. **Security / Sandbox:** Do we need authentication or rate limiting on the MCP command stream to avoid misuse?
+2. **Process Lifecycle:** Should the Python adapter spawn the game process or attach to an already running instance?
+3. **State Schema:** What JSON schema do we commit to for `get_state` (fields, nesting) so downstream tools remain stable?
+4. **Error Surfacing:** How do we report game-side exceptions back through MCP—standard JSON-RPC errors or custom payloads?
+5. **Test Observation Granularity:** Do we need per-step callbacks/events, or is polling state sufficient for validating scripted tests?
 

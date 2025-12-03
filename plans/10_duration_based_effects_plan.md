@@ -1,5 +1,23 @@
 # Duration-Based Effects Plan
 
+## At-a-Glance
+- **Sequence:** 10 / 21 — sits between effect chains (Plan 09) and status effects (Plan 11).
+- **Purpose:** Give designers tools to author effects that persist across courses without manual bookkeeping.
+- **Status:** Infrastructure identified; awaiting trigger/effect plumbing from Plans 08/09.
+- **Success Metrics:** 
+  - Deterministic expiration (course-based) with automated tests.
+  - No orphaned `StatusEffects` components after duration runs out.
+  - Telemetry on duration usage + expiration counts.
+
+## Work Breakdown Snapshot
+|Step|Scope|Key Tasks|Exit Criteria|
+|---|---|---|---|
+|1. Data Model Update|Track course applied + duration metadata|Add `courseApplied`, helper accessors, serialization updates|Unit tests covering struct serialization|
+|2. Application Hooks|Record course when applying status|Update `EffectResolutionSystem`, helpers, instrumentation|All ApplyStatus call sites populate course/time|
+|3. Expiration Engine|Decrement + remove effects|Implement `expire_status_effects`, integrate with `AdvanceCourseSystem`, add metrics|Automated tests for expire/retain/permanent cases|
+|4. Content Sweep|Adopt durations in sample effects|Update reference dishes/drinks/statuses, add tooltips|At least two gameplay scenarios using durations successfully|
+|5. Observability|Surface metrics & debugging|Emit counts per course, debug commands to inspect durations|Dashboards show active/expired counts per battle|
+
 ## Overview
 
 This plan details implementing effects that last N courses (duration-based effects), extending the existing status effects system.
@@ -208,4 +226,11 @@ case EffectOperation::ApplyStatus: {
 - 1.5 hours: Course tracking implementation
 - 1.5 hours: Expiration logic
 - 1 hour: Testing and validation
+
+## Outstanding Questions
+1. **Course Index Source:** Should durations key off `CombatQueue.current_index` or a dedicated battle tick counter to better support non-standard modes?
+2. **Stacking Semantics:** When the same duration effect is reapplied, do we refresh the timer, stack magnitudes, or choose the longest remaining duration?
+3. **Telemetry:** Which metrics (active duration count, average expiry time, forced removals) do design/QA need to monitor balance?
+4. **Debug Tooling:** Do we need developer console commands to display active durations on dishes during testing?
+5. **Battle End Handling:** How should pending durations behave when a battle ends early or a dish is removed mid-course?
 

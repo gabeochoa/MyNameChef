@@ -1,5 +1,20 @@
 # Super Auto Pets Inspired Updates Plan
 
+## At-a-Glance
+- **Sequence:** 13 / 21 — content roadmap for drinks/dishes inspired by SAP once core systems (09–12) are online.
+- **Strategic Goal:** Deliver a compelling progression arc with new drink pairings, dish archetypes, and effect operations that mirror SAP depth while fitting our combat model.
+- **Status:** Design matrices for drinks/dishes/effect ops are complete; engineering blocked on prerequisite systems (swap stats, status effects, duration, summoning).
+- **KPIs:** Increased player retention through higher-tier content engagement, telemetry shows new items replacing lower tiers at desired rates.
+
+## Work Breakdown Snapshot
+|Wave|Scope|Prereqs|Deliverables|Exit Criteria|
+|---|---|---|---|---|
+|1. Drink Core Pack|Tier 1–3 drinks|Effect ops (AddFlavorStat, AddCombat modifiers) already available|Implement Coffee/OrangeJuice/Sodas with scaling rules|Shop tests verify costs/effects, telemetry toggled|
+|2. Drink Advanced Pack|Tier 4–5 drinks|New operations (MultiplyDamage, PreventDefeat)|Implement Wine/Watermelon/Yellow Soda family|Balance pass vs dishes, effect ops stable|
+|3. Dish Pack A|Tier 2–3 dishes|SwapStats, SummonDish, ApplyStatus|Add Miso/Tempura/Risotto/Pho/Churros|Combat sims confirm replacement value|
+|4. Dish Pack B|Tier 4–5 dishes|MultiplyDamage, PreventDefeat, CopyEffect|Add Bouillabaisse/Foie Gras/Wagyu etc.|High-tier dishes beat lower-tier combos per design|
+|5. Economy & Shop Enhancements|Future|Shop modifiers, gold generation ops|Implement ShopModifier/GenerateGold effects|Telemetry ensures economy stays stable|
+
 ## Overview
 Design and implement new drink types and dish types with effects inspired by Super Auto Pets mechanics. This plan covers:
 - **Drink pairings**: Drinks applied to dishes that enhance them during battle
@@ -514,4 +529,11 @@ DishEffect yellow_soda_effect(
 - Effect removal (ways to remove enemy effects)
 - Battle phase modifiers (effects that change battle flow)
 - RandomTarget scope implementation for more variety
+
+## Outstanding Questions
+1. **Content Release Cadence:** Do we ship drinks and dishes in separate waves (drinks first), or bundle them to avoid meta imbalance?
+2. **Economy Impact:** How do new drink prices interact with existing gold flow—do we need reroll/price adjustments before launch?
+3. **Effect Operation Ordering:** Which new operations (SwapStats, MultiplyDamage, PreventDefeat, SummonDish, etc.) are mandatory for MVP vs can slip?
+4. **Telemetry:** What adoption + win-rate metrics do design need to quickly rebalance new content?
+5. **Art & Localization:** Are all sprites/names/strings approved, or do we need art/localization passes before implementation begins?
 

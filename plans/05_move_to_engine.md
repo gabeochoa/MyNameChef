@@ -1,5 +1,27 @@
 # Code to Move to Engine Analysis
 
+## At-a-Glance
+- **Sequence:** 05 / 21 — codifies what must live inside `vendor/afterhours` so every game benefits and duplication disappears.
+- **Vision:** Gradually upstream shared utilities/systems into engine plugins without breaking my_name_chef delivery cadence.
+- **Current Focus:** High-priority bucket (Math, Utils, Translation Manager) ready for execution once Plan 03 lands; medium/low priorities staged behind validation + owners.
+- **Guardrails:** Each migration needs (a) test coverage in engine + consumer, (b) documentation of extension points, (c) rollout plan for kart/tetr.
+- **Dependencies:** SOA/engine hygiene from Plan 03 + library improvements from Plan 04; test infrastructure from Plan 06 ensures parity.
+
+## Work Breakdown Snapshot
+|Wave|Scope|Example Items|Checklist|
+|---|---|---|---|
+|Wave 1: Copy-Paste Offenders|Pure utility duplication|#1 Math, #2 Utils|API parity confirmed, consumers switched, delete originals|
+|Wave 2: Service Singletons|Translation, resources, settings, sound libs|#3, #5, #6, #7|Parameterization hooks, docs, migration guide issued|
+|Wave 3: Rendering / Content Helpers|Texture/shader libs, query extensions|#4, #8, #9|Performance baseline recorded, toggles for product-specific code|
+|Wave 4: Testing + Tooling|Test framework, navigation/UI patterns|#14 (testing), #15 (UI navigation)|Shared harness green in CI across repos|
+|Wave 5: Strategic Systems|Render backend, multipass, state manager|#11-13|Executive sign-off (higher blast radius) + release alignment|
+
+### Execution Notes
+1. **One file per PR** where feasible; easier diff review and rollback.
+2. **Adopt “move-then-delete” approach**: upstream to engine, switch consumers, remove local copy in same change.
+3. **Compatibility Shims:** For public APIs, keep adapters in my_name_chef until kart-afterhours + tetr are updated.
+4. **Telemetry:** Track reduction in duplicate LOC + maintenance cost per migration wave.
+
 This document identifies code in `my_name_chef` that would be beneficial to move into the `vendor/afterhours` engine for use across multiple games (my_name_chef, kart-afterhours, tetr-afterhours).
 
 ## High Priority - Nearly Identical Across Games
@@ -402,4 +424,11 @@ Reviewing `vendor/afterhours/src/` shows:
 - **Low Risk**: Math utilities, utils (pure functions)
 - **Medium Risk**: Translation manager (requires enum abstraction)
 - **Higher Risk**: Settings, Game State (more game-specific)
+
+## Outstanding Questions
+1. **Release Coordination:** Should each migration wave align with a tagged engine release so downstream repos can upgrade predictably, or do we embed changes and bump submodules ad hoc?
+2. **Ownership & Review:** Who signs off on moving shared subsystems (e.g., audio, translation) to guarantee that kart-afterhours/tetr-afterhours requirements are baked in?
+3. **Versioning Strategy:** Do we introduce semantic versioning for the engine plus changelogs, or continue pinning commit hashes across games?
+4. **Testing Footprint:** When we relocate the test framework/UI navigation, do we port existing tests into the engine repo or rely on consumer projects for coverage?
+5. **Documentation Venue:** Should migration guides and plugin instructions live alongside the engine (e.g., `/docs/engine/`), or reside in each consumer repo to capture product-specific notes?
 

@@ -1,5 +1,25 @@
 # Feature Status Table
 
+## At-a-Glance
+- **Sequence:** 02 / 21 — establishes the authoritative capability map that other plans reference.
+- **Purpose:** Track readiness of every core system (engine, gameplay, UX, backend) so sequencing/ resourcing decisions stay evidence-based.
+- **Current Pulse:** Foundation rows (Core Dish → Animation) are stable; live blockers sit in Deterministic RNG, Pairings/Clashes, Tags/Synergies, Battle Report Persistence.
+- **Data Freshness:** Reviewed after each milestone demo; update the table immediately when a feature flips status or scope.
+- **Key Consumers:** Production leads (release go/no-go), engineering owners (plan IDs 03–21), design (content unlock pacing).
+
+## Work Breakdown & Monitoring
+|Focus Area|What “Ready” Means|Active Owner / Plan IDs|Reporting Metric|
+|---|---|---|---|
+|Deterministic Core|Seeded RNG everywhere, pairings/clashes online, Level math validated|`03_TEMP_ENTITIES`, `04_afterhours`, `07_COMBAT`, `08_HEAD_TO_HEAD`|All RNG/merge warnings removed from logs|
+|Content Foundations|Tags/Synergies, Dish + Drink effect grids, SAP-inspired expansions|`12_DISH_EFFECTS`, `13_SAP_INSPIRED_UPDATES`, `14_synergy_counting`|Set bonus telemetry + new dish adoption|
+|Player UX|Shop affordances, merge affordances, tooltip clarity, replay polish|`17_shop_ux`, `16_dish_merging_visuals`, `18_level_comparison_tooltip`, `19_replay_system`|NPS-style usability notes + bug count|
+|Backend / Observability|Server sim parity, MCP orchestration, telemetry/export hygiene|`20_SERVER_IMPLEMENTATION_QUESTIONS`, `21_MCP_GAME_CONTROL_PLAN`|Server-client checksum matches, automation coverage|
+
+### Usage Notes
+1. **Status Definitions:** ✅ = shippable & monitored, ⚠️ = partial / in-progress, ❌ = not started, Deferred = intentionally parked.
+2. **Escalation Funnel:** Move any feature that regresses from ✅→⚠️ into the Tier list inside `01_next_todo.md` within one business day.
+3. **Hand-off Requirements:** Each row links back to a numbered plan; do not mark “Next State” complete until that plan’s exit criteria are checked.
+
 | Feature | Current Status | Next State | Longer Term Items |
 |---------|---------------|------------|-------------------|
 | **Core Dish System** | ✅ `IsDish`, `DishType` enum, `FlavorStats` (7 axes), dish info registry | Minor fixes/cleanup | Full tag system: `CourseTag`, `CuisineTag`, `BrandTag`, `DietaryTag`, `DishArchetypeTag`, `RarityTier`; replace static dish pool with `magic_enum::enum_values<DishType>()` |
@@ -46,4 +66,11 @@
 - Judge profile and normalization systems (replaced by combat)
 - Full data-driven effect system (keep minimal hooks for now)
 - Complex trigger system (basic hooks only)
+
+## Outstanding Questions
+1. **Owner Mapping:** Who is DRI for each feature row now that sequencing is locked (do we assign per plan ID or per discipline)?
+2. **Status Granularity:** Should we split “Deterministic RNG” into client vs server initiatives to better reflect progress?
+3. **Telemetry Hooks:** Which KPIs must be live before flipping SAP-inspired content rows from ❌/⚠️ to ✅?
+4. **Deferred Scope:** Are judge profile & data-driven effect systems still considered out-of-scope for this release train, or do we need placeholder spikes?
+5. **Table Automation:** Do we want this table generated from backlog tooling (JIRA/Linear) to reduce manual drift, or keep it curated?
 

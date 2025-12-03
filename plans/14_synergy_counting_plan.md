@@ -1,5 +1,18 @@
 # Synergy Counting Plan
 
+## At-a-Glance
+- **Sequence:** 14 / 21 — verification/maintenance plan for tag + synergy counting foundation.
+- **Purpose:** Ensure the already-built tag/synergy pipeline stays healthy as we expand SAP-style content.
+- **Status:** Feature complete; recurring verification + telemetry required when new tags/content ship.
+- **Interfaces:** Provides data for tooltip enhancements (Plan 18), set bonus systems, and future meta goals.
+
+## Work Breakdown Snapshot
+|Cadence|Action|Owner|Exit Criteria|
+|---|---|---|---|
+|Per Release|Audit tag component & system parity|Gameplay systems|Checklist shows all new dishes/drinks tagged|
+|Monthly|Validation pass (shop + battle)|QA tooling|Automated test suite logs counts, no regressions|
+|On Demand|Enhancement tasks (thresholds/UI hooks)|Design + UI|Feature requests documented with acceptance tests|
+
 ## Overview
 
 This plan documents the current state of synergy counting system and identifies any gaps or enhancements needed. **Note**: According to `next_todo.md`, tags and SynergyCountingSystem are already complete. This plan serves as documentation and verification.
@@ -94,4 +107,11 @@ If gaps are found during verification:
 - 30 min: Testing tag counting
 - 30 min: UI verification
 - 30 min: Documentation
+
+## Outstanding Questions
+1. **Owner:** Who is responsible for updating `SynergyCounts` when new tags/dishes are introduced (design vs gameplay engineering)?
+2. **Automation:** Should we add CI tests that fail if a dish lacks tags or if counts drift, or is manual verification sufficient?
+3. **Telemetry:** Do we need dashboards showing tag prevalence/set bonus progress to aid balancing?
+4. **Battle vs Shop:** Is the existing `BattleSynergyCounts` singleton sufficient for combat UI, or do we need per-course granularity?
+5. **Designer Tools:** Would a debug overlay listing current synergies help QA/design, and if so who builds it?
 

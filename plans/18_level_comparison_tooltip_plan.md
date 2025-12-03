@@ -1,5 +1,19 @@
 # Level Comparison & Progression Preview Tooltip Plan
 
+## At-a-Glance
+- **Sequence:** 18 / 21 — small-but-impactful UX enhancement that relies on dish effect data (Plan 12).
+- **Objective:** Give players an at-a-glance view of what higher levels unlock, reducing guesswork and encouraging merges.
+- **Status:** Requirements laid out; engineering pending UI bandwidth after shop UX (Plan 17) ships.
+- **Success Metrics:** Increased merge conversions, decreased tooltip-related support questions, positive UX feedback.
+
+## Work Breakdown Snapshot
+|Step|Scope|Key Tasks|Exit Criteria|
+|---|---|---|---|
+|1. Data Access|Expose next-level info|Extend tooltip helpers to fetch level+1 data, guard max level|Unit tests verifying comparisons|
+|2. Stat Comparison UI|Display stat deltas|Format strings, handle max level, color coding|Design approval + localization-friendly strings|
+|3. Effect Preview UI|Show upcoming effects|Group by trigger, highlight new vs scaled|Tooltips render correctly across contexts|
+|4. QA + Telemetry|Verification + metrics|Add regression tests, track tooltip usage & merges triggered|Telemetry dashboards confirm adoption|
+
 ## Overview
 
 This plan details adding level comparison and progression preview to dish tooltips, showing players what stats and effects they'll gain when leveling up.
@@ -322,4 +336,11 @@ Flavor Stats:
 - Shows value of leveling up dishes
 - Highlights when effects unlock (important for strategic planning)
 - Can be extended later to show all levels in one tooltip if needed
+
+## Outstanding Questions
+1. **Localization:** Are we translating the new comparison strings, and if so do we need shorter phrasing to avoid overflow?
+2. **Context Awareness:** Should previews appear everywhere (shop, inventory, battle) or only in contexts where leveling is possible?
+3. **Performance:** Any concerns about repeatedly calling `get_dish_info` for multiple levels during tooltip generation?
+4. **Future Expansion:** Do we plan to show full level ladders (1→4) eventually, and how would that affect layout?
+5. **Telemetry:** Should we log when players view progression previews to correlate with merge behavior?
 

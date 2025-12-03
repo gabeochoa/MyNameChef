@@ -1,5 +1,30 @@
 # Temp Entities Refactoring - Comprehensive Plan
 
+## At-a-Glance
+- **Sequence:** 03 / 21 — foundational infrastructure project gating multiple downstream plans.
+- **Mission:** Retire `temp_entities`, deliver an SOA architecture with SIMD-friendly queries, immediate entity visibility, and deterministic behavior.
+- **Current Phase:** Architecture + instrumentation (fingerprint storage + component storages being defined).
+- **Target Timeline:** ~3 sprints  
+  1. Storage primitives + Entity wrapper parity  
+  2. Query/system integration & dual-mode testing  
+  3. Cut-over, cleanup, and perf sign-off
+- **Upstream / Downstream Dependencies:** Enables `04_afterhours_library_improvements_plan.md`, `05_move_to_engine.md`, and unblocks Tier 4 gameplay work (`09`, `10`, `11`, `12`).
+- **Definition of Done:** AoS path removed, `merge_entity_arrays()` eliminated, perf benchmarks show ≥5× faster fingerprint scanning, and all existing tests stay green.
+
+## Work Breakdown Snapshot
+|Phase|Scope|Key Tasks|Exit Criteria|
+|---|---|---|---|
+|1. Baseline & Telemetry|Capture current perf + behavior|Run perf benchmark app, log query/creation costs, add temporary tracing to EntityHelper|Baseline report stored + perf targets signed off|
+|2. Storage Foundations|Fingerprint + component storages|Implement dense arrays, entity↔index maps, singleton handling, metadata caches|Unit tests cover add/remove/lookups + serialization|
+|3. Entity API Parity|Expose SOA via existing APIs|Refactor `Entity`, `RefEntity`, `OptEntity`, `EntityHelper` to route through SOA behind feature flag|Full test suite passes with SOA flag enabled|
+|4. Query & System Integration|SIMD filtering + iteration|Optimize `EntityQuery`, adapt `System` traversal, provide scalar fallback, cache masks|Benchmarks hit perf goals, deterministic replay unaffected|
+|5. Cut-over & Cleanup|Remove AoS + temp_entities|Delete merge logic/options, simplify creation helpers, update docs + plan references|No references to temp arrays, AoS code retired|
+
+### Risk & Decision Tracker
+- **Chosen Architecture:** SOA with fingerprint storage (Option C) + scalar fallback.
+- **Key Risks:** Tag storage strategy, cleanup semantics, SIMD portability, rollback readiness.
+- **Mitigations:** Dual-mode switch during rollout, exhaustive tests/benchmarks, gradual removal of AoS, documented rollback flag.
+
 ## Executive Summary
 
 This document consolidates analysis and implementation plans for refactoring the `temp_entities` pattern in the afterhours ECS library. The refactoring would **eliminate 2 library improvements entirely**, **simplify 5 others**, and **reduce overall complexity** across the codebase. This is a high-value refactoring that should be done **before** implementing many of the planned library improvements.
@@ -1309,4 +1334,11 @@ SOA migration is a **high-value architectural change** that:
 4. **Remove temp_entities as part of SOA migration** - simplifies the new architecture
 
 This refactoring should be implemented **before** implementing the library improvements plan, as SOA will change how many optimizations work.
+
+## Outstanding Questions
+1. **Tag Storage Strategy:** Confirm whether we proceed with separate tag storage (Option A) or piggyback tags onto fingerprint storage (Option C) for the first release.
+2. **System Iteration Model:** Decide between pure fingerprint-first traversal, component-set intersections, or a hybrid approach for `System` iteration APIs.
+3. **Cleanup Semantics:** Define whether entity cleanup remains lazy (mark + sweep) or becomes immediate removal from component storages; clarify permanent-entity handling.
+4. **SIMD Target Matrix:** Which instruction sets are mandatory (SSE4.2, AVX2, NEON) and how do we gate CI/builds when a target architecture lacks support?
+5. **Testing / Rollback:** Do we keep AoS + SOA running side-by-side in CI for a burn-in period, or rely on perf + functional suites with a runtime flag for rollback?
 

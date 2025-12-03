@@ -1,5 +1,19 @@
 # Three-of-a-Kind Merge Plan
 
+## At-a-Glance
+- **Sequence:** 15 / 21 — gameplay QoL feature stacked after advanced effect work.
+- **Purpose:** Offer a 3-of-a-kind merge path (SAP-style) that accelerates leveling and deepens inventory strategy.
+- **Status:** Design locked; awaiting upstream systems (combat stability, visuals) before implementation.
+- **Metrics:** Merge completion time, number of triple merges per run, player retention once feature launches.
+
+## Work Breakdown Snapshot
+|Phase|Scope|Key Tasks|Exit Criteria|
+|---|---|---|---|
+|1. Detection Logic|Identify triple candidates|Add helper to scan inventory/adjacency, integrate into `merge_dishes`|Unit tests confirm detection accuracy|
+|2. Merge Execution|Apply triple merge math|Implement `perform_triple_merge`, level rules, slot cleanup|Triple merges create correct level + free slots|
+|3. UX Feedback|Communicate availability + results|Indicators for ready-to-merge, animations, SFX, textual hints|Design sign-off + no UX regressions|
+|4. Testing + Telemetry|Ensure stability + data capture|Regression tests (auto + manual), telemetry counters, balancing dashboards|Data shows healthy merge usage + no crashes|
+
 ## Overview
 
 This plan details implementing 3-of-a-kind merging (combining 3 duplicate dishes into 1 level-up dish), extending the existing 2-of-a-kind merge system.
@@ -221,4 +235,11 @@ void merge_dishes(Entity &entity, Entity *target_item, ...) {
 - 1.5 hours: UI feedback
 - 1 hour: Testing
 - 30 min: Edge case handling
+
+## Outstanding Questions
+1. **Triggering Rules:** Should the third dish need to be adjacent, or can it live anywhere in inventory as long as three copies exist?
+2. **Merge Progress Interaction:** How does triple merging interact with the existing 2-of-a-kind progress meter (e.g., do we auto-fill to level +1 regardless of previous contributions)?
+3. **UI/UX Ownership:** Who designs the “ready to triple-merge” indicator and animation timing?
+4. **Telemetry:** What metrics (triple merge attempts, success rate, resulting level distribution) do design need to monitor balance?
+5. **Feature Flagging:** Do we gate triple merging behind a config flag for early testing, and if so how do we expose it to QA?
 

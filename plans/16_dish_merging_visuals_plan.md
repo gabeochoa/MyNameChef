@@ -1,5 +1,19 @@
 # Visual Enhancements for Dish Merging Plan
 
+## At-a-Glance
+- **Sequence:** 16 / 21 — UX polish that follows triple-merge mechanics (Plan 15) and ties into general shop improvements (Plan 17).
+- **Objective:** Communicate merge readiness, level gains, and feedback (sound + visuals) without overwhelming the existing HUD.
+- **Status:** Requirements locked; implementation pending resource availability post Plan 15/17 work.
+- **Success Metrics:** Merge usability complaints drop, players merge faster (telemetry), visual treatment matches art direction.
+
+## Work Breakdown Snapshot
+|Phase|Scope|Key Tasks|Exit Criteria|
+|---|---|---|---|
+|1. Indicator & Badge UX|Design + spec|Finalize iconography, placement, color states|Design approval + UI style guide entry|
+|2. Engineering Implementation|Systems + assets|`RenderMergeHintSystem`, `RenderDishLevelBadgeSystem`, audio hook, animation events|Features hidden behind `merge_visuals` flag until QA complete|
+|3. Audio/VFX Polish|Feedback tuning|Integrate sound assets, tweak particle/animation timing|Sound mix approved, VFX within performance budget|
+|4. Validation & Telemetry|QA + metrics|Automated tests for highlight logic, telemetry for merges/triggers|Dashboards show indicator usage + no regressions|
+
 ## Overview
 
 This plan details adding visual feedback for dish merging. **Note**: Dish merging system is already implemented. This task is purely visual polish.
@@ -251,4 +265,11 @@ void render_level_badge(Entity &dish, Transform &transform) {
 - 1.5 hours: "Ready to merge!" indicator
 - 1 hour: Level display badge
 - 1 hour: Testing and polish
+
+## Outstanding Questions
+1. **Visual Priority:** Should ready-to-merge indicators persist at all times or only when a dish is being dragged?
+2. **Localization/Copy:** Do we need localized text/tooltips explaining triple merge readiness, or are icons enough?
+3. **Audio Assets:** Are new sounds required, or can we repurpose existing level-up cues?
+4. **Performance Budget:** Any constraints on particle count/animation duration for low-end hardware?
+5. **Feature Flag:** Do we ship all visuals simultaneously or gate each (indicator, badge, animation, audio) behind separate flags for testing?
 

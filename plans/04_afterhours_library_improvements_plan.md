@@ -1,5 +1,28 @@
 # Afterhours Library Improvements, Validation, and Plugin Separation
 
+## At-a-Glance
+- **Sequence:** 04 / 21 — scoped to modernize the shared afterhours ECS so downstream game + tooling work inherits cleaner primitives.
+- **Mission:** Deliver measurable wins in performance, simplicity, and API clarity while defining a clean plugin/public boundary.
+- **Status:** Awaiting SOA foundation from Plan 03; once available we execute the prioritized backlog below.
+- **Success Metrics:** 
+  - ≥30% reduction in hot-path allocations + query time (benchmarked pre/post).
+  - All deprecated APIs either removed or wrapped with migration helpers.
+  - Plugin boundary enforced via CI script + documentation.
+- **Dependencies:** `03_TEMP_ENTITIES...` (SOA adoption), `05_move_to_engine.md` (code sharing), `06_test_helper_refactor_plan.md` (test coverage for refactors).
+
+## Work Breakdown Snapshot
+|Stream|Objective|Key Tasks|Exit Criteria|
+|---|---|---|---|
+|Performance|Speed up queries & loops|Items #1-6 (cache, sorting, partial sort, merge removal, invalidation, component layout)|Perf dashboards show measurable gains, no regressions|
+|Simplicity/API Hygiene|Shrink surface area, remove dead code|Items #7-12, #13-18 (query options, creation API, helper cleanup)|Docs + headers updated, migration notes published|
+|Plugin/Core Boundary|Protect engine vs product contracts|Items #29 + CI enforcement script|`check_plugin_boundaries.sh` gates PRs, docs published|
+|Validation|Prove safety of changes|Instrumentation, benchmarks, cross-project smoke tests|my_name_chef + kart-afterhours compile + run tests cleanly|
+
+### Operating Notes
+1. Each improvement entry already lists file touchpoints + validation steps—apply them verbatim when scheduling work.
+2. When an improvement depends on SOA (e.g., #1, #4, #6), mark it blocked until Plan 03 hits the relevant milestone.
+3. Record perf metrics before/after every merged change; regressions must be rolled back or fixed immediately.
+
 ## Overview
 Comprehensive review of `vendor/afterhours` ECS library with focus on performance, simplicity, complexity reduction, and API improvements. Each improvement includes validation strategies to measure impact. Also includes plan to separate core library from plugins.
 
@@ -507,4 +530,11 @@ my_custom_plugin/
 - #4: Component array optimization
 - #15: Consolidate component access
 - #30: SoA architecture
+
+## Outstanding Questions
+1. **Sequencing vs Plan 03:** Which improvements must strictly wait for SOA landing, and can any be prototyped against AoS without risking rework?
+2. **API Deprecation Path:** Do we provide deprecation warnings (e.g., `#pragma message`) for breaking changes (#7, #13, #14, #25) or just ship release notes?
+3. **Plugin Boundary Enforcement:** Is the proposed shell script sufficient, or do we need a more robust static analyzer to audit includes/types?
+4. **Documentation Venue:** Should plugin boundary + public API guidance live in `docs/PLUGINS.md`, the main README, or a new developer portal page?
+5. **Performance Budget Ownership:** Who signs off on perf regressions if an improvement temporarily slows another system (e.g., logging overhaul), and what rollback policy do we adopt?
 

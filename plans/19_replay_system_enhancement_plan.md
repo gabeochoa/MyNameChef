@@ -1,5 +1,20 @@
 # Replay System Enhancement Plan
 
+## At-a-Glance
+- **Sequence:** 19 / 21 — UX/system improvements required to make determinism + battle reports usable.
+- **Objective:** Add in-battle replay controls, load saved BattleReports, and surface “Watch Again” flows.
+- **Status:** Infrastructure exists (ReplayState, controller); UI + loading flows outstanding.
+- **Dependencies:** Server/BattleReport persistence (Plan 20), MCP/automation (Plan 21), combat readiness (Plan 07/08).
+- **Success Metrics:** Replays load from disk, controls responsive, telemetry shows usage, QA can validate determinism quickly.
+
+## Work Breakdown Snapshot
+|Phase|Scope|Key Tasks|Exit Criteria|
+|---|---|---|---|
+|1. Replay UI Layer|Build dedicated UI system|Create `ReplayUISystem`, render buttons, bind to ReplayState|UI toggles speed/pause reliably, matches spec|
+|2. BattleReport Loader|Load JSON + hydrate state|Implement `load_battle_report`, integrate with Results + CLI|Can replay any saved battle via UI or CLI|
+|3. Results Integration|“Watch Again” entry point|Add button, file picker, error handling|UX approved, flow covered by tests|
+|4. QA + Telemetry|Testing + metrics|Automated tests, scriptable pipelines, telemetry for replay usage + speed selection|Dashboards + QA scripts verifying parity|
+
 ## Overview
 
 This plan details enhancing the replay system with speed controls UI and BattleReport loading functionality.
@@ -292,6 +307,13 @@ void render_speed_buttons(ReplayState &rs) {
 - Slow-motion replay for epic moments
 - Battle highlights (auto-detect exciting moments)
 - Replay from specific course (seek functionality)
+
+## Outstanding Questions
+1. **BattleReport Source:** Should “Watch Again” only load the last match, or provide a file picker/history UI?
+2. **Performance:** Do we stream large reports to avoid loading the full JSON into memory at once?
+3. **Automation:** What CLI hooks does QA need to trigger replays headlessly for regression tests?
+4. **Telemetry:** Which replay usage metrics (button clicks, speed selection, watch rates) should be piped into dashboards?
+5. **Error UX:** How should we surface missing/invalid BattleReports to players without causing confusion?
 
 ## Success Criteria
 

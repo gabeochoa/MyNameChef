@@ -1,5 +1,23 @@
 # Effect Chains and Dependencies Plan
 
+## At-a-Glance
+- **Sequence:** 09 / 21 — forms one leg of the advanced effect stack along with Plans 10 (duration) and 11 (status).
+- **Objective:** Allow deterministic, debuggable cascades of dish/drink effects without introducing runaway loops.
+- **Status:** Design alternatives captured; implementation blocked pending trigger plumbing from Plan 08 and infra from Plan 03.
+- **Success Metrics:** 
+  - Deterministic chain execution order (documented + tested).
+  - Instrumentation for depth/length with sensible limits.
+  - Developer tooling to visualize dependencies.
+
+## Work Breakdown Snapshot
+|Phase|Scope|Key Tasks|Exit Criteria|
+|---|---|---|---|
+|1. Design Lock|Confirm approach + limits|Pick hybrid chaining rules, define depth caps, settle data model|Signed RFC + schema updates|
+|2. Dependency Graph Infrastructure|Capture relationships|Implement `EffectDependency` structs, logging hooks, debug tooling|Unit tests + visualization command|
+|3. Chain Execution Engine|Actual chaining logic|Process trigger batches, handle conditional execution, enforce depth/time limits|Automated tests covering implicit/explicit/conditional flows|
+|4. Integration & Telemetry|Expose to gameplay + analytics|Wire into `EffectResolutionSystem`, export metrics, feature flags|Smoke tests show predictable cascades, metrics on dashboards|
+|5. Content Enablement|Author sample effects|Backfill existing dishes/drinks with chain-capable data, document patterns|At least 2 live chain-enabled content pieces behind flag|
+
 ## Overview
 
 This plan details implementing effect chains where one effect can trigger another effect, creating complex effect interactions.
@@ -226,4 +244,11 @@ void resolve_effect_chain(Entity &source, DishEffect &effect,
 - 1.5 hours: Conditional chains
 - 1 hour: Safety and edge cases
 - 1.5 hours: Testing and validation
+
+## Outstanding Questions
+1. **Hybrid Scope:** Do we need explicit chain definitions on day one, or can we launch with implicit trigger-driven chains plus instrumentation?
+2. **Depth / Time Limits:** What default limits (depth, time budget) should we enforce before aborting a chain, and how configurable must they be?
+3. **Tooling:** Should we invest in a visualizer (CLI/overlay) for dependency graphs now, or wait until designers request it?
+4. **Telemetry:** Which metrics should hit dashboards (average chain length, failure reasons, time spent) to detect regressions quickly?
+5. **Content Migration:** Which existing dishes/drinks should become early adopters, and do we need feature flags per content group?
 

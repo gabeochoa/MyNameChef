@@ -1,5 +1,18 @@
 # Shop UX Affordances Plan
 
+## At-a-Glance
+- **Sequence:** 17 / 21 — core UX lift to make shop actions clearer before new content lands.
+- **Objective:** Provide visual affordances (pricing, highlights, badges) that reduce mis-drops and improve clarity.
+- **Status:** Original tasks completed per doc; this plan now tracks verification + future refinements.
+- **Success Indicators:** Drop-miss reports decline, shop tutorial metrics improve, telemetry shows highlight usage.
+
+## Work Breakdown Snapshot
+|Cadence|Focus|Key Tasks|Exit Criteria|
+|---|---|---|---|
+|Baseline (done)|Price display, drop highlights, reroll cost copy|Implemented systems per doc|QA + usability sign-off|
+|Ongoing Verification|Ensure affordances stay functional|Regression tests for highlights/badges/prices|Automated test coverage + manual spot checks|
+|Future Enhancements|Rarity glows, recommendations, animations|Ideate + scope next-gen UX improvements|Backlog entries with effort estimates|
+
 ## Overview
 
 This plan details UI/UX improvements for the shop: price display, drop target highlights, and reroll cost display.
@@ -423,6 +436,13 @@ Never use hardcoded pixel values - always use font size multipliers (e.g., `font
 
 ### Q: What if a shop item doesn't have `IsDish` component?
 **A**: Skip it - only shop items with `IsDish` can match inventory items. Use `System<IsShopItem, Transform, IsDish>` to ensure `IsDish` exists.
+
+## Outstanding Questions
+1. **Post-launch KPIs:** Which metrics (highlight impressions, reroll clicks, misdrop rate) should product monitor to gauge success?
+2. **Accessibility:** Do we need alternative color palettes or iconography for players with color-vision deficiencies?
+3. **Animation Scope:** Should price/highlight UI animate subtly, and if so what performance budget do we have per frame?
+4. **Future Enhancements:** Which “fun ideas” (rarity glow, recommendations) should be prioritized next, and do they require backend input?
+5. **Feature Flags:** Do we keep these affordances behind an experiment flag for onboarding cohorts or release to everyone immediately?
 
 ## Estimated Time
 

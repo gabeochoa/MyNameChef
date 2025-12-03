@@ -1,5 +1,20 @@
 # Dish Effects Implementation Plan
 
+## At-a-Glance
+- **Sequence:** 12 / 21 — brings full effect grids to every dish tier once advanced systems (09–11) are ready.
+- **Objective:** Ensure every dish has tier/level-appropriate effects that scale, synergize, and leverage the trigger/effect framework.
+- **Current Status:** Design tables complete; implementation pending dependencies on status, duration, and chain systems.
+- **Success Metrics:** Full tier coverage, level-based scaling functioning, balance verified via tests, documentation kept in sync.
+
+## Work Breakdown Snapshot
+|Stage|Scope|Key Tasks|Exit Criteria|
+|---|---|---|---|
+|1. Engine Hooks|Update `get_dish_info` + builders|Add level-aware APIs, effect helpers, signature changes|Build succeeds, old callers unaffected|
+|2. Tier Rollout Wave 1|Tier 1–2 dishes|Implement effects + level scaling per table|Unit/regression tests for Tier 1/2 dishes|
+|3. Tier Rollout Wave 2|Tier 3–4 dishes|Author complex multi-trigger effects, ensure balance|Sim tests validate replacement value scenarios|
+|4. Tier Rollout Wave 3|Tier 5 dishes|Implement high-complexity effects, ensure determinism|Telemetry shows Tier 5 vs Tier 1 value differentials|
+|5. Validation & Docs|Testing + balance|Sim comparisons, effect catalog docs, designer hand-off|QA sign-off + documentation linked from design wiki|
+
 ## Overview
 
 This document provides the complete design and implementation plan for dish effects across all tiers. Effects are designed to scale with both tier (complexity/power) and level (magnitude), ensuring higher tier dishes remain desirable even when lower tier dishes are leveled up.
@@ -314,4 +329,11 @@ After implementation:
 6. Verify replacement value: 1 tier 3 dish should outperform 2-3 tier 1 dishes
 7. Verify replacement value: 1 tier 5 dish should outperform 4-5 tier 1 dishes
 8. Test backward compatibility: existing code that calls `get_dish_info(type)` without level should default to level 1
+
+## Outstanding Questions
+1. **Balance Targets:** What numerical targets (e.g., “Tier 5 L1 beats Tier 1 L3 by X%”) should we enforce in automated tests?
+2. **Designer Workflow:** Do we provide a spreadsheet/JSON source of truth for effect tables, or continue editing C++ builders directly?
+3. **Localization Needs:** Any new effect descriptions or tooltips that require localization support before rollout?
+4. **Feature Flags:** Should each tier rollout be gated individually so we can ship incrementally, or release everything once complete?
+5. **Telemetry:** Which metrics (effect pick rate, win delta) are required to validate that the new progression curve works?
 

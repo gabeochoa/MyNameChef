@@ -1,5 +1,29 @@
 # Combat Implementation Status & Next Steps
 
+## At-a-Glance
+- **Sequence:** 07 / 21 — canonical combat backlog for SAP-style battles.
+- **Goal:** Complete deterministic head-to-head combat loop with all supporting systems (triggers, effects, replays).
+- **Current State:** Phases 1–2 largely complete; Phase 3 systems and downstream replay hooks outstanding.
+- **Critical Dependencies:** 
+  - Trigger/effect plumbing (Plans `09`, `10`, `11`)
+  - Replay UX (Plan `19`)
+  - Backend parity (Plans `20`, `21`) for determinism verification
+- **Readiness KPI:** Combat QA suite covers seeds, pairings, outcomes, and agrees with server simulations.
+
+## Work Breakdown Snapshot
+|Phase|Status|Dependencies|Exit Criteria|
+|---|---|---|---|
+|1. Baseline Fixes|✅ done|n/a|Deterministic tick logic, outcomes & win counts recorded|
+|2. Missing Components|⚠️ partial|Shared structs + trigger/effect components|CourseOutcome, TriggerEvent/Queue, Deferred/Pending mods committed + tested|
+|3. Systems Bring-up|⚠️ not started|Plans `09`, `10`, `11`|ApplyPairingsAndClashes, TriggerDispatch, EffectResolution online with tests|
+|4. E2E Validation|Blocked|Replay infra (Plan `19`), deterministic RNG|Seeded runs + edge cases validated, automation recorded|
+|5. Advanced Features|Deferred|Status/duration/effect chain plans|Replay UI + advanced combat modifiers feature-flagged|
+
+### Coordination Notes
+1. Treat this plan as the authoritative checklist for combat readiness; other plans reference its phase numbering.
+2. When a dependency (e.g., TriggerDispatch) lands, immediately re-run the combat regression suite.
+3. Update `Priority Order` section when phases complete so downstream plans know when they can start.
+
 ## Current Implementation Status
 
 ### ✅ **COMPLETED (Phase 1 & 2)**
@@ -213,3 +237,10 @@
 - **Total**: 7-11 hours for basic working combat system
 
 The combat system is ~70% complete with solid foundations, but needs these critical fixes to function properly.
+
+## Outstanding Questions
+1. **Ownership:** Which engineer owns ongoing combat maintenance once Phases 2–3 land (needed for fast bug triage)?
+2. **Determinism Validation:** Do we require nightly seed-comparison tests between client + server before promoting Phase 4 to “complete”?
+3. **Effect Scope:** Should Phase 3’s EffectResolutionSystem launch with a subset of operations or wait for full Plan 09/10/11 alignment?
+4. **Replay Coupling:** Does Phase 5 block on Replay UX (Plan 19) or can we ship headless replay hooks earlier?
+5. **Instrumentation:** What metrics (tick duration, event queue depth) are mandatory to monitor combat health post-launch?

@@ -1,4 +1,22 @@
-## Head-to-Head Combat Plan (Dish-by-Dish)
+# Head-to-Head Combat Plan (Dish-by-Dish)
+
+## At-a-Glance
+- **Sequence:** 08 / 21 — blueprint for shipping the SAP-style head-to-head combat loop.
+- **Desired Outcome:** Fully deterministic slot-vs-slot battles with replay support, replay parity with server seeds, and polished UI.
+- **Current Status:** Design complete, Phase 0 (legacy removal) shipped, engineering executing phases 1–3.
+- **Critical Dependencies:** Combat status doc (`07_COMBAT_IMPLEMENTATION_STATUS.md`), effect stack plans (`09`, `10`, `11`), replay plan (`19`), backend deterministic work (`20`).
+- **KPIs:** Same-seed simulations match server outputs, combat duration within budget, and UI shows per-slot outcomes cleanly.
+
+## Work Breakdown Snapshot
+|Phase|Owner / Inputs|Deliverables|Exit Criteria|
+|---|---|---|---|
+|0. Legacy Removal|Completed|Judging systems disabled, BattleResult refit|No tug-of-war code, battle screen compiles|
+|1. Component + System Scaffold|Plan `07` + this doc|CombatStats, PreBattleModifiers, CombatQueue, Start/Enter/Resolve/Advance systems|Seeds playable E2E (manual)|
+|2. Triggers & Effects Integration|Plans `09`–`11`|Trigger dispatch, effect resolution, pairing/clash modifiers|Hook coverage in tests, telemetry for events|
+|3. Replay + Reporting|Plan `19` + `20`|ReplayState, BattleReport persistence/loading, UI controls|Server/client checksum parity + UX sign-off|
+|4. Advanced Features|Future|Status effects in combat, effect chains, auto-skip, highlights|Feature-flagged, performance budget met|
+
+---
 
 ### At a glance: what changes
 - Remove legacy tug-of-war judging systems and UI.
@@ -747,4 +765,10 @@ Example `BattleReport` (JSON):
 - Ensure tick rate and animation pacing feel snappy; allow skip/fast-forward.
 - Determinism: bite alternation and any random tiebreaks must read from `SeededRng`.
 
+## Outstanding Questions
+1. **Reconcile with Server Plan:** Do we block Phase 5 until Plan 20 (server) confirms the same BattleReport schema, or can client ship replay functionality earlier?
+2. **Simulation Speed Controls:** Should replay speed options live in combat HUD during live matches, or only in dedicated replay mode?
+3. **Event Payload Schema:** What minimum fields must every trigger event include for telemetry/replay (damage, modifiers, RNG rolls)?
+4. **Animation Budget:** Do we need a formal performance budget per course (ms/frame) before enabling advanced bite/VFX work?
+5. **Accessibility / UX:** Any requirements for color-blind indicators or alternative combat summaries before we finalize the UI spec?
 

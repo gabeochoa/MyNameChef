@@ -1,5 +1,20 @@
 # Status Effects System Plan
 
+## At-a-Glance
+- **Sequence:** 11 / 21 — final pillar of the advanced effect stack (after chains + durations).
+- **Mission:** Ship a reusable status-effect framework with clear definitions, stacking rules, visuals, and telemetry.
+- **Current Status:** Requirement gathering complete; waiting on duration support (Plan 10) and effect chains (Plan 09) to lock interfaces.
+- **Key Outputs:** Status taxonomy, shared data structures, application pipelines for drinks/synergies/dishes, UI badges, debug tooling.
+
+## Work Breakdown Snapshot
+|Phase|Scope|Key Tasks|Exit Criteria|
+|---|---|---|---|
+|1. Design & Taxonomy|Define status effect catalog + stacking rules|Enumerate effect types, sources, visual treatment, UX copy|Approved design doc circulated to gameplay + design|
+|2. Data Model & Infra|Extend structs + serialization|Add `StatusEffectType`, metadata, helpers, migration scripts|Engine + game compile with new type (even without usage)|
+|3. Application Pipelines|Plumb sources (dishes, drinks, synergies)|Update effect ops, drink pairing system, synergy logic, add APIs|End-to-end tests applying statuses from each source|
+|4. Expiration & Interaction|Hook into duration + combat|Integrate with Plan 10 for expiry, ensure combat uses modifiers|Tests for stacking, removal, refresh semantics|
+|5. UX & Debugging|Badges, tooltips, console commands, telemetry|Render badges, add tooltip entries, console inspector, metrics|Design sign-off + dashboards showing active statuses|
+
 ## Overview
 
 This plan details implementing a full status effects system. **Note**: Basic status effects infrastructure already exists. This plan focuses on design decisions and system completion.
@@ -264,4 +279,11 @@ struct StatusEffect {
 - 1.5 hours: Visual indicators
 - 1 hour: Duration tracking
 - 1.5 hours: Testing and validation
+
+## Outstanding Questions
+1. **Source of Truth:** Should the status effect catalog live in data (JSON/CSV) or code for the first release?
+2. **Stacking Rules:** Do identical statuses stack additively, refresh duration, or clamp to a max? Need explicit rules for both buffs and debuffs.
+3. **Visual Priority:** How many concurrent badges do we support per dish before UI clutter becomes an issue? Should we group effects?
+4. **Designer Tooling:** Is a debug overlay / console command required for designers to inspect active statuses during test runs?
+5. **Telemetry Requirements:** Which metrics (application count, uptime, removal reason) are mandatory for balancing once statuses ship?
 
