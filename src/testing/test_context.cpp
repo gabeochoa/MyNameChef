@@ -93,7 +93,7 @@ void TestContext::pump_once(float dt) {
   if (currentMode == Mode::Interactive) {
     render_backend::BeginDrawing();
     render_backend::ClearBackground(raylib::RAYWHITE);
-    systems.render(afterhours::EntityHelper::get_entities(), dt);
+    systems.render(afterhours::EntityHelper::get_entities_for_mod(), dt);
     render_backend::EndDrawing();
   }
 }
@@ -109,7 +109,7 @@ void TestContext::run_for_seconds(float seconds) {
 
 std::vector<std::string> TestContext::list_buttons() {
   std::vector<std::string> labels;
-  for (auto &ep : afterhours::EntityHelper::get_entities()) {
+  for (auto &ep : afterhours::EntityHelper::get_entities_for_mod()) {
     auto &e = *ep;
     if (e.has<afterhours::ui::UIComponent>() &&
         e.has<afterhours::ui::HasClickListener>()) {
@@ -128,7 +128,7 @@ std::vector<std::string> TestContext::list_buttons() {
 }
 
 bool TestContext::click_button(const std::string &label) {
-  for (auto &ep : afterhours::EntityHelper::get_entities()) {
+  for (auto &ep : afterhours::EntityHelper::get_entities_for_mod()) {
     auto &e = *ep;
     if (e.has<afterhours::ui::UIComponent>() &&
         e.has<afterhours::ui::HasClickListener>()) {

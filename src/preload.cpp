@@ -171,12 +171,11 @@ void setup_fonts(Entity &sophie) {
 }
 
 Preload &Preload::make_singleton() {
-  // sophie
   auto &sophie = EntityHelper::createEntity();
   {
     input::add_singleton_components(sophie, get_mapping());
     window_manager::add_singleton_components(sophie, 200);
-    ui::add_singleton_components<InputAction>(sophie);
+    Entity &ui_root = ui::init_ui_plugin<InputAction>();
     translation_manager::initialize_translation_plugin(sophie);
 
     auto &settings = Settings::get();
@@ -188,21 +187,11 @@ Preload &Preload::make_singleton() {
                       Files::get()
                           .fetch_resource_path("images", "spritesheet.png")
                           .c_str()));
-      setup_fonts(sophie);
     } else {
-      // In headless mode, register texture manager without GPU textures
       texture_manager::add_singleton_components(sophie, {});
     }
-    // making a root component to attach the UI to
-    sophie.addComponent<ui::AutoLayoutRoot>();
-    sophie.addComponent<ui::UIComponentDebug>("sophie");
-    sophie.addComponent<ui::UIComponent>(sophie.id)
-        .set_desired_width(afterhours::ui::screen_pct(1.f))
-        .set_desired_height(afterhours::ui::screen_pct(1.f))
-        .enable_font(get_active_font_name(), 75.f);
-
-    // Navigation stack singleton for consistent UI navigation
-    add_ui_singleton_components(sophie);
+    setup_fonts(ui_root);
+    add_ui_singleton_components(ui_root);
   }
   {
     // Audio emitter singleton for centralized sound requests

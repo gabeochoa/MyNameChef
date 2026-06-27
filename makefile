@@ -8,7 +8,7 @@ ifeq ($(UNAME_S),Darwin)
     RAYLIB_FLAGS := $(shell pkg-config --cflags raylib)
     RAYLIB_LIB := $(shell pkg-config --libs raylib)
     MACOS_FLAGS := -DBACKWARD
-    FRAMEWORKS := -framework CoreFoundation
+    FRAMEWORKS := -framework CoreFoundation -framework OpenGL
 else ifeq ($(OS),Windows_NT)
     CXX := g++
     EXT := .exe

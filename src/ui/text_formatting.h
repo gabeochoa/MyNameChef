@@ -4,7 +4,7 @@
 #include "../render_backend.h"
 #include "../rl.h"
 #include <afterhours/src/plugins/color.h>
-#include <afterhours/src/plugins/ui/theme_defaults.h>
+#include <afterhours/src/plugins/ui/theme.h>
 #include <map>
 #include <sstream>
 #include <string>
