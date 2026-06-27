@@ -37,10 +37,7 @@ static afterhours::Entity &get_or_create_trigger_queue() {
 static void ensure_battle_load_request_exists() {
   // When tests use to_battle() directly, BattleLoadRequest might not exist
   // This helper ensures it exists to prevent crashes in systems that expect it
-  const auto componentId =
-      afterhours::components::get_type_id<BattleLoadRequest>();
-  auto &singletonMap = afterhours::EntityHelper::get().singletonMap;
-  if (!singletonMap.contains(componentId)) {
+  if (!afterhours::EntityHelper::has_singleton<BattleLoadRequest>()) {
     auto &requestEntity = afterhours::EntityHelper::createEntity();
     BattleLoadRequest request;
     request.playerJsonPath = "";

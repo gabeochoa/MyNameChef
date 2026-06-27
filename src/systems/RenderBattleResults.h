@@ -22,9 +22,7 @@ struct RenderBattleResults : afterhours::System<> {
 
   void once(float) const override {
     // Check if singleton exists before trying to get it
-    const auto componentId =
-        afterhours::components::get_type_id<BattleResult>();
-    if (!afterhours::EntityHelper::get().singletonMap.contains(componentId)) {
+    if (!afterhours::EntityHelper::has_singleton<BattleResult>()) {
       return;
     }
 

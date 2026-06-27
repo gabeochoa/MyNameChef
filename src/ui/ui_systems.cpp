@@ -831,10 +831,7 @@ Screen ScheduleMainMenuUI::results_screen(Entity &entity,
 
   // Check if we're in replay mode (from History)
   bool is_replay_mode = false;
-  const auto replay_component_id =
-      afterhours::components::get_type_id<ReplayState>();
-  auto &singletonMap = afterhours::EntityHelper::get().singletonMap;
-  if (singletonMap.contains(replay_component_id)) {
+  if (afterhours::EntityHelper::has_singleton<ReplayState>()) {
     auto replay_entity = afterhours::EntityHelper::get_singleton<ReplayState>();
     if (replay_entity.get().has<ReplayState>()) {
       const ReplayState &rs = replay_entity.get().get<ReplayState>();
@@ -890,9 +887,7 @@ Screen ScheduleMainMenuUI::history_screen(Entity &entity,
       []() { navigation::to(GameStateManager::Screen::Main); }, 0);
 
   // Get battle history
-  const auto componentId = afterhours::components::get_type_id<BattleHistory>();
-  bool hasHistory =
-      afterhours::EntityHelper::get().singletonMap.contains(componentId);
+  bool hasHistory = afterhours::EntityHelper::has_singleton<BattleHistory>();
 
   if (hasHistory) {
     auto history_entity =
@@ -938,12 +933,7 @@ Screen ScheduleMainMenuUI::history_screen(Entity &entity,
                   SeededRng::get().set_seed(report_seed);
 
                   // Create or update ReplayState
-                  const auto replay_component_id =
-                      afterhours::components::get_type_id<ReplayState>();
-                  auto &singletonMap =
-                      afterhours::EntityHelper::get().singletonMap;
-
-                  if (singletonMap.contains(replay_component_id)) {
+                  if (afterhours::EntityHelper::has_singleton<ReplayState>()) {
                     auto replay_entity =
                         afterhours::EntityHelper::get_singleton<ReplayState>();
                     if (replay_entity.get().has<ReplayState>()) {
@@ -978,9 +968,7 @@ Screen ScheduleMainMenuUI::history_screen(Entity &entity,
                   }
 
                   // Set up BattleLoadRequest (create if doesn't exist)
-                  const auto request_component_id =
-                      afterhours::components::get_type_id<BattleLoadRequest>();
-                  if (singletonMap.contains(request_component_id)) {
+                  if (afterhours::EntityHelper::has_singleton<BattleLoadRequest>()) {
                     auto request_entity =
                         afterhours::EntityHelper::get_singleton<
                             BattleLoadRequest>();

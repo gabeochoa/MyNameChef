@@ -81,7 +81,8 @@ CXXFLAGS := $(CXXSTD) $(CXXFLAGS_BASE) $(CXXFLAGS_SUPPRESS) $(CXXFLAGS_TIME_TRAC
     $(MACOS_FLAGS) $(COVERAGE_CXXFLAGS) $(RAYLIB_FLAGS)
 
 # Include directories
-INCLUDES := -Ivendor/
+INCLUDES := -Isrc/ -Ivendor/
+FORCED_INCLUDES := -include log.h
 
 # Library flags
 LDFLAGS := -L. -Lvendor/ $(RAYLIB_LIB) $(FRAMEWORKS) $(COVERAGE_LDFLAGS)
@@ -156,13 +157,13 @@ $(SERVER_EXE): $(CODE_HASH_GENERATED) $(SERVER_OBJS) | $(OUTPUT_DIR)/.stamp
 $(OBJ_DIR)/main/%.o: src/%.cpp $(CODE_HASH_GENERATED) | $(OBJ_DIR)/main
 	@echo "Compiling $<..."
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@ -MMD -MP -MF $(@:.o=.d) -MT $@
+	$(CXX) $(CXXFLAGS) $(FORCED_INCLUDES) $(INCLUDES) -c $< -o $@ -MMD -MP -MF $(@:.o=.d) -MT $@
 
 # Compile server object files
 $(OBJ_DIR)/server/%.o: src/%.cpp $(CODE_HASH_GENERATED) | $(OBJ_DIR)/server
 	@echo "Compiling $<..."
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) -DHEADLESS_MODE $(INCLUDES) -c $< -o $@ -MMD -MP -MF $(@:.o=.d) -MT $@
+	$(CXX) $(CXXFLAGS) -DHEADLESS_MODE $(FORCED_INCLUDES) $(INCLUDES) -c $< -o $@ -MMD -MP -MF $(@:.o=.d) -MT $@
 
 # Create directories
 $(OUTPUT_DIR)/.stamp:

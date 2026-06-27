@@ -29,10 +29,7 @@ static afterhours::Entity &get_or_create_trigger_queue() {
 }
 
 static void ensure_battle_load_request_exists() {
-  const auto componentId =
-      afterhours::components::get_type_id<BattleLoadRequest>();
-  auto &singletonMap = afterhours::EntityHelper::get().singletonMap;
-  if (singletonMap.contains(componentId)) {
+  if (afterhours::EntityHelper::has_singleton<BattleLoadRequest>()) {
     return;
   }
   auto &requestEntity = afterhours::EntityHelper::createEntity();

@@ -50,12 +50,7 @@ struct LoadBattleResults : afterhours::System<> {
     }
 
     // Check if BattleResult singleton already exists
-    const auto componentId =
-        afterhours::components::get_type_id<BattleResult>();
-    bool singletonExists =
-        afterhours::EntityHelper::get().singletonMap.contains(componentId);
-
-    if (singletonExists) {
+    if (afterhours::EntityHelper::has_singleton<BattleResult>()) {
       // Update existing singleton
       auto existingResult =
           afterhours::EntityHelper::get_singleton<BattleResult>();

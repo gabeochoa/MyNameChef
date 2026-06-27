@@ -17,10 +17,7 @@
 
 namespace ValidateBattleReportPersistenceTestHelpers {
 static void ensure_battle_load_request_exists() {
-  const auto componentId =
-      afterhours::components::get_type_id<BattleLoadRequest>();
-  auto &singletonMap = afterhours::EntityHelper::get().singletonMap;
-  if (singletonMap.contains(componentId)) {
+  if (afterhours::EntityHelper::has_singleton<BattleLoadRequest>()) {
     return;
   }
   auto &requestEntity = afterhours::EntityHelper::createEntity();
@@ -33,9 +30,7 @@ static void ensure_battle_load_request_exists() {
 }
 
 static void ensure_replay_state_exists(uint64_t seed) {
-  const auto componentId = afterhours::components::get_type_id<ReplayState>();
-  auto &singletonMap = afterhours::EntityHelper::get().singletonMap;
-  if (singletonMap.contains(componentId)) {
+  if (afterhours::EntityHelper::has_singleton<ReplayState>()) {
     // Update existing ReplayState with seed
     auto replay_entity = afterhours::EntityHelper::get_singleton<ReplayState>();
     if (replay_entity.get().has<ReplayState>()) {
@@ -314,9 +309,8 @@ TEST(validate_battle_report_persistence) {
 
   // Verify BattleResult exists
   log_info("TEST: Step 16 - Verifying BattleResult exists");
-  const auto componentId = afterhours::components::get_type_id<BattleResult>();
   app.expect_true(
-      afterhours::EntityHelper::get().singletonMap.contains(componentId),
+      afterhours::EntityHelper::has_singleton<BattleResult>(),
       "BattleResult singleton should exist");
 
   auto result_entity = afterhours::EntityHelper::get_singleton<BattleResult>();

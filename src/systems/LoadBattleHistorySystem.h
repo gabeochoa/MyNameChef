@@ -16,11 +16,7 @@ struct LoadBattleHistorySystem : afterhours::System<> {
 
   void once(float) override {
     // Check if BattleHistory singleton exists
-    const auto componentId =
-        afterhours::components::get_type_id<BattleHistory>();
-    auto &singletonMap = afterhours::EntityHelper::get().singletonMap;
-
-    if (singletonMap.contains(componentId)) {
+    if (afterhours::EntityHelper::has_singleton<BattleHistory>()) {
       auto history_entity =
           afterhours::EntityHelper::get_singleton<BattleHistory>();
       if (history_entity.get().has<BattleHistory>()) {
@@ -116,7 +112,7 @@ struct LoadBattleHistorySystem : afterhours::System<> {
     }
 
     // Create or update BattleHistory singleton
-    if (!singletonMap.contains(componentId)) {
+    if (!afterhours::EntityHelper::has_singleton<BattleHistory>()) {
       auto &history_entity = afterhours::EntityHelper::createEntity();
       BattleHistory history;
       history.entries = std::move(entries);

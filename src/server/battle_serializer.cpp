@@ -22,11 +22,7 @@ namespace server {
 namespace {
 // Helper to ensure BattleResult exists - creates it if missing
 void ensure_battle_result_exists() {
-  const auto componentId = afterhours::components::get_type_id<BattleResult>();
-  bool singletonExists =
-      afterhours::EntityHelper::get().singletonMap.contains(componentId);
-
-  if (singletonExists) {
+  if (afterhours::EntityHelper::has_singleton<BattleResult>()) {
     return; // Already exists
   }
 
@@ -215,11 +211,7 @@ nlohmann::json BattleSerializer::collect_battle_outcomes() {
   // Ensure BattleResult exists before collecting
   ensure_battle_result_exists();
 
-  const auto componentId = afterhours::components::get_type_id<BattleResult>();
-  bool singletonExists =
-      afterhours::EntityHelper::get().singletonMap.contains(componentId);
-
-  if (!singletonExists) {
+  if (!afterhours::EntityHelper::has_singleton<BattleResult>()) {
     log_warn("collect_battle_outcomes: BattleResult singleton not found after "
              "ensure - "
              "battle may not have completed");

@@ -76,10 +76,7 @@ TestApp &TestApp::launch_game(const std::source_location &loc) {
   log_info("TEST_APP: launch_game - Cleaning up battle state");
 
   // Check if BattleLoadRequest singleton exists and reset it
-  const auto battleLoadRequestId =
-      afterhours::components::get_type_id<BattleLoadRequest>();
-  if (afterhours::EntityHelper::get().singletonMap.contains(
-          battleLoadRequestId)) {
+  if (afterhours::EntityHelper::has_singleton<BattleLoadRequest>()) {
     auto battleRequest =
         afterhours::EntityHelper::get_singleton<BattleLoadRequest>();
     if (battleRequest.get().has<BattleLoadRequest>()) {
@@ -92,10 +89,7 @@ TestApp &TestApp::launch_game(const std::source_location &loc) {
   }
 
   // Check if BattleProcessor singleton exists and reset it
-  const auto battleProcessorId =
-      afterhours::components::get_type_id<BattleProcessor>();
-  if (afterhours::EntityHelper::get().singletonMap.contains(
-          battleProcessorId)) {
+  if (afterhours::EntityHelper::has_singleton<BattleProcessor>()) {
     try {
       auto battleProcessor =
           afterhours::EntityHelper::get_singleton<BattleProcessor>();
@@ -115,9 +109,7 @@ TestApp &TestApp::launch_game(const std::source_location &loc) {
 
   // Clear battle-related singletons to ensure clean state
   // Clear BattleSynergyCounts
-  const auto synergyCountsId =
-      afterhours::components::get_type_id<BattleSynergyCounts>();
-  if (afterhours::EntityHelper::get().singletonMap.contains(synergyCountsId)) {
+  if (afterhours::EntityHelper::has_singleton<BattleSynergyCounts>()) {
     try {
       auto synergyEntity =
           afterhours::EntityHelper::get_singleton<BattleSynergyCounts>();
@@ -134,9 +126,7 @@ TestApp &TestApp::launch_game(const std::source_location &loc) {
   }
 
   // Clear AppliedSetBonuses
-  const auto appliedBonusesId =
-      afterhours::components::get_type_id<AppliedSetBonuses>();
-  if (afterhours::EntityHelper::get().singletonMap.contains(appliedBonusesId)) {
+  if (afterhours::EntityHelper::has_singleton<AppliedSetBonuses>()) {
     try {
       auto appliedEntity =
           afterhours::EntityHelper::get_singleton<AppliedSetBonuses>();
@@ -942,11 +932,7 @@ TestApp &TestApp::set_drink_shop_override(const std::vector<DrinkType> &drinks,
                                           const std::source_location &) {
   // Get or create the test override singleton
   // First check if singleton already exists
-  const auto override_id =
-      afterhours::components::get_type_id<TestDrinkShopOverride>();
-  auto &singleton_map = afterhours::EntityHelper::get().singletonMap;
-
-  if (singleton_map.find(override_id) != singleton_map.end()) {
+  if (afterhours::EntityHelper::has_singleton<TestDrinkShopOverride>()) {
     // Singleton exists, update it
     auto override_opt =
         afterhours::EntityHelper::get_singleton<TestDrinkShopOverride>();
@@ -970,11 +956,7 @@ TestApp &TestApp::set_drink_shop_override(const std::vector<DrinkType> &drinks,
 
 TestApp &TestApp::clear_drink_shop_override(const std::source_location &) {
   // Remove the test override component
-  const auto override_id =
-      afterhours::components::get_type_id<TestDrinkShopOverride>();
-  auto &singleton_map = afterhours::EntityHelper::get().singletonMap;
-
-  if (singleton_map.find(override_id) != singleton_map.end()) {
+  if (afterhours::EntityHelper::has_singleton<TestDrinkShopOverride>()) {
     auto override_opt =
         afterhours::EntityHelper::get_singleton<TestDrinkShopOverride>();
     if (override_opt.get().has<TestDrinkShopOverride>()) {

@@ -33,9 +33,7 @@ struct SaveBattleReportSystem : afterhours::System<> {
 
   void once(float) override {
     // Check if BattleResult singleton exists
-    const auto componentId =
-        afterhours::components::get_type_id<BattleResult>();
-    if (!afterhours::EntityHelper::get().singletonMap.contains(componentId)) {
+    if (!afterhours::EntityHelper::has_singleton<BattleResult>()) {
       log_warn("SaveBattleReport: BattleResult singleton not found");
       saved = true; // Mark as saved to avoid repeated attempts
       return;
@@ -56,10 +54,7 @@ struct SaveBattleReportSystem : afterhours::System<> {
     std::string opponent_id = "local_opponent";
 
     // Try to get seed from ReplayState
-    const auto replay_component_id =
-        afterhours::components::get_type_id<ReplayState>();
-    if (afterhours::EntityHelper::get().singletonMap.contains(
-            replay_component_id)) {
+    if (afterhours::EntityHelper::has_singleton<ReplayState>()) {
       auto replay_entity =
           afterhours::EntityHelper::get_singleton<ReplayState>();
       if (replay_entity.get().has<ReplayState>()) {

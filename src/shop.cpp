@@ -109,48 +109,37 @@ Entity &make_shop_manager(Entity &sophie) {
 
   // Register singletons only if not already registered
   // This prevents overwriting existing singletons with new entities/components
-  using namespace afterhours::components;
-  auto &singleton_map = EntityHelper::get().singletonMap;
-
-  const auto wallet_id = get_type_id<Wallet>();
-  if (singleton_map.find(wallet_id) == singleton_map.end()) {
+  if (!EntityHelper::has_singleton<Wallet>()) {
     EntityHelper::registerSingleton<Wallet>(sophie);
   } else {
-    // If already registered, ensure this entity has the component too
-    // (so make_shop_manager can safely be called multiple times on same entity)
     sophie.addComponentIfMissing<Wallet>();
   }
 
-  const auto health_id = get_type_id<Health>();
-  if (singleton_map.find(health_id) == singleton_map.end()) {
+  if (!EntityHelper::has_singleton<Health>()) {
     EntityHelper::registerSingleton<Health>(sophie);
   } else {
     sophie.addComponentIfMissing<Health>();
   }
 
-  const auto shop_state_id = get_type_id<ShopState>();
-  if (singleton_map.find(shop_state_id) == singleton_map.end()) {
+  if (!EntityHelper::has_singleton<ShopState>()) {
     EntityHelper::registerSingleton<ShopState>(sophie);
   } else {
     sophie.addComponentIfMissing<ShopState>();
   }
 
-  const auto shop_tier_id = get_type_id<ShopTier>();
-  if (singleton_map.find(shop_tier_id) == singleton_map.end()) {
+  if (!EntityHelper::has_singleton<ShopTier>()) {
     EntityHelper::registerSingleton<ShopTier>(sophie);
   } else {
     sophie.addComponentIfMissing<ShopTier>();
   }
 
-  const auto reroll_cost_id = get_type_id<RerollCost>();
-  if (singleton_map.find(reroll_cost_id) == singleton_map.end()) {
+  if (!EntityHelper::has_singleton<RerollCost>()) {
     EntityHelper::registerSingleton<RerollCost>(sophie);
   } else {
     sophie.addComponentIfMissing<RerollCost>(1, 0);
   }
 
-  const auto synergy_counts_id = get_type_id<SynergyCounts>();
-  if (singleton_map.find(synergy_counts_id) == singleton_map.end()) {
+  if (!EntityHelper::has_singleton<SynergyCounts>()) {
     EntityHelper::registerSingleton<SynergyCounts>(sophie);
   } else {
     sophie.addComponentIfMissing<SynergyCounts>();

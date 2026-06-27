@@ -55,24 +55,20 @@ private:
     bool use_override = false;
     std::vector<DrinkType> override_drinks;
 
-    // Check for test override using singleton map directly
     try {
-      const auto override_id = get_type_id<TestDrinkShopOverride>();
-      auto &singleton_map = EntityHelper::get().singletonMap;
-      auto it = singleton_map.find(override_id);
-      if (it != singleton_map.end()) {
-        auto &override_entity = *it->second;
+      if (EntityHelper::has_singleton<TestDrinkShopOverride>()) {
+        auto override_ref = EntityHelper::get_singleton<TestDrinkShopOverride>();
+        afterhours::Entity &override_entity = override_ref.get();
         if (override_entity.has<TestDrinkShopOverride>()) {
           auto &override = override_entity.get<TestDrinkShopOverride>();
           if (!override.used && !override.drinks.empty()) {
             use_override = true;
             override_drinks = override.drinks;
-            override.used = true; // Mark as used so it's only applied once
+            override.used = true;
           }
         }
       }
     } catch (...) {
-      // Override not available, use normal generation
     }
 
     // Get current shop tier (only needed if not using override)

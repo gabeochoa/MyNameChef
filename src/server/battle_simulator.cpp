@@ -54,10 +54,8 @@ void BattleSimulator::start_battle(
 
   // Check if BattleLoadRequest singleton already exists (from previous
   // test/battle)
-  const auto componentId =
-      afterhours::components::get_type_id<BattleLoadRequest>();
   bool singletonExists =
-      afterhours::EntityHelper::get().singletonMap.contains(componentId);
+      afterhours::EntityHelper::has_singleton<BattleLoadRequest>();
 
   log_info("start_battle: BattleLoadRequest singleton exists={}",
            singletonExists);
@@ -159,11 +157,7 @@ void BattleSimulator::track_events(float timestamp, int course_index) {
 
 void BattleSimulator::create_battle_result() {
   // Check if BattleResult already exists
-  const auto componentId = afterhours::components::get_type_id<BattleResult>();
-  bool singletonExists =
-      afterhours::EntityHelper::get().singletonMap.contains(componentId);
-
-  if (singletonExists) {
+  if (afterhours::EntityHelper::has_singleton<BattleResult>()) {
     return;
   }
 
@@ -291,11 +285,7 @@ static void calculate_battle_result_from_teams(BattleResult &result) {
 
 void BattleSimulator::ensure_battle_result() {
   // Check if BattleResult already exists
-  const auto componentId = afterhours::components::get_type_id<BattleResult>();
-  bool singletonExists =
-      afterhours::EntityHelper::get().singletonMap.contains(componentId);
-
-  if (singletonExists) {
+  if (afterhours::EntityHelper::has_singleton<BattleResult>()) {
     log_info(
         "BattleSimulator::ensure_battle_result: BattleResult already exists");
     return;

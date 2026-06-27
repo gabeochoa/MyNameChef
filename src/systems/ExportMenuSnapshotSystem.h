@@ -88,12 +88,7 @@ public:
       request.opponentJsonPath = "resources/battles/opponent_sample.json";
 
       // Check if singleton already exists and update it, or create new one
-      const auto componentId =
-          afterhours::components::get_type_id<BattleLoadRequest>();
-      bool singletonExists =
-          afterhours::EntityHelper::get().singletonMap.contains(componentId);
-
-      if (singletonExists) {
+      if (afterhours::EntityHelper::has_singleton<BattleLoadRequest>()) {
         // Update existing singleton
         auto existingRequest =
             afterhours::EntityHelper::get_singleton<BattleLoadRequest>();

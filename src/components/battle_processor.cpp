@@ -157,29 +157,22 @@ void BattleProcessor::finishBattle() {
 
     // Create or update BattleResult singleton
     log_info("BATTLE_PROCESSOR_FINISH: Accessing BattleResult singleton");
-    const auto componentId = afterhours::components::get_type_id<BattleResult>();
-    bool singletonExists =
-        afterhours::EntityHelper::get().singletonMap.contains(componentId);
-    log_info("BATTLE_PROCESSOR_FINISH: Singleton exists={}", singletonExists ? 1 : 0);
+    log_info("BATTLE_PROCESSOR_FINISH: Singleton exists={}",
+             afterhours::EntityHelper::has_singleton<BattleResult>() ? 1 : 0);
 
-  // CRITICAL: Always create a new BattleResult singleton instead of trying to update existing one
-  // This avoids crashes if the previous singleton was cleaned up
-  // The Results screen will use the most recent BattleResult
-  // First, remove old singleton from map if it exists (to avoid registerSingleton error)
-  // CRITICAL: Just remove from map - don't try to access the entity as it might be cleaned up
-  if (singletonExists) {
-    // Remove from singleton map to allow registering new one
-    // Don't try to access the old entity - it might have been cleaned up and accessing it would crash
-    afterhours::EntityHelper::get().singletonMap.erase(componentId);
-    log_info("BATTLE_PROCESSOR_FINISH: Removed old singleton from map (entity may have been cleaned up)");
-  }
-  
-  log_info("BATTLE_PROCESSOR_FINISH: Creating new BattleResult singleton");
+  log_info("BATTLE_PROCESSOR_FINISH: Creating or updating BattleResult singleton");
   try {
-    auto &entity = afterhours::EntityHelper::createEntity();
-    entity.addComponent<BattleResult>(std::move(result));
-    afterhours::EntityHelper::registerSingleton<BattleResult>(entity);
-    log_info("BATTLE_PROCESSOR_FINISH: Successfully created and registered BattleResult singleton");
+    if (afterhours::EntityHelper::has_singleton<BattleResult>()) {
+      auto ref = afterhours::EntityHelper::get_singleton<BattleResult>();
+      ref.get().removeComponent<BattleResult>();
+      ref.get().addComponent<BattleResult>(std::move(result));
+      log_info("BATTLE_PROCESSOR_FINISH: Updated existing BattleResult singleton");
+    } else {
+      auto &entity = afterhours::EntityHelper::createEntity();
+      entity.addComponent<BattleResult>(std::move(result));
+      afterhours::EntityHelper::registerSingleton<BattleResult>(entity);
+      log_info("BATTLE_PROCESSOR_FINISH: Successfully created and registered BattleResult singleton");
+    }
   } catch (const std::exception &e) {
     log_info("BATTLE_PROCESSOR_FINISH: Exception creating BattleResult singleton: {}", e.what());
     // If creating singleton fails, we can't continue - but at least we've cleared activeBattle above

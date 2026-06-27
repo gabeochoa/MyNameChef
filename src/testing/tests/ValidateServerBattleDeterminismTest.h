@@ -13,10 +13,7 @@
 
 namespace ValidateServerBattleDeterminismTestHelpers {
 static void ensure_battle_load_request_exists(uint64_t seed) {
-  const auto componentId =
-      afterhours::components::get_type_id<BattleLoadRequest>();
-  auto &singletonMap = afterhours::EntityHelper::get().singletonMap;
-  if (singletonMap.contains(componentId)) {
+  if (afterhours::EntityHelper::has_singleton<BattleLoadRequest>()) {
     return;
   }
   auto &requestEntity = afterhours::EntityHelper::createEntity();
@@ -29,9 +26,7 @@ static void ensure_battle_load_request_exists(uint64_t seed) {
 }
 
 static void ensure_replay_state_exists(uint64_t seed) {
-  const auto componentId = afterhours::components::get_type_id<ReplayState>();
-  auto &singletonMap = afterhours::EntityHelper::get().singletonMap;
-  if (singletonMap.contains(componentId)) {
+  if (afterhours::EntityHelper::has_singleton<ReplayState>()) {
     auto replayEntity = afterhours::EntityHelper::get_singleton<ReplayState>();
     if (replayEntity.get().has<ReplayState>()) {
       auto &replay = replayEntity.get().get<ReplayState>();
