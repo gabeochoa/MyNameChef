@@ -2,22 +2,24 @@
 UNAME_S := $(shell uname -s)
 
 # Compiler settings
-ifeq ($(UNAME_S),Darwin)
-    CXX := clang++
+# TARGET=windows cross-compiles from macOS against the vendored raylib import
+# lib. Otherwise this is host detection as before.
+ifeq ($(TARGET),windows)
+    CXX := zig c++ -target x86_64-windows-gnu
+    EXT := .exe
+    RAYLIB_FLAGS := -Ivendor/raylib
+    RAYLIB_LIB := vendor/raylib/libraylibdll.a -lopengl32 -lgdi32 -lwinmm
+    MACOS_FLAGS :=
+    FRAMEWORKS :=
+else ifeq ($(UNAME_S),Darwin)
+    CXX := zig c++
     EXT := .exe
     RAYLIB_FLAGS := $(shell pkg-config --cflags raylib)
     RAYLIB_LIB := $(shell pkg-config --libs raylib)
     MACOS_FLAGS := -DBACKWARD
     FRAMEWORKS := -framework CoreFoundation -framework OpenGL
-else ifeq ($(OS),Windows_NT)
-    CXX := g++
-    EXT := .exe
-    RAYLIB_FLAGS := -IF:/RayLib/include
-    RAYLIB_LIB := F:/RayLib/lib/raylib.dll
-    MACOS_FLAGS :=
-    FRAMEWORKS :=
 else
-    CXX := clang++
+    CXX := zig c++
     EXT :=
     RAYLIB_FLAGS := $(shell pkg-config --cflags raylib)
     RAYLIB_LIB := $(shell pkg-config --libs raylib)
@@ -74,6 +76,9 @@ ifeq ($(COVERAGE),1)
         COVERAGE_CXXFLAGS := --coverage
         COVERAGE_LDFLAGS := --coverage
     endif
+    # zig ships no LLVM profile runtime (link fails on ___llvm_profile_runtime),
+    # so coverage builds fall back to the system compiler.
+    CXX := clang++
 endif
 
 # Combine all CXXFLAGS
@@ -87,9 +92,13 @@ FORCED_INCLUDES := -include log.h
 # Library flags
 LDFLAGS := -L. -Lvendor/ $(RAYLIB_LIB) $(FRAMEWORKS) $(COVERAGE_LDFLAGS)
 
-# Directories
-OBJ_DIR := output/objs
-OUTPUT_DIR := output
+# Directories (keep cross-compiled objects out of the native tree)
+ifeq ($(TARGET),windows)
+    OUTPUT_DIR := output-win
+else
+    OUTPUT_DIR := output
+endif
+OBJ_DIR := $(OUTPUT_DIR)/objs
 
 # Source files for my_name_chef
 MAIN_SRC := $(wildcard src/*.cpp)
@@ -215,8 +224,11 @@ sign: $(MAIN_EXE)
 run: output
 	./$(MAIN_EXE)
 
+windows:
+	$(MAKE) TARGET=windows
+
 # Utility targets
-.PHONY: all both clean clean-all output sign run
+.PHONY: all both clean clean-all output sign run windows
 
 # ClangBuildAnalyzer integration
 cba: clean
