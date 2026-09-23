@@ -170,6 +170,22 @@ void setup_fonts(Entity &sophie) {
           .c_str());
 }
 
+void setup_headless_fonts(Entity &sophie) {
+  auto &font_manager = sophie.get<ui::FontManager>();
+  raylib::Font font = raylib::GetFontDefault();
+  for (FontID id : {FontID::English, FontID::Korean, FontID::Japanese,
+                    FontID::SYMBOL_FONT}) {
+    font_manager.load_font(get_font_name(id), font);
+  }
+  sophie.get<ui::TextMeasureCache>().set_measure_function(
+      [](std::string_view text, std::string_view, float font_size,
+         float spacing) {
+        float width = static_cast<float>(text.size()) *
+                      (font_size * 0.6f + spacing);
+        return raylib::Vector2{width, font_size};
+      });
+}
+
 Preload &Preload::make_singleton() {
   auto &sophie = EntityHelper::createEntity();
   {
@@ -187,10 +203,11 @@ Preload &Preload::make_singleton() {
                       Files::get()
                           .fetch_resource_path("images", "spritesheet.png")
                           .c_str()));
+      setup_fonts(ui_root);
     } else {
       texture_manager::add_singleton_components(sophie, {});
+      setup_headless_fonts(ui_root);
     }
-    setup_fonts(ui_root);
     add_ui_singleton_components(ui_root);
   }
   {
