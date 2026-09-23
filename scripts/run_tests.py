@@ -26,9 +26,9 @@ class Colors:
     NC = '\033[0m'  # No Color
 
 # Configuration (issue 87: Makefile emits .exe only on macOS/Windows)
-_EXT = ".exe" if sys.platform in ("darwin", "win32") else ""
-EXECUTABLE = f"./output/my_name_chef{_EXT}"
-SERVER_EXECUTABLE = f"./output/battle_server{_EXT}"
+EXE_SUFFIX = ".exe" if sys.platform in ("darwin", "win32") else ""
+EXECUTABLE = f"./output/my_name_chef{EXE_SUFFIX}"
+SERVER_EXECUTABLE = f"./output/battle_server{EXE_SUFFIX}"
 DEFAULT_TIMEOUT = 30
 SERVER_PORT = 8080
 BASE_DIR = Path(__file__).parent.parent
@@ -78,6 +78,7 @@ class ServerManager:
     def __init__(self, port: int = SERVER_PORT):
         self.port = port
         self.server_process: Optional[subprocess.Popen] = None
+        self.log_file = None
     
     def start(self) -> bool:
         """Start the battle server."""
@@ -90,9 +91,9 @@ class ServerManager:
         self.stop()
         try:
             # Issue 85: redirect to a log file instead of undrained pipes.
-            self._log = open(BASE_DIR / "output" / "test_server.log", "ab")
+            self.log_file = open(BASE_DIR / "output" / "test_server.log", "ab")
             self.server_process = subprocess.Popen(
-                [SERVER_EXECUTABLE], stdout=self._log, stderr=self._log,
+                [SERVER_EXECUTABLE], stdout=self.log_file, stderr=self.log_file,
                 cwd=BASE_DIR)
             
             # Set TEST_SERVER_PID environment variable for tests that need it
@@ -132,6 +133,9 @@ class ServerManager:
                 except:
                     pass
             self.server_process = None
+            if self.log_file:
+                self.log_file.close()
+                self.log_file = None
             # Clear TEST_SERVER_PID environment variable
             os.environ.pop("TEST_SERVER_PID", None)
 
@@ -409,7 +413,8 @@ def categorize_tests(tests: List[str]) -> Tuple[List[str], List[str]]:
     """
     # Every registered test runs except the ones listed here with a reason
     SKIPPED_TESTS = {
-        "validate_server_checksum_match": "client battles never go through the server; fingerprint includes entity ids",
+        # Issue 89 deferred: requires single authoritative simulator (#62) + production server battle flow (#6) - see CODE_REVIEW_100_ISSUES.md status appendix
+        "validate_server_checksum_match": "deferred #89/#62/#6: client and server run different battles (different seed/opponent/simulator)",
     }
     # Integration tests that start their own server (from bash script)
     INTEGRATION_TESTS = [
