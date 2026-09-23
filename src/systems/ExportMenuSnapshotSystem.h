@@ -4,6 +4,7 @@
 #include "../components/is_dish.h"
 #include "../components/is_inventory_item.h"
 #include <afterhours/ah.h>
+#include <atomic>
 #include <chrono>
 #include <filesystem>
 #include <fmt/format.h>
@@ -27,7 +28,7 @@ public:
   std::string export_menu_snapshot() {
     // Query entities with both IsInventoryItem and IsDish
     std::vector<std::reference_wrapper<afterhours::Entity>> inventory_dishes;
-    for (auto &ref : afterhours::EntityQuery()
+    for (auto &ref : afterhours::EntityQuery({.force_merge = true})
                          .template whereHasComponent<IsInventoryItem>()
                          .template whereHasComponent<IsDish>()
                          .gen()) {
@@ -74,9 +75,17 @@ public:
     // Ensure output directory exists
     std::filesystem::create_directories("output/battles/pending");
 
-    // Write file (no seed in filename since it comes from server)
+    // Write file (no seed in filename since it comes from server).
+    // Full epoch millis + monotonic counter: back-to-back battles in the
+    // same millisecond must not reuse (and overwrite) a snapshot path.
+    static std::atomic<long long> snapshot_counter{0};
+    long long epoch_millis =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            now.time_since_epoch())
+            .count();
     std::string filename =
-        fmt::format("output/battles/pending/{}.json", timestamp);
+        fmt::format("output/battles/pending/{}_{}_{}.json", timestamp,
+                    epoch_millis, snapshot_counter.fetch_add(1));
     std::ofstream file(filename);
     if (file.is_open()) {
       file << snapshot.dump(2);

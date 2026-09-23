@@ -180,7 +180,7 @@ void BattleAPI::handle_battle_request(const httplib::Request &req,
     std::string server_hash = SHARED_CODE_HASH;
 
     if (client_hash != server_hash) {
-      log_error(
+      log_warn(
           "[{}] CODE_HASH: Version mismatch - Client hash: {}, Server hash: {}",
           request_id, client_hash, server_hash);
       nlohmann::json error_response;
@@ -362,7 +362,7 @@ void BattleAPI::handle_battle_request(const httplib::Request &req,
     }
     res.status = 400;
     res.set_content(error.dump(), "application/json");
-    log_error("[{}] Battle API JSON error: {}", request_id, e.what());
+    log_warn("[{}] Battle API JSON error: {}", request_id, e.what());
   } catch (const std::exception &e) {
     if (simulator_initialized) {
       simulator.cleanup_temp_files();
@@ -376,7 +376,7 @@ void BattleAPI::handle_battle_request(const httplib::Request &req,
     }
     res.status = 500;
     res.set_content(error.dump(), "application/json");
-    log_error("[{}] Battle API error: {}", request_id, e.what());
+    log_warn("[{}] Battle API error: {}", request_id, e.what());
   }
 }
 

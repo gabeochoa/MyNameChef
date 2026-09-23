@@ -65,7 +65,7 @@ struct ApplyPairingsAndClashesSystem
     } else {
       // Modifiers already exist - preserve them
       if (oldBodyDelta != mod.bodyDelta || oldZingDelta != mod.zingDelta) {
-        log_error("PAIRINGS_CLASHES: Dish {} - MODIFIERS CHANGED! bodyDelta: {} -> {}, zingDelta: {} -> {}",
+        log_warn("PAIRINGS_CLASHES: Dish {} - MODIFIERS CHANGED! bodyDelta: {} -> {}, zingDelta: {} -> {}",
                  e.id, oldBodyDelta, mod.bodyDelta, oldZingDelta, mod.zingDelta);
       }
       // quiet

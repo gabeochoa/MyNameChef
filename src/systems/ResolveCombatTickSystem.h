@@ -234,7 +234,9 @@ private:
     // Always look for opponent at index 0 (queues are reorganized when dishes
     // finish)
     for (afterhours::Entity &e :
-         afterhours::EntityQuery().whereHasComponent<DishBattleState>().gen()) {
+         afterhours::EntityQuery({.ignore_temp_warning = true})
+             .whereHasComponent<DishBattleState>()
+             .gen()) {
       DishBattleState &other_dbs = e.get<DishBattleState>();
       if (other_dbs.team_side == opponent_side && other_dbs.queue_index == 0 &&
           other_dbs.phase == DishBattleState::Phase::InCombat) {

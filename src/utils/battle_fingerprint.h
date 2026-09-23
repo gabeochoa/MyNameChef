@@ -23,7 +23,7 @@ struct BattleFingerprint {
 
     std::vector<struct DishData> dishes;
 
-    for (afterhours::Entity &e : afterhours::EntityQuery()
+    for (afterhours::Entity &e : afterhours::EntityQuery({.force_merge = true})
                                      .whereHasComponent<IsDish>()
                                      .whereHasComponent<DishBattleState>()
                                      .gen()) {

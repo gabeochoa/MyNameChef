@@ -57,9 +57,9 @@ struct HandleDrinkDrop : System<IsHeld, Transform, IsDrinkShopItem> {
       DrinkPairing &drink_pairing = dish.addComponentIfMissing<DrinkPairing>();
       drink_pairing.drink = drink_shop_item.drink_type;
 
+      empty_originating_slot(drink_shop_item.slot);
       DrinkInfo drink_info = get_drink_info(drink_shop_item.drink_type);
       make_toast("Applied " + drink_info.name + "!");
-      empty_originating_slot(drink_shop_item.slot);
 
       drink_entity.removeComponent<IsHeld>();
       drink_entity.cleanup = true;

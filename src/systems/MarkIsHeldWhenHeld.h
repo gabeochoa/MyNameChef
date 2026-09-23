@@ -67,7 +67,7 @@ public:
       return;
     }
     
-    log_error("MARK_IS_HELD: Entity {} - mouse over and button pressed, marking as held", entity.id);
+    log_info("MARK_IS_HELD: Entity {} - mouse over and button pressed, marking as held", entity.id);
 
     if (entity.has<IsHeld>()) {
       return;

@@ -33,6 +33,10 @@ struct TriggerDispatchSystem : afterhours::System<TriggerQueue> {
 
   void for_each_with(afterhours::Entity &, TriggerQueue &queue,
                      float) override {
+    sort_events(queue);
+  }
+
+  static void sort_events(TriggerQueue &queue) {
     if (queue.empty()) {
       return;
     }
@@ -49,7 +53,7 @@ struct TriggerDispatchSystem : afterhours::System<TriggerQueue> {
                                      .gen()) {
       const auto &dbs = e.get<DishBattleState>();
       if (!e.has<CombatStats>()) {
-        log_error("TRIGGER_ORDER: Dish {} on team {} missing CombatStats", e.id,
+        log_warn("TRIGGER_ORDER: Dish {} on team {} missing CombatStats", e.id,
                   dbs.team_side == DishBattleState::TeamSide::Player
                       ? "Player"
                       : "Opponent");

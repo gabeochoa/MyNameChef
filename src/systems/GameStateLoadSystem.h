@@ -284,7 +284,7 @@ private:
               }
             }
 
-            for (auto &ref : afterhours::EntityQuery()
+            for (auto &ref : afterhours::EntityQuery({.force_merge = true})
                                  .whereHasComponent<IsDropSlot>()
                                  .gen()) {
               auto &slot_entity = ref.get();
@@ -332,7 +332,7 @@ private:
             dish_entity.addComponent<HasTooltip>(
                 generate_dish_tooltip(dish_type));
 
-            for (auto &ref : afterhours::EntityQuery()
+            for (auto &ref : afterhours::EntityQuery({.force_merge = true})
                                  .whereHasComponent<IsDropSlot>()
                                  .gen()) {
               auto &slot_entity = ref.get();

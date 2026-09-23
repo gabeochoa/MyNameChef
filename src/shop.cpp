@@ -331,13 +331,13 @@ bool wallet_charge(int cost) {
   }
   auto &wallet = wallet_entity.get().get<Wallet>();
   if (wallet.gold < cost) {
-    log_error("WALLET_CHARGE: Insufficient gold: have {}, need {}", wallet.gold,
+    log_warn("WALLET_CHARGE: Insufficient gold: have {}, need {}", wallet.gold,
               cost);
     return false;
   }
   int old_gold = wallet.gold;
   wallet.gold -= cost;
-  log_error("WALLET_CHARGE: Charged {} gold: {} -> {}", cost, old_gold,
+  log_info("WALLET_CHARGE: Charged {} gold: {} -> {}", cost, old_gold,
             wallet.gold);
   return true;
 }
@@ -354,7 +354,9 @@ bool hasActiveAnimation() {
     return false;
   }
 
-  if (EntityQuery().whereHasComponent<IsBlockingAnimationEvent>().has_values()) {
+  if (EntityQuery({.force_merge = true})
+          .whereHasComponent<IsBlockingAnimationEvent>()
+          .has_values()) {
     return true;
   }
   return false;

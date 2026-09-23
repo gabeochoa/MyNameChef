@@ -11,6 +11,7 @@
 #include "../components/is_dish.h"
 #include "../components/next_damage_effect.h"
 #include "../components/pending_combat_mods.h"
+#include "../components/persistent_combat_modifiers.h"
 #include "../components/render_order.h"
 #include "../components/status_effects.h"
 #include "../components/synergy_bonus_effects.h"
@@ -552,6 +553,10 @@ private:
         break;
       }
       auto &stats = target.get<CombatStats>();
+      int zingMinusBody = stats.baseZing - stats.baseBody;
+      auto &persist = target.addComponentIfMissing<PersistentCombatModifiers>();
+      persist.zingDelta -= zingMinusBody;
+      persist.bodyDelta += zingMinusBody;
       std::swap(stats.baseZing, stats.baseBody);
       std::swap(stats.currentZing, stats.currentBody);
       log_info("EFFECT: Swapped Zing and Body stats for entity {}", target.id);

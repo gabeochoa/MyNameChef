@@ -102,6 +102,12 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
         }
       }
       
+      if (!EQ({.force_merge = true})
+               .whereHasComponent<DishBattleState>()
+               .has_values()) {
+        return;
+      }
+
       bool player_has_remaining =
           has_remaining_active_dishes(DishBattleState::TeamSide::Player);
       bool opponent_has_remaining =

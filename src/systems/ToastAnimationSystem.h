@@ -5,6 +5,7 @@
 #include "../render_backend.h"
 #include "../rl.h"
 #include <afterhours/ah.h>
+#include <algorithm>
 #include <afterhours/src/plugins/color.h>
 
 struct ToastAnimationSystem
@@ -41,7 +42,7 @@ struct ToastAnimationSystem
 
     transform.position.y = y;
     raylib::Color bgColor = hasColor.color();
-    bgColor.a = static_cast<unsigned char>(alpha * 200.0f);
+    bgColor.a = static_cast<unsigned char>(std::clamp(alpha, 0.f, 1.f) * 200.0f);
     hasColor.set(bgColor);
   }
 };
