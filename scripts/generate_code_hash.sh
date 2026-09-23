@@ -37,6 +37,11 @@ while IFS= read -r file; do
     FILES_TO_HASH+=("$file")
 done < <(find "$PROJECT_ROOT/src/components" -type f \( -name "*.h" -o -name "*.cpp" \) | sort)
 
+# Issue 79: shared gameplay implementations (dish_types.cpp etc, systems/*.cpp)
+while IFS= read -r file; do
+    FILES_TO_HASH+=("$file")
+done < <(find "$PROJECT_ROOT/src" -maxdepth 1 -type f \( -name "*.h" -o -name "*.cpp" \) | sort; find "$PROJECT_ROOT/src/systems" -type f -name "*.cpp" | sort)
+
 echo "  Discovering shared utility files from system includes..."
 
 for system_file in "${SYSTEM_FILES[@]}"; do

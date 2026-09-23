@@ -99,7 +99,12 @@ ifeq ($(TARGET),windows)
 else
     OUTPUT_DIR := output
 endif
+# Issue 80: coverage and normal builds must not share objects
+ifeq ($(COVERAGE),1)
+OBJ_DIR := $(OUTPUT_DIR)/objs-coverage
+else
 OBJ_DIR := $(OUTPUT_DIR)/objs
+endif
 
 # Source files for my_name_chef
 MAIN_SRC := $(wildcard src/*.cpp)
@@ -136,10 +141,11 @@ SERVER_DEPS := $(SERVER_OBJS:.o=.d)
 MAIN_EXE := $(OUTPUT_DIR)/my_name_chef$(EXT)
 SERVER_EXE := $(OUTPUT_DIR)/battle_server$(EXT)
 
-# Code hash generation
+# Code hash generation (issues 78/79: depend on every hashed input)
 CODE_HASH_GENERATED := src/utils/code_hash_generated.h
+CODE_HASH_INPUTS := $(shell find src/systems src/components src/utils -type f \( -name '*.h' -o -name '*.cpp' \) | grep -v code_hash_generated) $(wildcard src/*.cpp src/*.h)
 
-$(CODE_HASH_GENERATED): scripts/generate_code_hash.sh
+$(CODE_HASH_GENERATED): scripts/generate_code_hash.sh $(CODE_HASH_INPUTS)
 	@echo "Generating code hash..."
 	@./scripts/generate_code_hash.sh
 
@@ -277,27 +283,11 @@ cppcheck:
 		--suppress=useInitializationList --suppress=duplicateCondition \
 		--suppress=nullPointerRedundantCheck --suppress=cstyleCast
 
-# Dependency graph targets
-deps:
-	cd tools && make run
-
-deps-dot:
-	cd tools && ./dependency_graph --src ../src --main ../src/main.cpp --outdir ../output
-
-deps-svg:
-	cd tools && ./dependency_graph --src ../src --main ../src/main.cpp --outdir ../output --svg
-
-deps-html:
-	cd tools && ./dependency_graph --src ../src --main ../src/main.cpp --outdir ../output
-
-deps-check: deps
-	@echo "Checking dependency graph against baseline..."
-	@[ -f tools/dependency_baseline.json ] || (echo "No baseline found at tools/dependency_baseline.json" && exit 2)
-	@diff -u tools/dependency_baseline.json output/dependency_summary.json || (echo "Dependency summary changed. Run 'make deps' and update baseline if intentional." && exit 1)
+# Dependency graph targets removed (issue 94: tools/dependency_graph absent from checkout)
 
 # Plugin boundary check
 check-plugins:
 	@echo "Checking plugin API boundaries..."
 	@cd vendor/afterhours && ./check_plugin_boundaries.sh
 
-.PHONY: cba clean-cba prof leak alloc count countall cppcheck deps deps-dot deps-svg deps-html deps-check check-plugins
+.PHONY: cba clean-cba prof leak alloc count countall cppcheck check-plugins

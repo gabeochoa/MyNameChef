@@ -53,3 +53,6 @@ __pycache__/
 
 # Claude Code local state
 .claude/
+
+# Generated locally (issue 93: workstation-specific, do not commit)
+compile_commands.json
