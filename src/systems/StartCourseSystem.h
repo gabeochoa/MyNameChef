@@ -38,6 +38,15 @@ struct StartCourseSystem : afterhours::System<CombatQueue> {
       return;
     }
 
+    // Issue 57: terminal completion must not be blocked by OnServe prereqs
+    // (deferred from AdvanceCourse while death effects drained). Only for a
+    // battle that has started (a dish finished) - never at instantiation.
+    { bool any_finished = false; for (auto &ref : EQ({.ignore_temp_warning = true}).whereHasComponent<DishBattleState>().gen()) if (ref.get().get<DishBattleState>().phase == DishBattleState::Phase::Finished) any_finished = true;
+      bool pending_death = false; if (auto tq = afterhours::EntityHelper::get_singleton<TriggerQueue>(); tq.get().has<TriggerQueue>()) { for (auto &ev : tq.get().get<TriggerQueue>().events) if (ev.hook == TriggerHook::OnDishFinished) pending_death = true; }
+      pending_death = pending_death || !any_finished;
+      if (!pending_death && !find_dish_at_index_zero(DishBattleState::TeamSide::Player) && !has_remaining_active_dishes(DishBattleState::TeamSide::Player)) { cq.complete = true; GameStateManager::get().to_results(); return; }
+      if (!pending_death && !find_dish_at_index_zero(DishBattleState::TeamSide::Opponent) && !has_remaining_active_dishes(DishBattleState::TeamSide::Opponent)) { cq.complete = true; GameStateManager::get().to_results(); return; } }
+
     if (!prerequisites_complete()) {
       static int skip_count = 0;
       skip_count++;

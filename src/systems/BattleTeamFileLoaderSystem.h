@@ -132,6 +132,12 @@ private:
           }
         }
       }
+      // Issue 9: powerups have no gameplay implementation - reject explicitly
+      // instead of silently accepting inert loadout data.
+      if (!spec.powerups.empty()) { log_warn("BATTLE_LOADER: powerups unsupported, ignoring {} entries for slot {}", spec.powerups.size(), spec.slot); spec.powerups.clear(); }
+      if (dishEntry.contains("drink") && dishEntry["drink"].is_string()) {
+        if (auto d = magic_enum::enum_cast<DrinkType>(dishEntry["drink"].get<std::string>())) spec.drink = d;
+      }
 
       team_specs.push_back(spec);
     }

@@ -70,10 +70,9 @@ struct TriggerDispatchSystem : afterhours::System<TriggerQueue> {
       order.push_back(i);
     }
 
-    // Deterministic ordering: (slotIndex asc, highest total Zing team first,
-    // sourceEntityId asc if tied)
+    // Issues 54/55: one consistent tuple for every pair + stable (emission order preserved for equal keys)
     TriggerEventComparator comparator(team_total_zing);
-    std::sort(order.begin(), order.end(), [&](size_t ia, size_t ib) {
+    std::stable_sort(order.begin(), order.end(), [&](size_t ia, size_t ib) {
       return comparator(queue.events[ia], queue.events[ib]);
     });
 
@@ -95,30 +94,15 @@ private:
     const std::map<DishBattleState::TeamSide, int> &team_total_zing;
 
     bool operator()(const TriggerEvent &a, const TriggerEvent &b) const {
-      if (a.slotIndex != b.slotIndex)
-        return a.slotIndex < b.slotIndex;
-      if (a.teamSide != b.teamSide) {
-        // Safely get team totals, defaulting to 0 if not found
-        int team_a_total = 0;
-        int team_b_total = 0;
-        auto it_a = team_total_zing.find(a.teamSide);
-        if (it_a != team_total_zing.end()) {
-          team_a_total = it_a->second;
-        }
-        auto it_b = team_total_zing.find(b.teamSide);
-        if (it_b != team_total_zing.end()) {
-          team_b_total = it_b->second;
-        }
-        if (team_a_total != team_b_total)
-          return team_a_total > team_b_total; // higher total first
-        // If tied, use sourceEntityId as tie-breaker
-        return a.sourceEntityId < b.sourceEntityId;
-      }
-      int za = get_entity_zing(a.sourceEntityId);
-      int zb = get_entity_zing(b.sourceEntityId);
-      if (za != zb)
-        return za > zb; // higher zing first
-      return a.sourceEntityId < b.sourceEntityId;
+      // Strict weak ordering: same tuple keys for same- and cross-team pairs.
+      if (a.slotIndex != b.slotIndex) return a.slotIndex < b.slotIndex;
+      int ta = team_total_zing.count(a.teamSide) ? team_total_zing.at(a.teamSide) : 0;
+      int tb = team_total_zing.count(b.teamSide) ? team_total_zing.at(b.teamSide) : 0;
+      if (ta != tb) return ta > tb;
+      int za = get_entity_zing(a.sourceEntityId), zb = get_entity_zing(b.sourceEntityId);
+      if (za != zb) return za > zb;
+      if (a.sourceEntityId != b.sourceEntityId) return a.sourceEntityId < b.sourceEntityId;
+      return static_cast<int>(a.hook) < static_cast<int>(b.hook);
     }
 
   private:
@@ -131,7 +115,7 @@ private:
         if (ea->has<CombatStats>()) {
           return ea->get<CombatStats>().baseZing;
         } else {
-          log_error("TRIGGER_ORDER: Source entity {} missing CombatStats",
+          log_warn("TRIGGER_ORDER: Source entity {} missing CombatStats",
                     sourceEntityId);
         }
       }

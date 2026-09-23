@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include "../components/battle_team_tags.h"
 #include "../components/combat_stats.h"
 #include "../components/deferred_flavor_mods.h"
@@ -81,26 +82,20 @@ private:
       }
     }
 
+    // Issue 59: snapshot - CopyEffect appends to DrinkEffects during iteration.
     if (src_opt->has<DrinkEffects>()) {
-      const auto &drink_effects = src_opt->get<DrinkEffects>();
-      for (const auto &effect : drink_effects.effects) {
-        if (effect.triggerHook == ev.hook) {
-          apply_effect(effect, ev);
-        }
-      }
+      auto snapshot = src_opt->get<DrinkEffects>().effects;
+      for (const auto &effect : snapshot) if (effect.triggerHook == ev.hook) apply_effect(effect, ev);
     }
-
     if (src_opt->has<SynergyBonusEffects>()) {
-      const auto &synergy_effects = src_opt->get<SynergyBonusEffects>();
-      for (const auto &effect : synergy_effects.effects) {
-        if (effect.triggerHook == ev.hook) {
-          apply_effect(effect, ev);
-        }
-      }
+      auto snapshot = src_opt->get<SynergyBonusEffects>().effects;
+      for (const auto &effect : snapshot) if (effect.triggerHook == ev.hook) apply_effect(effect, ev);
     }
   }
 
   void apply_effect(const DishEffect &effect, const TriggerEvent &ev) {
+    // Issue 60: copied effects are terminal - never copy a copy / CopyEffect.
+    if (effect.is_copied && effect.operation == EffectOperation::CopyEffect) return;
     if (effect.conditional) {
       if (!check_conditional(effect, ev)) {
         return;
@@ -488,6 +483,12 @@ private:
     }
     }
 
+    // Issue 58: opponent-side scopes (and DishesAfterSelf) never target
+    // defeated dishes. Ally scopes keep the tested contract (buffs may
+    // target a Finished ally, ValidateEffectSystemTest Fried Egg).
+    if (scope == TargetScope::Opponent || scope == TargetScope::RandomOpponent || scope == TargetScope::AllOpponents || scope == TargetScope::DishesAfterSelf) {
+      targets.erase(std::remove_if(targets.begin(), targets.end(), [](std::reference_wrapper<afterhours::Entity> w) { auto &e = w.get(); return e.has<DishBattleState>() && e.get<DishBattleState>().phase == DishBattleState::Phase::Finished; }), targets.end());
+    }
     return targets;
   }
 
@@ -614,6 +615,7 @@ private:
         }
         const auto &copy_info = get_dish_info(copy_dish.type, copy_level);
         for (const auto &dish_effect : copy_info.effects) {
+          if (dish_effect.operation == EffectOperation::CopyEffect) continue; // issue 60
           DishEffect copied = dish_effect;
           copied.is_copied = true;
           copied_effects.push_back(copied);
@@ -624,6 +626,7 @@ private:
       if (copy_from.has<DrinkEffects>()) {
         const auto &drink_effects = copy_from.get<DrinkEffects>();
         for (const auto &drink_effect : drink_effects.effects) {
+          if (drink_effect.is_copied || drink_effect.operation == EffectOperation::CopyEffect) continue;
           DishEffect copied = drink_effect;
           copied.is_copied = true;
           copied_effects.push_back(copied);
@@ -634,6 +637,7 @@ private:
       if (copy_from.has<SynergyBonusEffects>()) {
         const auto &synergy_effects = copy_from.get<SynergyBonusEffects>();
         for (const auto &synergy_effect : synergy_effects.effects) {
+          if (synergy_effect.is_copied || synergy_effect.operation == EffectOperation::CopyEffect) continue;
           DishEffect copied = synergy_effect;
           copied.is_copied = true;
           copied_effects.push_back(copied);

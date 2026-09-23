@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../components/battle_load_request.h"
+#include "../components/battle_processor.h"
 #include "../components/battle_result.h"
 #include "../components/battle_team_tags.h"
 #include "../components/is_dish.h"
@@ -44,9 +45,15 @@ struct LoadBattleResults : afterhours::System<> {
     if (pos != std::string::npos)
       resultPath.replace(pos, 7, "results");
 
+    // Issues 5/70: authoritative result already exists - never overwrite it.
+    if (afterhours::EntityHelper::has_singleton<BattleResult>()) { auto e = afterhours::EntityHelper::get_singleton<BattleResult>(); if (e.get().has<BattleResult>()) { loaded = true; return; } }
+    // Skip/fast-forward: finish the authoritative processor simulation now.
+    if (afterhours::EntityHelper::has_singleton<BattleProcessor>()) { auto e = afterhours::EntityHelper::get_singleton<BattleProcessor>(); if (e.get().has<BattleProcessor>()) { auto &proc = e.get().get<BattleProcessor>(); if (proc.isBattleActive() && !proc.finished) { int guard = 0; while (!proc.simulationComplete && guard++ < 200000) proc.updateSimulation(0.05f); proc.finishBattle(); } } }
+    if (afterhours::EntityHelper::has_singleton<BattleResult>()) { auto e = afterhours::EntityHelper::get_singleton<BattleResult>(); if (e.get().has<BattleResult>()) { loaded = true; return; } }
     BattleResult result;
     if (!load_results_from_json(resultPath, result)) {
-      calculate_results_from_teams(result);
+      log_warn("LoadBattleResults: no authoritative result and no valid report - leaving result unset");
+      loaded = true; return;
     }
 
     // Check if BattleResult singleton already exists
@@ -87,16 +94,17 @@ private:
     } catch (...) {
       return false;
     }
-    if (j.contains("outcome")) {
-      const std::string s = j["outcome"].get<std::string>();
-      if (s == "player_win")
-        out.outcome = BattleResult::Outcome::PlayerWin;
-      else if (s == "opponent_win")
-        out.outcome = BattleResult::Outcome::OpponentWin;
-      else
-        out.outcome = BattleResult::Outcome::Tie;
+    // Issue 70: writer emits `outcomes` array - parse it; reject unrelated JSON.
+    if (!j.contains("outcomes") || !j["outcomes"].is_array() || j["outcomes"].empty()) return false;
+    out.playerWins = out.opponentWins = out.ties = 0;
+    for (auto &o : j["outcomes"]) {
+      BattleResult::CourseOutcome co; co.slotIndex = o.value("slotIndex", 0); co.ticks = o.value("ticks", 0);
+      std::string w = o.value("winner", std::string("Tie"));
+      co.winner = w == "Player" ? BattleResult::CourseOutcome::Winner::Player : w == "Opponent" ? BattleResult::CourseOutcome::Winner::Opponent : BattleResult::CourseOutcome::Winner::Tie;
+      if (co.winner == BattleResult::CourseOutcome::Winner::Player) out.playerWins++; else if (co.winner == BattleResult::CourseOutcome::Winner::Opponent) out.opponentWins++; else out.ties++;
+      out.outcomes.push_back(co);
     }
-    // Ignore legacy totals in new model
+    out.outcome = out.playerWins > out.opponentWins ? BattleResult::Outcome::PlayerWin : out.opponentWins > out.playerWins ? BattleResult::Outcome::OpponentWin : BattleResult::Outcome::Tie;
     return true;
   }
 

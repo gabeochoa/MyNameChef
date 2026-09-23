@@ -5,6 +5,7 @@
 #include "../components/combat_queue.h"
 #include "../components/dish_battle_state.h"
 #include "../components/dish_level.h"
+#include "../components/drink_pairing.h"
 #include "../components/has_tooltip.h"
 #include "../components/is_dish.h"
 #include "../components/render_order.h"
@@ -97,7 +98,8 @@ private:
                                    afterhours::vec2{80.0f, 80.0f});
     entity.addComponent<IsDish>(spec.dishType);
     add_dish_tags(entity, spec.dishType);
-    entity.addComponent<DishLevel>(spec.level);
+    entity.addComponent<DishLevel>(std::clamp(spec.level, 1, MAX_DISH_LEVEL));
+    if (spec.drink) entity.addComponent<DrinkPairing>(*spec.drink); // issue 8
 
     auto &dbs = entity.addComponent<DishBattleState>();
     dbs.queue_index = spec.slot;

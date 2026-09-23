@@ -1,6 +1,8 @@
 #pragma once
 
 #include "../components/battle_load_request.h"
+#include "../components/dish_level.h"
+#include "../components/drink_pairing.h"
 #include "../components/is_dish.h"
 #include "../components/is_inventory_item.h"
 #include "../components/replay_state.h"
@@ -19,6 +21,7 @@
 #include <vector>
 
 struct ServerBattleRequestSystem : afterhours::System<BattleLoadRequest> {
+  int failures = 0; // issue 25: bounded retries - after max, stay failed until new request (paths set / url changes)
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
     return gsm.active_screen == GameStateManager::Screen::Battle;
@@ -37,6 +40,7 @@ struct ServerBattleRequestSystem : afterhours::System<BattleLoadRequest> {
     if (!request.playerJsonPath.empty() || !request.opponentJsonPath.empty()) {
       return;
     }
+    if (failures >= 3) { log_warn("SERVER_BATTLE_REQUEST: terminal failure after 3 attempts - set a new serverUrl/request to retry"); return; } // issue 25
 
     request.serverRequestPending = true;
     log_info("SERVER_BATTLE_REQUEST: Starting server battle request to {}",
@@ -53,7 +57,7 @@ struct ServerBattleRequestSystem : afterhours::System<BattleLoadRequest> {
 
     nlohmann::json player_team_json = build_player_team_json();
     if (player_team_json.empty()) {
-      log_error("SERVER_BATTLE_REQUEST: Failed to build player team JSON");
+      log_warn("SERVER_BATTLE_REQUEST: Failed to build player team JSON"); failures++;
       request.serverRequestPending = false;
       return;
     }
@@ -67,9 +71,8 @@ struct ServerBattleRequestSystem : afterhours::System<BattleLoadRequest> {
 
     http_helpers::ServerUrlParts url_parts =
         http_helpers::parse_server_url(request.serverUrl);
-    if (!url_parts.success) {
-      log_error("SERVER_BATTLE_REQUEST: Failed to parse server URL: {}",
-                request.serverUrl);
+    if (!url_parts.success || url_parts.is_https) { // issue 28: no TLS client - fail closed, never downgrade
+      log_warn("SERVER_BATTLE_REQUEST: Invalid or HTTPS (unsupported) server URL: {}", request.serverUrl); failures++;
       request.serverRequestPending = false;
       return;
     }
@@ -84,24 +87,16 @@ struct ServerBattleRequestSystem : afterhours::System<BattleLoadRequest> {
     std::string request_body = player_team_json.dump();
     auto res = client.Post("/battle", request_body, "application/json");
 
-    if (!res) {
-      log_error("SERVER_BATTLE_REQUEST: Failed to connect to server");
-      request.serverRequestPending = false;
-      return;
-    }
-
-    if (res->status != 200) {
-      log_error("SERVER_BATTLE_REQUEST: Server returned error status: {}",
-                res->status);
-      log_error("  Response: {}", res->body);
-      request.serverRequestPending = false;
-      return;
-    }
-
-    nlohmann::json battle_response = nlohmann::json::parse(res->body);
-    uint64_t seed = battle_response["seed"].get<uint64_t>();
-    std::string opponent_id = battle_response["opponentId"].get<std::string>();
-    std::string checksum = battle_response.value("checksum", std::string(""));
+    if (!res) { log_warn("SERVER_BATTLE_REQUEST: Failed to connect"); failures++; request.serverRequestPending = false; return; }
+    if (res->status != 200) { log_warn("SERVER_BATTLE_REQUEST: Server status {}: {}", res->status, res->body); failures++; request.serverRequestPending = false; return; }
+    // Issue 26: malformed 200 must not throw out of the game loop.
+    nlohmann::json battle_response; uint64_t seed; std::string opponent_id, checksum;
+    try {
+      battle_response = nlohmann::json::parse(res->body);
+      if (!battle_response.contains("seed") || !battle_response.contains("opponentId")) throw std::runtime_error("missing seed/opponentId");
+      seed = battle_response["seed"].get<uint64_t>(); opponent_id = battle_response["opponentId"].get<std::string>(); checksum = battle_response.value("checksum", std::string(""));
+    } catch (const std::exception &e) { log_warn("SERVER_BATTLE_REQUEST: Malformed response: {}", e.what()); failures++; request.serverRequestPending = false; return; }
+    failures = 0;
 
     log_info("SERVER_BATTLE_REQUEST: Battle request successful");
     log_info("  Seed: {}", seed);
@@ -114,11 +109,15 @@ struct ServerBattleRequestSystem : afterhours::System<BattleLoadRequest> {
         "output/battles/temp_opponent_" + std::to_string(seed) + ".json";
 
     if (!std::filesystem::exists(request.playerJsonPath)) {
-      log_warn("SERVER_BATTLE_REQUEST: Player file not found, creating it...");
       std::filesystem::create_directories("output/battles");
-      std::ofstream player_out(request.playerJsonPath);
-      player_out << player_team_json.dump(2);
-      player_out.close();
+      std::ofstream player_out(request.playerJsonPath); player_out << player_team_json.dump(2); player_out.close();
+    }
+    // Issue 10: write opponent snapshot returned by server (no server temp file).
+    if (battle_response.contains("opponentTeam")) {
+      std::filesystem::create_directories("output/battles");
+      std::ofstream opp_out(request.opponentJsonPath);
+      auto ot = battle_response["opponentTeam"]; if (ot.is_array()) ot = nlohmann::json{{"team", ot}};
+      opp_out << ot.dump(2); opp_out.close();
     }
 
     auto replay_state_opt =
@@ -157,7 +156,7 @@ struct ServerBattleRequestSystem : afterhours::System<BattleLoadRequest> {
       auto save_res = client.Post("/save-game-state", save_request.dump(),
                                   "application/json");
       if (save_res && save_res->status == 200) {
-        nlohmann::json save_response = nlohmann::json::parse(save_res->body);
+        nlohmann::json save_response; try { save_response = nlohmann::json::parse(save_res->body); } catch (...) { log_warn("GAME_STATE_SAVE: malformed save response, keeping local"); save_response = {}; }
         bool match = save_response.value("match", false);
         if (!match && save_response.contains("gameState")) {
           log_info("GAME_STATE_SAVE: Server returned updated state, "
@@ -210,7 +209,8 @@ private:
       nlohmann::json dish_entry;
       dish_entry["slot"] = slot_index++;
       dish_entry["dishType"] = magic_enum::enum_name(dish.type);
-      dish_entry["level"] = 1;
+      dish_entry["level"] = entity.has<DishLevel>() ? entity.get<DishLevel>().level : 1; // issue 7
+      if (entity.has<DrinkPairing>() && entity.get<DrinkPairing>().drink) dish_entry["drink"] = magic_enum::enum_name(*entity.get<DrinkPairing>().drink); // issue 8
       team.push_back(dish_entry);
     }
 

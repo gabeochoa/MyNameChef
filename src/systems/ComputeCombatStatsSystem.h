@@ -11,6 +11,8 @@
 #include "../components/status_effects.h"
 #include "../dish_types.h"
 #include <afterhours/ah.h>
+#include <algorithm>
+#include <climits>
 #include <map>
 #include <unordered_set>
 
@@ -70,10 +72,10 @@ struct ComputeCombatStatsSystem : afterhours::System<IsDish, DishLevel> {
       }
 
       if (in_enter_or_combat) {
-        // Persist the net stat effects into PersistentCombatModifiers and clear
-        // deferred
-        int persistZDelta = zingWithDef - zingNoDef;
-        int persistBDelta = bodyWithDef - bodyNoDef;
+        // Issue 52: persist at the same level scaling the preview used.
+        int mult = 1; for (int i = 1; i < lvl.level; ++i) mult *= 2;
+        int persistZDelta = (zingWithDef - zingNoDef) * mult;
+        int persistBDelta = (bodyWithDef - bodyNoDef) * mult;
         if (persistZDelta != 0 || persistBDelta != 0) {
           auto &persist = e.addComponentIfMissing<PersistentCombatModifiers>();
           persist.zingDelta += persistZDelta;
@@ -92,16 +94,8 @@ struct ComputeCombatStatsSystem : afterhours::System<IsDish, DishLevel> {
     int zing = flavor.zing();
     int body = flavor.body();
 
-    // Level scaling: multiply by 2 for each level above 1
-    if (lvl.level > 1) {
-      int level_multiplier = 2;
-      for (int i = 2; i < lvl.level; ++i) {
-        level_multiplier *= 2;
-      }
-      zing *= level_multiplier;
-      body *= level_multiplier;
-      // quiet
-    }
+    // Level scaling (issue 16: capped, checked - no overflow loop)
+    { int capped = std::clamp(lvl.level, 1, MAX_DISH_LEVEL); long long m = 1LL << (capped - 1); zing = static_cast<int>(std::min<long long>(zing * m, INT_MAX / 2)); body = static_cast<int>(std::min<long long>(body * m, INT_MAX / 2)); }
 
     // Apply pre-battle modifiers
     // Check if dish is entering combat (was not in combat before, now is)
@@ -113,14 +107,9 @@ struct ComputeCombatStatsSystem : afterhours::System<IsDish, DishLevel> {
       in_combat = dbs.phase == DishBattleState::Phase::InCombat;
     }
 
-    // Skip recalculation for finished dishes - their stats are locked
-    if (is_finished) {
-      return;
-    }
-
     // Track if we just entered combat this frame by tracking previous phase
-    // This is more reliable than a static map which can get stale
     static std::map<int, DishBattleState::Phase> previous_phase;
+    if (is_finished) { previous_phase.erase(e.id); return; } // issue 53 purge
     bool just_entered_combat = false;
     if (e.has<DishBattleState>()) {
       const auto &dbs = e.get<DishBattleState>();
@@ -188,24 +177,18 @@ struct ComputeCombatStatsSystem : afterhours::System<IsDish, DishLevel> {
         (oldBaseZing != cs.baseZing || oldBaseBody != cs.baseBody);
 
     if (!in_combat) {
-      // Not in combat: always sync to baseBody
       cs.currentZing = cs.baseZing;
       cs.currentBody = cs.baseBody;
     } else {
-      // In combat: only sync if just entered or baseBody changed
-      if (just_entered_combat || baseChanged) {
-        cs.currentZing = cs.baseZing;
-        cs.currentBody = cs.baseBody;
-        // quiet
-      } else {
-        // In combat and baseBody unchanged - don't sync (damage might have been
-        // applied) Only log periodically to confirm we're not resetting damage
-        static std::map<int, int> frame_count;
-        frame_count[e.id] = (frame_count.find(e.id) == frame_count.end())
-                                ? 0
-                                : frame_count[e.id] + 1;
-        // quiet periodic
+      if (just_entered_combat) {
+        cs.currentZing = cs.baseZing; cs.currentBody = cs.baseBody;
+      } else if (baseChanged) {
+        // Issue 51: apply only the delta - a modifier must not heal damage.
+        cs.currentZing += cs.baseZing - oldBaseZing;
+        cs.currentBody += cs.baseBody - oldBaseBody;
+        if (cs.currentBody < 0) cs.currentBody = 0;
       }
+      // else: in combat, unchanged - preserve damage (issue 51/53, no statics)
     }
 
     // (quiet)

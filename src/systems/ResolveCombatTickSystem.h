@@ -117,14 +117,13 @@ private:
       if (auto tq = afterhours::EntityHelper::get_singleton<TriggerQueue>();
           tq.get().has<TriggerQueue>()) {
         auto &queue = tq.get().get<TriggerQueue>();
-        // Player's attack on opponent
+        // Issue 61: source is the victim; payload is damage *received*.
         queue.add_event(TriggerHook::OnBiteTaken, e.id, dbs.queue_index,
                         DishBattleState::TeamSide::Player);
-        queue.events.back().payloadInt = player_damage;
-        // Opponent's attack on player
+        queue.events.back().payloadInt = opponent_damage;
         queue.add_event(TriggerHook::OnBiteTaken, opponent.id, dbs.queue_index,
                         DishBattleState::TeamSide::Opponent);
-        queue.events.back().payloadInt = opponent_damage;
+        queue.events.back().payloadInt = player_damage;
       }
 
       // Emit animation events for both attacks
@@ -421,6 +420,15 @@ private:
     // Set both dishes to finished
     player_dbs.phase = DishBattleState::Phase::Finished;
     opponent_dbs.phase = DishBattleState::Phase::Finished;
+
+    // Record authoritative course outcome (issue 62: ECS is a producer)
+    { BattleResult *result = nullptr;
+      if (afterhours::EntityHelper::has_singleton<BattleResult>()) { auto e = afterhours::EntityHelper::get_singleton<BattleResult>(); if (e.get().has<BattleResult>()) result = &e.get().get<BattleResult>(); }
+      if (!result) { auto &ent = afterhours::EntityHelper::createEntity(); ent.addComponent<BattleResult>(); afterhours::EntityHelper::registerSingleton<BattleResult>(ent); result = &ent.get<BattleResult>(); }
+      BattleResult::CourseOutcome outcome; outcome.slotIndex = player_dbs.queue_index; outcome.winner = winner; outcome.ticks = 0;
+      result->outcomes.push_back(outcome);
+      if (winner == BattleResult::CourseOutcome::Winner::Player) result->playerWins++; else if (winner == BattleResult::CourseOutcome::Winner::Opponent) result->opponentWins++; else result->ties++;
+      result->outcome = result->playerWins > result->opponentWins ? BattleResult::Outcome::PlayerWin : result->opponentWins > result->playerWins ? BattleResult::Outcome::OpponentWin : BattleResult::Outcome::Tie; }
 
     // Log modifier state when dishes finish
     if (player.has<PreBattleModifiers>()) {

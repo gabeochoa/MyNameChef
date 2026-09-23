@@ -9,8 +9,14 @@
 #include <nlohmann/json.hpp>
 
 struct LoadBattleHistorySystem : afterhours::System<> {
+  GameStateManager::Screen last_screen = GameStateManager::Screen::Main;
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
+    // Issue 69: refresh on every entry to History screen
+    if (gsm.active_screen == GameStateManager::Screen::History && last_screen != GameStateManager::Screen::History) {
+      if (afterhours::EntityHelper::has_singleton<BattleHistory>()) { auto e = afterhours::EntityHelper::get_singleton<BattleHistory>(); if (e.get().has<BattleHistory>()) e.get().get<BattleHistory>().loaded = false; }
+    }
+    last_screen = gsm.active_screen;
     return gsm.active_screen == GameStateManager::Screen::History;
   }
 
@@ -73,18 +79,8 @@ struct LoadBattleHistorySystem : afterhours::System<> {
           entry.opponentId = report_json["opponentId"].get<std::string>();
         }
 
-        // Parse timestamp from filename (YYYYMMDD_HHMMSS_<seed>.json)
-        std::string filename = entry.filename;
-        if (filename.length() >= 15) {
-          // Use file modification time as timestamp
-          // Convert file_time_type to system_clock::time_point
-          auto file_time_since_epoch = file_time.time_since_epoch();
-          entry.timestamp = std::chrono::system_clock::time_point(
-              std::chrono::duration_cast<std::chrono::system_clock::duration>(
-                  file_time_since_epoch));
-        } else {
-          entry.timestamp = std::chrono::system_clock::now();
-        }
+        // Issue 68: portable file-clock -> system-clock conversion
+        entry.timestamp = std::chrono::system_clock::now() + std::chrono::duration_cast<std::chrono::system_clock::duration>(file_time - std::chrono::file_clock::now());
 
         // Count wins from outcomes
         if (report_json.contains("outcomes") &&

@@ -2,6 +2,7 @@
 
 #include "../components/battle_load_request.h"
 #include "../components/battle_processor.h"
+#include "../components/replay_state.h"
 #include "../game_state_manager.h"
 #include "../shop.h"
 #include <afterhours/ah.h>
@@ -321,6 +322,8 @@ struct BattleProcessorSystem : afterhours::System<BattleProcessor> {
         // Only call finishBattle if not already finished
         if (!processor.finished) {
           processor.finishBattle();
+          // Issue 75: replay progress needs a nonzero total (frames at 60fps)
+          if (auto rs = afterhours::EntityHelper::get_singleton<ReplayState>(); rs.get().has<ReplayState>()) rs.get().get<ReplayState>().totalFrames = static_cast<int64_t>(processor.simulationTime * 60.0f);
         } else {
           log_info(
               "BATTLE_PROCESSOR: Skipping finishBattle() - already finished");

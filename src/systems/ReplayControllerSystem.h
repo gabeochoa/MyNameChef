@@ -12,13 +12,14 @@
 #include "../query.h"
 #include "../render_backend.h"
 #include "../rl.h"
+#include "../seeded_rng.h"
 #include "../settings.h"
 #include "../shop.h"
 #include <afterhours/ah.h>
 #include <cstdint>
 
 struct ReplayControllerSystem : afterhours::System<ReplayState> {
-  static constexpr float kTickMs = 150.0f / 1000.0f;
+  static constexpr float TICK_DURATION_MS = 150.0f;
 
   virtual bool should_run(float) override {
     if (render_backend::is_headless_mode) {
@@ -136,7 +137,8 @@ private:
     log_info("REPLAY_INIT seed={} playerJson={} opponentJson={}", rs.seed,
              rs.playerJsonPath, rs.opponentJsonPath);
 
-    // Reset frame counter on restart
-    rs.currentFrame = 0;
+    // Issue 67: reset timing + RNG to recorded seed on restart
+    rs.currentFrame = 0; rs.clockMs = 0; rs.targetMs = 0;
+    if (rs.seed != 0) SeededRng::get().set_seed(rs.seed);
   }
 };

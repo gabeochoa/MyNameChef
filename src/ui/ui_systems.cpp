@@ -13,6 +13,7 @@
 #include "../components/battle_load_request.h"
 #include "../components/continue_button_disabled.h"
 #include "../components/continue_game_request.h"
+#include "../components/game_state_loaded.h"
 #include "../components/is_draggable.h"
 #include "../components/is_drink_shop_item.h"
 #include "../components/is_gallery_item.h"
@@ -297,6 +298,17 @@ Screen ScheduleMainMenuUI::main_screen(Entity &entity,
               std::filesystem::remove(save_file);
             }
           }
+          // Issue 47: full in-memory new-session reset (defaults from shop.h)
+          if (auto e = afterhours::EntityHelper::get_singleton<Wallet>(); e.get().has<Wallet>()) e.get().get<Wallet>().gold = Wallet{}.gold;
+          if (auto e = afterhours::EntityHelper::get_singleton<Health>(); e.get().has<Health>()) { e.get().get<Health>().current = Health{}.current; e.get().get<Health>().max = Health{}.max; }
+          if (auto e = afterhours::EntityHelper::get_singleton<Round>(); e.get().has<Round>()) e.get().get<Round>().current = Round{}.current;
+          if (auto e = afterhours::EntityHelper::get_singleton<ShopTier>(); e.get().has<ShopTier>()) e.get().get<ShopTier>().current_tier = ShopTier{}.current_tier;
+          if (auto e = afterhours::EntityHelper::get_singleton<RerollCost>(); e.get().has<RerollCost>()) { auto &r = e.get().get<RerollCost>(); r.base = 1; r.increment = 0; r.current = 1; }
+          if (auto e = afterhours::EntityHelper::get_singleton<ShopState>(); e.get().has<ShopState>()) { e.get().get<ShopState>().initialized = false; if (e.get().has<GameStateLoaded>()) e.get().removeComponent<GameStateLoaded>(); }
+          for (auto &ref : afterhours::EntityQuery({.force_merge = true}).whereHasComponent<IsInventoryItem>().gen()) ref.get().cleanup = true;
+          for (auto &ref : afterhours::EntityQuery({.force_merge = true}).whereHasComponent<IsShopItem>().gen()) ref.get().cleanup = true;
+          for (auto &ref : afterhours::EntityQuery({.force_merge = true}).whereHasComponent<IsDrinkShopItem>().gen()) ref.get().cleanup = true;
+          afterhours::EntityHelper::cleanup();
           GameStateManager::get().start_game();
         },
         button_index++, "", NetworkInfo::is_disconnected());
@@ -313,7 +325,7 @@ Screen ScheduleMainMenuUI::main_screen(Entity &entity,
           GameStateManager::get().start_game();
         },
         button_index++, "",
-        continue_disabled || NetworkInfo::is_disconnected());
+        continue_disabled); // issue 48: local save works offline
   } else {
     // Play button
     button_labeled<InputAction>(
@@ -596,7 +608,7 @@ Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
             auto position = calculate_slot_position(
                 slot, static_cast<int>(drink_shop_start_x), DRINK_SHOP_START_Y,
                 2);
-            DrinkType drink_type = get_random_drink();
+            DrinkType drink_type = get_random_drink_for_tier(current_tier); // issue 72
 
             auto &e = EntityHelper::createEntity();
             e.addComponent<Transform>(position, vec2{SLOT_SIZE, SLOT_SIZE});
@@ -605,8 +617,8 @@ Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
             e.addComponent<HasRenderOrder>(RenderOrder::ShopItems,
                                            RenderScreen::Shop);
 
-            const auto frame =
-                afterhours::texture_manager::idx_to_sprite_frame(0, 0);
+            auto dinfo = get_drink_info(drink_type); // issue 73: type-specific sprite
+            const auto frame = afterhours::texture_manager::idx_to_sprite_frame(dinfo.sprite.i, dinfo.sprite.j);
             e.addComponent<afterhours::texture_manager::HasSprite>(
                 position, vec2{SLOT_SIZE, SLOT_SIZE}, 0.f, frame,
                 render_constants::kDishSpriteScale, raylib::WHITE);

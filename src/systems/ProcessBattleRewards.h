@@ -1,8 +1,15 @@
 #pragma once
 
 #include "../components/battle_result.h"
+#include "../components/is_drink_shop_item.h"
+#include "../components/is_draggable.h"
+#include "../components/render_order.h"
+#include "../components/transform.h"
 #include "../game_state_manager.h"
+#include "../render_constants.h"
 #include "../shop.h"
+#include "GameStateSaveSystem.h"
+#include <afterhours/src/plugins/texture_manager.h>
 #include <afterhours/ah.h>
 #include <optional>
 #include <vector>
@@ -56,6 +63,8 @@ struct ProcessBattleRewards : System<> {
     // Refill store for next round
     refill_store();
 
+    // Issue 50: persist the completed round transaction (rewards+round+refill)
+    { GameStateSaveSystem saver; auto r = saver.save_game_state(); if (!r.success) log_warn("PROCESS_REWARDS: post-battle save failed"); }
     processed = true;
   }
 
@@ -106,6 +115,15 @@ private:
     for (int slot : free_slots) {
       make_shop_item(slot, get_random_dish_for_tier(current_tier));
     }
+    // Issue 74: replenish each empty drink slot on round advancement
+    { std::vector<bool> occ(DRINK_SHOP_SLOTS, false);
+      for (auto &ref : EntityQuery({.force_merge = true}).whereHasComponent<IsDrinkShopItem>().gen()) { int s = ref.get().get<IsDrinkShopItem>().slot; if (s >= 0 && s < DRINK_SHOP_SLOTS) occ[s] = true; }
+      float sx = static_cast<float>(raylib::GetScreenWidth()) - (2 * (SLOT_SIZE + SLOT_GAP)) - 50.0f;
+      for (int s = 0; s < DRINK_SHOP_SLOTS; ++s) if (!occ[s]) {
+        auto pos = calculate_slot_position(s, static_cast<int>(sx), DRINK_SHOP_START_Y, 2); auto dt = get_random_drink_for_tier(current_tier);
+        auto &e = EntityHelper::createEntity(); e.addComponent<Transform>(pos, vec2{SLOT_SIZE, SLOT_SIZE}); e.addComponent<IsDrinkShopItem>(s, dt); e.addComponent<IsDraggable>(true); e.addComponent<HasRenderOrder>(RenderOrder::ShopItems, RenderScreen::Shop);
+        auto info = get_drink_info(dt); const auto fr = afterhours::texture_manager::idx_to_sprite_frame(info.sprite.i, info.sprite.j); e.addComponent<afterhours::texture_manager::HasSprite>(pos, vec2{SLOT_SIZE, SLOT_SIZE}, 0.f, fr, render_constants::kDishSpriteScale, raylib::WHITE);
+      } }
     log_info("Store refilled with {} new items at tier {}", free_slots.size(),
              current_tier);
   }

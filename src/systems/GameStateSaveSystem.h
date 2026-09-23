@@ -3,6 +3,7 @@
 #include "../components/dish_level.h"
 #include "../components/drink_pairing.h"
 #include "../components/is_dish.h"
+#include "../components/is_drink_shop_item.h"
 #include "../components/is_inventory_item.h"
 #include "../components/is_shop_item.h"
 #include "../components/user_id.h"
@@ -18,6 +19,7 @@
 #include <magic_enum/magic_enum.hpp>
 #include <nlohmann/json.hpp>
 #include <optional>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -46,7 +48,7 @@ struct GameStateSaveSystem : afterhours::System<> {
     std::string userId = userId_opt->get().get<UserId>().userId;
 
     std::vector<GameStateRefEntity> inventory_dishes;
-    for (afterhours::Entity &entity : afterhours::EntityQuery()
+    for (afterhours::Entity &entity : afterhours::EntityQuery({.force_merge = true})
                                           .whereHasComponent<IsInventoryItem>()
                                           .whereHasComponent<IsDish>()
                                           .gen()) {
@@ -72,6 +74,7 @@ struct GameStateSaveSystem : afterhours::System<> {
       int level = 1;
       if (entity.has<DishLevel>()) {
         level = entity.get<DishLevel>().level;
+        dish_entry["mergeProgress"] = entity.get<DishLevel>().merge_progress; // issue 39
       }
       dish_entry["level"] = level;
 
@@ -87,7 +90,7 @@ struct GameStateSaveSystem : afterhours::System<> {
     }
 
     std::vector<GameStateRefEntity> shop_dishes;
-    for (afterhours::Entity &entity : afterhours::EntityQuery()
+    for (afterhours::Entity &entity : afterhours::EntityQuery({.force_merge = true})
                                           .whereHasComponent<IsShopItem>()
                                           .whereHasComponent<IsDish>()
                                           .gen()) {
@@ -113,6 +116,7 @@ struct GameStateSaveSystem : afterhours::System<> {
       int level = 1;
       if (entity.has<DishLevel>()) {
         level = entity.get<DishLevel>().level;
+        dish_entry["mergeProgress"] = entity.get<DishLevel>().merge_progress; // issue 39
       }
       dish_entry["level"] = level;
 
@@ -158,6 +162,11 @@ struct GameStateSaveSystem : afterhours::System<> {
     ShopTier &shop_tier = shop_tier_opt->get().get<ShopTier>();
     RerollCost &reroll_cost = reroll_cost_opt->get().get<RerollCost>();
 
+    // Issue 40: drink shop stock
+    nlohmann::json drink_shop = nlohmann::json::array();
+    for (afterhours::Entity &e : afterhours::EntityQuery({.force_merge = true}).whereHasComponent<IsDrinkShopItem>().gen()) {
+      auto &d = e.get<IsDrinkShopItem>(); drink_shop.push_back({{"slot", d.slot}, {"drink", std::string(magic_enum::enum_name(d.drink_type))}});
+    }
     uint64_t shop_seed = SeededRng::get().seed;
     uint64_t timestamp =
         std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -166,8 +175,10 @@ struct GameStateSaveSystem : afterhours::System<> {
 
     nlohmann::json gameState;
     gameState["shopSeed"] = shop_seed;
+    { std::ostringstream oss; oss << SeededRng::get().gen; gameState["rngState"] = oss.str(); } // issue 38: exact continuation
     gameState["inventory"] = inventory;
     gameState["shop"] = shop;
+    gameState["drinkShop"] = drink_shop;
     gameState["gold"] = wallet.gold;
     gameState["health"] =
         nlohmann::json{{"current", health.current}, {"max", health.max}};

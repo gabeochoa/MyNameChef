@@ -17,6 +17,7 @@
 #include <afterhours/src/plugins/texture_manager.h>
 
 struct AdvanceCourseSystem : afterhours::System<CombatQueue> {
+  int course_complete_fired_for = -1; // issue 57: fire once per course
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
     if (gsm.active_screen != GameStateManager::Screen::Battle) {
@@ -37,12 +38,17 @@ struct AdvanceCourseSystem : afterhours::System<CombatQueue> {
       log_info("COMBAT: Course {} finished (both dishes at index 0)",
                cq.current_index);
 
+      if (course_complete_fired_for != cq.current_index) { course_complete_fired_for = cq.current_index;
       if (auto tq = afterhours::EntityHelper::get_singleton<TriggerQueue>();
           tq.get().has<TriggerQueue>()) {
         auto &queue = tq.get().get<TriggerQueue>();
-        queue.add_event(TriggerHook::OnCourseComplete, 0, 0,
-                        DishBattleState::TeamSide::Player);
-        log_info("COMBAT: Fired OnCourseComplete trigger for index 0");
+        // Issue 56: dispatch to the finished dishes themselves (source 0 was discarded).
+        for (auto &ref : EQ({.ignore_temp_warning = true}).whereHasComponent<DishBattleState>().gen()) {
+          auto &d = ref.get(); const auto &st = d.get<DishBattleState>();
+          if (st.phase == DishBattleState::Phase::Finished && st.queue_index == 0)
+            queue.add_event(TriggerHook::OnCourseComplete, d.id, cq.current_index, st.team_side);
+        }
+      }
       }
 
       uint64_t fp = BattleFingerprint::compute();
@@ -81,6 +87,11 @@ struct AdvanceCourseSystem : afterhours::System<CombatQueue> {
         }
       }
 
+      // Issue 57: drain pending death effects before *terminal* decisions only
+      // (non-terminal advance must still reset OnServe for the next course)
+      bool pending_death = false;
+      if (auto tq2 = afterhours::EntityHelper::get_singleton<TriggerQueue>(); tq2.get().has<TriggerQueue>()) { for (auto &ev : tq2.get().get<TriggerQueue>().events) if (ev.hook == TriggerHook::OnDishFinished) pending_death = true; }
+      if (pending_death && (!has_remaining_dishes || player_active_count == 0 || opponent_active_count == 0)) return;
       if (!has_remaining_dishes) {
         cq.complete = true;
         log_info("COMBAT: All courses complete - no remaining dishes (Player: "

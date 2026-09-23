@@ -1,7 +1,9 @@
 #pragma once
 
 #include "../dish_types.h"
+#include "../drink_types.h"
 #include <afterhours/ah.h>
+#include <optional>
 #include <vector>
 
 struct TeamDishSpec {
@@ -9,6 +11,7 @@ struct TeamDishSpec {
   int slot;
   int level;
   std::vector<int> powerups;
+  std::optional<DrinkType> drink; // issue 8
 };
 
 struct BattleTeamDataPlayer : afterhours::BaseComponent {

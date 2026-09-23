@@ -2,9 +2,11 @@
 
 #include "../components/network_info.h"
 #include "../log.h"
+#include "../utils/http_helpers.h"
 #include <afterhours/ah.h>
 #include <cstdlib>
 #include <httplib.h>
+#include <nlohmann/json.hpp>
 
 struct NetworkSystem : afterhours::System<NetworkInfo> {
   static constexpr const char *SERVER_IP = "localhost";
@@ -50,9 +52,9 @@ struct NetworkSystem : afterhours::System<NetworkInfo> {
     // Reset countdown after check
     networkInfo.timeSinceLastCheck = check_interval;
 
-    ServerAddress addr;
-    addr.ip = SERVER_IP;
-    addr.port = SERVER_PORT;
+    // Issue 27: use configured URL (INTEGRATION_SERVER_URL), not hardcoded.
+    ServerAddress addr; addr.ip = SERVER_IP; addr.port = SERVER_PORT;
+    if (auto p = http_helpers::parse_server_url(http_helpers::get_server_url()); p.success && !p.is_https) { addr.ip = p.host; addr.port = p.port; }
     networkInfo.serverAddress = addr;
 
     bool connected = check_server_health(addr);
@@ -78,6 +80,7 @@ struct NetworkSystem : afterhours::System<NetworkInfo> {
 
     auto res = client.Get("/health");
     bool connected = res && res->status == 200;
+    if (connected) { try { auto j = nlohmann::json::parse(res->body); if (j.value("status", std::string("healthy")) == "unhealthy") connected = false; } catch (...) {} } // issue 23
 
     if (!connected) {
       log_info("NETWORK: Health check failed - res: {}, status: {}",

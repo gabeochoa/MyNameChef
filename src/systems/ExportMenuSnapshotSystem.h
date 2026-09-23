@@ -1,6 +1,8 @@
 #pragma once
 
 #include "../components/battle_load_request.h"
+#include "../components/dish_level.h"
+#include "../components/drink_pairing.h"
 #include "../components/is_dish.h"
 #include "../components/is_inventory_item.h"
 #include <afterhours/ah.h>
@@ -55,6 +57,9 @@ public:
       nlohmann::json dish_entry;
       dish_entry["slot"] = slot_index++;
       dish_entry["dishType"] = magic_enum::enum_name(dish.type);
+      dish_entry["level"] = entity.has<DishLevel>() ? entity.get<DishLevel>().level : 1; // issue 7
+      if (entity.has<DrinkPairing>() && entity.get<DrinkPairing>().drink)
+        dish_entry["drink"] = magic_enum::enum_name(*entity.get<DrinkPairing>().drink); // issue 8
       team.push_back(dish_entry);
     }
 
