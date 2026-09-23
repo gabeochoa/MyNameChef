@@ -38,19 +38,24 @@ inline void server_integration_test_setup(const std::string &test_name) {
   std::string server_url = http_helpers::get_server_url();
   log_info("{}: Using server URL: {}", test_name, server_url);
 
-  afterhours::Entity &request_entity = afterhours::EntityHelper::createEntity();
-  request_entity.addComponent<BattleLoadRequest>();
-  BattleLoadRequest &request = request_entity.get<BattleLoadRequest>();
+  if (!afterhours::EntityHelper::has_singleton<BattleLoadRequest>()) {
+    afterhours::Entity &request_entity =
+        afterhours::EntityHelper::createEntity();
+    request_entity.addComponent<BattleLoadRequest>();
+    afterhours::EntityHelper::registerSingleton<BattleLoadRequest>(
+        request_entity);
+    afterhours::EntityHelper::merge_entity_arrays();
+  }
+  BattleLoadRequest &request =
+      afterhours::EntityHelper::get_singleton<BattleLoadRequest>()
+          .get()
+          .get<BattleLoadRequest>();
 
   request.serverUrl = server_url;
   request.playerJsonPath = "";
   request.opponentJsonPath = "";
   request.loaded = false;
   request.serverRequestPending = false;
-
-  afterhours::EntityHelper::registerSingleton<BattleLoadRequest>(
-      request_entity);
-  afterhours::EntityHelper::merge_entity_arrays();
 
   log_info("{}: BattleLoadRequest configured with server URL", test_name);
   setup_complete = true;
@@ -78,7 +83,7 @@ inline nlohmann::json team_to_json() {
   nlohmann::json player_team_json = nlohmann::json::object();
   nlohmann::json team_array = nlohmann::json::array();
 
-  for (afterhours::Entity &entity : afterhours::EntityQuery()
+  for (afterhours::Entity &entity : afterhours::EntityQuery({.force_merge = true})
                                         .whereHasComponent<IsInventoryItem>()
                                         .whereHasComponent<IsDish>()
                                         .gen()) {

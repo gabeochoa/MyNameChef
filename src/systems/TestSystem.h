@@ -143,8 +143,12 @@ struct TestSystem : afterhours::System<> {
             if (validation_attempts % 100 == 0) {
               log_info(
                   "TEST VALIDATION CHECKING: {} - Attempt {} ({}s) - Still "
-                  "waiting...",
-                  test_name, validation_attempts, validation_elapsed_time);
+                  "waiting... (wait type={}, ui='{}', screen={}, frames={})",
+                  test_name, validation_attempts, validation_elapsed_time,
+                  static_cast<int>(test_app->wait_state.type),
+                  test_app->wait_state.target_ui_label,
+                  static_cast<int>(test_app->wait_state.target_screen),
+                  test_app->wait_state.frame_delay_count);
             }
           }
         } else {

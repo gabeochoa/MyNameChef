@@ -59,7 +59,7 @@ struct UITestHelpers {
   static void debug_list_all_ui_elements() {
     log_info("DEBUG: Listing all UI elements with labels:");
     int count = 0;
-    for (auto &ref : afterhours::EntityQuery()
+    for (auto &ref : afterhours::EntityQuery({.force_merge = true})
                          .whereHasComponent<afterhours::ui::HasLabel>()
                          .gen()) {
       auto &entity = ref.get();
@@ -74,7 +74,7 @@ struct UITestHelpers {
   // Check if a UI element exists (returns bool, for validation functions)
   static bool check_ui_exists(const std::string &label, int max_attempts = 3) {
     for (int attempt = 1; attempt <= max_attempts; attempt++) {
-      for (auto &ref : afterhours::EntityQuery()
+      for (auto &ref : afterhours::EntityQuery({.force_merge = true})
                            .whereHasComponent<afterhours::ui::HasLabel>()
                            .gen()) {
         auto &entity = ref.get();
@@ -101,7 +101,7 @@ struct UITestHelpers {
   // Assert that a UI element with the given label is visible (with retry logic)
   static void assert_ui_exists(const std::string &label, int max_attempts = 3) {
     for (int attempt = 1; attempt <= max_attempts; attempt++) {
-      for (auto &ref : afterhours::EntityQuery()
+      for (auto &ref : afterhours::EntityQuery({.force_merge = true})
                            .whereHasComponent<afterhours::ui::HasLabel>()
                            .gen()) {
         auto &entity = ref.get();
@@ -137,7 +137,7 @@ struct UITestHelpers {
   // Find a UI element by label
   static std::optional<afterhours::Entity *>
   find_ui_element(const std::string &label) {
-    for (auto &ref : afterhours::EntityQuery()
+    for (auto &ref : afterhours::EntityQuery({.force_merge = true})
                          .whereHasComponent<afterhours::ui::HasLabel>()
                          .gen()) {
       auto &entity = ref.get();
@@ -231,7 +231,7 @@ struct UITestHelpers {
   // Count how many UI elements with a given label exist
   static int count_ui_elements(const std::string &label) {
     int count = 0;
-    for (auto &ref : afterhours::EntityQuery()
+    for (auto &ref : afterhours::EntityQuery({.force_merge = true})
                          .whereHasComponent<afterhours::ui::HasLabel>()
                          .gen()) {
       auto &entity = ref.get();
@@ -252,7 +252,7 @@ struct UITestHelpers {
   // Check if entities with specific components exist (for visual elements)
   static bool entities_exist_with_component(const std::string &component_name) {
     if (component_name == "IsDropSlot") {
-      return afterhours::EntityQuery()
+      return afterhours::EntityQuery({.force_merge = true})
           .whereHasComponent<IsDropSlot>()
           .has_values();
     }
@@ -263,7 +263,7 @@ struct UITestHelpers {
   // Count entities with specific components
   static int count_entities_with_component(const std::string &component_name) {
     if (component_name == "IsDropSlot") {
-      return static_cast<int>(afterhours::EntityQuery()
+      return static_cast<int>(afterhours::EntityQuery({.force_merge = true})
                                   .whereHasComponent<IsDropSlot>()
                                   .gen_count());
     }
@@ -277,7 +277,7 @@ struct UITestHelpers {
     for (int attempt = 1; attempt <= max_attempts; attempt++) {
       int shop_slot_count = 0;
       for (auto &ref :
-           afterhours::EntityQuery().whereHasComponent<IsDropSlot>().gen()) {
+           afterhours::EntityQuery({.force_merge = true}).whereHasComponent<IsDropSlot>().gen()) {
         auto &entity = ref.get();
         if (entity.has<IsDropSlot>()) {
           auto &drop_slot = entity.get<IsDropSlot>();
@@ -309,7 +309,7 @@ struct UITestHelpers {
   static bool inventory_slots_exist() {
     int inventory_slot_count = 0;
     for (auto &ref :
-         afterhours::EntityQuery().whereHasComponent<IsDropSlot>().gen()) {
+         afterhours::EntityQuery({.force_merge = true}).whereHasComponent<IsDropSlot>().gen()) {
       auto &entity = ref.get();
       if (entity.has<IsDropSlot>()) {
         auto &drop_slot = entity.get<IsDropSlot>();
@@ -324,14 +324,14 @@ struct UITestHelpers {
 
   // Check if shop items exist (dishes in shop slots)
   static bool shop_items_exist() {
-    return afterhours::EntityQuery()
+    return afterhours::EntityQuery({.force_merge = true})
                .whereHasComponent<IsShopItem>()
                .gen_count() > 0;
   }
 
   // Check if inventory items exist (dishes in inventory slots)
   static bool inventory_items_exist() {
-    return afterhours::EntityQuery()
+    return afterhours::EntityQuery({.force_merge = true})
                .whereHasComponent<IsInventoryItem>()
                .gen_count() > 0;
   }

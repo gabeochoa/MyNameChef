@@ -8,6 +8,7 @@ Replaces bash scripts with a more maintainable Python implementation.
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
 import time
@@ -181,6 +182,8 @@ class TestExecutor:
         
         # Use 'timeout' command like bash script does for consistent behavior
         cmd = ["timeout", str(test_timeout), EXECUTABLE, "--run-test", test_name] + headless_flag + ["--timing-speed-scale", "5"]
+        if not headless_flag and shutil.which("caffeinate"):
+            cmd = ["caffeinate", "-d", "-u", "-i"] + cmd
         
         try:
             result = subprocess.run(
@@ -417,68 +420,26 @@ class TestReporter:
 def categorize_tests(tests: List[str]) -> Tuple[List[str], List[str]]:
     """Categorize tests into client tests and integration tests.
     
-    Uses the same test lists as the bash script to maintain compatibility.
+    Runs every test the executable registers, minus SKIPPED_TESTS.
     """
-    # Client tests that need the shared server (from bash script)
-    CLIENT_TESTS = [
-        "validate_set_bonus_american_2_piece",
-        "validate_set_bonus_american_4_piece",
-        "validate_set_bonus_american_6_piece",
-        "validate_set_bonus_no_synergy",
-        "validate_main_menu",
-        "validate_dish_system",
-        "validate_debug_dish_creation",
-        "validate_debug_dish_onserve_flavor_stats",
-        "validate_debug_dish_onserve_target_scopes",
-        "validate_debug_dish_onserve_combat_mods",
-        "validate_debug_dish_onstartbattle",
-        "validate_debug_dish_oncoursestart",
-        "validate_debug_dish_onbitetaken",
-        "validate_debug_dish_ondishfinished",
-        "validate_debug_dish_oncoursecomplete",
-        "validate_trigger_system",
-        "validate_effect_system",
-        "play_navigates_to_shop",
-        "goto_battle",
-        "validate_shop_navigation",
-        "validate_shop_functionality",
-        "validate_reroll_cost",
-        "validate_dish_merging",
-        "validate_shop_purchase",
-        "validate_shop_purchase_no_gold",
-        "validate_shop_purchase_insufficient_funds",
-        "validate_shop_purchase_full_inventory",
-        "validate_shop_purchase_exact_gold",
-        "validate_shop_purchase_nonexistent_item",
-        "validate_shop_purchase_wrong_screen",
-        "validate_seeded_rng_determinism",
-        "validate_seeded_rng_helper_methods",
-        "validate_combat_system",
-        "validate_battle_report_persistence",
-        "validate_battle_report_file_retention",
-        "validate_battle_results",
-        "validate_survivor_carryover_single",
-        "validate_survivor_carryover_positions",
-        "validate_survivor_carryover_multiple",
-        "validate_survivor_carryover_battle_completion",
-        "validate_survivor_carryover_simultaneous_defeat",
-        "validate_ui_navigation",
-        "validate_full_game_flow",
-        "validate_server_failure_during_shop",
-        "validate_server_failure_during_battle",
-        "validate_code_hash",
-        "validate_code_hash_mismatch_rejection",
-    ]
-    
+    # Every registered test runs except the ones listed here with a reason
+    SKIPPED_TESTS = {
+        "validate_server_checksum_match": "client battles never go through the server; fingerprint includes entity ids",
+    }
     # Integration tests that start their own server (from bash script)
     INTEGRATION_TESTS = [
         "validate_server_battle_integration",
         "validate_server_opponent_match",
     ]
     
-    # Filter to only tests that exist in discovered tests
-    client_tests = [t for t in CLIENT_TESTS if t in tests]
     integration_tests = [t for t in INTEGRATION_TESTS if t in tests]
+    client_tests = sorted(
+        t for t in tests
+        if t not in INTEGRATION_TESTS and t not in SKIPPED_TESTS
+    )
+    for name, reason in SKIPPED_TESTS.items():
+        if name in tests:
+            print(f"  {Colors.YELLOW}Skipping {name}: {reason}{Colors.NC}")
     
     return client_tests, integration_tests
 
@@ -498,6 +459,8 @@ def run_test_suite(executor: TestExecutor, client_tests: List[str],
         try:
             for i, test_name in enumerate(client_tests, 1):
                 success, _ = executor.run_test(test_name, i, len(client_tests))
+                if "server_failure" in test_name and server_mgr:
+                    server_mgr.start()
                 if success:
                     passed += 1
                 else:

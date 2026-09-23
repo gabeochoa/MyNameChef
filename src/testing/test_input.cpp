@@ -30,17 +30,17 @@ void simulate_mouse_button_press(raylib::MouseButton button) {
 }
 
 void simulate_mouse_button_release(raylib::MouseButton button) {
-  log_error("TEST_INPUT: simulate_mouse_button_release CALLED for button {}", static_cast<int>(button));
+  log_info("TEST_INPUT: simulate_mouse_button_release CALLED for button {}", static_cast<int>(button));
   auto &state = get_simulated_state();
   if (button == raylib::MOUSE_BUTTON_LEFT) {
-    log_error("TEST_INPUT: simulate_mouse_button_release - current held state: {}", state.mouse_button_left_held);
+    log_info("TEST_INPUT: simulate_mouse_button_release - current held state: {}", state.mouse_button_left_held);
     if (state.mouse_button_left_held) {
       // Only set released flag if button was held
       state.mouse_button_left_released_this_frame = true;
       // Log to trace when flag is set
-      log_error("TEST_INPUT: simulate_mouse_button_release - setting released_this_frame=true, was_held=true");
+      log_info("TEST_INPUT: simulate_mouse_button_release - setting released_this_frame=true, was_held=true");
     } else {
-      log_error("TEST_INPUT: simulate_mouse_button_release - button was not held, not setting flag");
+      log_info("TEST_INPUT: simulate_mouse_button_release - button was not held, not setting flag");
     }
     state.mouse_button_left_held = false;
     state.mouse_button_left_pressed_this_frame = false;
@@ -79,10 +79,10 @@ bool is_mouse_button_released(raylib::MouseButton button) {
     if (state.mouse_button_left_released_this_frame) {
       // One-shot: clear immediately after reading
       state.mouse_button_left_released_this_frame = false;
-      log_error("TEST_INPUT: is_mouse_button_released - returning true and clearing flag");
+      log_info("TEST_INPUT: is_mouse_button_released - returning true and clearing flag");
       return true;
     } else {
-      log_error("TEST_INPUT: is_mouse_button_released - flag is false, held={}", state.mouse_button_left_held);
+      log_info("TEST_INPUT: is_mouse_button_released - flag is false, held={}", state.mouse_button_left_held);
     }
   }
   // Fall back to real input

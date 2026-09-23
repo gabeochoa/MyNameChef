@@ -87,7 +87,7 @@ struct TestStateInspector : afterhours::System<> {
 private:
   void capture_entities(StateSnapshot &snapshot) {
     for (afterhours::Entity &entity :
-         afterhours::EntityQuery().whereHasComponent<IsDish>().gen()) {
+         afterhours::EntityQuery({.force_merge = true}).whereHasComponent<IsDish>().gen()) {
       EntitySnapshot entity_snap;
       entity_snap.id = entity.id;
 
