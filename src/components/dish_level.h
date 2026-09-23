@@ -2,6 +2,10 @@
 
 #include <afterhours/ah.h>
 
+// Issue 16: supported cap - combat scaling doubles per level, unbounded
+// levels overflow / loop forever. Enforced at every load boundary.
+inline constexpr int MAX_DISH_LEVEL = 10;
+
 struct DishLevel : afterhours::BaseComponent {
   int level = 1;
   int merge_progress = 0; // 0-2, tracks merges needed for next level

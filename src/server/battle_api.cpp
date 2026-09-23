@@ -11,6 +11,7 @@
 #include <chrono>
 #include <filesystem>
 #include <iomanip>
+#include <mutex>
 #include <nlohmann/json.hpp>
 #include <sstream>
 
@@ -44,7 +45,9 @@ BattleAPI::get_error_message(const std::string &detailed_error) const {
   return "Internal server error";
 }
 
+static std::mutex g_ecs_mutex; // issue 1: serialize all ECS/RNG handlers
 void BattleAPI::setup_routes() {
+  server.set_payload_max_length(static_cast<size_t>(config.max_request_body_size)); // issue 20
   if (config.enable_cors) {
     server.set_default_headers(
         {{"Access-Control-Allow-Origin", config.cors_origin},
@@ -146,11 +149,12 @@ void BattleAPI::handle_health_request(const httplib::Request &,
   response["codeHash"] = SHARED_CODE_HASH;
 
   res.set_content(response.dump(), "application/json");
-  res.status = 200;
+  res.status = (status == "unhealthy") ? 503 : 200; // issue 23: readiness
 }
 
 void BattleAPI::handle_battle_request(const httplib::Request &req,
                                       httplib::Response &res) {
+  std::lock_guard<std::mutex> lock(g_ecs_mutex);
   std::string request_id = std::to_string(
       std::chrono::steady_clock::now().time_since_epoch().count());
   auto request_start = std::chrono::steady_clock::now();
@@ -283,6 +287,7 @@ void BattleAPI::handle_battle_request(const httplib::Request &req,
 
     bool debug_mode = config.debug;
     nlohmann::json outcomes = BattleSerializer::collect_battle_outcomes();
+    if (outcomes.empty()) { simulator.cleanup_temp_files(); set_error_response(res, 500, "Battle completed without authoritative result"); return; } // issue 5
     nlohmann::json events = BattleSerializer::collect_battle_events(simulator);
 
     std::filesystem::path opp_path(opponent_path.value());
@@ -290,6 +295,7 @@ void BattleAPI::handle_battle_request(const httplib::Request &req,
 
     nlohmann::json response = BattleSerializer::serialize_battle_result(
         seed, opponent_id, outcomes, events, debug_mode);
+    response["opponentTeam"] = opponent_team; // issue 10: client can reconstruct opponent without server temp file
 
     std::string player_team_id = request_json.value("playerTeamId", "");
     std::string player_username = request_json.value("playerUsername", "");
@@ -389,20 +395,20 @@ BattleAPI::compute_game_state_checksum(const nlohmann::json &state) const {
 
 void BattleAPI::handle_save_game_state(const httplib::Request &req,
                                        httplib::Response &res) {
+  std::lock_guard<std::mutex> lock(g_ecs_mutex);
   try {
     std::string content_type = req.get_header_value("Content-Type");
     return_if(content_type.find("application/json") == std::string::npos, 415,
               "Content-Type must be application/json");
-
     return_if(req.body.empty(), 400, "Request body is empty");
-
+    return_if(req.body.size() > static_cast<size_t>(config.max_request_body_size), 413, "Request body too large"); // issue 20
     nlohmann::json request_json = nlohmann::json::parse(req.body);
-
-    return_if(!request_json.contains("userId") ||
-                  !request_json.contains("gameState") ||
-                  !request_json.contains("checksum"),
+    return_if(!request_json.contains("userId") || !request_json.contains("gameState") || !request_json.contains("checksum"),
               400, "Missing required fields: userId, gameState, checksum");
-
+    return_if(!request_json["userId"].is_string() || !request_json["checksum"].is_string() || !request_json["gameState"].is_object(),
+              400, "Invalid field types: userId/checksum string, gameState object"); // issue 35
+    // Issue 35: minimal restore-able schema invariants
+    return_if(!request_json["gameState"].contains("inventory") || !request_json["gameState"]["inventory"].is_array(), 400, "gameState.inventory must be array");
     std::string userId = request_json["userId"].get<std::string>();
     nlohmann::json gameState = request_json["gameState"];
     std::string client_checksum = request_json["checksum"].get<std::string>();
@@ -425,35 +431,21 @@ void BattleAPI::handle_save_game_state(const httplib::Request &req,
                          .gen_first();
 
     bool match = (client_checksum == server_checksum);
-
+    // Issues 32/33: integrity is payload-only; reject before any mutation.
+    if (!match) { set_error_response(res, 409, "Checksum mismatch: save rejected"); return; }
     if (entry_opt) {
-      auto &entry_entity = entry_opt.asE();
-      auto &entry = entry_entity.get<server::async::TeamPoolEntry>();
-
-      if (!entry.gameStateChecksum.empty()) {
-        match = (client_checksum == entry.gameStateChecksum);
-      }
-
-      entry.gameState = gameState;
-      entry.gameStateChecksum = server_checksum;
-      entry.lastSaved = timestamp;
+      auto &entry = entry_opt.asE().get<server::async::TeamPoolEntry>();
+      // Issue 34: older writes must not replace newer progress.
+      if (timestamp < entry.lastSaved) { set_error_response(res, 409, "Stale save: newer state exists"); return; }
+      entry.gameState = gameState; entry.gameStateChecksum = server_checksum; entry.lastSaved = timestamp;
     } else {
-      auto &new_entity = afterhours::EntityHelper::createEntity();
-      auto &entry = new_entity.addComponent<server::async::TeamPoolEntry>();
-      entry.userId = userId;
-      entry.gameState = gameState;
-      entry.gameStateChecksum = server_checksum;
-      entry.lastSaved = timestamp;
+      auto &e = afterhours::EntityHelper::createEntity(); auto &entry = e.addComponent<server::async::TeamPoolEntry>();
+      entry.userId = userId; entry.gameState = gameState; entry.gameStateChecksum = server_checksum; entry.lastSaved = timestamp;
     }
-
-    nlohmann::json response;
-    response["status"] = "ok";
-    response["match"] = match;
-    response["serverVersion"] = SERVER_VERSION;
-
-    if (!match) {
-      response["gameState"] = gameState;
-    }
+    // Issue 12: durable persistence (acknowledged save survives restart).
+    { nlohmann::json disk{{"userId", userId}, {"gameState", gameState}, {"checksum", server_checksum}, {"lastSaved", timestamp}};
+      FileStorage::save_json_to_file("output/saves/server_" + userId + ".json", disk); }
+    nlohmann::json response; response["status"] = "ok"; response["match"] = true; response["serverVersion"] = SERVER_VERSION;
 
     res.set_content(response.dump(), "application/json");
     res.status = 200;
@@ -466,6 +458,7 @@ void BattleAPI::handle_save_game_state(const httplib::Request &req,
 
 void BattleAPI::handle_get_game_state(const httplib::Request &req,
                                       httplib::Response &res) {
+  std::lock_guard<std::mutex> lock(g_ecs_mutex);
   try {
     std::string userId = req.get_param_value("userId");
     std::string checksum = req.get_param_value("checksum");
@@ -482,8 +475,16 @@ void BattleAPI::handle_get_game_state(const httplib::Request &req,
                          })
                          .gen_first();
 
+    if (!entry_opt) { // issue 12: restore from durable file after restart
+      auto disk = FileStorage::load_json_from_file("output/saves/server_" + userId + ".json");
+      if (disk.contains("gameState")) {
+        bool m = (checksum == disk.value("checksum", std::string("")));
+        nlohmann::json r; r["status"] = "ok"; r["match"] = m; r["serverVersion"] = SERVER_VERSION;
+        if (!m) r["gameState"] = disk["gameState"];
+        res.set_content(r.dump(), "application/json"); res.status = 200; return;
+      }
+    }
     return_if(!entry_opt, 404, "Game state not found");
-
     const auto &entry = entry_opt.asE().get<server::async::TeamPoolEntry>();
 
     bool match = (checksum == entry.gameStateChecksum);
@@ -504,13 +505,11 @@ void BattleAPI::handle_get_game_state(const httplib::Request &req,
   }
 }
 
-void BattleAPI::start(int port) {
+bool BattleAPI::start(int port) {
   log_info("Starting battle server on port {}", port);
   setup_routes();
-
-  if (!server.listen("0.0.0.0", port)) {
-    log_error("Failed to start server on port {}", port);
-  }
+  if (!server.listen("0.0.0.0", port)) { log_warn("Failed to start server on port {}", port); return false; }
+  return true;
 }
 
 void BattleAPI::stop() { server.stop(); }

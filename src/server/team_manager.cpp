@@ -1,9 +1,13 @@
 #include "team_manager.h"
+#include "../components/dish_level.h"
+#include "../dish_types.h"
 #include "../log.h"
 #include "../seeded_rng.h"
 #include "file_storage.h"
 #include <algorithm>
+#include <magic_enum/magic_enum.hpp>
 #include <random>
+#include <set>
 
 namespace server {
 std::vector<TeamFilePath>
@@ -39,6 +43,11 @@ std::optional<TeamFilePath> TeamManager::select_random_opponent_with_fallback(
       log_error("Opponent file path is not safe: {}", candidate);
       return {};
     }
+    // Issue 17: same content validation as multi-file path.
+    try {
+      nlohmann::json t = load_team_from_file(candidate);
+      if (t.empty() || !validate_team_json(t)) return {};
+    } catch (...) { return {}; }
     return candidate;
   }
 
@@ -63,10 +72,11 @@ std::optional<TeamFilePath> TeamManager::select_random_opponent_with_fallback(
       continue;
     }
 
-    nlohmann::json test_load = load_team_from_file(candidate);
-    if (!test_load.empty() && validate_team_json(test_load)) {
-      return candidate;
-    }
+    // Issue 18: per-candidate try/catch - one malformed file must not abort.
+    try {
+      nlohmann::json test_load = load_team_from_file(candidate);
+      if (!test_load.empty() && validate_team_json(test_load)) return candidate;
+    } catch (...) {}
 
     log_warn(
         "Opponent file {} failed validation, trying another (attempt {}/{})",
@@ -86,10 +96,9 @@ bool TeamManager::is_path_safe(const std::string &file_path,
     std::filesystem::path canonical_dir =
         std::filesystem::canonical(allowed_dir);
 
-    std::string file_str = canonical_file.string();
-    std::string dir_str = canonical_dir.string();
-
-    return file_str.find(dir_str) == 0;
+    // Issue 19: component-wise containment, not string prefix (sibling bypass).
+    auto rel = canonical_file.lexically_relative(canonical_dir);
+    return !rel.empty() && rel.native()[0] != '.';
   } catch (const std::exception &e) {
     log_error("Path safety check failed for {}: {}", file_path, e.what());
     return false;
@@ -115,26 +124,27 @@ bool TeamManager::validate_team_json(const nlohmann::json &request_json,
     return false;
   }
 
+  std::set<int> seen_slots;
   for (const auto &dish : team) {
-    if (!dish.contains("dishType") || !dish.contains("slot")) {
+    if (!dish.is_object() || !dish.contains("dishType") || !dish.contains("slot"))
       return false;
-    }
-
-    int slot = dish["slot"];
-    if (slot < 0 || slot >= max_team_size) {
+    // Issue 13: dishType must be a string naming a real DishType.
+    if (!dish["dishType"].is_string() ||
+        !magic_enum::enum_cast<DishType>(dish["dishType"].get<std::string>()))
       return false;
-    }
-
+    // Issues 14/15: integral, unique slot.
+    if (!dish["slot"].is_number_integer() && !dish["slot"].is_number_unsigned())
+      return false;
+    int slot = dish["slot"].get<int>();
+    if (slot < 0 || slot >= max_team_size || !seen_slots.insert(slot).second)
+      return false;
     if (dish.contains("level")) {
-      int level = dish["level"];
-      if (level < 1) {
+      if (!dish["level"].is_number_integer() && !dish["level"].is_number_unsigned())
         return false;
-      }
+      int level = dish["level"].get<int>();
+      if (level < 1 || level > MAX_DISH_LEVEL) return false; // issue 16
     }
-
-    if (dish.contains("powerups") && !dish["powerups"].is_array()) {
-      return false;
-    }
+    if (dish.contains("powerups") && !dish["powerups"].is_array()) return false;
   }
 
   return true;

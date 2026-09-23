@@ -15,7 +15,7 @@ struct BattleAPI {
   BattleAPI(const ServerConfig &cfg);
 
   void setup_routes();
-  void start(int port);
+  bool start(int port); // issue 22: false on bind failure
   void stop();
 
 private:

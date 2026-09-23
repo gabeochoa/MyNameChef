@@ -77,14 +77,9 @@ void BattleProcessor::finishBattle() {
   // Step 1: Defensive guards - check if already finished or battle not active
   // CRITICAL: Check simulationComplete FIRST, before any other operations
   // This prevents crashes if the battle already finished and BattleResult was created
-  if (simulationComplete) {
-    log_info("BATTLE_PROCESSOR_FINISH: Battle already completed naturally, just clearing activeBattle - finished={}, isBattleActive={}", 
-             (int)finished, (int)isBattleActive());
-    activeBattle.reset();
-    finished = true;
-    return;
-  }
-  
+  // Issue 63: simulationComplete means ready to publish, not already published.
+  // Fall through and publish exactly once (guarded by `finished` below).
+
   log_info("BATTLE_PROCESSOR_FINISH: Called - finished={}, isBattleActive={}, simulationComplete={}, activeBattle.has_value={}", 
            (int)finished, (int)isBattleActive(), (int)simulationComplete, activeBattle.has_value() ? 1 : 0);
   
@@ -300,11 +295,11 @@ void BattleProcessor::processCourse(int courseIndex, float dt) {
   }
 
   if (!playerDish || !opponentDish) {
-    if (process_count % 60 == 0 || process_count <= 10) {
-      log_info("BATTLE_SIM: processCourse - No dishes found for course {} (player={}, opponent={})", 
-               courseIndex, (void*)playerDish, (void*)opponentDish);
-    }
-    return;
+    // Issue 64: missing slot = exhausted side - record outcome and advance.
+    CourseOutcome o; o.slotIndex = courseIndex; o.ticks = 0;
+    o.winner = playerDish ? CourseOutcome::Winner::Player : (opponentDish ? CourseOutcome::Winner::Opponent : CourseOutcome::Winner::Tie);
+    if (o.winner == CourseOutcome::Winner::Player) playerWins++; else if (o.winner == CourseOutcome::Winner::Opponent) opponentWins++; else ties++;
+    outcomes.push_back(o); advanceCourse(); return;
   }
 
   // Start entering if both are in queue

@@ -25,6 +25,8 @@ struct BattleTeamFileLoaderSystem : afterhours::System<BattleLoadRequest> {
     }
 
     last_screen = gsm.active_screen;
+    // Issue 66: a new request (loaded=false) re-arms this system even on Battle.
+    if (auto e = afterhours::EntityHelper::get_singleton<BattleLoadRequest>(); e.get().has<BattleLoadRequest>() && !e.get().get<BattleLoadRequest>().loaded) loaded = false;
     return gsm.active_screen == GameStateManager::Screen::Battle && !loaded;
   }
 

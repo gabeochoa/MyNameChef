@@ -85,9 +85,5 @@ int main(int argc, char *argv[]) {
   log_info("Error detail level: {}", config.error_detail_level);
   log_info("Debug mode: {}", config.debug ? "enabled" : "disabled");
 
-  // Start the HTTP server (blocking call)
-  // ECS systems run inside BattleSimulator when battles are active
-  api.start(config.port);
-
-  return 0;
+  return api.start(config.port) ? 0 : 1; // issue 22
 }

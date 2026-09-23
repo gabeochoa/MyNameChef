@@ -158,12 +158,12 @@ nlohmann::json BattleSerializer::serialize_battle_result(
   return result;
 }
 
-std::string BattleSerializer::compute_checksum(const nlohmann::json &) {
-  uint64_t fp = BattleFingerprint::compute();
-
-  std::stringstream ss;
-  ss << std::hex << std::setfill('0') << std::setw(16) << fp;
-  return ss.str();
+std::string BattleSerializer::compute_checksum(const nlohmann::json &result) {
+  // Issue 30/89: checksum the canonical result payload (seed/outcomes/events),
+  // not live ECS state / entity IDs / transient queue.
+  uint64_t fp = 0;
+  for (char c : result.dump()) fp = BattleFingerprint::combine_hash(fp, static_cast<uint64_t>(c));
+  std::stringstream ss; ss << std::hex << std::setfill('0') << std::setw(16) << fp; return ss.str();
 }
 
 nlohmann::json
@@ -208,9 +208,7 @@ BattleSerializer::collect_battle_events(const BattleSimulator &simulator) {
 }
 
 nlohmann::json BattleSerializer::collect_battle_outcomes() {
-  // Ensure BattleResult exists before collecting
-  ensure_battle_result_exists();
-
+  // Issue 5: never invent outcomes - missing BattleResult is a failure (empty).
   if (!afterhours::EntityHelper::has_singleton<BattleResult>()) {
     log_warn("collect_battle_outcomes: BattleResult singleton not found after "
              "ensure - "

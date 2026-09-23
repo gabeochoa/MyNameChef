@@ -9,6 +9,7 @@ struct ServerUrlParts {
   std::string host;
   int port;
   bool success;
+  bool is_https = false; // issue 28: scheme retained, never silently downgraded
 };
 
 // Get server URL from environment variable or use default
@@ -34,44 +35,42 @@ inline ServerUrlParts parse_server_url(const std::string &server_url,
     return parts;
   }
 
-  try {
-    size_t protocol_end = 0;
-
-    // Find protocol (http:// or https://)
-    size_t protocol_pos = server_url.find("://");
-    if (protocol_pos != std::string::npos) {
-      protocol_end = protocol_pos + 3;
-    }
-
-    // Find port separator and path separator
-    size_t colon_pos = server_url.find(":", protocol_end);
-    size_t slash_pos = server_url.find("/", protocol_end);
-
-    if (colon_pos != std::string::npos &&
-        (slash_pos == std::string::npos || colon_pos < slash_pos)) {
-      // Port is specified
-      parts.host = server_url.substr(protocol_end, colon_pos - protocol_end);
-      size_t port_end =
-          (slash_pos != std::string::npos) ? slash_pos : server_url.length();
-      try {
-        parts.port = std::stoi(
-            server_url.substr(colon_pos + 1, port_end - colon_pos - 1));
-      } catch (...) {
-        return parts; // Failed to parse port
-      }
-    } else {
-      // No port specified, use default
-      size_t end =
-          (slash_pos != std::string::npos) ? slash_pos : server_url.length();
-      parts.host = server_url.substr(protocol_end, end - protocol_end);
-    }
-
-    parts.success = true;
-  } catch (...) {
-    // Parsing failed
-    return parts;
+  // Issues 28/29: validate scheme, host, full-numeric port 1-65535, [IPv6].
+  size_t protocol_end = 0;
+  size_t protocol_pos = server_url.find("://");
+  if (protocol_pos != std::string::npos) {
+    std::string scheme = server_url.substr(0, protocol_pos);
+    if (scheme == "https") { parts.is_https = true; parts.port = 443; }
+    else if (scheme == "http") { parts.port = 80; }
+    else return parts;
+    protocol_end = protocol_pos + 3;
   }
-
+  size_t slash_pos = server_url.find("/", protocol_end);
+  size_t auth_end = (slash_pos == std::string::npos) ? server_url.size() : slash_pos;
+  std::string authority = server_url.substr(protocol_end, auth_end - protocol_end);
+  if (authority.empty()) return parts;
+  std::string port_str;
+  if (!authority.empty() && authority[0] == '[') {
+    size_t close = authority.find(']');
+    if (close == std::string::npos) return parts;
+    parts.host = authority.substr(1, close - 1);
+    if (close + 1 < authority.size()) {
+      if (authority[close + 1] != ':') return parts;
+      port_str = authority.substr(close + 2);
+    }
+  } else {
+    size_t colon = authority.rfind(':');
+    if (colon != std::string::npos) { parts.host = authority.substr(0, colon); port_str = authority.substr(colon + 1); }
+    else parts.host = authority;
+  }
+  if (parts.host.empty()) return parts;
+  if (!port_str.empty()) {
+    if (port_str.find_first_not_of("0123456789") != std::string::npos) return parts;
+    long p = std::strtol(port_str.c_str(), nullptr, 10);
+    if (p < 1 || p > 65535) return parts;
+    parts.port = static_cast<int>(p);
+  }
+  parts.success = true;
   return parts;
 }
 

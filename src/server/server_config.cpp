@@ -4,6 +4,12 @@
 #include <nlohmann/json.hpp>
 
 namespace server {
+// Issue 21: bounded integer config; invalid values keep defaults.
+static bool bounded_int(const nlohmann::json &j, const char *k, int lo, int hi, int &out) {
+  if (!j.contains(k) || (!j[k].is_number_integer() && !j[k].is_number_unsigned())) return false;
+  long v = j[k].get<long>(); if (v < lo || v > hi) { log_warn("Config {}={} out of [{},{}], using default", k, v, lo, hi); return false; }
+  out = static_cast<int>(v); return true;
+}
 ServerConfig ServerConfig::load_from_json(const std::string &config_path) {
   ServerConfig config = defaults();
 
@@ -19,19 +25,14 @@ ServerConfig ServerConfig::load_from_json(const std::string &config_path) {
     return config;
   }
 
-  if (json_config.contains("port") && json_config["port"].is_number()) {
-    config.port = json_config["port"];
-  }
+  bounded_int(json_config, "port", 1, 65535, config.port);
 
   if (json_config.contains("base_path") &&
       json_config["base_path"].is_string()) {
     config.base_path = json_config["base_path"];
   }
 
-  if (json_config.contains("timeout_seconds") &&
-      json_config["timeout_seconds"].is_number()) {
-    config.timeout_seconds = json_config["timeout_seconds"];
-  }
+  bounded_int(json_config, "timeout_seconds", 1, 600, config.timeout_seconds);
 
   if (json_config.contains("error_detail_level") &&
       json_config["error_detail_level"].is_string()) {
@@ -50,25 +51,13 @@ ServerConfig ServerConfig::load_from_json(const std::string &config_path) {
     config.debug = json_config["debug"];
   }
 
-  if (json_config.contains("max_request_body_size") &&
-      json_config["max_request_body_size"].is_number()) {
-    config.max_request_body_size = json_config["max_request_body_size"];
-  }
+  bounded_int(json_config, "max_request_body_size", 1024, 67108864, config.max_request_body_size);
 
-  if (json_config.contains("max_team_size") &&
-      json_config["max_team_size"].is_number()) {
-    config.max_team_size = json_config["max_team_size"];
-  }
+  bounded_int(json_config, "max_team_size", 1, 7, config.max_team_size);
 
-  if (json_config.contains("max_simulation_iterations") &&
-      json_config["max_simulation_iterations"].is_number()) {
-    config.max_simulation_iterations = json_config["max_simulation_iterations"];
-  }
+  bounded_int(json_config, "max_simulation_iterations", 1, 10000000, config.max_simulation_iterations);
 
-  if (json_config.contains("temp_file_retention_count") &&
-      json_config["temp_file_retention_count"].is_number()) {
-    config.temp_file_retention_count = json_config["temp_file_retention_count"];
-  }
+  bounded_int(json_config, "temp_file_retention_count", 0, 10000, config.temp_file_retention_count);
 
   if (json_config.contains("enable_cors") &&
       json_config["enable_cors"].is_boolean()) {
@@ -80,10 +69,7 @@ ServerConfig ServerConfig::load_from_json(const std::string &config_path) {
     config.cors_origin = json_config["cors_origin"];
   }
 
-  if (json_config.contains("file_operation_retries") &&
-      json_config["file_operation_retries"].is_number()) {
-    config.file_operation_retries = json_config["file_operation_retries"];
-  }
+  bounded_int(json_config, "file_operation_retries", 0, 20, config.file_operation_retries);
 
   return config;
 }

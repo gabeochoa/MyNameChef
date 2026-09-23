@@ -31,8 +31,9 @@ struct InstantiateBattleTeamSystem : afterhours::System<CombatQueue> {
     }
 
     last_screen = gsm.active_screen;
-    return gsm.active_screen == GameStateManager::Screen::Battle &&
-           !instantiated;
+    // Issue 66: pending team data re-arms instantiation for a new battle.
+    if (instantiated) { auto e = afterhours::EntityHelper::get_singleton<CombatQueue>(); if (e.get().has<BattleTeamDataPlayer>() && !e.get().get<BattleTeamDataPlayer>().team.empty() && !e.get().get<BattleTeamDataPlayer>().instantiated) instantiated = false; if (e.get().has<BattleTeamDataOpponent>() && !e.get().get<BattleTeamDataOpponent>().team.empty() && !e.get().get<BattleTeamDataOpponent>().instantiated) instantiated = false; }
+    return gsm.active_screen == GameStateManager::Screen::Battle && !instantiated;
   }
 
   void for_each_with(afterhours::Entity &manager_entity, CombatQueue &,

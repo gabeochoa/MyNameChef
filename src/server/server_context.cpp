@@ -70,24 +70,12 @@ bool ServerContext::is_battle_complete() const {
       return true;
     }
 
-    bool player_has_active = false;
-    bool opponent_has_active = false;
-
-    for (afterhours::Entity &entity :
-         afterhours::EntityQuery({.force_merge = true})
-             .whereHasComponent<IsDish>()
-             .whereHasComponent<DishBattleState>()
-             .gen()) {
-      const DishBattleState &dbs = entity.get<DishBattleState>();
-      if (dbs.phase != DishBattleState::Phase::Finished) {
-        if (dbs.team_side == DishBattleState::TeamSide::Player) {
-          player_has_active = true;
-        } else {
-          opponent_has_active = true;
-        }
-      }
+    bool player_has_active = false, opponent_has_active = false, any = false;
+    for (afterhours::Entity &entity : afterhours::EntityQuery({.force_merge = true}).whereHasComponent<IsDish>().whereHasComponent<DishBattleState>().gen()) {
+      any = true; const DishBattleState &dbs = entity.get<DishBattleState>();
+      if (dbs.phase != DishBattleState::Phase::Finished) (dbs.team_side == DishBattleState::TeamSide::Player ? player_has_active : opponent_has_active) = true;
     }
-
+    if (!any) return false; // issue 2: not started != finished
     return !player_has_active || !opponent_has_active;
   }
   return false;

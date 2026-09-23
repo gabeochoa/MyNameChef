@@ -88,25 +88,19 @@ std::string FileStorage::load_string_from_file(const std::string &file_path) {
 
 bool FileStorage::save_json_to_file(const std::string &file_path,
                                     const nlohmann::json &data) {
+  // Issues 36/37: write temp sibling, check stream, atomically rename.
   std::filesystem::path path(file_path);
-  if (path.has_parent_path()) {
-    ensure_directory_exists(path.parent_path().string());
+  if (path.has_parent_path()) ensure_directory_exists(path.parent_path().string());
+  std::string tmp = file_path + ".tmp";
+  {
+    std::ofstream file(tmp, std::ios::trunc);
+    if (!file.is_open()) { log_error("Failed to open temp file: {}", tmp); return false; }
+    file << data.dump(2); file.flush(); file.close();
+    if (file.fail()) { log_error("Write failed: {}", tmp); std::filesystem::remove(tmp); return false; }
   }
-
-  std::ofstream file(file_path);
-  if (!file.is_open()) {
-    log_error("Failed to open file for writing: {}", file_path);
-    return false;
-  }
-
-  try {
-    file << data.dump(2);
-    file.close();
-    return true;
-  } catch (const std::exception &e) {
-    log_error("Failed to write JSON to file {}: {}", file_path, e.what());
-    return false;
-  }
+  std::error_code ec; std::filesystem::rename(tmp, path, ec);
+  if (ec) { log_error("Rename failed {} to {}", tmp, file_path); std::filesystem::remove(tmp); return false; }
+  return true;
 }
 
 bool FileStorage::save_json_to_file_with_retry(const std::string &file_path,
@@ -136,20 +130,14 @@ bool FileStorage::save_string_to_file(const std::string &file_path,
     ensure_directory_exists(path.parent_path().string());
   }
 
-  std::ofstream file(file_path);
-  if (!file.is_open()) {
-    log_error("Failed to open file for writing: {}", file_path);
-    return false;
-  }
-
-  try {
-    file << data;
-    file.close();
-    return true;
-  } catch (const std::exception &e) {
-    log_error("Failed to write string to file {}: {}", file_path, e.what());
-    return false;
-  }
+  std::string tmp = file_path + ".tmp";
+  { std::ofstream file(tmp, std::ios::trunc);
+    if (!file.is_open()) { log_error("Failed to open temp file: {}", tmp); return false; }
+    file << data; file.flush(); file.close();
+    if (file.fail()) { std::filesystem::remove(tmp); return false; } }
+  std::error_code ec; std::filesystem::rename(tmp, path, ec);
+  if (ec) { std::filesystem::remove(tmp); return false; }
+  return true;
 }
 
 bool FileStorage::file_exists(const std::string &file_path) {

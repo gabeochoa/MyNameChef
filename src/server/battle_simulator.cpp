@@ -25,6 +25,7 @@ void BattleSimulator::start_battle(
     const nlohmann::json &opponent_team_json, uint64_t battle_seed,
     const std::filesystem::path &temp_files_path) {
 
+  cleanup_test_entities(); // issue 4: no stale result/dishes from prior request
   seed = battle_seed;
   simulation_time = 0.0f;
   battle_active = true;
@@ -43,11 +44,13 @@ void BattleSimulator::start_battle(
       (temp_files_path / ("temp_opponent_" + std::to_string(seed) + ".json"))
           .string();
 
-  if (!FileStorage::save_json_to_file(player_temp_file, player_team_json)) {
+  // Issue 3: loader requires {"team":[...]} envelope - normalize bare arrays.
+  auto envelope = [](const nlohmann::json &j) { return j.is_array() ? nlohmann::json{{"team", j}} : j; };
+  if (!FileStorage::save_json_to_file(player_temp_file, envelope(player_team_json))) {
     log_error("Failed to save player temp file: {}", player_temp_file);
     throw std::runtime_error("Failed to save player temp file");
   }
-  if (!FileStorage::save_json_to_file(opponent_temp_file, opponent_team_json)) {
+  if (!FileStorage::save_json_to_file(opponent_temp_file, envelope(opponent_team_json))) {
     log_error("Failed to save opponent temp file: {}", opponent_temp_file);
     throw std::runtime_error("Failed to save opponent temp file");
   }
@@ -197,23 +200,8 @@ void BattleSimulator::create_battle_result() {
     }
   }
 
-  if (result.outcome == BattleResult::Outcome::Tie) {
-    // Calculate from teams
-    calculate_battle_result_from_teams(result);
-  }
-
-  // Create course outcome
-  BattleResult::CourseOutcome courseOutcome;
-  courseOutcome.slotIndex = 0;
-  courseOutcome.ticks = 0;
-  if (result.outcome == BattleResult::Outcome::PlayerWin) {
-    courseOutcome.winner = BattleResult::CourseOutcome::Winner::Player;
-  } else if (result.outcome == BattleResult::Outcome::OpponentWin) {
-    courseOutcome.winner = BattleResult::CourseOutcome::Winner::Opponent;
-  } else {
-    courseOutcome.winner = BattleResult::CourseOutcome::Winner::Tie;
-  }
-  result.outcomes.push_back(courseOutcome);
+  // Issue 5: never invent a winner from flavor totals. No authoritative
+  // outcome loaded -> leave outcomes empty; serializer/API reports failure.
 
   // Create singleton
   auto &ent = afterhours::EntityHelper::createEntity();

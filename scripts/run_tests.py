@@ -25,9 +25,10 @@ class Colors:
     BLUE = '\033[0;34m'
     NC = '\033[0m'  # No Color
 
-# Configuration
-EXECUTABLE = "./output/my_name_chef.exe"
-SERVER_EXECUTABLE = "./output/battle_server.exe"
+# Configuration (issue 87: Makefile emits .exe only on macOS/Windows)
+_EXT = ".exe" if sys.platform in ("darwin", "win32") else ""
+EXECUTABLE = f"./output/my_name_chef{_EXT}"
+SERVER_EXECUTABLE = f"./output/battle_server{_EXT}"
 DEFAULT_TIMEOUT = 30
 SERVER_PORT = 8080
 BASE_DIR = Path(__file__).parent.parent
@@ -38,22 +39,16 @@ class TestDiscovery:
     
     @staticmethod
     def discover_client_tests() -> List[str]:
-        """Discover client tests from game executable."""
-        try:
-            result = subprocess.run(
-                [EXECUTABLE, "--list-tests"],
-                capture_output=True,
-                text=True,
-                timeout=10,
-                cwd=BASE_DIR
-            )
-            if result.returncode == 0:
-                tests = [line.strip() for line in result.stdout.strip().split('\n') if line.strip()]
-                return tests
-            return []
-        except Exception as e:
-            print(f"{Colors.RED}Error discovering client tests: {e}{Colors.NC}")
-            return []
+        """Discover client tests; raise on failure (issue 83: empty != green)."""
+        result = subprocess.run(
+            [EXECUTABLE, "--list-tests"], capture_output=True, text=True,
+            timeout=10, cwd=BASE_DIR)
+        if result.returncode != 0:
+            raise RuntimeError(f"--list-tests exited {result.returncode}: {result.stderr[:500]}")
+        tests = [line.strip() for line in result.stdout.strip().split('\n') if line.strip()]
+        if not tests:
+            raise RuntimeError("--list-tests returned no tests")
+        return tests
     
     @staticmethod
     def discover_server_tests() -> List[str]:
@@ -91,22 +86,14 @@ class ServerManager:
             return False
         
         print(f"{Colors.BLUE}Starting battle server on port {self.port}...{Colors.NC}")
-        
-        # Kill any existing battle_server processes
+        # Issue 86: never killall - only our own recorded child (stop()).
+        self.stop()
         try:
-            subprocess.run(["killall", "battle_server.exe"], 
-                         capture_output=True, timeout=2)
-            time.sleep(0.5)
-        except:
-            pass
-        
-        try:
+            # Issue 85: redirect to a log file instead of undrained pipes.
+            self._log = open(BASE_DIR / "output" / "test_server.log", "ab")
             self.server_process = subprocess.Popen(
-                [SERVER_EXECUTABLE],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                cwd=BASE_DIR
-            )
+                [SERVER_EXECUTABLE], stdout=self._log, stderr=self._log,
+                cwd=BASE_DIR)
             
             # Set TEST_SERVER_PID environment variable for tests that need it
             os.environ["TEST_SERVER_PID"] = str(self.server_process.pid)
@@ -161,17 +148,16 @@ class TestExecutor:
         prefix = f"{Colors.BLUE}[{test_number}/{total}]{Colors.NC} " if total > 0 else ""
         print(f"{prefix}Running test: {Colors.YELLOW}{test_name}{Colors.NC}")
         
-        # Determine if this is an integration test (starts with validate_server_)
         is_integration_test = test_name.startswith("validate_server_") and (
             "integration" in test_name or "opponent_match" in test_name or "checksum" in test_name
         )
-        
-        # Integration tests run in visible mode and need longer timeout
         test_timeout = 60 if is_integration_test else self.timeout
-        headless_flag = [] if (is_integration_test or not self.headless) else ["--headless"]
+        # Issue 88: honor requested mode for integration tests too.
+        headless_flag = [] if not self.headless else ["--headless"]
         
-        # Server failure tests use fast network checks
+        # Issue 91: isolated test identity so tests never touch the dev save.
         env = os.environ.copy()
+        env["MYNAMECHEF_TEST_USER_ID"] = f"test_{os.getpid()}_{test_name}"
         if "server_failure" in test_name:
             test_timeout = 10
             env["NETWORK_CHECK_INTERVAL_SECONDS"] = "0.25"
@@ -196,13 +182,12 @@ class TestExecutor:
             
             output = result.stdout + result.stderr
             
-            # Check output first (even on non-zero exit code) - test might have passed
-            # This matches bash script behavior: check output file even on timeout/errors
-            if any(phrase in output for phrase in ["TEST COMPLETED:", "TEST VALIDATION PASSED:", "TEST PASSED:"]):
-                if result.returncode == 0:
-                    print(f"  {Colors.GREEN}✅ PASSED{Colors.NC} - Test completed successfully")
-                else:
-                    print(f"  {Colors.GREEN}✅ PASSED{Colors.NC} - Test completed successfully (despite exit code {result.returncode})")
+            # Issue 82: a crash/timeout is never a pass - require clean exit
+            # plus an unambiguous success phrase and no failure phrase.
+            if (result.returncode == 0
+                    and any(p in output for p in ["TEST COMPLETED:", "TEST VALIDATION PASSED:", "TEST PASSED:"])
+                    and "TEST FAILED" not in output):
+                print(f"  {Colors.GREEN}✅ PASSED{Colors.NC} - Test completed successfully")
                 return (True, "passed")
             
             # Test didn't pass - check exit code for specific error types
@@ -267,8 +252,8 @@ class EndpointVerifier:
             if not self._validate_response_structure(battle_response):
                 return (False, "Response structure validation failed")
             
-            # 4. Test error handling
-            if not self._test_error_handling():
+            # 4. Test error handling (issue 90: valid hash, assert team error)
+            if not self._test_error_handling(code_hash):
                 return (False, "Error handling test failed")
             
             return (True, "All endpoint verification tests passed")
@@ -357,9 +342,9 @@ class EndpointVerifier:
         
         return True
     
-    def _test_error_handling(self) -> bool:
-        """Test error handling with invalid team."""
-        invalid_team = {"team": []}
+    def _test_error_handling(self, code_hash: str = "") -> bool:
+        """Test error handling with invalid team (valid codeHash, issue 90)."""
+        invalid_team = {"team": [], "codeHash": code_hash}
         
         try:
             data = json.dumps(invalid_team).encode('utf-8')
@@ -380,7 +365,7 @@ class EndpointVerifier:
                     error_body = e.read().decode('utf-8')
                     try:
                         error_json = json.loads(error_body)
-                        if "error" in error_json:
+                        if "Invalid team" in str(error_json.get("error", "")):
                             print(f"  {Colors.GREEN}✅ Error handling test passed (HTTP 400 for invalid team){Colors.NC}")
                             return True
                         else:
@@ -509,7 +494,6 @@ def main():
         print(f"{Colors.BLUE}Running test linter...{Colors.NC}")
         lint_script = BASE_DIR / "scripts" / "lint_tests.py"
         if lint_script.exists():
-            import subprocess
             result = subprocess.run([sys.executable, str(lint_script)], cwd=BASE_DIR)
             if result.returncode != 0:
                 print(f"{Colors.YELLOW}Warning: Test linter found violations (continuing anyway){Colors.NC}")
@@ -524,9 +508,17 @@ def main():
         print("Please build the project first with: make")
         return 1
     
-    # Discover tests
+    # Discover tests (issue 83: failure/nonempty is fatal, not all-green)
     print(f"{Colors.BLUE}Discovering tests...{Colors.NC}")
-    client_tests, integration_tests = categorize_tests(TestDiscovery.discover_client_tests())
+    try:
+        discovered = TestDiscovery.discover_client_tests()
+    except Exception as e:
+        print(f"{Colors.RED}❌ Test discovery failed: {e}{Colors.NC}")
+        return 1
+    client_tests, integration_tests = categorize_tests(discovered)
+    if not client_tests and not integration_tests:
+        print(f"{Colors.RED}❌ No tests to run{Colors.NC}")
+        return 1
     server_tests = [] if args.no_server or args.client_only else TestDiscovery.discover_server_tests()
     
     print(f"  Found {len(client_tests)} client tests")
@@ -621,7 +613,7 @@ def main():
         print(f"{Colors.BLUE}🔗 Integration Tests{Colors.NC}")
         print(f"{Colors.BLUE}{'=' * 20}{Colors.NC}")
         print(f"Found {len(integration_tests)} integration tests to run")
-        print(f"{Colors.YELLOW}Note: Integration tests start their own server and run in visible mode{Colors.NC}")
+        print(f"{Colors.YELLOW}Note: Integration tests start their own server; mode honors --visible/headless (issue 88){Colors.NC}")
         print("")
         
         passed, failed = run_test_suite(executor_headless, [], integration_tests)

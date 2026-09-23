@@ -143,6 +143,15 @@ SERVER_TEST(team_validation_valid_full_team) {
   ASSERT_TRUE(server::TeamManager::validate_team_json(json));
 }
 
+SERVER_TEST(team_validation_rejects_unknown_and_nonstring_dish) { // issues 13-16
+  ASSERT_FALSE(server::TeamManager::validate_team_json({{"team", {{{"dishType", "NoSuchDish"}, {"slot", 0}}}}}));
+  ASSERT_FALSE(server::TeamManager::validate_team_json({{"team", {{{"dishType", nullptr}, {"slot", 0}}}}}));
+  ASSERT_FALSE(server::TeamManager::validate_team_json({{"team", {{{"dishType", "Potato"}, {"slot", 0}}, {{"dishType", "Burger"}, {"slot", 0}}}}}));
+  ASSERT_FALSE(server::TeamManager::validate_team_json({{"team", {{{"dishType", "Potato"}, {"slot", 0.5}}}}}));
+  ASSERT_FALSE(server::TeamManager::validate_team_json({{"team", {{{"dishType", "Potato"}, {"slot", 0}, {"level", 999}}}}}));
+  ASSERT_TRUE(server::TeamManager::validate_team_json({{"team", {{{"dishType", "Potato"}, {"slot", 0}, {"level", 3}}}}}));
+}
+
 // Auto-discovery test: automatically validates all files in example_teams/
 // based on their filename prefix (valid_* should pass, invalid_* should fail)
 SERVER_TEST(team_validation_auto_discovery) {

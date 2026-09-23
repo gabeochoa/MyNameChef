@@ -224,20 +224,23 @@ def pack_by_group(entries: List[ImageEntry], max_width: int, padding: int) -> Tu
 
     for g in final_order:
         row_entries = grouped[g]
+        for e in row_entries:
+            if e.width > max_width:
+                raise ValueError(f"{e.filename}: width {e.width} exceeds sheet width {max_width} (issue 76)")
         x_cursor = 0
+        group_y = y_cursor
         row_height = max(e.height for e in row_entries) if row_entries else 0
+        cur_row_h = row_height
         for e in row_entries:
             if x_cursor > 0 and x_cursor + e.width > max_width:
-                # If a single group's items overflow max width, wrap within the same group row
-                # by moving to next line within the group (rare with large max_width)
-                y_cursor += row_height + padding
+                y_cursor += cur_row_h + padding
                 x_cursor = 0
-                row_height = max(e.height for e in row_entries)
+                cur_row_h = e.height
+            cur_row_h = max(cur_row_h, e.height)
             placements.append(PlacedRect(entry=e, x=x_cursor, y=y_cursor))
             x_cursor += e.width + padding
-        group_rows[g] = {"y": y_cursor, "h": row_height}
-        # Advance to next group row; keep right-side empty space for future items
-        y_cursor += row_height + padding
+        group_rows[g] = {"y": group_y, "h": (y_cursor - group_y) + cur_row_h}
+        y_cursor += cur_row_h + padding
 
     # Force total width to max_width to reserve horizontal space for future items per row
     total_width = max_width

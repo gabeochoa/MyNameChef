@@ -6,6 +6,7 @@
 #include <afterhours/src/singleton.h>
 #include <chrono>
 #include <cstdint>
+#include <cstdlib>
 #include <fmt/format.h>
 #include <string>
 
@@ -19,6 +20,13 @@ struct UserId : afterhours::BaseComponent {
 
 private:
   void load_or_generate() {
+    // Issue 91: test runner injects an isolated identity; never touch dev save.
+    if (const char *test_id = std::getenv("MYNAMECHEF_TEST_USER_ID");
+        test_id && *test_id) {
+      userId = test_id;
+      log_info("Logged in as {} (test)", userId);
+      return;
+    }
     userId =
         server::FileStorage::load_string_from_file("output/saves/user_id.txt");
     if (userId.empty()) {

@@ -43,6 +43,7 @@ struct BattleProcessorSystem : afterhours::System<BattleProcessor> {
       return false;
     }
 
+    if (isReplayPaused()) return false; // issue 71: shared pause policy
     bool has_anim = hasActiveAnimation();
     return !has_anim;
   }

@@ -28,8 +28,6 @@ struct BattleFingerprint {
                                      .whereHasComponent<DishBattleState>()
                                      .gen()) {
       DishData data;
-      data.entityId = e.id;
-
       const IsDish &dish = e.get<IsDish>();
       data.dishType = static_cast<int>(dish.type);
 
@@ -74,11 +72,13 @@ struct BattleFingerprint {
                   return a.teamSide < b.teamSide;
                 if (a.queueIndex != b.queueIndex)
                   return a.queueIndex < b.queueIndex;
-                return a.entityId < b.entityId;
+                if (a.dishType != b.dishType) return a.dishType < b.dishType;
+                if (a.level != b.level) return a.level < b.level;
+                if (a.currentBody != b.currentBody) return a.currentBody < b.currentBody;
+                return a.currentZing < b.currentZing; // total canonical order
               });
 
     for (const auto &dish : dishes) {
-      hash = combine_hash(hash, dish.entityId);
       hash = combine_hash(hash, dish.dishType);
       hash = combine_hash(hash, dish.level);
       hash = combine_hash(hash, dish.teamSide);
@@ -95,12 +95,7 @@ struct BattleFingerprint {
       hash = combine_hash(hash, dish.persistBody);
     }
 
-    if (auto tq = afterhours::EntityHelper::get_singleton<TriggerQueue>();
-        tq.get().has<TriggerQueue>()) {
-      const TriggerQueue &queue = tq.get().get<TriggerQueue>();
-      hash = combine_hash(hash, static_cast<uint64_t>(queue.events.size()));
-    }
-
+    // Transient trigger-queue depth is not battle identity - excluded.
     return hash;
   }
 
@@ -111,7 +106,6 @@ struct BattleFingerprint {
 
 private:
   struct DishData {
-    int entityId = 0;
     int dishType = 0;
     int level = 1;
     int teamSide = 0;
@@ -132,7 +126,10 @@ private:
 constexpr const char *GAME_STATE_CLIENT_VERSION = "0.1.0";
 
 inline std::string compute_game_state_checksum(const nlohmann::json &state) {
-  std::string json_str = state.dump();
+  // Issue 31: canonical payload excludes checksum metadata everywhere.
+  nlohmann::json canonical = state;
+  if (canonical.is_object()) canonical.erase("checksum");
+  std::string json_str = canonical.dump();
   uint64_t hash = 0;
   for (char c : json_str) {
     hash = BattleFingerprint::combine_hash(hash, static_cast<uint64_t>(c));
