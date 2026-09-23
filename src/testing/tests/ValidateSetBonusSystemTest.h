@@ -77,14 +77,16 @@ TEST(validate_set_bonus_american_2_piece) {
   app.wait_for_frames(5);
 
   // Clear any existing inventory items to ensure clean state
-  for (afterhours::Entity &entity :
-       afterhours::EntityQuery({.force_merge = true})
-           .whereHasComponent<IsInventoryItem>()
-           .whereHasComponent<IsDish>()
-           .gen()) {
-    entity.cleanup = true;
-  }
-  afterhours::EntityHelper::cleanup();
+  app.once([&] {
+    for (afterhours::Entity &entity :
+         afterhours::EntityQuery({.force_merge = true})
+             .whereHasComponent<IsInventoryItem>()
+             .whereHasComponent<IsDish>()
+             .gen()) {
+      entity.cleanup = true;
+    }
+    afterhours::EntityHelper::cleanup();
+  });
   app.wait_for_frames(2);
 
   // Create 2 American dishes in inventory (Potato defaults to American, but
@@ -159,14 +161,16 @@ TEST(validate_set_bonus_american_4_piece) {
   app.wait_for_frames(5);
 
   // Clear any existing inventory items
-  for (afterhours::Entity &entity :
-       afterhours::EntityQuery({.force_merge = true})
-           .whereHasComponent<IsInventoryItem>()
-           .whereHasComponent<IsDish>()
-           .gen()) {
-    entity.cleanup = true;
-  }
-  afterhours::EntityHelper::cleanup();
+  app.once([&] {
+    for (afterhours::Entity &entity :
+         afterhours::EntityQuery({.force_merge = true})
+             .whereHasComponent<IsInventoryItem>()
+             .whereHasComponent<IsDish>()
+             .gen()) {
+      entity.cleanup = true;
+    }
+    afterhours::EntityHelper::cleanup();
+  });
   app.wait_for_frames(2);
 
   // Create 4 American dishes in inventory
@@ -227,14 +231,16 @@ TEST(validate_set_bonus_american_6_piece) {
   app.wait_for_frames(5);
 
   // Clear any existing inventory items
-  for (afterhours::Entity &entity :
-       afterhours::EntityQuery({.force_merge = true})
-           .whereHasComponent<IsInventoryItem>()
-           .whereHasComponent<IsDish>()
-           .gen()) {
-    entity.cleanup = true;
-  }
-  afterhours::EntityHelper::cleanup();
+  app.once([&] {
+    for (afterhours::Entity &entity :
+         afterhours::EntityQuery({.force_merge = true})
+             .whereHasComponent<IsInventoryItem>()
+             .whereHasComponent<IsDish>()
+             .gen()) {
+      entity.cleanup = true;
+    }
+    afterhours::EntityHelper::cleanup();
+  });
   app.wait_for_frames(2);
 
   // Create 6 American dishes in inventory
@@ -295,14 +301,16 @@ TEST(validate_set_bonus_no_synergy) {
   app.wait_for_frames(5);
 
   // Clear any existing inventory items
-  for (afterhours::Entity &entity :
-       afterhours::EntityQuery({.force_merge = true})
-           .whereHasComponent<IsInventoryItem>()
-           .whereHasComponent<IsDish>()
-           .gen()) {
-    entity.cleanup = true;
-  }
-  afterhours::EntityHelper::cleanup();
+  app.once([&] {
+    for (afterhours::Entity &entity :
+         afterhours::EntityQuery({.force_merge = true})
+             .whereHasComponent<IsInventoryItem>()
+             .whereHasComponent<IsDish>()
+             .gen()) {
+      entity.cleanup = true;
+    }
+    afterhours::EntityHelper::cleanup();
+  });
   app.wait_for_frames(2);
 
   // Create dishes without matching cuisine tags

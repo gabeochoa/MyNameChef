@@ -5,6 +5,7 @@
 #include "../../components/battle_team_tags.h"
 #include "../../components/is_dish.h"
 #include "../../game_state_manager.h"
+#include "../test_app.h"
 #include "../test_macros.h"
 #include <afterhours/ah.h>
 #include <filesystem>
@@ -80,6 +81,24 @@ static void create_mock_opponent_json() {
       log_error("TEST: Failed to create mock player JSON file");
     }
 }
+
+static void set_battle_load_request(const std::string &player_path,
+                                    const std::string &opponent_path) {
+  if (!afterhours::EntityHelper::has_singleton<BattleLoadRequest>()) {
+    afterhours::Entity &requestEntity =
+        afterhours::EntityHelper::createEntity();
+    requestEntity.addComponent<BattleLoadRequest>();
+    afterhours::EntityHelper::registerSingleton<BattleLoadRequest>(
+        requestEntity);
+  }
+  BattleLoadRequest &request =
+      afterhours::EntityHelper::get_singleton<BattleLoadRequest>()
+          .get()
+          .get<BattleLoadRequest>();
+  request.playerJsonPath = player_path;
+  request.opponentJsonPath = opponent_path;
+  request.loaded = false;
+}
 } // namespace ValidateBattleResultsTestHelpers
 
 TEST(validate_battle_results) {
@@ -112,13 +131,13 @@ TEST(validate_battle_results) {
   }
 
   // Step 3: Create BattleLoadRequest and navigate to battle
-  auto &requestEntity = afterhours::EntityHelper::createEntity();
-  BattleLoadRequest battleRequest;
-  battleRequest.playerJsonPath = "output/battles/pending/test_player.json";
-  battleRequest.opponentJsonPath = "output/battles/pending/test_opponent.json";
-  battleRequest.loaded = false;
-  requestEntity.addComponent<BattleLoadRequest>(std::move(battleRequest));
-  afterhours::EntityHelper::registerSingleton<BattleLoadRequest>(requestEntity);
+  static const TestOperationID request_op = TestApp::generate_operation_id(
+      std::source_location::current(), "validate_battle_results.request");
+  if (app.completed_operations.count(request_op) == 0) {
+    set_battle_load_request("output/battles/pending/test_player.json",
+                            "output/battles/pending/test_opponent.json");
+    app.completed_operations.insert(request_op);
+  }
 
   app.click("Next Round");
   app.wait_for_screen(GameStateManager::Screen::Battle, 15.0f);

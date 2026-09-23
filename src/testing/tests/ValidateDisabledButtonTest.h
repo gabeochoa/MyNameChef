@@ -10,7 +10,7 @@ TEST(validate_disabled_button) {
 
   // Find the Play button entity
   afterhours::Entity *play_button = nullptr;
-  for (auto &ref : afterhours::EntityQuery()
+  for (auto &ref : afterhours::EntityQuery({.force_merge = true})
                        .whereHasComponent<afterhours::ui::HasLabel>()
                        .whereHasComponent<afterhours::ui::HasClickListener>()
                        .gen()) {

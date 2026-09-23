@@ -120,9 +120,6 @@ TEST(validate_server_battle_determinism) {
     app.clear_battle_dishes();
     ValidateServerBattleDeterminismTestHelpers::
         ensure_battle_load_request_exists(test_seed);
-    app.setup_battle();
-    app.wait_for_frames(1);
-
     SeededRng::get().set_seed(test_seed);
     ValidateServerBattleDeterminismTestHelpers::ensure_replay_state_exists(
         test_seed);
@@ -139,6 +136,7 @@ TEST(validate_server_battle_determinism) {
         .with_combat_stats()
         .commit();
 
+    app.setup_battle();
     app.wait_for_frames(1);
     app.wait_for_battle_initialized(10.0f);
     app.wait_for_frames(30);
@@ -163,9 +161,6 @@ TEST(validate_server_battle_determinism) {
     app.clear_battle_dishes();
     ValidateServerBattleDeterminismTestHelpers::
         ensure_battle_load_request_exists(test_seed);
-    app.setup_battle();
-    app.wait_for_frames(1);
-
     SeededRng::get().set_seed(test_seed);
     ValidateServerBattleDeterminismTestHelpers::ensure_replay_state_exists(
         test_seed);
@@ -182,6 +177,7 @@ TEST(validate_server_battle_determinism) {
         .with_combat_stats()
         .commit();
 
+    app.setup_battle();
     app.wait_for_frames(1);
     app.wait_for_battle_initialized(10.0f);
     app.wait_for_frames(30);

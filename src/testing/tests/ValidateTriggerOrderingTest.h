@@ -15,177 +15,81 @@
 #include "../test_macros.h"
 #include <afterhours/ah.h>
 
-namespace ValidateTriggerOrderingTestHelpers {
-
-static afterhours::Entity &get_or_create_trigger_queue() {
-  afterhours::RefEntity tq_ref =
-      afterhours::EntityHelper::get_singleton<TriggerQueue>();
-  afterhours::Entity &tq_entity = tq_ref.get();
-  if (!tq_entity.has<TriggerQueue>()) {
-    tq_entity.addComponent<TriggerQueue>();
-    afterhours::EntityHelper::registerSingleton<TriggerQueue>(tq_entity);
-  }
-  return tq_entity;
-}
-
-} // namespace ValidateTriggerOrderingTestHelpers
-
 TEST(validate_trigger_ordering) {
-  using namespace ValidateTriggerOrderingTestHelpers;
   log_info("TRIGGER_ORDERING_TEST: Testing trigger event ordering logic");
 
   app.launch_game();
-  GameStateManager::get().to_battle();
-  app.wait_for_frames(1); // Ensure screen state is synced
 
-  // Create test scenario:
-  // Player team: 2 dishes (higher total Zing = 10)
-  // Opponent team: 2 dishes (lower total Zing = 6)
-  // We'll test ordering across slots and teams
+  afterhours::EntityID player_dish1_id =
+      app.create_dish(DishType::Salmon)
+          .on_team(DishBattleState::TeamSide::Player)
+          .at_slot(0)
+          .in_phase(DishBattleState::Phase::InQueue)
+          .commit();
 
-  // Player team (higher total Zing = 10)
-  auto player_dish1_id = app.create_dish(DishType::Salmon)
-                            .on_team(DishBattleState::TeamSide::Player)
-                            .at_slot(0)
-                            .in_phase(DishBattleState::Phase::InQueue)
-                            .commit(); // Salmon has umami=3, freshness=2 = 5 zing
+  afterhours::EntityID player_dish2_id =
+      app.create_dish(DishType::Salmon)
+          .on_team(DishBattleState::TeamSide::Player)
+          .at_slot(1)
+          .in_phase(DishBattleState::Phase::InQueue)
+          .commit();
 
-  auto player_dish2_id = app.create_dish(DishType::Salmon)
-                             .on_team(DishBattleState::TeamSide::Player)
-                             .at_slot(1)
-                             .in_phase(DishBattleState::Phase::InQueue)
-                             .commit(); // 5 zing
+  afterhours::EntityID opponent_dish1_id =
+      app.create_dish(DishType::Potato)
+          .on_team(DishBattleState::TeamSide::Opponent)
+          .at_slot(0)
+          .in_phase(DishBattleState::Phase::InQueue)
+          .commit();
 
-  // Opponent team (lower total Zing = 6)
-  auto opponent_dish1_id = app.create_dish(DishType::Potato)
-                               .on_team(DishBattleState::TeamSide::Opponent)
-                               .at_slot(0)
-                               .in_phase(DishBattleState::Phase::InQueue)
-                               .commit(); // 1 zing
+  afterhours::EntityID opponent_dish2_id =
+      app.create_dish(DishType::Salmon)
+          .on_team(DishBattleState::TeamSide::Opponent)
+          .at_slot(1)
+          .in_phase(DishBattleState::Phase::InQueue)
+          .commit();
 
-  auto opponent_dish2_id = app.create_dish(DishType::Salmon)
-                               .on_team(DishBattleState::TeamSide::Opponent)
-                               .at_slot(1)
-                               .in_phase(DishBattleState::Phase::InQueue)
-                               .commit(); // 5 zing
+  app.wait_for_frames(2);
 
-  // Wait a frame for entities to be merged by system loop
-  app.wait_for_frames(1);
-
-  // Let game loop run systems to calculate baseZing
-  app.wait_for_frames(1);
-
-  // Verify CombatStats were calculated
   for (afterhours::Entity &e :
-       EQ({.ignore_temp_warning = true}).whereHasComponent<IsDish>().gen()) {
-    if (!e.has<CombatStats>()) {
-      log_error("TRIGGER_ORDERING_TEST: Dish {} missing CombatStats", e.id);
-      return;
-    }
+       EQ({.force_merge = true}).whereHasComponent<IsDish>().gen()) {
+    app.expect_true(e.has<CombatStats>(),
+                    "dish " + std::to_string(e.id) + " has CombatStats");
   }
 
-  // Create trigger events in random order to test sorting
-  auto &tq_entity = get_or_create_trigger_queue();
-  auto &queue = tq_entity.get<TriggerQueue>();
+  app.fire_trigger(TriggerHook::OnServe, opponent_dish2_id, 1,
+                   DishBattleState::TeamSide::Opponent);
+  app.fire_trigger(TriggerHook::OnServe, player_dish1_id, 0,
+                   DishBattleState::TeamSide::Player);
+  app.fire_trigger(TriggerHook::OnServe, player_dish2_id, 1,
+                   DishBattleState::TeamSide::Player);
+  app.fire_trigger(TriggerHook::OnServe, opponent_dish1_id, 0,
+                   DishBattleState::TeamSide::Opponent);
 
-  // Add events in non-ordered sequence:
-  // slot 1: opponent_dish2 (lower team total)
-  // slot 0: player_dish1 (higher team total)
-  // slot 1: player_dish2 (higher team total)
-  // slot 0: opponent_dish1 (lower team total)
-  queue.add_event(TriggerHook::OnServe, opponent_dish2_id, 1,
-                  DishBattleState::TeamSide::Opponent);
-  queue.add_event(TriggerHook::OnServe, player_dish1_id, 0,
-                  DishBattleState::TeamSide::Player);
-  queue.add_event(TriggerHook::OnServe, player_dish2_id, 1,
-                  DishBattleState::TeamSide::Player);
-  queue.add_event(TriggerHook::OnServe, opponent_dish1_id, 0,
-                  DishBattleState::TeamSide::Opponent);
+  afterhours::Entity &tq_entity =
+      afterhours::EntityHelper::get_singleton<TriggerQueue>().get();
+  TriggerQueue &queue = tq_entity.get<TriggerQueue>();
 
-  // Let game loop run TriggerDispatchSystem to order events
-  app.wait_for_frames(1);
+  TriggerDispatchSystem::sort_events(queue);
 
-  // Verify ordering:
-  // Expected order:
-  // 1. slot 0, Player team (higher total Zing: 15 vs 6)
-  // 2. slot 0, Opponent team (lower total Zing)
-  // 3. slot 1, Player team (higher total Zing)
-  // 4. slot 1, Opponent team (lower total Zing)
+  app.expect_count_eq(static_cast<int>(queue.events.size()), 4,
+                      "event count after dispatch ordering");
 
-  if (queue.events.size() != 4) {
-    log_error("TRIGGER_ORDERING_TEST: Expected 4 events, got {}",
-              queue.events.size());
-    return;
-  }
+  const std::vector<afterhours::EntityID> expected_order = {
+      player_dish1_id, opponent_dish1_id, player_dish2_id, opponent_dish2_id};
+  const std::vector<int> expected_slots = {0, 0, 1, 1};
+  const std::vector<DishBattleState::TeamSide> expected_teams = {
+      DishBattleState::TeamSide::Player, DishBattleState::TeamSide::Opponent,
+      DishBattleState::TeamSide::Player, DishBattleState::TeamSide::Opponent};
 
-  // Check slot 0 events
-  if (queue.events[0].slotIndex != 0) {
-    log_error("TRIGGER_ORDERING_TEST: First event should be slot 0, got {}",
-              queue.events[0].slotIndex);
-    return;
-  }
-  if (queue.events[0].teamSide != DishBattleState::TeamSide::Player) {
-    log_error("TRIGGER_ORDERING_TEST: First event (slot 0) should be Player "
-              "team (higher total), got Opponent");
-    return;
-  }
-  if (queue.events[0].sourceEntityId != player_dish1_id) {
-    log_error(
-        "TRIGGER_ORDERING_TEST: First event should be player_dish1, got {}",
-        queue.events[0].sourceEntityId);
-    return;
-  }
-
-  if (queue.events[1].slotIndex != 0) {
-    log_error("TRIGGER_ORDERING_TEST: Second event should be slot 0, got {}",
-              queue.events[1].slotIndex);
-    return;
-  }
-  if (queue.events[1].teamSide != DishBattleState::TeamSide::Opponent) {
-    log_error("TRIGGER_ORDERING_TEST: Second event (slot 0) should be Opponent "
-              "team (lower total), got Player");
-    return;
-  }
-  if (queue.events[1].sourceEntityId != opponent_dish1_id) {
-    log_error(
-        "TRIGGER_ORDERING_TEST: Second event should be opponent_dish1, got {}",
-        queue.events[1].sourceEntityId);
-    return;
-  }
-
-  // Check slot 1 events
-  if (queue.events[2].slotIndex != 1) {
-    log_error("TRIGGER_ORDERING_TEST: Third event should be slot 1, got {}",
-              queue.events[2].slotIndex);
-    return;
-  }
-  if (queue.events[2].teamSide != DishBattleState::TeamSide::Player) {
-    log_error("TRIGGER_ORDERING_TEST: Third event (slot 1) should be Player "
-              "team (higher total), got Opponent");
-    return;
-  }
-  if (queue.events[2].sourceEntityId != player_dish2_id) {
-    log_error(
-        "TRIGGER_ORDERING_TEST: Third event should be player_dish2, got {}",
-        queue.events[2].sourceEntityId);
-    return;
-  }
-
-  if (queue.events[3].slotIndex != 1) {
-    log_error("TRIGGER_ORDERING_TEST: Fourth event should be slot 1, got {}",
-              queue.events[3].slotIndex);
-    return;
-  }
-  if (queue.events[3].teamSide != DishBattleState::TeamSide::Opponent) {
-    log_error("TRIGGER_ORDERING_TEST: Fourth event (slot 1) should be Opponent "
-              "team (lower total), got Player");
-    return;
-  }
-  if (queue.events[3].sourceEntityId != opponent_dish2_id) {
-    log_error(
-        "TRIGGER_ORDERING_TEST: Fourth event should be opponent_dish2, got {}",
-        queue.events[3].sourceEntityId);
-    return;
+  for (size_t i = 0; i < expected_order.size(); ++i) {
+    const std::string idx = std::to_string(i);
+    app.expect_count_eq(queue.events[i].slotIndex, expected_slots[i],
+                        "event " + idx + " slot index");
+    app.expect_true(queue.events[i].teamSide == expected_teams[i],
+                    "event " + idx + " team side");
+    app.expect_count_eq(queue.events[i].sourceEntityId,
+                        static_cast<int>(expected_order[i]),
+                        "event " + idx + " source entity");
   }
 
   log_info("TRIGGER_ORDERING_TEST: All ordering checks PASSED");

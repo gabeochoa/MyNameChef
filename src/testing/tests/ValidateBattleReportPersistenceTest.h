@@ -130,10 +130,6 @@ TEST(validate_battle_report_persistence) {
     ValidateBattleReportPersistenceTestHelpers::
         ensure_battle_load_request_exists();
 
-    log_info("TEST: Step 4 - Setting up battle screen");
-    app.setup_battle();
-    app.wait_for_frames(1);
-
     // Set a known seed for testing
     uint64_t test_seed = 12345678901234567890ULL;
     log_info("TEST: Step 5 - Setting seed to {}", test_seed);
@@ -159,6 +155,10 @@ TEST(validate_battle_report_persistence) {
             .with_combat_stats()
             .commit();
     log_info("TEST: Created opponent dish with ID {}", opponent_dish_id);
+
+    log_info("TEST: Step 4 - Setting up battle screen");
+    app.setup_battle();
+    app.wait_for_frames(1);
 
     app.completed_operations.insert(setup_op);
     log_info("TEST: Setup completed, marked setup_op as done");
@@ -433,8 +433,6 @@ TEST(validate_battle_report_file_retention) {
 
   ValidateBattleReportPersistenceTestHelpers::
       ensure_battle_load_request_exists();
-  app.setup_battle();
-  app.wait_for_frames(1);
 
   uint64_t test_seed = 9876543210ULL;
   SeededRng::get().set_seed(test_seed);
@@ -459,6 +457,9 @@ TEST(validate_battle_report_file_retention) {
 
   app.set_dish_combat_stats(player_dish_id, 30, 10);
   app.set_dish_combat_stats(opponent_dish_id, 3, 5);
+
+  app.setup_battle();
+  app.wait_for_frames(1);
 
   app.wait_for_battle_initialized(10.0f);
   app.wait_for_frames(30);

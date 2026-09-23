@@ -7,6 +7,7 @@
 #include "../../components/dish_level.h"
 #include "../../components/is_dish.h"
 #include "../../components/pending_combat_mods.h"
+#include "../../components/persistent_combat_modifiers.h"
 #include "../../components/trigger_event.h"
 #include "../../components/trigger_queue.h"
 #include "../../dish_types.h"
@@ -53,15 +54,20 @@ TEST(validate_trigger_system_components) {
   auto &tq_entity = get_or_create_trigger_queue();
   auto &queue = tq_entity.get<TriggerQueue>();
 
-  queue.add_event(TriggerHook::OnStartBattle, 100, 0,
-                  DishBattleState::TeamSide::Player);
-  queue.add_event(TriggerHook::OnServe, 101, 1,
-                  DishBattleState::TeamSide::Player);
+  if (!app.has_test_int("trigger_queue_checked")) {
+    size_t size_before = queue.size();
+    app.fire_trigger(TriggerHook::OnStartBattle, 100, 0,
+                     DishBattleState::TeamSide::Player);
+    app.fire_trigger(TriggerHook::OnServe, 101, 1,
+                     DishBattleState::TeamSide::Player);
 
-  if (queue.size() != 2) {
-    log_error("TRIGGER_COMPONENTS_TEST: TriggerQueue size mismatch - expected 2, got {}",
-              queue.size());
-    return;
+    if (queue.size() != size_before + 2) {
+      log_error("TRIGGER_COMPONENTS_TEST: TriggerQueue size mismatch - expected "
+                "{}, got {}",
+                size_before + 2, queue.size());
+      return;
+    }
+    app.set_test_int("trigger_queue_checked", 1);
   }
   log_info("TRIGGER_COMPONENTS_TEST: TriggerQueue component PASSED");
 
@@ -185,9 +191,7 @@ TEST(validate_onserve_trigger) {
   // Wait a frame for entities to be merged by system loop
   app.wait_for_frames(1);
 
-  auto &tq_entity = get_or_create_trigger_queue();
-  auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnServe, source_id, 0,
+  app.fire_trigger(TriggerHook::OnServe, source_id, 0,
                   DishBattleState::TeamSide::Player);
 
   // Let game loop run systems naturally
@@ -201,13 +205,13 @@ TEST(validate_onserve_trigger) {
     return;
   }
 
-  if (!ally1->has<PendingCombatMods>() || !ally2->has<PendingCombatMods>()) {
+  if (!ally1->has<PersistentCombatModifiers>() || !ally2->has<PersistentCombatModifiers>()) {
     log_error("TRIGGER_HOOK_TEST: OnServe effect not applied to future allies");
     return;
   }
 
-  if (ally1->get<PendingCombatMods>().zingDelta != 1 ||
-      ally2->get<PendingCombatMods>().zingDelta != 1) {
+  if (ally1->get<PersistentCombatModifiers>().zingDelta != 1 ||
+      ally2->get<PersistentCombatModifiers>().zingDelta != 1) {
     log_error("TRIGGER_HOOK_TEST: OnServe effect wrong amount - expected zingDelta=1");
     return;
   }
@@ -252,9 +256,11 @@ TEST(validate_onbittetaken_trigger) {
 
   auto &tq_entity = get_or_create_trigger_queue();
   auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnBiteTaken, source_id, 0,
+  app.fire_trigger(TriggerHook::OnBiteTaken, source_id, 0,
                   DishBattleState::TeamSide::Player);
-  queue.events.back().payloadInt = 2;
+  if (!queue.events.empty()) {
+    queue.events.back().payloadInt = 2;
+  }
 
   // Let game loop run systems naturally
   app.wait_for_frames(1);
@@ -292,9 +298,7 @@ TEST(validate_ondishfinished_trigger) {
 
   app.wait_for_frames(1);
 
-  auto &tq_entity = get_or_create_trigger_queue();
-  auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnDishFinished, source_id, 0,
+  app.fire_trigger(TriggerHook::OnDishFinished, source_id, 0,
                   DishBattleState::TeamSide::Player);
 
   // Let game loop run systems naturally
@@ -308,13 +312,13 @@ TEST(validate_ondishfinished_trigger) {
     return;
   }
 
-  if (!ally1->has<PendingCombatMods>() || !ally2->has<PendingCombatMods>()) {
+  if (!ally1->has<PersistentCombatModifiers>() || !ally2->has<PersistentCombatModifiers>()) {
     log_error("TRIGGER_HOOK_TEST: OnDishFinished effect not applied to allies");
     return;
   }
 
-  if (ally1->get<PendingCombatMods>().bodyDelta != 2 ||
-      ally2->get<PendingCombatMods>().bodyDelta != 2) {
+  if (ally1->get<PersistentCombatModifiers>().bodyDelta != 2 ||
+      ally2->get<PersistentCombatModifiers>().bodyDelta != 2) {
     log_error("TRIGGER_HOOK_TEST: OnDishFinished effect wrong amount - expected bodyDelta=2");
     return;
   }
@@ -339,9 +343,7 @@ TEST(validate_oncoursestart_trigger) {
 
   app.wait_for_frames(1);
 
-  auto &tq_entity = get_or_create_trigger_queue();
-  auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnCourseStart, dish_id, 0,
+  app.fire_trigger(TriggerHook::OnCourseStart, dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
   // Let game loop run systems naturally
@@ -367,9 +369,7 @@ TEST(validate_onstartbattle_trigger) {
 
   app.wait_for_frames(1);
 
-  auto &tq_entity = get_or_create_trigger_queue();
-  auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnStartBattle, dish_id, 0,
+  app.fire_trigger(TriggerHook::OnStartBattle, dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
   // Let game loop run systems naturally
@@ -395,9 +395,7 @@ TEST(validate_oncoursecomplete_trigger) {
 
   app.wait_for_frames(1);
 
-  auto &tq_entity = get_or_create_trigger_queue();
-  auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnCourseComplete, dish_id, 0,
+  app.fire_trigger(TriggerHook::OnCourseComplete, dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
   // Let game loop run systems naturally

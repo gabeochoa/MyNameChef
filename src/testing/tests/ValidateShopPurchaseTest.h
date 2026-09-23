@@ -29,7 +29,7 @@ TEST(validate_shop_purchase) {
     if (stored_item_opt.has_value()) {
       // Use the stored item (from a previous resume)
       item_to_buy = stored_item_opt.value();
-      log_error("TEST: Using stored item type {} (resuming purchase)", static_cast<int>(item_to_buy.type));
+      log_info("TEST: Using stored item type {} (resuming purchase)", static_cast<int>(item_to_buy.type));
     } else {
       // First time - read from shop and store it
       app.set_wallet_gold(10);
@@ -41,7 +41,7 @@ TEST(validate_shop_purchase) {
       app.set_test_shop_item("validate_shop_purchase.first_item", item_to_buy);
       app.set_test_int("validate_shop_purchase.initial_gold",
                        app.read_wallet_gold());
-      log_error("TEST: Stored new item type {} for purchase", static_cast<int>(item_to_buy.type));
+      log_info("TEST: Stored new item type {} for purchase", static_cast<int>(item_to_buy.type));
     }
 
     app.expect_wallet_at_least(item_to_buy.price);

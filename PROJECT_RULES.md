@@ -160,16 +160,19 @@ Examples:
 - **UI Tests**: Validate UI elements and interactions
 - **Integration Tests**: Validate complete game flows
 
+### Entity Queries (afterhours migration)
+- Build defines `AFTER_HOURS_UI_SINGLE_COLLECTION`; game-code queries that must see not-yet-merged/temp entities use `EntityQuery({.force_merge=true})`, queries that only must silence the temp warning use `{.ignore_temp_warning=true}`. Transitional: remove `force_merge` once upstream guarantees merged visibility for those call sites.
+
 ### Running Tests
 - Individual test: `./output/my_name_chef.exe --run-test <test_name>`
-- All tests: `./scripts/run_all_tests.sh`
-- Test timeout: 5 seconds per test (prevents infinite loops)
+- All tests: `python3 scripts/run_tests.py`
+- Test timeout: 30 seconds per test, 10 seconds per wait (see src/systems/TestSystem.h)
 
 ### Pre-Commit Test Requirements
 - **CRITICAL: All tests must pass in BOTH headless and non-headless modes before committing**
-- **Step 1**: Run headless tests: `./scripts/run_all_tests.sh` (default headless mode)
+- **Step 1**: Run headless tests: `python3 scripts/run_tests.py` (default headless mode)
   - Must see "🎉 All tests passed!" before proceeding
-- **Step 2**: Run visible tests: `./scripts/run_all_tests.sh -v` (non-headless mode with visible windows)
+- **Step 2**: Run visible tests: `python3 scripts/run_tests.py -v` (non-headless mode with visible windows)
   - Must see "🎉 All tests passed!" before committing
 - **Both test runs must pass completely - do not commit if either mode fails**
 - If tests fail in one mode but pass in the other, fix the issues before committing
@@ -183,7 +186,7 @@ Examples:
 - Add `// TODO` comments in game code for UI label improvements
 - **Never use `GameStateManager::get().update_screen()` or directly manipulate game state in tests**
 - **Always use UI interactions (clicks, waits) to navigate between screens - click buttons to change screens, never directly set screen state**
-- Tests will timeout after 1 second if waiting for a condition that never completes
+- Waits time out after 10 seconds if the condition never completes
 - Use `create_inventory_item()` or similar helper functions to set up test state rather than checking if conditions exist and branching
 
 ### Test Writing Principles

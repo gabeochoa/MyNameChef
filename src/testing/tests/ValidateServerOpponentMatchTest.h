@@ -65,7 +65,7 @@ TEST(validate_server_opponent_match) {
 
   // Wait for battle to initialize
   app.wait_for_battle_initialized(30.0f);
-  app.wait_for_dishes_in_combat(1, 30.0f);
+  app.wait_for_course_complete(0, 30.0f);
   
   // Wait longer for dishes to be fully organized into slots
   // With timing speed scale, battles progress faster, so we need to ensure
@@ -111,7 +111,7 @@ TEST(validate_server_opponent_match) {
   std::vector<DishType> actual_types;
   int actual_dish_count = 0;
 
-  for (afterhours::Entity &entity : afterhours::EntityQuery()
+  for (afterhours::Entity &entity : afterhours::EntityQuery({.force_merge = true})
                                         .whereHasComponent<IsOpponentTeamItem>()
                                         .whereHasComponent<IsDish>()
                                         .whereHasComponent<DishBattleState>()

@@ -7,6 +7,7 @@
 #include "../../components/dish_level.h"
 #include "../../components/is_dish.h"
 #include "../../components/pending_combat_mods.h"
+#include "../../components/persistent_combat_modifiers.h"
 #include "../../components/pre_battle_modifiers.h"
 #include "../../components/trigger_event.h"
 #include "../../components/trigger_queue.h"
@@ -22,55 +23,28 @@
 
 namespace ValidateDebugDishTestHelpers {
 
-// Helper to navigate to battle screen using TestApp navigation
-// Assumes app.launch_game() should be called first to reset state
-static void navigate_to_battle_screen(TestApp &app) {
+static void enter_battle_screen(TestApp &app) {
+  app.setup_battle();
+  app.create_dish(DishType::Potato)
+      .on_team(DishBattleState::TeamSide::Player)
+      .at_slot(6)
+      .in_phase(DishBattleState::Phase::InQueue)
+      .with_combat_stats()
+      .with_onserve_fired()
+      .commit();
+  app.create_dish(DishType::Potato)
+      .on_team(DishBattleState::TeamSide::Opponent)
+      .at_slot(6)
+      .in_phase(DishBattleState::Phase::InQueue)
+      .with_combat_stats()
+      .with_onserve_fired()
+      .commit();
   app.wait_for_frames(1);
-  auto &gsm = GameStateManager::get();
-  gsm.update_screen();
-
-  if (gsm.active_screen == GameStateManager::Screen::Battle) {
-    app.wait_for_ui_exists("Skip to Results", 5.0f);
-    return;
-  }
-
-  if (gsm.active_screen == GameStateManager::Screen::Results) {
-    app.wait_for_ui_exists("Back to Shop", 10.0f);
-    app.click("Back to Shop");
-    app.wait_for_frames(2);
-  }
-
-  if (gsm.active_screen != GameStateManager::Screen::Shop) {
-    app.wait_for_ui_exists("Play", 5.0f);
-    app.click("Play");
-    app.wait_for_ui_exists("Next Round", 10.0f);
-    app.wait_for_frames(2);
-  } else {
-    app.wait_for_ui_exists("Next Round", 5.0f);
-  }
-
-  const auto inventory = app.read_player_inventory();
-  if (inventory.empty()) {
-    app.create_inventory_item(DishType::Potato, 0);
-    app.wait_for_frames(2);
-  }
-
-  app.click("Next Round");
-  app.wait_for_battle_initialized(30.0f);
-  app.wait_for_dishes_in_combat(1, 30.0f);
-  app.wait_for_frames(5);
-  app.wait_for_ui_exists("Skip to Results", 5.0f);
 }
 
-static afterhours::Entity &get_or_create_trigger_queue() {
-  afterhours::RefEntity tq_ref =
-      afterhours::EntityHelper::get_singleton<TriggerQueue>();
-  afterhours::Entity &tq_entity = tq_ref.get();
-  if (!tq_entity.has<TriggerQueue>()) {
-    tq_entity.addComponent<TriggerQueue>();
-    afterhours::EntityHelper::registerSingleton<TriggerQueue>(tq_entity);
-  }
-  return tq_entity;
+static bool has_persistent_mods(TestApp &app, afterhours::EntityID id) {
+  afterhours::Entity *entity = app.find_entity_by_id(id);
+  return entity && entity->has<PersistentCombatModifiers>();
 }
 
 } // namespace ValidateDebugDishTestHelpers
@@ -113,26 +87,26 @@ TEST(validate_debug_dish_onserve_flavor_stats) {
   using namespace ValidateDebugDishTestHelpers;
 
   app.launch_game();
-  navigate_to_battle_screen(app);
+  enter_battle_screen(app);
 
   log_info("DEBUG_DISH_TEST: Testing DebugDish OnServe flavor stat effects");
 
   auto debug_dish_id = app.create_dish(DishType::DebugDish)
                            .on_team(DishBattleState::TeamSide::Player)
                            .at_slot(0)
-                           .in_phase(DishBattleState::Phase::Entering)
+                           .in_phase(DishBattleState::Phase::InQueue)
+                           .with_onserve_fired()
                            .commit();
 
-  // Wait a frame for entity to be merged by system loop
   app.wait_for_frames(1);
 
-  auto &tq_entity = get_or_create_trigger_queue();
-  auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnServe, debug_dish_id, 0,
+  app.fire_trigger(TriggerHook::OnServe, debug_dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
-  // Let game loop run systems naturally
-  app.wait_for_frames(1);
+  app.wait_until([&] {
+    afterhours::Entity *entity = app.find_entity_by_id(debug_dish_id);
+    return entity && entity->has<DeferredFlavorMods>();
+  });
 
   auto *debug_dish = app.find_entity_by_id(debug_dish_id);
   if (!debug_dish) {
@@ -170,7 +144,7 @@ TEST(validate_debug_dish_onserve_target_scopes) {
   using namespace ValidateDebugDishTestHelpers;
 
   app.launch_game();
-  navigate_to_battle_screen(app);
+  enter_battle_screen(app);
 
   log_info("DEBUG_DISH_TEST: Testing DebugDish OnServe target scopes");
 
@@ -203,13 +177,14 @@ TEST(validate_debug_dish_onserve_target_scopes) {
 
   app.wait_for_frames(1);
 
-  auto &tq_entity = get_or_create_trigger_queue();
-  auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnServe, debug_dish_id, 1,
+  app.fire_trigger(TriggerHook::OnServe, debug_dish_id, 1,
                   DishBattleState::TeamSide::Player);
 
-  // Let game loop run systems naturally
-  app.wait_for_frames(1);
+  app.wait_until([&] {
+    return has_persistent_mods(app, future_ally_id) &&
+           has_persistent_mods(app, ally_after_id) &&
+           has_persistent_mods(app, opponent_id);
+  });
 
   auto *future_ally = app.find_entity_by_id(future_ally_id);
   auto *ally_after = app.find_entity_by_id(ally_after_id);
@@ -222,19 +197,19 @@ TEST(validate_debug_dish_onserve_target_scopes) {
 
   bool valid = true;
 
-  if (!future_ally->has<PendingCombatMods>()) {
-    log_error("DEBUG_DISH_TEST: FutureAllies target missing PendingCombatMods");
+  if (!future_ally->has<PersistentCombatModifiers>()) {
+    log_error("DEBUG_DISH_TEST: FutureAllies target missing PersistentCombatModifiers");
     valid = false;
   }
 
-  if (!ally_after->has<PendingCombatMods>()) {
+  if (!ally_after->has<PersistentCombatModifiers>()) {
     log_error(
-        "DEBUG_DISH_TEST: DishesAfterSelf target missing PendingCombatMods");
+        "DEBUG_DISH_TEST: DishesAfterSelf target missing PersistentCombatModifiers");
     valid = false;
   }
 
-  if (!opponent->has<PendingCombatMods>()) {
-    log_error("DEBUG_DISH_TEST: Opponent target missing PendingCombatMods");
+  if (!opponent->has<PersistentCombatModifiers>()) {
+    log_error("DEBUG_DISH_TEST: Opponent target missing PersistentCombatModifiers");
     valid = false;
   }
 
@@ -252,15 +227,16 @@ TEST(validate_debug_dish_onserve_combat_mods) {
   using namespace ValidateDebugDishTestHelpers;
 
   app.launch_game();
-  navigate_to_battle_screen(app);
+  enter_battle_screen(app);
 
   log_info("DEBUG_DISH_TEST: Testing DebugDish OnServe combat mods");
 
   auto debug_dish_id = app.create_dish(DishType::DebugDish)
                            .on_team(DishBattleState::TeamSide::Player)
                            .at_slot(0)
-                           .in_phase(DishBattleState::Phase::Entering)
+                           .in_phase(DishBattleState::Phase::InQueue)
                            .with_combat_stats()
+                           .with_onserve_fired()
                            .commit();
 
   auto ally_id = app.create_dish(DishType::Potato)
@@ -272,13 +248,13 @@ TEST(validate_debug_dish_onserve_combat_mods) {
 
   app.wait_for_frames(1);
 
-  auto &tq_entity = get_or_create_trigger_queue();
-  auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnServe, debug_dish_id, 0,
+  app.fire_trigger(TriggerHook::OnServe, debug_dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
-  // Let game loop run systems naturally
-  app.wait_for_frames(1);
+  app.wait_until([&] {
+    return has_persistent_mods(app, debug_dish_id) &&
+           has_persistent_mods(app, ally_id);
+  });
 
   auto *debug_dish = app.find_entity_by_id(debug_dish_id);
   auto *ally = app.find_entity_by_id(ally_id);
@@ -288,23 +264,25 @@ TEST(validate_debug_dish_onserve_combat_mods) {
     return;
   }
 
-  if (!debug_dish->has<PendingCombatMods>()) {
-    log_error("DEBUG_DISH_TEST: Self missing PendingCombatMods");
+  if (!debug_dish->has<PersistentCombatModifiers>()) {
+    log_error("DEBUG_DISH_TEST: Self missing PersistentCombatModifiers");
     return;
   }
 
-  auto &self_mods = debug_dish->get<PendingCombatMods>();
+  PersistentCombatModifiers &self_mods =
+      debug_dish->get<PersistentCombatModifiers>();
   if (self_mods.bodyDelta != 2) {
     log_error("DEBUG_DISH_TEST: Self bodyDelta wrong: {}", self_mods.bodyDelta);
     return;
   }
 
-  if (!ally->has<PendingCombatMods>()) {
-    log_error("DEBUG_DISH_TEST: Ally missing PendingCombatMods");
+  if (!ally->has<PersistentCombatModifiers>()) {
+    log_error("DEBUG_DISH_TEST: Ally missing PersistentCombatModifiers");
     return;
   }
 
-  auto &ally_mods = ally->get<PendingCombatMods>();
+  PersistentCombatModifiers &ally_mods =
+      ally->get<PersistentCombatModifiers>();
   // DebugDish has multiple overlapping effects (AllAllies, FutureAllies,
   // etc.) so values will be higher than individual effect amounts
   if (ally_mods.zingDelta <= 0 || ally_mods.bodyDelta <= 0) {
@@ -326,7 +304,7 @@ TEST(validate_debug_dish_onstartbattle) {
   using namespace ValidateDebugDishTestHelpers;
 
   app.launch_game();
-  navigate_to_battle_screen(app);
+  enter_battle_screen(app);
 
   log_info("DEBUG_DISH_TEST: Testing DebugDish OnStartBattle effects");
 
@@ -335,6 +313,7 @@ TEST(validate_debug_dish_onstartbattle) {
                            .at_slot(0)
                            .in_phase(DishBattleState::Phase::InQueue)
                            .with_combat_stats()
+                           .with_onserve_fired()
                            .commit();
 
   auto ally_id = app.create_dish(DishType::Potato)
@@ -346,13 +325,13 @@ TEST(validate_debug_dish_onstartbattle) {
 
   app.wait_for_frames(1);
 
-  auto &tq_entity = get_or_create_trigger_queue();
-  auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnStartBattle, debug_dish_id, 0,
+  app.fire_trigger(TriggerHook::OnStartBattle, debug_dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
-  // Let game loop run systems naturally
-  app.wait_for_frames(1);
+  app.wait_until([&] {
+    return has_persistent_mods(app, debug_dish_id) &&
+           has_persistent_mods(app, ally_id);
+  });
 
   auto *debug_dish = app.find_entity_by_id(debug_dish_id);
   auto *ally = app.find_entity_by_id(ally_id);
@@ -362,17 +341,18 @@ TEST(validate_debug_dish_onstartbattle) {
     return;
   }
 
-  if (!debug_dish->has<PendingCombatMods>()) {
-    log_error("DEBUG_DISH_TEST: OnStartBattle Self missing PendingCombatMods");
+  if (!debug_dish->has<PersistentCombatModifiers>()) {
+    log_error("DEBUG_DISH_TEST: OnStartBattle Self missing PersistentCombatModifiers");
     return;
   }
 
-  if (!ally->has<PendingCombatMods>()) {
-    log_error("DEBUG_DISH_TEST: OnStartBattle Ally missing PendingCombatMods");
+  if (!ally->has<PersistentCombatModifiers>()) {
+    log_error("DEBUG_DISH_TEST: OnStartBattle Ally missing PersistentCombatModifiers");
     return;
   }
 
-  auto &ally_mods = ally->get<PendingCombatMods>();
+  PersistentCombatModifiers &ally_mods =
+      ally->get<PersistentCombatModifiers>();
   if (ally_mods.bodyDelta != 1) {
     log_error("DEBUG_DISH_TEST: OnStartBattle Ally bodyDelta wrong: {}",
               ally_mods.bodyDelta);
@@ -389,7 +369,7 @@ TEST(validate_debug_dish_oncoursestart) {
   using namespace ValidateDebugDishTestHelpers;
 
   app.launch_game();
-  navigate_to_battle_screen(app);
+  enter_battle_screen(app);
 
   log_info("DEBUG_DISH_TEST: Testing DebugDish OnCourseStart effects");
 
@@ -409,13 +389,13 @@ TEST(validate_debug_dish_oncoursestart) {
 
   app.wait_for_frames(1);
 
-  auto &tq_entity = get_or_create_trigger_queue();
-  auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnCourseStart, debug_dish_id, 0,
+  app.fire_trigger(TriggerHook::OnCourseStart, debug_dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
-  // Let game loop run systems naturally
-  app.wait_for_frames(1);
+  app.wait_until([&] {
+    return has_persistent_mods(app, debug_dish_id) &&
+           has_persistent_mods(app, ally_id);
+  });
 
   auto *debug_dish = app.find_entity_by_id(debug_dish_id);
   auto *ally = app.find_entity_by_id(ally_id);
@@ -425,13 +405,13 @@ TEST(validate_debug_dish_oncoursestart) {
     return;
   }
 
-  if (!debug_dish->has<PendingCombatMods>()) {
-    log_error("DEBUG_DISH_TEST: OnCourseStart Self missing PendingCombatMods");
+  if (!debug_dish->has<PersistentCombatModifiers>()) {
+    log_error("DEBUG_DISH_TEST: OnCourseStart Self missing PersistentCombatModifiers");
     return;
   }
 
-  if (!ally->has<PendingCombatMods>()) {
-    log_error("DEBUG_DISH_TEST: OnCourseStart Ally missing PendingCombatMods");
+  if (!ally->has<PersistentCombatModifiers>()) {
+    log_error("DEBUG_DISH_TEST: OnCourseStart Ally missing PersistentCombatModifiers");
     return;
   }
 
@@ -444,7 +424,7 @@ TEST(validate_debug_dish_onbitetaken) {
   using namespace ValidateDebugDishTestHelpers;
 
   app.launch_game();
-  navigate_to_battle_screen(app);
+  enter_battle_screen(app);
 
   log_info("DEBUG_DISH_TEST: Testing DebugDish OnBiteTaken effects");
 
@@ -464,13 +444,13 @@ TEST(validate_debug_dish_onbitetaken) {
 
   app.wait_for_frames(1);
 
-  auto &tq_entity = get_or_create_trigger_queue();
-  auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnBiteTaken, debug_dish_id, 0,
+  app.fire_trigger(TriggerHook::OnBiteTaken, debug_dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
-  // Let game loop run systems naturally
-  app.wait_for_frames(1);
+  app.wait_until([&] {
+    return has_persistent_mods(app, debug_dish_id) &&
+           has_persistent_mods(app, ally_id);
+  });
 
   auto *debug_dish = app.find_entity_by_id(debug_dish_id);
   auto *ally = app.find_entity_by_id(ally_id);
@@ -480,13 +460,13 @@ TEST(validate_debug_dish_onbitetaken) {
     return;
   }
 
-  if (!debug_dish->has<PendingCombatMods>()) {
-    log_error("DEBUG_DISH_TEST: OnBiteTaken Self missing PendingCombatMods");
+  if (!debug_dish->has<PersistentCombatModifiers>()) {
+    log_error("DEBUG_DISH_TEST: OnBiteTaken Self missing PersistentCombatModifiers");
     return;
   }
 
-  if (!ally->has<PendingCombatMods>()) {
-    log_error("DEBUG_DISH_TEST: OnBiteTaken Ally missing PendingCombatMods");
+  if (!ally->has<PersistentCombatModifiers>()) {
+    log_error("DEBUG_DISH_TEST: OnBiteTaken Ally missing PersistentCombatModifiers");
     return;
   }
 
@@ -500,7 +480,7 @@ TEST(validate_debug_dish_ondishfinished) {
   using namespace ValidateDebugDishTestHelpers;
 
   app.launch_game();
-  navigate_to_battle_screen(app);
+  enter_battle_screen(app);
 
   log_info("DEBUG_DISH_TEST: Testing DebugDish OnDishFinished effects");
 
@@ -520,13 +500,10 @@ TEST(validate_debug_dish_ondishfinished) {
 
   app.wait_for_frames(1);
 
-  auto &tq_entity = get_or_create_trigger_queue();
-  auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnDishFinished, debug_dish_id, 0,
+  app.fire_trigger(TriggerHook::OnDishFinished, debug_dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
-  // Let game loop run systems naturally
-  app.wait_for_frames(1);
+  app.wait_until([&] { return has_persistent_mods(app, ally_id); });
 
   auto *ally = app.find_entity_by_id(ally_id);
 
@@ -535,12 +512,13 @@ TEST(validate_debug_dish_ondishfinished) {
     return;
   }
 
-  if (!ally->has<PendingCombatMods>()) {
-    log_error("DEBUG_DISH_TEST: OnDishFinished Ally missing PendingCombatMods");
+  if (!ally->has<PersistentCombatModifiers>()) {
+    log_error("DEBUG_DISH_TEST: OnDishFinished Ally missing PersistentCombatModifiers");
     return;
   }
 
-  auto &ally_mods = ally->get<PendingCombatMods>();
+  PersistentCombatModifiers &ally_mods =
+      ally->get<PersistentCombatModifiers>();
   if (ally_mods.zingDelta != 1 || ally_mods.bodyDelta != 2) {
     log_error(
         "DEBUG_DISH_TEST: OnDishFinished Ally mods wrong - zing={}, body={}",
@@ -557,7 +535,7 @@ TEST(validate_debug_dish_oncoursecomplete) {
   using namespace ValidateDebugDishTestHelpers;
 
   app.launch_game();
-  navigate_to_battle_screen(app);
+  enter_battle_screen(app);
 
   log_info("DEBUG_DISH_TEST: Testing DebugDish OnCourseComplete effects");
 
@@ -577,13 +555,10 @@ TEST(validate_debug_dish_oncoursecomplete) {
 
   app.wait_for_frames(1);
 
-  auto &tq_entity = get_or_create_trigger_queue();
-  auto &queue = tq_entity.get<TriggerQueue>();
-  queue.add_event(TriggerHook::OnCourseComplete, debug_dish_id, 0,
+  app.fire_trigger(TriggerHook::OnCourseComplete, debug_dish_id, 0,
                   DishBattleState::TeamSide::Player);
 
-  // Let game loop run systems naturally
-  app.wait_for_frames(1);
+  app.wait_until([&] { return has_persistent_mods(app, ally_id); });
 
   auto *ally = app.find_entity_by_id(ally_id);
 
@@ -592,13 +567,14 @@ TEST(validate_debug_dish_oncoursecomplete) {
     return;
   }
 
-  if (!ally->has<PendingCombatMods>()) {
+  if (!ally->has<PersistentCombatModifiers>()) {
     log_error(
-        "DEBUG_DISH_TEST: OnCourseComplete Ally missing PendingCombatMods");
+        "DEBUG_DISH_TEST: OnCourseComplete Ally missing PersistentCombatModifiers");
     return;
   }
 
-  auto &ally_mods = ally->get<PendingCombatMods>();
+  PersistentCombatModifiers &ally_mods =
+      ally->get<PersistentCombatModifiers>();
   if (ally_mods.zingDelta != 1 || ally_mods.bodyDelta != 1) {
     log_error("DEBUG_DISH_TEST: OnCourseComplete Ally mods wrong - zing={}, "
               "body={}",

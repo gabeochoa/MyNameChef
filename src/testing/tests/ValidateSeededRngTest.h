@@ -62,7 +62,7 @@ TEST(validate_seeded_rng_determinism) {
                       "shop items from first run");
 
   // Clear shop items
-  for (auto &ref : afterhours::EntityQuery()
+  for (auto &ref : afterhours::EntityQuery({.force_merge = true})
                        .template whereHasComponent<IsShopItem>()
                        .gen()) {
     ref.get().cleanup = true;
@@ -100,7 +100,7 @@ TEST(validate_seeded_rng_determinism) {
   rng.set_seed(test_seed + 1);
 
   // Clear shop items
-  for (auto &ref : afterhours::EntityQuery()
+  for (auto &ref : afterhours::EntityQuery({.force_merge = true})
                        .template whereHasComponent<IsShopItem>()
                        .gen()) {
     ref.get().cleanup = true;

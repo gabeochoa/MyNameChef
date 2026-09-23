@@ -45,7 +45,7 @@ TEST(validate_test_input_framework) {
   for (int i = 0; i < 20; ++i) {
     app.wait_for_frames(1);
     afterhours::OptEntity merged_opt =
-        afterhours::EntityQuery()
+        afterhours::EntityQuery({.force_merge = true})
             .whereID(shop_item_id)
             .gen_first();
     if (merged_opt.has_value()) {
@@ -152,7 +152,7 @@ TEST(validate_test_input_framework) {
             .gen_first();
     if (check_opt.has_value() && check_opt.asE().has<IsHeld>()) {
       is_held = true;
-      log_error("TEST_INPUT_FRAMEWORK: Item {} is held after {} checks", shop_item_id, check + 1);
+      log_info("TEST_INPUT_FRAMEWORK: Item {} is held after {} checks", shop_item_id, check + 1);
       break;
     }
   }
@@ -167,11 +167,11 @@ TEST(validate_test_input_framework) {
       held_count++;
       if (e.id == shop_item_id) {
         is_held = true;
-        log_error("TEST_INPUT_FRAMEWORK: Found held item {} in separate query", shop_item_id);
+        log_info("TEST_INPUT_FRAMEWORK: Found held item {} in separate query", shop_item_id);
         break;
       }
     }
-    log_error("TEST_INPUT_FRAMEWORK: After polling, is_held={}, held_count={}, shop_item_id={}", is_held, held_count, shop_item_id);
+    log_info("TEST_INPUT_FRAMEWORK: After polling, is_held={}, held_count={}, shop_item_id={}", is_held, held_count, shop_item_id);
   }
   
     app.expect_true(is_held, "Shop item is marked as held");

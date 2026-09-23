@@ -50,3 +50,6 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+# Claude Code local state
+.claude/

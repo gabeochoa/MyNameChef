@@ -57,18 +57,19 @@ TEST(validate_server_battle_integration) {
   log_info("  Player file: {}", req.playerJsonPath);
   log_info("  Opponent file: {}", req.opponentJsonPath);
 
-  // Wait for battle to initialize and dishes to enter combat
+  // Wait for battle to initialize and the first course to be fought
   app.wait_for_battle_initialized(30.0f);
-  app.wait_for_dishes_in_combat(1, 30.0f);
-
-  app.wait_for_ui_exists("Skip to Results", 5.0f);
+  app.wait_for_course_complete(0, 30.0f);
 
   // Wait 5 seconds to see the battle in action, then skip to results
   log_info("INTEGRATION_TEST: Waiting 5 seconds to watch battle...");
   app.wait_for_frames(300); // 5 seconds at 60fps
 
-  log_info("INTEGRATION_TEST: Clicking 'Skip to Results' to finish battle...");
-  app.click("Skip to Results");
+  if (app.read_current_screen() != GameStateManager::Screen::Results) {
+    log_info("INTEGRATION_TEST: Clicking 'Skip to Results' to finish battle...");
+    app.wait_for_ui_exists("Skip to Results", 5.0f);
+    app.click("Skip to Results");
+  }
   app.wait_for_results_screen(10.0f);
 
   log_info("INTEGRATION_TEST: ✅ Test passed - battle completed and results "
