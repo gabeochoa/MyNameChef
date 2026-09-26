@@ -1,7 +1,9 @@
 #pragma once
 
 #include <algorithm>
+#include <map>
 #include "../components/battle_team_tags.h"
+#include "../components/combat_queue.h"
 #include "../components/combat_stats.h"
 #include "../components/deferred_flavor_mods.h"
 #include "../components/dish_battle_state.h"
@@ -34,6 +36,7 @@
 #include <vector>
 
 struct EffectResolutionSystem : afterhours::System<TriggerQueue> {
+  std::map<std::pair<int, int>, bool> swap_applied; // (dish id, course) - once per course
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
     if (gsm.active_screen != GameStateManager::Screen::Battle) {
@@ -553,6 +556,12 @@ private:
             target.id);
         break;
       }
+      // Swap rule (settled): once per course per dish - duplicate firings in
+      // the same course are ignored, next course may swap again.
+      { int course = 0; if (auto cq = afterhours::EntityHelper::get_singleton<CombatQueue>(); cq.get().has<CombatQueue>()) course = cq.get().get<CombatQueue>().current_index;
+        auto key = std::make_pair(target.id, course);
+        if (swap_applied[key]) { log_info("EFFECT: SwapStats already applied to {} in course {}, ignoring", target.id, course); break; }
+        swap_applied[key] = true; }
       auto &stats = target.get<CombatStats>();
       int zingMinusBody = stats.baseZing - stats.baseBody;
       auto &persist = target.addComponentIfMissing<PersistentCombatModifiers>();
