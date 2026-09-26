@@ -6,7 +6,9 @@
 #include "../components/is_dish.h"
 #include "../components/is_inventory_item.h"
 #include "../components/replay_state.h"
+#include "../components/user_id.h"
 #include "../game_state_manager.h"
+#include "../shop.h"
 #include "../log.h"
 #include "../server/file_storage.h"
 #include "../systems/GameStateSaveSystem.h"
@@ -15,21 +17,41 @@
 #include <afterhours/ah.h>
 #include <filesystem>
 #include <fstream>
+#include <future>
 #include <httplib.h>
 #include <magic_enum/magic_enum.hpp>
 #include <nlohmann/json.hpp>
 #include <vector>
 
 struct ServerBattleRequestSystem : afterhours::System<BattleLoadRequest> {
-  int failures = 0; // issue 25: bounded retries - after max, stay failed until new request (paths set / url changes)
+  int failures = 0; // issue 25: bounded retries
+  // Async HTTP (settled): battle POST runs on a worker thread; the game loop
+  // polls and processes the response on the main thread.
+  std::future<std::pair<int, std::string>> battle_future;
+  bool in_flight = false;
+  float retry_delay = 0.0f; // Backoff between attempts (server restarts)
+  nlohmann::json pending_team;
+  http_helpers::ServerUrlParts pending_url;
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
     return gsm.active_screen == GameStateManager::Screen::Battle;
   }
 
   void for_each_with(afterhours::Entity &, BattleLoadRequest &request,
-                     float) override {
+                     float dt) override {
     if (request.serverUrl.empty()) {
+      return;
+    }
+
+    if (retry_delay > 0.0f) {
+      retry_delay -= dt;
+      return;
+    }
+
+    if (in_flight) {
+      if (battle_future.wait_for(std::chrono::seconds(0)) != std::future_status::ready) return;
+      auto result = battle_future.get(); in_flight = false;
+      process_battle_response(request, result.first, result.second);
       return;
     }
 
@@ -57,7 +79,7 @@ struct ServerBattleRequestSystem : afterhours::System<BattleLoadRequest> {
 
     nlohmann::json player_team_json = build_player_team_json();
     if (player_team_json.empty()) {
-      log_warn("SERVER_BATTLE_REQUEST: Failed to build player team JSON"); failures++;
+      log_warn("SERVER_BATTLE_REQUEST: Failed to build player team JSON"); failures++; retry_delay = 1.0f;
       request.serverRequestPending = false;
       return;
     }
@@ -72,31 +94,46 @@ struct ServerBattleRequestSystem : afterhours::System<BattleLoadRequest> {
     http_helpers::ServerUrlParts url_parts =
         http_helpers::parse_server_url(request.serverUrl);
     if (!url_parts.success || url_parts.is_https) { // issue 28: no TLS client - fail closed, never downgrade
-      log_warn("SERVER_BATTLE_REQUEST: Invalid or HTTPS (unsupported) server URL: {}", request.serverUrl); failures++;
+      log_warn("SERVER_BATTLE_REQUEST: Invalid or HTTPS (unsupported) server URL: {}", request.serverUrl); failures++; retry_delay = 1.0f;
       request.serverRequestPending = false;
       return;
     }
 
-    log_info("SERVER_BATTLE_REQUEST: Connecting to server at {}:{}",
-             url_parts.host, url_parts.port);
+    // Pool payload (settled): round + user + version for matching
+    player_team_json["round"] = [] { auto e = afterhours::EntityHelper::get_singleton<Round>(); return e.get().has<Round>() ? e.get().get<Round>().current : 1; }();
+    player_team_json["userId"] = [] { auto e = afterhours::EntityHelper::get_singleton<UserId>(); return e.get().has<UserId>() ? e.get().get<UserId>().userId : std::string(""); }();
+    player_team_json["clientVersion"] = GAME_STATE_CLIENT_VERSION;
 
-    httplib::Client client(url_parts.host, url_parts.port);
-    client.set_read_timeout(30, 0);
-    client.set_connection_timeout(10, 0);
-
+    pending_team = player_team_json; pending_url = url_parts;
     std::string request_body = player_team_json.dump();
-    auto res = client.Post("/battle", request_body, "application/json");
+    std::string host = url_parts.host; int port = url_parts.port;
+    battle_future = std::async(std::launch::async, [host, port, request_body]() -> std::pair<int, std::string> {
+      httplib::Client client(host, port); client.set_read_timeout(30, 0); client.set_connection_timeout(10, 0);
+      auto res = client.Post("/battle", request_body, "application/json");
+      if (!res) return {-1, ""};
+      return {res->status, res->body};
+    });
+    in_flight = true;
+    log_info("SERVER_BATTLE_REQUEST: Async battle request launched to {}:{}", host, port);
+    return;
+  }
 
-    if (!res) { log_warn("SERVER_BATTLE_REQUEST: Failed to connect"); failures++; request.serverRequestPending = false; return; }
-    if (res->status != 200) { log_warn("SERVER_BATTLE_REQUEST: Server status {}: {}", res->status, res->body); failures++; request.serverRequestPending = false; return; }
-    // Issue 26: malformed 200 must not throw out of the game loop.
+  void process_battle_response(BattleLoadRequest &request, int status, const std::string &body) {
+    BattleLoadRequest &req_ref = request;
+    (void)req_ref;
+    nlohmann::json player_team_json = pending_team;
+    http_helpers::ServerUrlParts url_parts = pending_url;
+    GameStateSaveSystem save_system;
+    if (status < 0) { log_warn("SERVER_BATTLE_REQUEST: Failed to connect"); failures++; retry_delay = 1.0f; request.serverRequestPending = false; return; }
+    if (status != 200) { log_warn("SERVER_BATTLE_REQUEST: Server status {}: {}", status, body); failures++; retry_delay = 1.0f; request.serverRequestPending = false; return; }
     nlohmann::json battle_response; uint64_t seed; std::string opponent_id, checksum;
     try {
-      battle_response = nlohmann::json::parse(res->body);
+      battle_response = nlohmann::json::parse(body);
       if (!battle_response.contains("seed") || !battle_response.contains("opponentId")) throw std::runtime_error("missing seed/opponentId");
       seed = battle_response["seed"].get<uint64_t>(); opponent_id = battle_response["opponentId"].get<std::string>(); checksum = battle_response.value("checksum", std::string(""));
-    } catch (const std::exception &e) { log_warn("SERVER_BATTLE_REQUEST: Malformed response: {}", e.what()); failures++; request.serverRequestPending = false; return; }
+    } catch (const std::exception &e) { log_warn("SERVER_BATTLE_REQUEST: Malformed response: {}", e.what()); failures++; retry_delay = 1.0f; request.serverRequestPending = false; return; }
     failures = 0;
+    httplib::Client client(url_parts.host, url_parts.port); client.set_read_timeout(30, 0); client.set_connection_timeout(10, 0);
 
     log_info("SERVER_BATTLE_REQUEST: Battle request successful");
     log_info("  Seed: {}", seed);
@@ -134,10 +171,12 @@ struct ServerBattleRequestSystem : afterhours::System<BattleLoadRequest> {
     replay.opponentJsonPath = request.opponentJsonPath;
     replay.serverChecksum = checksum;
     replay.active = true;
+    replay.from_history = false;
     replay.paused = false;
     replay.timeScale = 1.0f;
 
-    afterhours::EntityHelper::registerSingleton<ReplayState>(replay_entity);
+    if (!afterhours::EntityHelper::has_singleton<ReplayState>())
+      afterhours::EntityHelper::registerSingleton<ReplayState>(replay_entity);
 
     log_info("SERVER_BATTLE_REQUEST: Server request complete");
     log_info("  Player file: {}", request.playerJsonPath);

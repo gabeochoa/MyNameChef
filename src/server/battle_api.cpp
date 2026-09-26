@@ -9,6 +9,7 @@
 #include "team_types.h"
 #include <afterhours/ah.h>
 #include <chrono>
+#include <climits>
 #include <filesystem>
 #include <iomanip>
 #include <mutex>
@@ -63,6 +64,11 @@ void BattleAPI::setup_routes() {
   server.Post("/battle",
               [this](const httplib::Request &req, httplib::Response &res) {
                 handle_battle_request(req, res);
+              });
+
+  server.Post("/battle/verify",
+              [this](const httplib::Request &req, httplib::Response &res) {
+                handle_verify_request(req, res);
               });
 
   server.Post("/save-game-state",
@@ -208,94 +214,65 @@ void BattleAPI::handle_battle_request(const httplib::Request &req,
 
     nlohmann::json player_team = request_json["team"];
 
-    std::optional<TeamFilePath> opponent_path =
-        TeamManager::select_random_opponent_with_fallback(
-            config.get_opponents_path(), config.file_operation_retries);
-    return_if(!opponent_path.has_value(), 500, "No opponents available");
+    // Async pool (settled design): every battle request uploads the team;
+    // opponent = another user's closest-round team (version gated, all
+    // history kept), else a built-in house team, else legacy random pool.
+    int request_round = request_json.value("round", 1);
+    std::string request_user = request_json.value("userId", std::string(""));
+    std::string request_version = request_json.value("clientVersion", std::string(""));
+    std::string opponent_source = "random";
+    int opponent_round = request_round;
+    nlohmann::json opponent_team;
+    if (!request_user.empty()) {
+      long long now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+      nlohmann::json upload{{"team", player_team}, {"round", request_round}, {"userId", request_user}, {"clientVersion", request_version}, {"uploadedAt", now_ms}};
+      FileStorage::save_json_to_file("output/battles/pool/" + request_user + "_" + std::to_string(request_round) + "_" + std::to_string(now_ms) + ".json", upload);
+      int best_diff = INT_MAX; long long best_at = -1;
+      if (std::filesystem::exists("output/battles/pool")) {
+        for (auto &entry : std::filesystem::directory_iterator("output/battles/pool")) {
+          if (entry.path().extension() != ".json") continue;
+          auto cand = FileStorage::load_json_from_file(entry.path().string());
+          if (!cand.contains("team") || cand.value("userId", std::string("")) == request_user) continue;
+          if (!request_version.empty() && cand.value("clientVersion", std::string("")) != request_version) continue;
+          long long age_ms = now_ms - cand.value("uploadedAt", 0LL);
+          if (age_ms > 7LL * 24 * 3600 * 1000) continue; // ~1 week retention
+          int diff = std::abs(cand.value("round", request_round) - request_round);
+          long long at = cand.value("uploadedAt", 0LL);
+          if (diff < best_diff || (diff == best_diff && at > best_at)) { best_diff = diff; best_at = at; opponent_team = cand["team"]; opponent_round = cand.value("round", request_round); opponent_source = "pool"; }
+        }
+      }
+      if (opponent_team.empty()) {
+        int band = request_round <= 2 ? 1 : request_round <= 4 ? 2 : 3;
+        auto house = FileStorage::load_json_from_file("resources/battles/house/house_" + std::to_string(band) + ".json");
+        if (house.contains("team")) { opponent_team = house["team"]; opponent_source = "house"; }
+      }
+    }
+    if (opponent_team.empty()) {
+      std::optional<TeamFilePath> opponent_path =
+          TeamManager::select_random_opponent_with_fallback(
+              config.get_opponents_path(), config.file_operation_retries);
+      return_if(!opponent_path.has_value(), 500, "No opponents available");
+      opponent_team = FileStorage::load_json_from_file_with_retry(
+          opponent_path.value(), config.file_operation_retries);
+      return_if(opponent_team.empty(), 500, "Failed to load opponent team");
+      if (opponent_team.contains("team")) opponent_team = opponent_team["team"];
+    }
 
-    nlohmann::json opponent_team = FileStorage::load_json_from_file_with_retry(
-        opponent_path.value(), config.file_operation_retries);
-    return_if(opponent_team.empty(), 500, "Failed to load opponent team");
-
-    // Generate unique seed for this battle (non-deterministic, one-time)
+    // Async design (settled): matching responds immediately with opponent +
+    // seed. The client battle is ECS; the server re-simulates and verifies
+    // at /battle/verify, not at match time.
     uint64_t seed = SeededRng::get_actually_random_number_random_seed();
-
-    // Set seed for deterministic battle simulation
-    SeededRng::get().set_seed(seed);
-
-    const float fixed_dt = 1.0f / 60.0f;
-    int max_iterations =
-        std::min(config.timeout_seconds * 60, config.max_simulation_iterations);
-    int iterations = 0;
-    auto start_time = std::chrono::steady_clock::now();
-
-    simulator.start_battle(player_team, opponent_team, seed,
-                           config.get_temp_files_path());
-    simulator_initialized = true;
-
-    int last_logged_iteration = 0;
-    while (!simulator.is_complete() && iterations < max_iterations) {
-      auto current_time = std::chrono::steady_clock::now();
-      auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
-                         current_time - start_time)
-                         .count();
-
-      if (iterations > 0 && iterations % 3600 == 0 &&
-          iterations != last_logged_iteration) {
-        log_info("[{}] Battle progress: {} iterations, {:.1f}s elapsed",
-                 request_id, iterations, elapsed);
-        last_logged_iteration = iterations;
-      }
-
-      if (elapsed >= config.timeout_seconds) {
-        std::string battle_id = std::to_string(seed);
-        auto now = std::chrono::system_clock::now();
-        auto time_t = std::chrono::system_clock::to_time_t(now);
-        std::stringstream ss;
-        ss << std::put_time(std::localtime(&time_t), "%Y%m%d_%H%M%S");
-        std::string timestamp = ss.str();
-
-        nlohmann::json timeout_state = {
-            {"seed", seed},
-            {"simulation_time", simulator.get_simulation_time()},
-            {"iterations", iterations},
-            {"player_team", player_team},
-            {"opponent_team", opponent_team}};
-
-        std::filesystem::path debug_path = config.get_debug_path();
-        FileStorage::ensure_directory_exists(debug_path.string());
-        std::string timeout_filename =
-            (debug_path / (timestamp + "_" + battle_id + ".json")).string();
-        FileStorage::save_json_to_file(timeout_filename, timeout_state);
-
-        simulator.cleanup_temp_files();
-        set_error_response(res, 408, "Battle simulation timeout");
-        return;
-      }
-
-      simulator.update(fixed_dt);
-      iterations++;
-    }
-
-    if (iterations >= max_iterations) {
-      simulator.cleanup_temp_files();
-      res.status = 408;
-      res.set_content(make_error_json("Battle simulation timeout").dump(),
-                      "application/json");
-      return;
-    }
-
     bool debug_mode = config.debug;
-    nlohmann::json outcomes = BattleSerializer::collect_battle_outcomes();
-    if (outcomes.empty()) { simulator.cleanup_temp_files(); set_error_response(res, 500, "Battle completed without authoritative result"); return; } // issue 5
-    nlohmann::json events = BattleSerializer::collect_battle_events(simulator);
+    nlohmann::json outcomes = nlohmann::json::array();
+    nlohmann::json events = nlohmann::json::array();
 
-    std::filesystem::path opp_path(opponent_path.value());
-    TeamId opponent_id = extract_team_id_from_path(opponent_path.value());
+    TeamId opponent_id = opponent_source + "_" + std::to_string(opponent_round);
 
     nlohmann::json response = BattleSerializer::serialize_battle_result(
         seed, opponent_id, outcomes, events, debug_mode);
-    response["opponentTeam"] = opponent_team; // issue 10: client can reconstruct opponent without server temp file
+    response["opponentTeam"] = opponent_team; // issue 10
+    response["opponentSource"] = opponent_source;
+    response["opponentRound"] = opponent_round;
 
     std::string player_team_id = request_json.value("playerTeamId", "");
     std::string player_username = request_json.value("playerUsername", "");
@@ -391,6 +368,31 @@ constexpr const char *SERVER_VERSION = "0.1.0";
 std::string
 BattleAPI::compute_game_state_checksum(const nlohmann::json &state) const {
   return ::compute_game_state_checksum(state);
+}
+
+void BattleAPI::handle_verify_request(const httplib::Request &req,
+                                      httplib::Response &res) {
+  std::lock_guard<std::mutex> lock(g_ecs_mutex);
+  try {
+    auto request_json = nlohmann::json::parse(req.body);
+    return_if(!request_json.contains("playerTeam") || !request_json.contains("opponentTeam") || !request_json.contains("seed") || !request_json.contains("outcomes") || !request_json.contains("checksum"), 400, "Missing verify fields");
+    std::string client_hash = request_json.value("codeHash", std::string(""));
+    return_if(client_hash != std::string(SHARED_CODE_HASH), 400, "Code version mismatch");
+    uint64_t seed = request_json["seed"].get<uint64_t>();
+    SeededRng::get().set_seed(seed);
+    BattleSimulator simulator;
+    simulator.start_battle(request_json["playerTeam"], request_json["opponentTeam"], seed, config.get_temp_files_path());
+    const float fixed_dt = 1.0f / 60.0f; int iterations = 0; int max_iterations = std::min(config.timeout_seconds * 60, config.max_simulation_iterations);
+    while (!simulator.is_complete() && iterations < max_iterations) { simulator.update(fixed_dt); iterations++; }
+    simulator.cleanup_temp_files();
+    return_if(iterations >= max_iterations, 408, "Verification simulation timeout");
+    auto server_outcomes = BattleSerializer::collect_battle_outcomes();
+    bool outcomes_match = (server_outcomes.dump() == request_json["outcomes"].dump());
+    std::string server_checksum = compute_result_checksum(request_json["outcomes"]);
+    bool checksum_match = (server_checksum == request_json["checksum"].get<std::string>());
+    nlohmann::json response; response["verified"] = outcomes_match && checksum_match; response["outcomesMatch"] = outcomes_match; response["checksumMatch"] = checksum_match; response["serverOutcomes"] = server_outcomes;
+    res.set_content(response.dump(), "application/json"); res.status = (outcomes_match && checksum_match) ? 200 : 409;
+  } catch (const std::exception &e) { set_error_response(res, 500, "Verify error: " + std::string(e.what())); }
 }
 
 void BattleAPI::handle_save_game_state(const httplib::Request &req,

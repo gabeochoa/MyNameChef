@@ -40,8 +40,20 @@ TEST(validate_server_battle_integration) {
   app.click("Next Round");
   app.wait_for_screen(GameStateManager::Screen::Battle, 15.0f);
 
-  // Wait for server request to complete - files must be set
-  app.wait_for_frames(60); // Give server time to respond
+  // Wait for the async server request to complete - files must be set.
+  // Frame counts cannot bound network latency; wait on the condition.
+  app.wait_until(
+      [] {
+        auto request_entity =
+            afterhours::EntityHelper::get_singleton<BattleLoadRequest>();
+        if (!request_entity.get().has<BattleLoadRequest>()) {
+          return false;
+        }
+        const auto &request = request_entity.get().get<BattleLoadRequest>();
+        return !request.playerJsonPath.empty() &&
+               !request.opponentJsonPath.empty();
+      },
+      30.0f);
   auto request_opt =
       afterhours::EntityHelper::get_singleton<BattleLoadRequest>();
   app.expect_singleton_has_component<BattleLoadRequest>(request_opt,

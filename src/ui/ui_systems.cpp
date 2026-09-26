@@ -325,7 +325,7 @@ Screen ScheduleMainMenuUI::main_screen(Entity &entity,
           GameStateManager::get().start_game();
         },
         button_index++, "",
-        continue_disabled); // issue 48: local save works offline
+        continue_disabled || NetworkInfo::is_disconnected()); // settled: online required for everything except Settings
   } else {
     // Play button
     button_labeled<InputAction>(
@@ -498,7 +498,7 @@ Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
               "You need at least one dish in your team to start a battle");
         }
       },
-      1);
+      1, "", NetworkInfo::is_disconnected()); // settled: online required
 
   div(context, mk(top_right.ent()),
       ComponentConfig{}
@@ -847,10 +847,9 @@ Screen ScheduleMainMenuUI::results_screen(Entity &entity,
     auto replay_entity = afterhours::EntityHelper::get_singleton<ReplayState>();
     if (replay_entity.get().has<ReplayState>()) {
       const ReplayState &rs = replay_entity.get().get<ReplayState>();
-      // If replay is active and we came from History (opponentJsonPath contains
-      // temp_opponent)
-      is_replay_mode = rs.active && rs.opponentJsonPath.find("temp_opponent") !=
-                                        std::string::npos;
+      // Replay mode is explicit (from_history) - server battles also use
+      // temp_opponent paths and must show Back to Shop.
+      is_replay_mode = rs.active && rs.from_history;
     }
   }
 
@@ -952,6 +951,7 @@ Screen ScheduleMainMenuUI::history_screen(Entity &entity,
                       ReplayState &rs = replay_entity.get().get<ReplayState>();
                       rs.seed = report_seed;
                       rs.active = true;
+                      rs.from_history = true;
                       rs.paused = false;
                       rs.timeScale = 1.0f;
                       // Reconstruct paths from seed (battles are stored with
@@ -968,6 +968,7 @@ Screen ScheduleMainMenuUI::history_screen(Entity &entity,
                     ReplayState rs;
                     rs.seed = report_seed;
                     rs.active = true;
+                    rs.from_history = true;
                     rs.paused = false;
                     rs.timeScale = 1.0f;
                     rs.playerJsonPath = "output/battles/temp_player_" +

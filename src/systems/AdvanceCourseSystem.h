@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../components/battle_processor.h"
+#include "../components/battle_result.h"
 #include "../components/combat_queue.h"
 #include "../components/combat_stats.h"
 #include "../components/dish_battle_state.h"
@@ -34,11 +36,18 @@ struct AdvanceCourseSystem : afterhours::System<CombatQueue> {
       return;
     }
 
+    // A new battle restarts the queue at course 0; re-arm the once-per-course
+    // guard so its first course is not mistaken for the previous battle's.
+    if (cq.current_index < course_complete_fired_for) {
+      course_complete_fired_for = -1;
+    }
+
     if (both_dishes_finished(cq)) {
       log_info("COMBAT: Course {} finished (both dishes at index 0)",
                cq.current_index);
 
       if (course_complete_fired_for != cq.current_index) { course_complete_fired_for = cq.current_index;
+      record_course_outcome(cq);
       if (auto tq = afterhours::EntityHelper::get_singleton<TriggerQueue>();
           tq.get().has<TriggerQueue>()) {
         auto &queue = tq.get().get<TriggerQueue>();
@@ -154,6 +163,96 @@ struct AdvanceCourseSystem : afterhours::System<CombatQueue> {
   }
 
 private:
+  bool tracked_dish_finished(int dish_id) {
+    auto entity_opt = afterhours::EntityHelper::getEntityForID(dish_id);
+    if (!entity_opt) {
+      return true; // Missing dish counts as finished (same rule as below).
+    }
+    const afterhours::Entity &entity = entity_opt.asE();
+    if (!entity.has<DishBattleState>()) {
+      return true;
+    }
+    bool phase_finished =
+        entity.get<DishBattleState>().phase == DishBattleState::Phase::Finished;
+    bool stats_defeated = entity.has<CombatStats>() &&
+                          entity.get<CombatStats>().currentBody <= 0;
+    return phase_finished || stats_defeated;
+  }
+
+  // Record each completed course outcome into BattleResult as courses
+  // finish. When a BattleProcessor battle exists it is the producer of
+  // record (its seed-driven result is what /battle/verify reproduces);
+  // ECS recording serves processor-less battles (harness/setup battles).
+  void record_course_outcome(const CombatQueue &cq) {
+    if (!cq.current_player_dish_id.has_value() ||
+        !cq.current_opponent_dish_id.has_value()) {
+      return;
+    }
+    if (afterhours::EntityHelper::has_singleton<BattleProcessor>()) {
+      auto processor_entity =
+          afterhours::EntityHelper::get_singleton<BattleProcessor>();
+      if (processor_entity.get().has<BattleProcessor>()) {
+        const auto &processor = processor_entity.get().get<BattleProcessor>();
+        if (processor.isBattleActive() || processor.finished) {
+          return;
+        }
+      }
+    }
+    bool player_finished = tracked_dish_finished(*cq.current_player_dish_id);
+    bool opponent_finished =
+        tracked_dish_finished(*cq.current_opponent_dish_id);
+
+    BattleResult::CourseOutcome outcome;
+    outcome.slotIndex = cq.current_index;
+    outcome.ticks = 0;
+    if (player_finished && opponent_finished) {
+      outcome.winner = BattleResult::CourseOutcome::Winner::Tie;
+    } else if (player_finished) {
+      outcome.winner = BattleResult::CourseOutcome::Winner::Opponent;
+    } else if (opponent_finished) {
+      outcome.winner = BattleResult::CourseOutcome::Winner::Player;
+    } else {
+      return;
+    }
+
+    BattleResult *result = nullptr;
+    if (afterhours::EntityHelper::has_singleton<BattleResult>()) {
+      auto entity = afterhours::EntityHelper::get_singleton<BattleResult>();
+      if (entity.get().has<BattleResult>()) {
+        result = &entity.get().get<BattleResult>();
+      }
+    }
+    if (!result) {
+      auto &entity = afterhours::EntityHelper::createEntity();
+      entity.addComponent<BattleResult>();
+      afterhours::EntityHelper::registerSingleton<BattleResult>(entity);
+      result = &entity.get<BattleResult>();
+    }
+    // Course 0 is a new battle's first course: any existing outcomes belong
+    // to a previous battle in this process and must not accumulate.
+    if (cq.current_index == 0 && !result->outcomes.empty()) {
+      result->outcomes.clear();
+      result->playerWins = 0;
+      result->opponentWins = 0;
+      result->ties = 0;
+      result->outcome = BattleResult::Outcome::Tie;
+    }
+    result->outcomes.push_back(outcome);
+    if (outcome.winner == BattleResult::CourseOutcome::Winner::Player) {
+      result->playerWins++;
+    } else if (outcome.winner ==
+               BattleResult::CourseOutcome::Winner::Opponent) {
+      result->opponentWins++;
+    } else {
+      result->ties++;
+    }
+    result->outcome = result->playerWins > result->opponentWins
+                          ? BattleResult::Outcome::PlayerWin
+                      : result->opponentWins > result->playerWins
+                          ? BattleResult::Outcome::OpponentWin
+                          : BattleResult::Outcome::Tie;
+  }
+
   bool both_dishes_finished(const CombatQueue &cq) {
     // Check if the dishes that were fighting in this course are now Finished
     // We track these dish IDs in CombatQueue when the course starts

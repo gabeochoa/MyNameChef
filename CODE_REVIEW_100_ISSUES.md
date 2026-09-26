@@ -214,13 +214,16 @@ Validation performed: compiled the current team validator and URL parser into an
 
 Fixed and verified (build clean, server 20/20, python regressions 4/4): 1-5, 7-10, 12-23, 25-61, 63-64, 66-88, 90-100, 101. Highlights: server handlers serialized, team validation (dishType/slots/level), atomic storage, canonical game-state checksum, durable server saves, result checksum is payload hash, fingerprint entity-free, trigger strict-weak ordering, bite payload is damage received, OnCourseComplete dispatched to finished dishes, death effects drain before terminal completion, damage-preserving stat deltas, level-scaled deferred conversion, save/load (RNG state, merge progress, drink shop, transactional validation, slot area identity), bounded server retries with malformed-response handling, runner crash/discovery/isolation fixes, code-hash regeneration wiring, coverage isolation, docs refreshed.
 
+Resolved by the settled-plan pass (server-only battles, async flow):
+- 6 Production Next Round HTTP battle flow: done - Next Round uploads the team, the server pool-matches (closest round, version-gated, ~1 week retention) or serves a house team, and the client battle runs from the server response.
+- 24 Async/non-blocking HTTP: done - the battle POST runs on a worker thread (ServerBattleRequestSystem polls the future on the main thread); Play/Continue/Next Round are blocked while offline.
+- 65 Single timing scale: done - the main loop passes unscaled dt and BattleTiming is the only scale; speed settings verified at 2x/5x/8x.
+- 89 validate_server_checksum_match: restored and passing - client and server now run the same server-issued battle (seed + teams), and /battle/verify re-simulates and compares outcomes + compute_result_checksum as a hard gate.
+
 Deferred (need a product/architecture decision, not safe as drive-by fixes):
-- 6 Production Next Round HTTP battle flow: local battle is the current flow; flipping the default changes every battle test and needs the server battle to be the intended design.
-- 11 Save/battle authentication: no identity system exists to build on.
-- 24 Async/non-blocking HTTP: httplib calls are synchronous; needs a job system.
-- 62 Single authoritative simulator: ECS now records authoritative course outcomes and LoadBattleResults fast-forwards BattleProcessor on skip, but the two simulators still coexist.
-- 65 Single timing scale: removing either factor retimes all battle tests (verified: 14 battle tests time out at single scale).
-- 89 Restoring validate_server_checksum_match: blocked by 6+62 (client and server run different battles today). Test remains skipped with that reason.
+- 11 Save/battle authentication: no identity system exists to build on; settled scope is localhost with no auth.
+- 62 Single authoritative simulator: ECS records course outcomes for processor-less battles and BattleProcessor remains the producer of record for server battles (its seed-driven result is what /battle/verify reproduces); the two simulators still coexist and ECS-vs-ECS results across repeated in-process battles remain nondeterministic (in-process battle lifecycle, see issue 4 note in test_determinism.cpp).
 
 Pre-existing failures (verified: clean committed baseline fails the same tests, not introduced by this pass): validate_new_effect_operations (stat-swap double-fire), validate_survivor_carryover_single/multiple/battle_completion (battle never completes in clean state).
 Visible-mode note: validate_replay_pause_play fails solo in visible mode on the clean committed baseline as well (pause toggle), and validate_drink_effects passes solo in both modes (its suite-visible failure is inter-test state pollution) - both pre-existing.
+Settled-plan pass verification: headless suite 88/88 across repeated runs; server unit tests 20/20; endpoint verification (health, battle, pool matching, verify rejection) all passing. Visible suite under heavy machine load (load avg 25-42 from unrelated system processes) times out on the longest real-time tests (goto_battle, validate_drink_effects, validate_server_failure_during_battle) with zero assertion failures; each passes visible solo.

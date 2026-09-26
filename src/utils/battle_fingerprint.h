@@ -125,6 +125,14 @@ private:
 
 constexpr const char *GAME_STATE_CLIENT_VERSION = "0.1.0";
 
+// Shared result checksum: FNV-style hash of the canonical outcomes JSON.
+// Client and server both compute this over the same outcomes payload.
+inline std::string compute_result_checksum(const nlohmann::json &outcomes) {
+  uint64_t hash = 0;
+  for (char c : outcomes.dump()) hash = BattleFingerprint::combine_hash(hash, static_cast<uint64_t>(c));
+  std::ostringstream oss; oss << std::hex << std::setfill('0') << std::setw(16) << hash; return oss.str();
+}
+
 inline std::string compute_game_state_checksum(const nlohmann::json &state) {
   // Issue 31: canonical payload excludes checksum metadata everywhere.
   nlohmann::json canonical = state;

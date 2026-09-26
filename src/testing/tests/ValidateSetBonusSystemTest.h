@@ -101,6 +101,7 @@ TEST(validate_set_bonus_american_2_piece) {
   // Navigate to battle - systems will run naturally
   navigate_to_battle(app);
 
+  app.wait_for_battle_initialized(30.0f);
   app.wait_for_frames(20);
 
   // Validate synergy count
@@ -185,6 +186,7 @@ TEST(validate_set_bonus_american_4_piece) {
   navigate_to_battle(app);
 
   // Wait for systems to process
+  app.wait_for_battle_initialized(30.0f);
   app.wait_for_frames(10);
 
   // Validate synergy count (4 American dishes)
@@ -257,6 +259,7 @@ TEST(validate_set_bonus_american_6_piece) {
   navigate_to_battle(app);
 
   // Wait for systems to process
+  app.wait_for_battle_initialized(30.0f);
   app.wait_for_frames(10);
 
   // Validate synergy count (6 American dishes)
@@ -326,6 +329,7 @@ TEST(validate_set_bonus_no_synergy) {
   navigate_to_battle(app);
 
   // Wait for systems to process
+  app.wait_for_battle_initialized(30.0f);
   app.wait_for_frames(10);
 
   // Validate: Should have 0 American synergy count

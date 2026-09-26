@@ -80,7 +80,12 @@ ServerConfig ServerConfig::defaults() {
 }
 
 std::filesystem::path ServerConfig::get_temp_files_path() const {
-  return std::filesystem::path(base_path) / "output" / "battles";
+  // Server-private scratch dir: the simulator writes temp_player_<seed> /
+  // temp_opponent_<seed> files here and deletes them after re-simulation.
+  // Sharing output/battles with a same-directory client would delete the
+  // client's own battle files (same names, same seed).
+  return std::filesystem::path(base_path) / "output" / "battles" /
+         "server_temp";
 }
 
 std::filesystem::path ServerConfig::get_results_path() const {

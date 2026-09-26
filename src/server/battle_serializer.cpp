@@ -159,11 +159,7 @@ nlohmann::json BattleSerializer::serialize_battle_result(
 }
 
 std::string BattleSerializer::compute_checksum(const nlohmann::json &result) {
-  // Issue 30/89: checksum the canonical result payload (seed/outcomes/events),
-  // not live ECS state / entity IDs / transient queue.
-  uint64_t fp = 0;
-  for (char c : result.dump()) fp = BattleFingerprint::combine_hash(fp, static_cast<uint64_t>(c));
-  std::stringstream ss; ss << std::hex << std::setfill('0') << std::setw(16) << fp; return ss.str();
+  return compute_result_checksum(result); // shared with client (issue 89)
 }
 
 nlohmann::json

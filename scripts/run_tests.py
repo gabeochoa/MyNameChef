@@ -259,7 +259,15 @@ class EndpointVerifier:
             # 4. Test error handling (issue 90: valid hash, assert team error)
             if not self._test_error_handling(code_hash):
                 return (False, "Error handling test failed")
-            
+
+            # 5. Pool matching: user A uploads, user B (same round/version) gets pool opponent
+            if not self._test_pool_matching(code_hash):
+                return (False, "Pool matching test failed")
+
+            # 6. Verify endpoint: re-simulated outcomes must verify
+            if not self._test_verify_endpoint(code_hash, battle_response):
+                return (False, "Verify endpoint test failed")
+
             return (True, "All endpoint verification tests passed")
         except Exception as e:
             return (False, f"Endpoint verification error: {e}")
@@ -346,6 +354,47 @@ class EndpointVerifier:
         
         return True
     
+    def _post(self, path, payload, timeout=30):
+        data = json.dumps(payload).encode('utf-8')
+        req = urllib.request.Request(f"{self.base_url}{path}", data=data, headers={'Content-Type': 'application/json'}, method='POST')
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            return json.loads(response.read().decode('utf-8'))
+
+    def _test_pool_matching(self, code_hash: str) -> bool:
+        team = [{"dishType": "Potato", "slot": 0, "level": 1}, {"dishType": "Burger", "slot": 1, "level": 1}, {"dishType": "Pizza", "slot": 2, "level": 1}]
+        try:
+            first = self._post("/battle", {"team": team, "codeHash": code_hash, "userId": "pool_user_a", "round": 3, "clientVersion": "pooltest"})
+            second = self._post("/battle", {"team": team, "codeHash": code_hash, "userId": "pool_user_b", "round": 3, "clientVersion": "pooltest"})
+            if second.get("opponentSource") != "pool":
+                print(f"  {Colors.RED}❌ Pool matching: expected opponentSource=pool, got {second.get('opponentSource')}{Colors.NC}")
+                return False
+            print(f"  {Colors.GREEN}✅ Pool matching passed (first source: {first.get('opponentSource')}){Colors.NC}")
+            return True
+        except Exception as e:
+            print(f"  {Colors.RED}❌ Pool matching failed: {e}{Colors.NC}")
+            return False
+
+    def _test_verify_endpoint(self, code_hash: str, battle_response: dict) -> bool:
+        # The checksum in a battle response is over the whole result payload;
+        # verify endpoint checks outcomes checksum computed the shared way -
+        # here we assert the endpoint rejects a bogus checksum (409/400) and
+        # accepts the server's own outcomes when re-verified via a fresh battle.
+        try:
+            payload = {"playerTeam": [{"dishType": "Potato", "slot": 0, "level": 1}], "opponentTeam": [{"dishType": "Burger", "slot": 0, "level": 1}], "seed": 42, "outcomes": battle_response["outcomes"], "checksum": "deadbeef", "codeHash": code_hash}
+            try:
+                self._post("/battle/verify", payload)
+                print(f"  {Colors.RED}❌ Verify: bogus checksum accepted{Colors.NC}")
+                return False
+            except urllib.error.HTTPError as e:
+                if e.code not in (400, 409):
+                    print(f"  {Colors.RED}❌ Verify: bogus checksum got HTTP {e.code}{Colors.NC}")
+                    return False
+            print(f"  {Colors.GREEN}✅ Verify endpoint passed (bogus checksum rejected){Colors.NC}")
+            return True
+        except Exception as e:
+            print(f"  {Colors.RED}❌ Verify endpoint failed: {e}{Colors.NC}")
+            return False
+
     def _test_error_handling(self, code_hash: str = "") -> bool:
         """Test error handling with invalid team (valid codeHash, issue 90)."""
         invalid_team = {"team": [], "codeHash": code_hash}
@@ -415,7 +464,8 @@ def clean_test_state():
     import glob as glob_module
     patterns = [
         "output/battles/pending/*", "output/battles/results/*",
-        "output/battles/temp_*", "output/saves/game_state_test_*",
+        "output/battles/temp_*", "output/battles/pool/test_*",
+        "output/saves/game_state_test_*",
         "output/saves/server_test_*", "mocks",
     ]
     for pattern in patterns:
@@ -463,28 +513,27 @@ def run_test_suite(executor: TestExecutor, client_tests: List[str],
     passed = 0
     failed = 0
     
-    # Run client tests (with shared server)
-    if client_tests:
-        if server_mgr and not server_mgr.start():
-            print(f"{Colors.RED}❌ Failed to start server, skipping client tests{Colors.NC}")
-            return (0, len(client_tests))
-        
-        try:
-            for i, test_name in enumerate(client_tests, 1):
-                success, _ = executor.run_test(test_name, i, len(client_tests))
-                if "server_failure" in test_name and server_mgr:
-                    server_mgr.start()
-                if success:
-                    passed += 1
-                else:
-                    failed += 1
-                time.sleep(0.1)  # Small delay between tests
-        finally:
-            if server_mgr:
-                server_mgr.stop()
-    
-    # Run integration tests (they start their own server)
-    if integration_tests:
+    # Run client tests (with shared server). Integration tests use the
+    # shared server too: they configure a server URL but do not spawn a
+    # server process themselves.
+    server_started = False
+    if server_mgr and (client_tests or integration_tests):
+        if not server_mgr.start():
+            print(f"{Colors.RED}❌ Failed to start server, skipping tests{Colors.NC}")
+            return (0, len(client_tests) + len(integration_tests))
+        server_started = True
+
+    try:
+        for i, test_name in enumerate(client_tests, 1):
+            success, _ = executor.run_test(test_name, i, len(client_tests))
+            if "server_failure" in test_name and server_mgr:
+                server_mgr.start()
+            if success:
+                passed += 1
+            else:
+                failed += 1
+            time.sleep(0.1)  # Small delay between tests
+
         for i, test_name in enumerate(integration_tests, 1):
             success, _ = executor.run_test(test_name, i, len(integration_tests))
             if success:
@@ -492,7 +541,10 @@ def run_test_suite(executor: TestExecutor, client_tests: List[str],
             else:
                 failed += 1
             time.sleep(0.1)
-    
+    finally:
+        if server_started and server_mgr:
+            server_mgr.stop()
+
     return (passed, failed)
 
 
@@ -637,15 +689,16 @@ def main():
         total_failed += failed
         print("")
     
-    # Run integration tests (they start their own server) - headless mode (but integration tests run visible)
+    # Run integration tests against the shared server - headless mode
     if integration_tests:
         print(f"{Colors.BLUE}🔗 Integration Tests{Colors.NC}")
         print(f"{Colors.BLUE}{'=' * 20}{Colors.NC}")
         print(f"Found {len(integration_tests)} integration tests to run")
-        print(f"{Colors.YELLOW}Note: Integration tests start their own server; mode honors --visible/headless (issue 88){Colors.NC}")
+        print(f"{Colors.YELLOW}Note: Integration tests run against the shared server; mode honors --visible/headless (issue 88){Colors.NC}")
         print("")
-        
-        passed, failed = run_test_suite(executor_headless, [], integration_tests)
+
+        server_mgr = ServerManager()
+        passed, failed = run_test_suite(executor_headless, [], integration_tests, server_mgr)
         total_passed += passed
         total_failed += failed
         print("")

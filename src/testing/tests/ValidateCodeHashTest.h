@@ -39,7 +39,11 @@ TEST(validate_code_hash) {
   app.click("Next Round");
   app.wait_for_screen(GameStateManager::Screen::Battle, 15.0f);
 
-  app.wait_for_frames(60);
+  // Async flow: server simulates its battle before responding - wait for paths
+  app.wait_until([] {
+    auto e = afterhours::EntityHelper::get_singleton<BattleLoadRequest>();
+    return e.get().has<BattleLoadRequest>() && !e.get().get<BattleLoadRequest>().playerJsonPath.empty();
+  }, 30.0f);
 
   auto request_opt =
       afterhours::EntityHelper::get_singleton<BattleLoadRequest>();

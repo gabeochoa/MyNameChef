@@ -5,6 +5,7 @@
 #include "../components/drink_pairing.h"
 #include "../components/is_dish.h"
 #include "../components/is_inventory_item.h"
+#include "../utils/http_helpers.h"
 #include <afterhours/ah.h>
 #include <atomic>
 #include <chrono>
@@ -96,23 +97,25 @@ public:
       file << snapshot.dump(2);
       file.close();
 
-      // Create BattleLoadRequest singleton for battle loading
+      // Server-only battle flow (settled): snapshot file is kept for debug,
+      // but the battle is created by ServerBattleRequestSystem - it uploads
+      // the team, the server matches an opponent, and it sets the paths.
       BattleLoadRequest request;
-      request.playerJsonPath = filename;
-      request.opponentJsonPath = "resources/battles/opponent_sample.json";
+      request.serverUrl = http_helpers::get_server_url();
+      request.playerJsonPath = "";
+      request.opponentJsonPath = "";
 
-      // Check if singleton already exists and update it, or create new one
       if (afterhours::EntityHelper::has_singleton<BattleLoadRequest>()) {
-        // Update existing singleton
         auto existingRequest =
             afterhours::EntityHelper::get_singleton<BattleLoadRequest>();
         if (existingRequest.get().has<BattleLoadRequest>()) {
           auto &existingBattleRequest =
               existingRequest.get().get<BattleLoadRequest>();
-          existingBattleRequest.playerJsonPath = filename;
-          existingBattleRequest.opponentJsonPath =
-              "resources/battles/opponent_sample.json";
+          existingBattleRequest.serverUrl = request.serverUrl;
+          existingBattleRequest.playerJsonPath = "";
+          existingBattleRequest.opponentJsonPath = "";
           existingBattleRequest.loaded = false;
+          existingBattleRequest.serverRequestPending = false;
         }
       } else {
         // Create new singleton

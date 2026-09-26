@@ -119,6 +119,7 @@ TestApp &TestApp::launch_game(const std::source_location &loc) {
         auto &counts = synergyEntity.get().get<BattleSynergyCounts>();
         counts.player_cuisine_counts.clear();
         counts.opponent_cuisine_counts.clear();
+        counts.counts_ready = false;
         log_info("TEST_APP: launch_game - Cleared BattleSynergyCounts");
       }
     } catch (...) {

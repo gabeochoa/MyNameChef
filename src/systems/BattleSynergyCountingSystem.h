@@ -1,6 +1,8 @@
 #pragma once
 
 #include "../components/battle_synergy_counts.h"
+#include "../components/battle_team_data.h"
+#include "../components/combat_queue.h"
 #include "../components/cuisine_tag.h"
 #include "../components/dish_battle_state.h"
 #include "../components/is_dish.h"
@@ -23,7 +25,23 @@ struct BattleSynergyCountingSystem : afterhours::System<> {
     }
 
     last_screen = gsm.active_screen;
-    return gsm.active_screen == GameStateManager::Screen::Battle && !calculated;
+    if (gsm.active_screen != GameStateManager::Screen::Battle || calculated) {
+      return false;
+    }
+    // Async server flow: the Battle screen opens before the server reply
+    // loads and instantiates the teams. Counting before instantiation
+    // would latch an empty count for the whole battle.
+    auto manager_entity =
+        afterhours::EntityHelper::get_singleton<CombatQueue>();
+    if (!manager_entity.get().has<CombatQueue>()) {
+      return false;
+    }
+    bool player_ready = manager_entity.get().has<BattleTeamDataPlayer>() &&
+                        manager_entity.get().get<BattleTeamDataPlayer>().instantiated;
+    bool opponent_ready =
+        manager_entity.get().has<BattleTeamDataOpponent>() &&
+        manager_entity.get().get<BattleTeamDataOpponent>().instantiated;
+    return player_ready && opponent_ready;
   }
 
   void once(float) override {
@@ -37,9 +55,10 @@ struct BattleSynergyCountingSystem : afterhours::System<> {
         battle_synergy_entity.get().get<BattleSynergyCounts>();
     battle_synergy.player_cuisine_counts.clear();
     battle_synergy.opponent_cuisine_counts.clear();
+    battle_synergy.counts_ready = false;
 
     for (afterhours::Entity &entity :
-         afterhours::EntityQuery()
+         afterhours::EntityQuery({.force_merge = true})
              .whereHasComponent<IsDish>()
              .whereHasComponent<DishBattleState>()
              .whereHasComponent<CuisineTag>()
@@ -65,6 +84,7 @@ struct BattleSynergyCountingSystem : afterhours::System<> {
       }
     }
 
+    battle_synergy.counts_ready = true;
     calculated = true;
   }
 };

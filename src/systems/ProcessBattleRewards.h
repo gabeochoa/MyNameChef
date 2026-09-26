@@ -2,11 +2,14 @@
 
 #include "../components/battle_result.h"
 #include "../components/is_drink_shop_item.h"
+#include "../components/replay_state.h"
 #include "../components/is_draggable.h"
 #include "../components/render_order.h"
 #include "../components/transform.h"
 #include "../game_state_manager.h"
 #include "../render_constants.h"
+#include "../utils/http_helpers.h"
+#include <httplib.h>
 #include "../shop.h"
 #include "GameStateSaveSystem.h"
 #include <afterhours/src/plugins/texture_manager.h>
@@ -27,16 +30,38 @@ struct ProcessBattleRewards : System<> {
   virtual bool should_run(float) override {
     auto &gsm = GameStateManager::get();
 
-    // Reset processed flag when leaving results screen
-    if (last_screen == GameStateManager::Screen::Results &&
-        gsm.active_screen != GameStateManager::Screen::Results) {
+    // Re-arm when a new battle starts.
+    if (last_screen != GameStateManager::Screen::Battle &&
+        gsm.active_screen == GameStateManager::Screen::Battle) {
       processed = false;
     }
 
     last_screen = gsm.active_screen;
 
-    // Only run once when on results screen and not yet processed
-    return gsm.active_screen == GameStateManager::Screen::Results && !processed;
+    if (processed || gsm.active_screen == GameStateManager::Screen::Battle) {
+      return false;
+    }
+
+    // Rewards belong to battle completion, not to the Results screen: the
+    // screen can be flipped away (Skip / Back to Shop / harness waits)
+    // before any tick observes it, which would lose the round increment.
+    // Fire once a BattleResult exists outside the Battle screen.
+    if (afterhours::EntityHelper::has_singleton<ReplayState>()) {
+      auto replay_entity =
+          afterhours::EntityHelper::get_singleton<ReplayState>();
+      if (replay_entity.get().has<ReplayState>()) {
+        const auto &replay = replay_entity.get().get<ReplayState>();
+        if (replay.active && replay.from_history) {
+          return false; // Replays never award rewards.
+        }
+      }
+    }
+
+    if (!afterhours::EntityHelper::has_singleton<BattleResult>()) {
+      return false;
+    }
+    auto result_entity = EntityHelper::get_singleton<BattleResult>();
+    return result_entity.get().has<BattleResult>();
   }
 
   void once(float) override {
@@ -64,11 +89,44 @@ struct ProcessBattleRewards : System<> {
     refill_store();
 
     // Issue 50: persist the completed round transaction (rewards+round+refill)
-    { GameStateSaveSystem saver; auto r = saver.save_game_state(); if (!r.success) log_warn("PROCESS_REWARDS: post-battle save failed"); }
+    {
+      GameStateSaveSystem saver;
+      auto save_result = saver.save_game_state();
+      if (!save_result.success) {
+        log_warn("PROCESS_REWARDS: post-battle save failed");
+      } else {
+        upload_game_state(save_result);
+      }
+    }
     processed = true;
   }
 
 private:
+  // GameStateLoad prefers the server's copy (issue 43), so the post-battle
+  // state must be uploaded too - otherwise Continue rolls back a battle.
+  void upload_game_state(const GameStateSaveSystem::SaveResult &save_result) {
+    auto url_parts =
+        http_helpers::parse_server_url(http_helpers::get_server_url());
+    if (!url_parts.success || url_parts.is_https) {
+      return;
+    }
+    nlohmann::json save_request;
+    save_request["userId"] = save_result.gameState["userId"];
+    save_request["checksum"] = save_result.checksum;
+    save_request["gameState"] = save_result.gameState;
+    save_request["timestamp"] = save_result.gameState["timestamp"];
+    httplib::Client client(url_parts.host, url_parts.port);
+    client.set_read_timeout(5, 0);
+    client.set_connection_timeout(5, 0);
+    auto res = client.Post("/save-game-state", save_request.dump(),
+                           "application/json");
+    log_info("PROCESS_REWARDS: post-battle upload status {}",
+             res ? res->status : -1);
+    if (!res || res->status != 200) {
+      log_warn("PROCESS_REWARDS: post-battle server upload failed");
+    }
+  }
+
   void award_battle_rewards(const BattleResult &result) {
     ProcessBattleOptEntity walletEntity = EntityHelper::get_singleton<Wallet>();
     ProcessBattleOptEntity healthEntity = EntityHelper::get_singleton<Health>();

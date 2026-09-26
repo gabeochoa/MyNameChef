@@ -38,7 +38,11 @@ struct BattleTeamFileLoaderSystem : afterhours::System<BattleLoadRequest> {
       return;
     }
     
-    log_info("BATTLE_LOADER: Loading battle teams - playerPath={}, opponentPath={}", 
+    // Server flow: paths arrive when the async battle request completes -
+    // never mark loaded with no teams.
+    if (request.playerJsonPath.empty() && request.opponentJsonPath.empty()) return;
+
+    log_info("BATTLE_LOADER: Loading battle teams - playerPath={}, opponentPath={}",
              request.playerJsonPath, request.opponentJsonPath);
 
     auto manager_entity =

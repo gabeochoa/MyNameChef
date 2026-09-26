@@ -139,7 +139,10 @@ TEST(validate_server_battle_determinism) {
     app.setup_battle();
     app.wait_for_frames(1);
     app.wait_for_battle_initialized(10.0f);
-    app.wait_for_frames(30);
+    // ECS is authoritative: let the course actually resolve so the outcome
+    // is recorded, instead of relying on fixed frame counts.
+    app.wait_for_course_complete(0, 30.0f);
+    app.wait_for_frames(5);
 
     app.wait_for_ui_exists("Skip to Results", 5.0f);
     app.click("Skip to Results");
@@ -180,7 +183,10 @@ TEST(validate_server_battle_determinism) {
     app.setup_battle();
     app.wait_for_frames(1);
     app.wait_for_battle_initialized(10.0f);
-    app.wait_for_frames(30);
+    // ECS is authoritative: let the course actually resolve so the outcome
+    // is recorded, instead of relying on fixed frame counts.
+    app.wait_for_course_complete(0, 30.0f);
+    app.wait_for_frames(5);
 
     app.wait_for_ui_exists("Skip to Results", 5.0f);
     app.click("Skip to Results");

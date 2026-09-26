@@ -1,0 +1,9 @@
+{
+  "team": [
+    {"dishType": "Steak", "slot": 0, "level": 3},
+    {"dishType": "Sushi", "slot": 1, "level": 3},
+    {"dishType": "WagyuSteak", "slot": 2, "level": 2},
+    {"dishType": "Salmon", "slot": 3, "level": 2},
+    {"dishType": "Spaghetti", "slot": 4, "level": 2}
+  ]
+}

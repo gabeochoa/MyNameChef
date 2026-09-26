@@ -8,105 +8,9 @@
 #include "../test_app.h"
 #include "../test_macros.h"
 #include <afterhours/ah.h>
-#include <filesystem>
-#include <fstream>
 
-namespace ValidateBattleResultsTestHelpers {
-static void create_mock_opponent_json() {
-    // Create output directory if it doesn't exist
-    std::filesystem::create_directories("output/battles/pending");
-
-    // Create a simple opponent JSON file
-    std::string opponentJson = R"({
-    "team": [
-        {
-            "slot": 0,
-            "dishType": "GarlicBread"
-        },
-        {
-            "slot": 1,
-            "dishType": "Potato"
-        },
-        {
-            "slot": 2,
-            "dishType": "Potato"
-        }
-    ],
-    "seed": 1234567890,
-    "meta": {
-        "timestampIso": "20250111_000000",
-        "gameVersion": "0.1.0"
-    }
-})";
-
-    std::ofstream opponentFile("output/battles/pending/test_opponent.json");
-    if (opponentFile.is_open()) {
-      opponentFile << opponentJson;
-      opponentFile.close();
-      log_info("TEST: Created mock opponent JSON file");
-    } else {
-      log_error("TEST: Failed to create mock opponent JSON file");
-    }
-
-    // Create a simple player JSON file (will be populated by
-    // ExportMenuSnapshotSystem)
-    std::string playerJson = R"({
-    "team": [
-        {
-            "slot": 0,
-            "dishType": "Bagel"
-        },
-        {
-            "slot": 1,
-            "dishType": "Salmon"
-        },
-        {
-            "slot": 2,
-            "dishType": "Salmon"
-        }
-    ],
-    "seed": 1234567890,
-    "meta": {
-        "timestampIso": "20250111_000000",
-        "gameVersion": "0.1.0"
-    }
-})";
-
-    std::ofstream playerFile("output/battles/pending/test_player.json");
-    if (playerFile.is_open()) {
-      playerFile << playerJson;
-      playerFile.close();
-      log_info("TEST: Created mock player JSON file");
-    } else {
-      log_error("TEST: Failed to create mock player JSON file");
-    }
-}
-
-static void set_battle_load_request(const std::string &player_path,
-                                    const std::string &opponent_path) {
-  if (!afterhours::EntityHelper::has_singleton<BattleLoadRequest>()) {
-    afterhours::Entity &requestEntity =
-        afterhours::EntityHelper::createEntity();
-    requestEntity.addComponent<BattleLoadRequest>();
-    afterhours::EntityHelper::registerSingleton<BattleLoadRequest>(
-        requestEntity);
-  }
-  BattleLoadRequest &request =
-      afterhours::EntityHelper::get_singleton<BattleLoadRequest>()
-          .get()
-          .get<BattleLoadRequest>();
-  request.playerJsonPath = player_path;
-  request.opponentJsonPath = opponent_path;
-  request.loaded = false;
-}
-} // namespace ValidateBattleResultsTestHelpers
 
 TEST(validate_battle_results) {
-  using namespace ValidateBattleResultsTestHelpers;
-  
-  // Step 1: Create mock opponent JSON file
-  create_mock_opponent_json();
-
   app.wait_for_frames(1); // Ensure screen state is synced
   auto &gsm = GameStateManager::get();
   if (gsm.active_screen == GameStateManager::Screen::Results) {
@@ -130,17 +34,12 @@ TEST(validate_battle_results) {
     app.wait_for_frames(2);
   }
 
-  // Step 3: Create BattleLoadRequest and navigate to battle
-  static const TestOperationID request_op = TestApp::generate_operation_id(
-      std::source_location::current(), "validate_battle_results.request");
-  if (app.completed_operations.count(request_op) == 0) {
-    set_battle_load_request("output/battles/pending/test_player.json",
-                            "output/battles/pending/test_opponent.json");
-    app.completed_operations.insert(request_op);
-  }
-
+  // Step 3: Navigate to battle. Server-only flow (settled): Next Round
+  // uploads the team and the server matches an opponent; local mock battle
+  // files are no longer used.
   app.click("Next Round");
   app.wait_for_screen(GameStateManager::Screen::Battle, 15.0f);
+  app.wait_for_battle_initialized(30.0f);
   app.wait_for_ui_exists("Skip to Results", 5.0f);
 
   // Step 4: Skip to results

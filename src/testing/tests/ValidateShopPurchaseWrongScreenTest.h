@@ -27,6 +27,7 @@ TEST(validate_shop_purchase_wrong_screen) {
   // can complete quickly, making timing-dependent tests unreliable.
   // The key test is verifying purchase works when explicitly on shop screen.
   app.click("Next Round");
+  app.wait_for_battle_initialized(30.0f);
   app.wait_for_frames(5);
 
   // Navigate back to shop via Results screen (only way from Battle)

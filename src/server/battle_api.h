@@ -21,6 +21,8 @@ struct BattleAPI {
 private:
   void handle_battle_request(const httplib::Request &req,
                              httplib::Response &res);
+  void handle_verify_request(const httplib::Request &req,
+                             httplib::Response &res);
   void handle_health_request(const httplib::Request &req,
                              httplib::Response &res);
   void handle_save_game_state(const httplib::Request &req,

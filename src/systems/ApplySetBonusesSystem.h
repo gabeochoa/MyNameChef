@@ -28,7 +28,17 @@ struct ApplySetBonusesSystem : afterhours::System<> {
     }
 
     last_screen = gsm.active_screen;
-    return gsm.active_screen == GameStateManager::Screen::Battle && !applied;
+    if (gsm.active_screen != GameStateManager::Screen::Battle || applied) {
+      return false;
+    }
+    // Wait until BattleSynergyCountingSystem has counted the instantiated
+    // teams; applying from stale/empty counts would latch wrong bonuses.
+    auto counts_entity =
+        afterhours::EntityHelper::get_singleton<BattleSynergyCounts>();
+    if (!counts_entity.get().has<BattleSynergyCounts>()) {
+      return false;
+    }
+    return counts_entity.get().get<BattleSynergyCounts>().counts_ready;
   }
 
   void once(float) override {
