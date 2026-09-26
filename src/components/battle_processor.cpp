@@ -52,6 +52,10 @@ void BattleProcessor::updateSimulation(float dt) {
     return;
   }
 
+  // An empty battle (no dishes loaded on either side) is not a battle: never
+  // advance/complete it (it would force Results over the real ECS battle).
+  if (playerDishes.empty() && opponentDishes.empty()) return;
+
   simulationTime += dt;
 
   // Process current course

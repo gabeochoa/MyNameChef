@@ -18,6 +18,20 @@ class Pack(unittest.TestCase):
         _, _, _, rows = pack_by_group([e("a.png", 48, 32), e("b.png", 48, 32)], 64, 0)
         self.assertEqual(rows["mains"], {"y": 0, "h": 64})
 
+class Isolation(unittest.TestCase):
+    def test_clean_test_state_preserves_dev_save(self):
+        base = rt.BASE_DIR
+        pending = base / "output/battles/pending"; results = base / "output/battles/results"; saves = base / "output/saves"
+        for d in (pending, results, saves): d.mkdir(parents=True, exist_ok=True)
+        stale = pending / "stale.json"; stale.write_text("{}")
+        test_save = saves / "game_state_test_1_x.json"; test_save.write_text("{}")
+        dev_save = saves / "game_state_user_keep.json"; dev_save.write_text("{}")
+        try:
+            rt.clean_test_state()
+            self.assertFalse(stale.exists()); self.assertFalse(test_save.exists()); self.assertTrue(dev_save.exists())
+        finally:
+            dev_save.unlink(missing_ok=True)
+
 class Runner(unittest.TestCase):
     def test_crash_with_success_phrase_is_not_pass(self):
         fake = subprocess.CompletedProcess([], 139, stdout="TEST COMPLETED: x", stderr="")

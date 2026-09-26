@@ -406,6 +406,29 @@ class TestReporter:
             print(f"{Colors.RED}⚠️  Some tests failed. Check the output above for details.{Colors.NC}")
 
 
+def clean_test_state():
+    """Isolation: remove test-generated artifacts from prior runs.
+
+    Preserves the developer save (game_state_user_*.json, user_id.txt).
+    Battle pending/results and test-user saves are regenerated per run.
+    """
+    import glob as glob_module
+    patterns = [
+        "output/battles/pending/*", "output/battles/results/*",
+        "output/battles/temp_*", "output/saves/game_state_test_*",
+        "output/saves/server_test_*", "mocks",
+    ]
+    for pattern in patterns:
+        for path in glob_module.glob(str(BASE_DIR / pattern)):
+            target = Path(path)
+            if target.is_dir():
+                shutil.rmtree(target, ignore_errors=True)
+            else:
+                target.unlink(missing_ok=True)
+    (BASE_DIR / "output/battles/pending").mkdir(parents=True, exist_ok=True)
+    (BASE_DIR / "output/battles/results").mkdir(parents=True, exist_ok=True)
+
+
 def categorize_tests(tests: List[str]) -> Tuple[List[str], List[str]]:
     """Categorize tests into client tests and integration tests.
     
@@ -537,7 +560,8 @@ def main():
     total_passed = 0
     total_failed = 0
     
-    # Always run headless first
+    # Always run headless first (isolated state per pass)
+    clean_test_state()
     print(f"{Colors.BLUE}Running tests in headless mode first...{Colors.NC}")
     print("")
     
@@ -626,8 +650,11 @@ def main():
         total_failed += failed
         print("")
     
+    headless_passed, headless_failed = total_passed, total_failed
+
     # If -v flag is set, also run tests in visible mode
     if args.visible:
+        clean_test_state()
         print(f"{Colors.BLUE}Running tests in visible mode...{Colors.NC}")
         print("")
         
@@ -647,10 +674,13 @@ def main():
         
         # Integration tests already run in visible mode, so skip them here
     
-    # Print summary
+    # Print summary (per mode - visible is a second pass, not more tests)
+    if args.visible:
+        print(f"{Colors.BLUE}Headless pass: {headless_passed} passed, {headless_failed} failed{Colors.NC}")
+        print(f"{Colors.BLUE}Visible pass: {total_passed - headless_passed} passed, {total_failed - headless_failed} failed (client tests only){Colors.NC}")
     total_tests = total_passed + total_failed
     reporter.print_summary(total_passed, total_failed, total_tests)
-    
+
     return 0 if total_failed == 0 else 1
 
 
