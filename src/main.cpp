@@ -255,16 +255,17 @@ void game(const std::optional<std::string> &run_test) {
       //
     }
 
+    // Single timing scale (issue 65): dt is never scaled here; BattleTiming
+    // durations are the one place timing_speed_scale applies.
     if (!render_backend::is_headless_mode) {
       while (running && !raylib::WindowShouldClose()) {
         float dt = raylib::GetFrameTime();
-        systems.run(dt * render_backend::timing_speed_scale);
+        systems.run(dt);
       }
     } else {
-      // Headless loop: run with fixed timestep; tests will exit the process
       while (running) {
         float dt = 1.0f / 60.0f;
-        systems.run(dt * render_backend::timing_speed_scale);
+        systems.run(dt);
       }
     }
   }

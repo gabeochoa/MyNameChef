@@ -2,10 +2,9 @@
 
 #include "render_backend.h"
 
-// NOTE(issue 65 deferred): durations are divided by timing_speed_scale and
-// the main loop also scales dt, so combat runs at scale^2. Removing either
-// factor retimes every battle test; deferred until tests are retimed to a
-// single-scale contract.
+// Issue 65: single timing scale - the main loop never scales dt; these
+// durations are the only place timing_speed_scale applies, so a requested
+// scale S makes combat run S times faster (tests use 5, any value works).
 struct BattleTiming {
   static constexpr float TICK_MS = 150.0f / 1000.0f;
   static constexpr float PRE_PAUSE_MS = 0.35f;
