@@ -14,7 +14,9 @@
 #include "../game_state_manager.h"
 #include "../render_backend.h"
 #include "../render_constants.h"
+#include "../settings.h"
 #include "../tooltip.h"
+#include "../ui/cloche_theme.h"
 #include <afterhours/ah.h>
 #include <afterhours/src/plugins/texture_manager.h>
 #include <magic_enum/magic_enum.hpp>
@@ -72,22 +74,23 @@ struct InstantiateBattleTeamSystem : afterhours::System<CombatQueue> {
 private:
   void instantiate_team(const std::vector<TeamDishSpec> &team_specs,
                         bool isPlayer) {
+    // Both full starting teams always fit on screen: the row is
+    // centered for the actual team size and spacing shrinks to fit
+    // (cloche_theme::battle_row_layout).
+    auto layout = cloche_theme::battle_row_layout(
+        static_cast<int>(team_specs.size()),
+        static_cast<float>(Settings::get().get_screen_width()));
     for (const auto &spec : team_specs) {
-      create_battle_dish_entity(spec, isPlayer);
+      create_battle_dish_entity(spec, isPlayer, layout);
     }
   }
 
-  void create_battle_dish_entity(const TeamDishSpec &spec, bool isPlayer) {
+  void create_battle_dish_entity(const TeamDishSpec &spec, bool isPlayer,
+                                 const cloche_theme::BattleRowLayout &layout) {
     auto &entity = afterhours::EntityHelper::createEntity();
 
-    float x, y;
-    if (isPlayer) {
-      x = 120.0f + spec.slot * 100.0f;
-      y = 150.0f;
-    } else {
-      x = 120.0f + spec.slot * 100.0f;
-      y = 500.0f;
-    }
+    float x = cloche_theme::battle_slot_x(layout, spec.slot);
+    float y = isPlayer ? 150.0f : 500.0f;
 
     log_info("BATTLE CREATE: Creating entity {} - Dish: {}, Player: {}, Slot: "
              "{}, Pos: ({}, {})",

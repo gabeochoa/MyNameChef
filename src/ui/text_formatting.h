@@ -2,6 +2,7 @@
 
 #include "../font_info.h"
 #include "../render_backend.h"
+#include "cloche_theme.h"
 #include "../rl.h"
 #include <afterhours/src/plugins/color.h>
 #include <afterhours/src/plugins/ui/theme.h>
@@ -236,31 +237,36 @@ private:
   }
 
   static raylib::Color get_combat_color(SemanticColor semantic) {
+    // Combat plays out on the light two-tone page, so combat text and
+    // team colors come from the Silver Cloche palette (cloche_theme.h):
+    // player green, opponent terracotta, body text dark.
     switch (semantic) {
     case SemanticColor::Error:
     case SemanticColor::Negative:
+      return cloche_theme::ACCENT;
     case SemanticColor::Health:
       return raylib::RED;
     case SemanticColor::Success:
     case SemanticColor::Positive:
-      return raylib::GREEN;
+      return cloche_theme::PRIMARY;
     case SemanticColor::Warning:
       return raylib::YELLOW;
     case SemanticColor::Info:
       return raylib::SKYBLUE;
     case SemanticColor::Text:
-      return raylib::WHITE;
+      return cloche_theme::FONT;
     case SemanticColor::TextMuted:
-      return raylib::GRAY;
+      return cloche_theme::FONT_DIM;
     case SemanticColor::Gold:
-      return raylib::GOLD;
+      return cloche_theme::PRICE;
     case SemanticColor::Accent:
-      return raylib::ORANGE;
+      return cloche_theme::ACCENT;
     case SemanticColor::Primary:
+      return cloche_theme::PRIMARY;
     case SemanticColor::Secondary:
-      return raylib::WHITE;
+      return cloche_theme::SECONDARY;
     default:
-      return raylib::WHITE;
+      return cloche_theme::FONT;
     }
   }
 

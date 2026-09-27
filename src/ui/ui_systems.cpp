@@ -37,6 +37,7 @@
 #include "../texture_library.h"
 #include "../tooltip.h"
 #include "../translation_manager.h"
+#include "cloche_theme.h"
 #include "containers.h"
 #include "controls.h"
 #include "metrics.h"
@@ -75,24 +76,37 @@ struct SetupGameStylingDefaults
   virtual void once(float) override {
     auto &styling_defaults = afterhours::ui::imm::UIStylingDefaults::get();
 
+    // Silver Cloche house theme: No.3 Quintonil palette (cloche_theme.h)
     styling_defaults
         .set_theme_color(afterhours::ui::Theme::Usage::Primary,
-                         afterhours::Color{139, 69, 19, 255}) // Saddle brown
+                         cloche_theme::PRIMARY)
         .set_theme_color(afterhours::ui::Theme::Usage::Secondary,
-                         afterhours::Color{34, 139, 34, 255}) // Forest green
+                         cloche_theme::SECONDARY)
         .set_theme_color(afterhours::ui::Theme::Usage::Accent,
-                         afterhours::Color{255, 140, 0, 255}) // Dark orange
+                         cloche_theme::ACCENT)
         .set_theme_color(afterhours::ui::Theme::Usage::Background,
-                         afterhours::Color{64, 64, 64, 255}) // Dark gray
+                         cloche_theme::PAGE_LEFT)
         .set_theme_color(afterhours::ui::Theme::Usage::Font,
-                         afterhours::Color{245, 245, 220, 255}) // Beige
+                         cloche_theme::FONT)
         .set_theme_color(afterhours::ui::Theme::Usage::DarkFont,
-                         afterhours::Color{255, 255, 255,
-                                           255}); // White for dark backgrounds
+                         cloche_theme::FONT_ON_DARK)
+        .set_theme_color(afterhours::ui::Theme::Usage::Error,
+                         cloche_theme::ACCENT);
 
-    // Set the default font for all components based on current language
+    // Set the default font for all components based on current language.
+    // VT323 (English) has a small x-height, so the base size runs larger
+    // than the previous font's 16.
     styling_defaults.set_default_font(
-        get_font_name(translation_manager::get_font_for_language()), 16.f);
+        get_font_name(translation_manager::get_font_for_language()), 20.f);
+
+    // The theme's disabled treatment blends toward the background at
+    // 30% opacity, which is unreadable on the light two-tone page;
+    // raise it so disabled labels stay legible (mock fix, same issue).
+    {
+      auto theme = afterhours::ui::imm::ThemeDefaults::get().get_theme();
+      theme.disabled_opacity = 0.6f;
+      afterhours::ui::imm::ThemeDefaults::get().set_theme(theme);
+    }
 
     // Component-specific styling
     styling_defaults.set_component_config(
@@ -104,7 +118,12 @@ struct SetupGameStylingDefaults
                                   .right = pixels(0.f)})
             .with_size(ComponentSize{screen_pct(200.f / 1280.f),
                                      screen_pct(50.f / 720.f)})
-            .with_color_usage(Theme::Usage::Primary));
+            .with_margin(Margin{.top = pixels(0.f),
+                                .left = pixels(0.f),
+                                .bottom = screen_pct(8.f / 720.f),
+                                .right = pixels(0.f)})
+            .with_color_usage(Theme::Usage::Primary)
+            .with_rounded_corners(RoundedCorners().all_sharp()));
 
     styling_defaults.set_component_config(
         ComponentType::Slider,
@@ -249,6 +268,23 @@ ElementResult create_column_container(UIContext<InputAction> &context,
           .with_debug_name(debug_name));
 }
 
+// Right half of the DS two-tone page, laid over a full-screen
+// Background div (Silver Cloche house theme). Create it before any
+// content siblings so they draw on top of it.
+void add_right_page(UIContext<InputAction> &context, Entity &parent) {
+  imm::div(context, mk(parent, 92),
+           ComponentConfig{}
+               .with_size(ComponentSize{screen_pct(0.5f), screen_pct(1.f)})
+               .with_absolute_position()
+               .with_margin(Margin{.top = pixels(0.f),
+                                   .left = screen_pct(0.5f),
+                                   .bottom = pixels(0.f),
+                                   .right = pixels(0.f)})
+               .with_custom_color(cloche_theme::PAGE_RIGHT)
+               .with_debug_name("page_right")
+               .with_rounded_corners(RoundedCorners().all_sharp()));
+}
+
 } // namespace ui_helpers
 
 Screen ScheduleMainMenuUI::main_screen(Entity &entity,
@@ -263,6 +299,33 @@ Screen ScheduleMainMenuUI::main_screen(Entity &entity,
                    .with_color_usage(Theme::Usage::Background)
                    .with_debug_name("main_background")
                    .with_rounded_corners(RoundedCorners().all_sharp()));
+  ui_helpers::add_right_page(context, bg.ent());
+
+  // Silver Cloche masthead, centered over the two-tone page
+  imm::div(context, mk(bg.ent(), 90),
+           ComponentConfig{}
+               .with_size(ComponentSize{screen_pct(1.f), height_at_720p(84.f)})
+               .with_absolute_position()
+               .with_margin(Margin{.top = screen_pct(0.05f),
+                                   .left = pixels(0.f),
+                                   .bottom = pixels(0.f),
+                                   .right = pixels(0.f)})
+               .with_label(cloche_theme::GAME_TITLE)
+               .with_font_size(pixels(64.f))
+               .with_alignment(TextAlignment::Center)
+               .with_debug_name("game_title"));
+  imm::div(context, mk(bg.ent(), 91),
+           ComponentConfig{}
+               .with_size(ComponentSize{screen_pct(1.f), height_at_720p(30.f)})
+               .with_absolute_position()
+               .with_margin(Margin{.top = screen_pct(0.175f),
+                                   .left = pixels(0.f),
+                                   .bottom = pixels(0.f),
+                                   .right = pixels(0.f)})
+               .with_label(cloche_theme::GAME_TAGLINE)
+               .with_font_size(pixels(20.f))
+               .with_alignment(TextAlignment::Center)
+               .with_debug_name("game_tagline"));
 
   auto top_left =
       column_left<InputAction>(context, bg.ent(), "main_top_left", 0);
@@ -287,7 +350,7 @@ Screen ScheduleMainMenuUI::main_screen(Entity &entity,
   if (has_save) {
     // New Team button
     button_labeled<InputAction>(
-        context, top_left.ent(), "New Team",
+        context, top_left.ent(), "New Brigade",
         []() {
           auto userId_opt = afterhours::EntityHelper::get_singleton<UserId>();
           if (userId_opt.get().has<UserId>()) {
@@ -311,11 +374,11 @@ Screen ScheduleMainMenuUI::main_screen(Entity &entity,
           afterhours::EntityHelper::cleanup();
           GameStateManager::get().start_game();
         },
-        button_index++, "", NetworkInfo::is_disconnected());
+        button_index++, "New Team", NetworkInfo::is_disconnected());
 
     // Continue button
     button_labeled<InputAction>(
-        context, top_left.ent(), "Continue",
+        context, top_left.ent(), "Resume Service",
         []() {
           auto continue_opt =
               afterhours::EntityHelper::get_singleton<ContinueGameRequest>();
@@ -324,38 +387,38 @@ Screen ScheduleMainMenuUI::main_screen(Entity &entity,
           }
           GameStateManager::get().start_game();
         },
-        button_index++, "",
+        button_index++, "Continue",
         continue_disabled || NetworkInfo::is_disconnected()); // settled: online required for everything except Settings
   } else {
     // Play button
     button_labeled<InputAction>(
-        context, top_left.ent(), "Play",
-        []() { GameStateManager::get().start_game(); }, button_index++, "",
+        context, top_left.ent(), "Begin Service",
+        []() { GameStateManager::get().start_game(); }, button_index++, "Play",
         NetworkInfo::is_disconnected());
   }
 
   // Settings button
   button_labeled<InputAction>(
-      context, top_left.ent(), "Settings",
+      context, top_left.ent(), "The House Rules",
       []() { navigation::to(GameStateManager::Screen::Settings); },
-      button_index++);
+      button_index++, "Settings");
 
   // Dishes button
   button_labeled<InputAction>(
-      context, top_left.ent(), "Dishes",
+      context, top_left.ent(), "The Menu",
       []() { navigation::to(GameStateManager::Screen::Dishes); },
-      button_index++);
+      button_index++, "Dishes");
 
   // History button
   button_labeled<InputAction>(
-      context, top_left.ent(), "History",
+      context, top_left.ent(), "Past Services",
       []() { navigation::to(GameStateManager::Screen::History); },
-      button_index++);
+      button_index++, "History");
 
   // Exit button
   button_labeled<InputAction>(
-      context, top_left.ent(), "Quit", [this]() { exit_game(); },
-      button_index++);
+      context, top_left.ent(), "Close the Restaurant", [this]() { exit_game(); },
+      button_index++, "Quit");
 
   return GameStateManager::get().next_screen.value_or(
       GameStateManager::get().active_screen);
@@ -482,7 +545,7 @@ Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
 
   // Create Next Round button
   button_labeled<InputAction>(
-      context, top_right.ent(), "Next Round",
+      context, top_right.ent(), "Begin Service",
       []() {
         // Export menu snapshot
         ExportMenuSnapshotSystem export_system;
@@ -498,7 +561,7 @@ Screen ScheduleMainMenuUI::shop_screen(Entity &entity,
               "You need at least one dish in your team to start a battle");
         }
       },
-      1, "", NetworkInfo::is_disconnected()); // settled: online required
+      1, "Next Round", NetworkInfo::is_disconnected()); // settled: online required
 
   div(context, mk(top_right.ent()),
       ComponentConfig{}
@@ -642,8 +705,8 @@ Screen ScheduleMainMenuUI::battle_screen(Entity &entity,
 
   // Create Skip to Results button
   button_labeled<InputAction>(
-      context, top_left.ent(), "Skip to Results",
-      []() { GameStateManager::get().to_results(); }, 0);
+      context, top_left.ent(), "Skip to Verdict",
+      []() { GameStateManager::get().to_results(); }, 0, "Skip to Results");
 
   // Create replay controls at bottom if replay is active
   auto replayState = afterhours::EntityHelper::get_singleton<ReplayState>();
@@ -837,6 +900,7 @@ Screen ScheduleMainMenuUI::results_screen(Entity &entity,
                    .with_color_usage(Theme::Usage::Background)
                    .with_debug_name("results_background")
                    .with_rounded_corners(RoundedCorners().all_sharp()));
+  ui_helpers::add_right_page(context, bg.ent());
 
   auto top_left =
       column_left<InputAction>(context, bg.ent(), "results_top_left", 0);
@@ -856,20 +920,20 @@ Screen ScheduleMainMenuUI::results_screen(Entity &entity,
   // Create Back button (to Shop or History depending on mode)
   if (is_replay_mode) {
     button_labeled<InputAction>(
-        context, top_left.ent(), "Back to History",
+        context, top_left.ent(), "Back to Past Services",
         []() {
           log_info("Back to History button clicked!");
           GameStateManager::get().set_next_screen(Screen::History);
         },
-        0);
+        0, "Back to History");
   } else {
     button_labeled<InputAction>(
-        context, top_left.ent(), "Back to Shop",
+        context, top_left.ent(), "Back to the Kitchen",
         []() {
           log_info("Back to Shop button clicked!");
           GameStateManager::get().set_next_screen(Screen::Shop);
         },
-        0);
+        0, "Back to Shop");
   }
 
   return GameStateManager::get().next_screen.value_or(
@@ -888,6 +952,7 @@ Screen ScheduleMainMenuUI::history_screen(Entity &entity,
                    .with_color_usage(Theme::Usage::Background)
                    .with_debug_name("history_background")
                    .with_rounded_corners(RoundedCorners().all_sharp()));
+  ui_helpers::add_right_page(context, bg.ent());
 
   auto top_left =
       column_left<InputAction>(context, bg.ent(), "history_top_left", 0);

@@ -27,8 +27,9 @@ using namespace afterhours;
 std::string get_font_name(FontID id) {
   switch (id) {
   case FontID::English:
-    // return "eqprorounded-regular.ttf";
-    return "NotoSansMonoCJKkr-Bold.otf";
+    // VT323: the DS voice of the Silver Cloche house theme (Latin only;
+    // Korean/Japanese keep their Noto faces below).
+    return "VT323-Regular.ttf";
   case FontID::Korean:
     return "NotoSansMonoCJKkr-Bold.otf";
   case FontID::Japanese:

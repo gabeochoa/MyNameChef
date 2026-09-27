@@ -1108,7 +1108,14 @@ bool TestApp::check_wait_conditions() {
              .gen()) {
       const afterhours::ui::HasLabel &label =
           entity.get<afterhours::ui::HasLabel>();
-      if (label.label == wait_state.target_ui_label) {
+      // Match the debug name as well as the visible label, the same way
+      // find_clickable_with does — buttons may be relabeled in-fiction
+      // while keeping a stable debug name as their test ID.
+      bool debug_matches =
+          entity.has<afterhours::ui::UIComponentDebug>() &&
+          entity.get<afterhours::ui::UIComponentDebug>().name() ==
+              wait_state.target_ui_label;
+      if (label.label == wait_state.target_ui_label || debug_matches) {
         TestOperationID op_id = wait_state.operation_id;
         wait_state.type = WaitState::None;
         if (op_id != 0) {
@@ -1125,13 +1132,15 @@ bool TestApp::check_wait_conditions() {
              .whereHasComponent<afterhours::ui::HasClickListener>()
              .gen()) {
       std::string name;
+      std::string debug_name;
       if (entity.has<afterhours::ui::HasLabel>()) {
         name = entity.get<afterhours::ui::HasLabel>().label;
       }
-      if (name.empty() && entity.has<afterhours::ui::UIComponentDebug>()) {
-        name = entity.get<afterhours::ui::UIComponentDebug>().name();
+      if (entity.has<afterhours::ui::UIComponentDebug>()) {
+        debug_name = entity.get<afterhours::ui::UIComponentDebug>().name();
       }
-      if (name == wait_state.target_ui_label) {
+      if (name == wait_state.target_ui_label ||
+          debug_name == wait_state.target_ui_label) {
         TestOperationID op_id = wait_state.operation_id;
         wait_state.type = WaitState::None;
         if (op_id != 0) {

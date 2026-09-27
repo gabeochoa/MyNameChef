@@ -23,6 +23,7 @@ std::unordered_map<std::string, std::function<void()>> g_test_continuations;
 #include "../testing/tests/ValidateBattleReportPersistenceTest.h"
 #include "../testing/tests/ValidateBattleResultsTest.h"
 #include "../testing/tests/ValidateBattleSlotCompactionTest.h"
+#include "../testing/tests/ValidateClocheThemeTest.h"
 #include "../testing/tests/ValidateCodeHashTest.h"
 #include "../testing/tests/ValidateCombatSystemTest.h"
 #include "../testing/tests/ValidateDebugDishTest.h"
