@@ -257,9 +257,85 @@ body[data-style="gba"] .dish-card, body[data-style="gba"] .fighter, body[data-st
 body[data-style="ps1"] .sprite { filter: saturate(.82) contrast(1.08) drop-shadow(0 6px 4px rgba(0,0,0,.45)) blur(.5px); animation: ps1wob 1.9s steps(3) infinite alternate; }
 body[data-style="ps1"] .btn { white-space: nowrap; }
 body[data-style="ps1"] .shop-actions .btn { width: auto; padding: 0 16px; }
+/* ===== mix: GBA device + DS font ===== */
+body[data-fontmix="ds"] .screen, body[data-fontmix="ds"] .game-title, body[data-fontmix="ds"] .screen-title,
+body[data-fontmix="ds"] .section-label, body[data-fontmix="ds"] .course-banner, body[data-fontmix="ds"] .big-result,
+body[data-fontmix="ds"] .game-sub, body[data-fontmix="ds"] .btn, body[data-fontmix="ds"] .chip, body[data-fontmix="ds"] .price,
+body[data-fontmix="ds"] .level, body[data-fontmix="ds"] .tag, body[data-fontmix="ds"] .dish-name, body[data-fontmix="ds"] .fighter-meta,
+body[data-fontmix="ds"] .note, body[data-fontmix="ds"] .review, body[data-fontmix="ds"] .results-row, body[data-fontmix="ds"] .slider-row,
+body[data-fontmix="ds"] .standing, body[data-fontmix="ds"] .verdict-plate { font-family: 'VT323', monospace; }
+body[data-fontmix="ds"] .game-title { font-size: calc(var(--titlesize, 44px) * 1.4); line-height: 1.15; }
+body[data-fontmix="ds"] .screen-title { font-size: 36px; }
+body[data-fontmix="ds"] .section-label { font-size: 24px; }
+body[data-fontmix="ds"] .dish-name { font-size: 20px; line-height: 1.25; }
+body[data-fontmix="ds"] .fighter-meta { font-size: 17px; line-height: 1.3; }
+body[data-fontmix="ds"] .price, body[data-fontmix="ds"] .level { font-size: 20px; }
+body[data-fontmix="ds"] .tag { font-size: 15px; }
+body[data-fontmix="ds"] .btn { font-size: 25px !important; }
+body[data-fontmix="ds"] .chip { font-size: 20px; }
+body[data-fontmix="ds"] .game-sub { font-size: 21px; }
+body[data-fontmix="ds"] .note, body[data-fontmix="ds"] .review, body[data-fontmix="ds"] .results-row, body[data-fontmix="ds"] .slider-row { font-size: 19px; line-height: 1.45; }
+body[data-fontmix="ds"] .big-result { font-size: 56px; }
+body[data-fontmix="ds"] .course-banner { font-size: 27px; }
+body[data-fontmix="ds"] .standing { font-size: 18px; line-height: 1.5; }
+
 
 
 @keyframes ps1wob { from { transform: skewX(-1.6deg); } to { transform: skewX(1.6deg); } }
+
+/* ===== overflow fixes: cards shrink, never escape the frame ===== */
+body { overflow-x: hidden; }
+.stage { overflow: hidden; }
+.topbar { flex-wrap: wrap; }
+.topbar select#style-select, .topbar select#theme-select { flex: 1 1 160px; width: auto; min-width: 0; }
+#screen-battle { container-type: inline-size; justify-content: space-evenly; }
+#screen-battle .arena { flex: 0 1 auto; width: 100%; min-width: 0; gap: 10px; }
+#screen-battle .team { flex: 1 1 0; min-width: 0; gap: 10px; }
+#screen-battle .fighter { flex: 1 1 0; min-width: 0; width: auto; overflow: hidden; }
+#screen-battle .cloche-divider { flex: 0 1 84px; min-width: 0; text-align: center; }
+#screen-battle .cloche-divider svg { max-width: 100%; height: auto; }
+#screen-battle .fighter .dish-name, #screen-battle .fighter .fighter-meta { overflow-wrap: break-word; }
+.row { min-width: 0; }
+.row .dish-card { flex: 0 1 auto; min-width: 0; overflow: hidden; }
+@container (max-width: 1400px) {
+  body[data-style="gba"] #screen-battle .fighter .sprite { zoom: 1.12; }
+}
+@container (max-width: 1280px) {
+  body[data-style="gba"] #screen-battle .fighter .sprite { zoom: .92; }
+  #screen-battle .cloche-divider svg { width: 56px; }
+}
+@container (max-width: 1020px) {
+  #screen-battle .fighter .sprite { zoom: .8; }
+  body[data-style="gba"] #screen-battle .fighter .sprite { zoom: .72; }
+  body[data-style="ds"] #screen-battle .fighter .sprite { zoom: .55; }
+  #screen-battle .fighter .dish-name { font-size: 17px; }
+  #screen-battle .fighter .fighter-meta { font-size: 14px; }
+  #screen-battle .cloche-divider svg { width: 40px; }
+}
+@container (max-width: 900px) {
+  body[data-style="gba"] #screen-battle .fighter .sprite { zoom: .54; }
+  body[data-style="gba"] #screen-battle .fighter { padding: 10px 4px 8px; }
+  #screen-battle .cloche-divider svg { width: 32px; }
+}
+
+/* ===== chosen mix: frameless GBA x DS two-tone ===== */
+body[data-fontmix="ds"] .stage { background: #191713; }
+body[data-fontmix="ds"] .stage::before, body[data-fontmix="ds"] .stage::after { display: none; }
+body[data-fontmix="ds"] .screen { inset: 0; transform: none; width: auto; height: auto; max-height: none; aspect-ratio: auto; border-radius: 0; box-shadow: none;
+  background-color: var(--bg);
+  background-image: repeating-conic-gradient(rgba(255,255,255,.05) 0% 25%, transparent 0% 50%),
+    linear-gradient(90deg, transparent calc(50% - 1px), rgba(0,0,0,.20) 50%, transparent calc(50% + 1px)),
+    linear-gradient(90deg, color-mix(in srgb, var(--bg) 84%, #ffffff) 0 50%, color-mix(in srgb, var(--bg) 68%, var(--primary)) 50% 100%);
+  background-size: 4px 4px, 100% 100%, 100% 100%; }
+body[data-fontmix="ds"] .screen::before { display: none; }
+body[data-fontmix="ds"] .dish-card, body[data-fontmix="ds"] .fighter { background: linear-gradient(180deg, var(--panel) 0 52%, color-mix(in srgb, var(--primary) 26%, var(--panel)) 52% 100%); }
+body[data-fontmix="ds"] #screen-battle .fighter { min-width: 92px; max-width: 200px; }
+body[data-fontmix="ds"] #screen-battle .team:first-child { justify-content: flex-end; }
+body[data-fontmix="ds"] #screen-battle .team:last-child { justify-content: flex-start; }
+@container (max-width: 1100px) {
+  body[data-fontmix="ds"] #screen-battle .fighter .sprite { zoom: .76; }
+  body[data-fontmix="ds"] #screen-battle .fighter { padding: 10px 5px 8px; }
+}
 
 </style>
 </head>
@@ -270,6 +346,7 @@ body[data-style="ps1"] .shop-actions .btn { width: auto; padding: 0 16px; }
   <select id="style-select">
     <option value="ds" selected>DS — book mode (sideways, fold in the middle)</option>
     <option value="gba">GBA — chunky pixel</option>
+    <option value="gba-ds">Mix — frameless GBA x DS two-tone · No.3 Quintonil</option>
     <option value="ps1">PS1 — gradient windows + scanlines</option>
   </select>
   <label for="theme-select">Palette / restaurant:</label>
@@ -428,7 +505,7 @@ var THEMES = {
    "pizza": "Pizza au Feu de Bois",
    "donut": "Beignet Soufflé",
    "potato": "Pomme de Terre Rôtie",
-   "fried_egg": "Œuf Parfait",
+   "fried_egg": "Oeuf Parfait",
    "taco": "Taco Revisitée",
    "juice": "Jus d'Orange Pressé",
    "soda": "Raisin Pétillant",
@@ -481,7 +558,7 @@ var THEMES = {
    "pizza": "Pizza au Feu de Bois",
    "donut": "Beignet Soufflé",
    "potato": "Pomme de Terre Rôtie",
-   "fried_egg": "Œuf Parfait",
+   "fried_egg": "Oeuf Parfait",
    "taco": "Taco Revisitée",
    "juice": "Jus d'Orange Pressé",
    "soda": "Raisin Pétillant",
@@ -534,7 +611,7 @@ var THEMES = {
    "pizza": "Pizza au Feu de Bois",
    "donut": "Beignet Soufflé",
    "potato": "Pomme de Terre Rôtie",
-   "fried_egg": "Œuf Parfait",
+   "fried_egg": "Oeuf Parfait",
    "taco": "Taco Revisitée",
    "juice": "Jus d'Orange Pressé",
    "soda": "Raisin Pétillant",
@@ -587,7 +664,7 @@ var THEMES = {
    "pizza": "Pizza au Feu de Bois",
    "donut": "Beignet Soufflé",
    "potato": "Pomme de Terre Rôtie",
-   "fried_egg": "Œuf Parfait",
+   "fried_egg": "Oeuf Parfait",
    "taco": "Taco Revisitée",
    "juice": "Jus d'Orange Pressé",
    "soda": "Raisin Pétillant",
@@ -640,7 +717,7 @@ var THEMES = {
    "pizza": "Pizza au Feu de Bois",
    "donut": "Beignet Soufflé",
    "potato": "Pomme de Terre Rôtie",
-   "fried_egg": "Œuf Parfait",
+   "fried_egg": "Oeuf Parfait",
    "taco": "Taco Revisitée",
    "juice": "Jus d'Orange Pressé",
    "soda": "Raisin Pétillant",
@@ -693,7 +770,7 @@ var THEMES = {
    "pizza": "Pizza au Feu de Bois",
    "donut": "Beignet Soufflé",
    "potato": "Pomme de Terre Rôtie",
-   "fried_egg": "Œuf Parfait",
+   "fried_egg": "Oeuf Parfait",
    "taco": "Taco Revisitée",
    "juice": "Jus d'Orange Pressé",
    "soda": "Raisin Pétillant",
@@ -746,7 +823,7 @@ var THEMES = {
    "pizza": "Pizza au Feu de Bois",
    "donut": "Beignet Soufflé",
    "potato": "Pomme de Terre Rôtie",
-   "fried_egg": "Œuf Parfait",
+   "fried_egg": "Oeuf Parfait",
    "taco": "Taco Revisitée",
    "juice": "Jus d'Orange Pressé",
    "soda": "Raisin Pétillant",
@@ -799,7 +876,7 @@ var THEMES = {
    "pizza": "Pizza au Feu de Bois",
    "donut": "Beignet Soufflé",
    "potato": "Pomme de Terre Rôtie",
-   "fried_egg": "Œuf Parfait",
+   "fried_egg": "Oeuf Parfait",
    "taco": "Taco Revisitée",
    "juice": "Jus d'Orange Pressé",
    "soda": "Raisin Pétillant",
@@ -852,7 +929,7 @@ var THEMES = {
    "pizza": "Pizza au Feu de Bois",
    "donut": "Beignet Soufflé",
    "potato": "Pomme de Terre Rôtie",
-   "fried_egg": "Œuf Parfait",
+   "fried_egg": "Oeuf Parfait",
    "taco": "Taco Revisitée",
    "juice": "Jus d'Orange Pressé",
    "soda": "Raisin Pétillant",
@@ -905,7 +982,7 @@ var THEMES = {
    "pizza": "Pizza au Feu de Bois",
    "donut": "Beignet Soufflé",
    "potato": "Pomme de Terre Rôtie",
-   "fried_egg": "Œuf Parfait",
+   "fried_egg": "Oeuf Parfait",
    "taco": "Taco Revisitée",
    "juice": "Jus d'Orange Pressé",
    "soda": "Raisin Pétillant",
@@ -958,7 +1035,7 @@ var THEMES = {
    "pizza": "Pizza au Feu de Bois",
    "donut": "Beignet Soufflé",
    "potato": "Pomme de Terre Rôtie",
-   "fried_egg": "Œuf Parfait",
+   "fried_egg": "Oeuf Parfait",
    "taco": "Taco Revisitée",
    "juice": "Jus d'Orange Pressé",
    "soda": "Raisin Pétillant",
@@ -1011,7 +1088,7 @@ var THEMES = {
    "pizza": "Pizza au Feu de Bois",
    "donut": "Beignet Soufflé",
    "potato": "Pomme de Terre Rôtie",
-   "fried_egg": "Œuf Parfait",
+   "fried_egg": "Oeuf Parfait",
    "taco": "Taco Revisitée",
    "juice": "Jus d'Orange Pressé",
    "soda": "Raisin Pétillant",
@@ -1064,7 +1141,7 @@ var THEMES = {
    "pizza": "Pizza au Feu de Bois",
    "donut": "Beignet Soufflé",
    "potato": "Pomme de Terre Rôtie",
-   "fried_egg": "Œuf Parfait",
+   "fried_egg": "Oeuf Parfait",
    "taco": "Taco Revisitée",
    "juice": "Jus d'Orange Pressé",
    "soda": "Raisin Pétillant",
@@ -1117,7 +1194,7 @@ var THEMES = {
    "pizza": "Pizza au Feu de Bois",
    "donut": "Beignet Soufflé",
    "potato": "Pomme de Terre Rôtie",
-   "fried_egg": "Œuf Parfait",
+   "fried_egg": "Oeuf Parfait",
    "taco": "Taco Revisitée",
    "juice": "Jus d'Orange Pressé",
    "soda": "Raisin Pétillant",
@@ -1170,7 +1247,7 @@ var THEMES = {
    "pizza": "Pizza au Feu de Bois",
    "donut": "Beignet Soufflé",
    "potato": "Pomme de Terre Rôtie",
-   "fried_egg": "Œuf Parfait",
+   "fried_egg": "Oeuf Parfait",
    "taco": "Taco Revisitée",
    "juice": "Jus d'Orange Pressé",
    "soda": "Raisin Pétillant",
@@ -1223,7 +1300,7 @@ var THEMES = {
    "pizza": "Pizza au Feu de Bois",
    "donut": "Beignet Soufflé",
    "potato": "Pomme de Terre Rôtie",
-   "fried_egg": "Œuf Parfait",
+   "fried_egg": "Oeuf Parfait",
    "taco": "Taco Revisitée",
    "juice": "Jus d'Orange Pressé",
    "soda": "Raisin Pétillant",
@@ -1276,7 +1353,7 @@ var THEMES = {
    "pizza": "Pizza au Feu de Bois",
    "donut": "Beignet Soufflé",
    "potato": "Pomme de Terre Rôtie",
-   "fried_egg": "Œuf Parfait",
+   "fried_egg": "Oeuf Parfait",
    "taco": "Taco Revisitée",
    "juice": "Jus d'Orange Pressé",
    "soda": "Raisin Pétillant",
@@ -1329,7 +1406,7 @@ var THEMES = {
    "pizza": "Pizza au Feu de Bois",
    "donut": "Beignet Soufflé",
    "potato": "Pomme de Terre Rôtie",
-   "fried_egg": "Œuf Parfait",
+   "fried_egg": "Oeuf Parfait",
    "taco": "Taco Revisitée",
    "juice": "Jus d'Orange Pressé",
    "soda": "Raisin Pétillant",
@@ -1382,7 +1459,7 @@ var THEMES = {
    "pizza": "Pizza au Feu de Bois",
    "donut": "Beignet Soufflé",
    "potato": "Pomme de Terre Rôtie",
-   "fried_egg": "Œuf Parfait",
+   "fried_egg": "Oeuf Parfait",
    "taco": "Taco Revisitée",
    "juice": "Jus d'Orange Pressé",
    "soda": "Raisin Pétillant",
@@ -1435,7 +1512,7 @@ var THEMES = {
    "pizza": "Pizza au Feu de Bois",
    "donut": "Beignet Soufflé",
    "potato": "Pomme de Terre Rôtie",
-   "fried_egg": "Œuf Parfait",
+   "fried_egg": "Oeuf Parfait",
    "taco": "Taco Revisitée",
    "juice": "Jus d'Orange Pressé",
    "soda": "Raisin Pétillant",
@@ -1488,7 +1565,7 @@ var THEMES = {
    "pizza": "Pizza au Feu de Bois",
    "donut": "Beignet Soufflé",
    "potato": "Pomme de Terre Rôtie",
-   "fried_egg": "Œuf Parfait",
+   "fried_egg": "Oeuf Parfait",
    "taco": "Taco Revisitée",
    "juice": "Jus d'Orange Pressé",
    "soda": "Raisin Pétillant",
@@ -1541,7 +1618,7 @@ var THEMES = {
    "pizza": "Pizza au Feu de Bois",
    "donut": "Beignet Soufflé",
    "potato": "Pomme de Terre Rôtie",
-   "fried_egg": "Œuf Parfait",
+   "fried_egg": "Oeuf Parfait",
    "taco": "Taco Revisitée",
    "juice": "Jus d'Orange Pressé",
    "soda": "Raisin Pétillant",
@@ -1594,7 +1671,7 @@ var THEMES = {
    "pizza": "Pizza au Feu de Bois",
    "donut": "Beignet Soufflé",
    "potato": "Pomme de Terre Rôtie",
-   "fried_egg": "Œuf Parfait",
+   "fried_egg": "Oeuf Parfait",
    "taco": "Taco Revisitée",
    "juice": "Jus d'Orange Pressé",
    "soda": "Raisin Pétillant",
@@ -1647,7 +1724,7 @@ var THEMES = {
    "pizza": "Pizza au Feu de Bois",
    "donut": "Beignet Soufflé",
    "potato": "Pomme de Terre Rôtie",
-   "fried_egg": "Œuf Parfait",
+   "fried_egg": "Oeuf Parfait",
    "taco": "Taco Revisitée",
    "juice": "Jus d'Orange Pressé",
    "soda": "Raisin Pétillant",
@@ -1700,7 +1777,7 @@ var THEMES = {
    "pizza": "Pizza au Feu de Bois",
    "donut": "Beignet Soufflé",
    "potato": "Pomme de Terre Rôtie",
-   "fried_egg": "Œuf Parfait",
+   "fried_egg": "Oeuf Parfait",
    "taco": "Taco Revisitée",
    "juice": "Jus d'Orange Pressé",
    "soda": "Raisin Pétillant",
@@ -1758,7 +1835,7 @@ function applyTheme(name) {
     el.textContent = theme.text.price_prefix + el.dataset.price;
   });
 }
-function applyStyle(name) { document.body.dataset.style = name; }
+function applyStyle(name) { if (name === 'gba-ds') { document.body.dataset.style = 'gba'; document.body.dataset.fontmix = 'ds'; applyTheme('quintonil'); document.getElementById('theme-select').value = 'quintonil'; } else { document.body.dataset.style = name; delete document.body.dataset.fontmix; } }
 document.getElementById('style-select').addEventListener('change', function (e) { applyStyle(e.target.value); });
 document.getElementById('theme-select').addEventListener('change', function (e) { applyTheme(e.target.value); });
 document.querySelectorAll('nav button').forEach(function (b) {
@@ -1769,8 +1846,8 @@ document.querySelectorAll('nav button').forEach(function (b) {
     document.getElementById('screen-' + b.dataset.screen).classList.add('active');
   });
 });
-applyStyle('ds');
-applyTheme('maido');
+applyStyle('gba-ds');
+document.getElementById('style-select').value = 'gba-ds';
 </script>
 </body>
 </html>

@@ -124,6 +124,19 @@ alien DLC (Galactic Galley), cooking-show competition (Chef Showdown).
   LCD line-grid overlay, inner keylines on windows. PS1 food pass:
   sprites desaturated, slightly blurred, drop-shadowed, and given the
   affine wobble on every screen so the food matches the jittery world.
+- **CHOSEN DIRECTION (user, this session):** a hybrid "Mix" is the
+  lead look — GBA chunky layout/borders/dither with the DS VT323 font,
+  DS two-tone treatment (split left/right pages in palette tints, seam
+  at center; two-tone cards), palette No.3 Quintonil (Modern Mexican:
+  sage greens + terracotta accent), and NO device frame — the screen
+  fills the stage edge to edge, no bezel, no inner keyline, no
+  handheld furniture. It is the mock's default on load; selecting the
+  Mix also applies the Quintonil palette (other palettes/styles stay
+  selectable for comparison). Battle layout rule that goes with it:
+  both full starting teams always fit on screen (cards shrink/cap to
+  fit); fighters beyond the starting teams may spawn off-screen and
+  move in — overflow past the edge is intended for spawns, never for
+  the starting lineups.
 
 ## Open questions (25)
 
