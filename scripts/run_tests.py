@@ -143,9 +143,11 @@ class ServerManager:
 class TestExecutor:
     """Executes individual tests."""
     
-    def __init__(self, timeout: int = DEFAULT_TIMEOUT, headless: bool = True):
+    def __init__(self, timeout: int = DEFAULT_TIMEOUT, headless: bool = True,
+                 offscreen_render: bool = False):
         self.timeout = timeout
         self.headless = headless
+        self.offscreen_render = offscreen_render
     
     def run_test(self, test_name: str, test_number: int = 0, total: int = 0) -> Tuple[bool, str]:
         """Run a single test and return (success, message)."""
@@ -157,7 +159,12 @@ class TestExecutor:
         )
         test_timeout = 60 if is_integration_test else self.timeout
         # Issue 88: honor requested mode for integration tests too.
-        headless_flag = [] if not self.headless else ["--headless"]
+        # Offscreen render: real rendering into a hidden window - the game
+        # keeps headless loop/timing semantics, no window opens.
+        if self.offscreen_render:
+            headless_flag = ["--headless-render"]
+        else:
+            headless_flag = [] if not self.headless else ["--headless"]
         
         # Issue 91: isolated test identity so tests never touch the dev save.
         env = os.environ.copy()
@@ -172,7 +179,7 @@ class TestExecutor:
         
         # Use 'timeout' command like bash script does for consistent behavior
         cmd = ["timeout", str(test_timeout), EXECUTABLE, "--run-test", test_name] + headless_flag + ["--timing-speed-scale", "5"]
-        if not headless_flag and shutil.which("caffeinate"):
+        if not headless_flag and not self.offscreen_render and shutil.which("caffeinate"):
             cmd = ["caffeinate", "-d", "-u", "-i"] + cmd
         
         try:
@@ -552,6 +559,8 @@ def main():
     parser = argparse.ArgumentParser(description="My Name Chef - Unified Test Runner")
     parser.add_argument("-v", "--visible", action="store_true",
                        help="Run tests in visible mode after headless (runs headless first, then visible)")
+    parser.add_argument("--headless-render", action="store_true",
+                        help="Run a second pass with offscreen rendering (hidden window) instead of visible windows")
     parser.add_argument("-t", "--timeout", type=int, default=DEFAULT_TIMEOUT,
                        help=f"Set timeout per test in seconds (default: {DEFAULT_TIMEOUT})")
     parser.add_argument("--no-server", action="store_true",
@@ -705,32 +714,43 @@ def main():
     
     headless_passed, headless_failed = total_passed, total_failed
 
-    # If -v flag is set, also run tests in visible mode
-    if args.visible:
+    # Second pass: visible windows (-v) or offscreen rendering
+    # (--headless-render). Offscreen replaces the visible pass: it exercises
+    # the render pipeline without opening windows.
+    second_pass_label = None
+    if args.headless_render:
+        second_pass_label = "Headless-render"
+    elif args.visible:
+        second_pass_label = "Visible"
+    if second_pass_label:
         clean_test_state()
-        print(f"{Colors.BLUE}Running tests in visible mode...{Colors.NC}")
+        print(f"{Colors.BLUE}Running tests in {second_pass_label.lower()} mode...{Colors.NC}")
         print("")
-        
-        executor_visible = TestExecutor(timeout=args.timeout, headless=False)
-        
-        # Run client tests in visible mode
+
+        if args.headless_render:
+            executor_second = TestExecutor(timeout=args.timeout, headless=True,
+                                           offscreen_render=True)
+        else:
+            executor_second = TestExecutor(timeout=args.timeout, headless=False)
+
+        # Run client tests in the second-pass mode
         if client_tests:
-            print(f"{Colors.BLUE}🎮 Client Tests (Visible){Colors.NC}")
+            print(f"{Colors.BLUE}🎮 Client Tests ({second_pass_label}){Colors.NC}")
             print(f"{Colors.BLUE}{'=' * 24}{Colors.NC}")
             print("")
-            
+
             server_mgr = ServerManager()
-            passed, failed = run_test_suite(executor_visible, client_tests, [], server_mgr)
+            passed, failed = run_test_suite(executor_second, client_tests, [], server_mgr)
             total_passed += passed
             total_failed += failed
             print("")
-        
-        # Integration tests already run in visible mode, so skip them here
-    
-    # Print summary (per mode - visible is a second pass, not more tests)
-    if args.visible:
+
+        # Integration tests already ran in the headless pass, skip them here
+
+    # Print summary (per mode - the second pass is a re-run, not more tests)
+    if second_pass_label:
         print(f"{Colors.BLUE}Headless pass: {headless_passed} passed, {headless_failed} failed{Colors.NC}")
-        print(f"{Colors.BLUE}Visible pass: {total_passed - headless_passed} passed, {total_failed - headless_failed} failed (client tests only){Colors.NC}")
+        print(f"{Colors.BLUE}{second_pass_label} pass: {total_passed - headless_passed} passed, {total_failed - headless_failed} failed (client tests only){Colors.NC}")
     total_tests = total_passed + total_failed
     reporter.print_summary(total_passed, total_failed, total_tests)
 

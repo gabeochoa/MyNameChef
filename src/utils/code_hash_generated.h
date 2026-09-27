@@ -1,3 +1,3 @@
 #pragma once
 
-constexpr const char* SHARED_CODE_HASH = "0c0d249e5a282def5e84b9be35af9265b397f4b37c0c0bfbc110a3fb9f5fee75";
+constexpr const char* SHARED_CODE_HASH = "067435787e7d7affa5fa6e1e75fea60486830970234a5610a7aa6990924f0e20";

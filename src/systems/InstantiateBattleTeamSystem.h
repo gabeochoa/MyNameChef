@@ -112,7 +112,7 @@ private:
     entity.addComponent<HasRenderOrder>(
         RenderOrder::BattleTeams, RenderScreen::Battle | RenderScreen::Results);
 
-    if (!render_backend::is_headless_mode) {
+    if (render_backend::should_render()) {
       auto dish_info = get_dish_info(spec.dishType);
       const auto frame = afterhours::texture_manager::idx_to_sprite_frame(
           dish_info.sprite.i, dish_info.sprite.j);

@@ -14,6 +14,7 @@
 #include <nlohmann/json.hpp>
 
 bool render_backend::is_headless_mode = true;
+bool render_backend::is_offscreen_render_mode = false;
 int render_backend::step_delay_ms = 0;
 float render_backend::timing_speed_scale = 1.0f;
 bool running = true;

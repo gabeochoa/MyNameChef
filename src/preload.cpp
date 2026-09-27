@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "log.h"
+#include "render_backend.h"
 #include "rl.h"
 
 #include "font_info.h"
@@ -62,12 +63,19 @@ Preload &Preload::init(const char *title, bool headless) {
   int width = Settings::get().get_screen_width();
   int height = Settings::get().get_screen_height();
 
-  // In headless mode, skip window creation entirely to avoid GL init
+  // In plain headless mode, skip window creation entirely to avoid GL init.
+  // In offscreen-render mode, create a hidden window: a real GL context
+  // (textures, shaders, render textures all work) with nothing on screen.
+  const bool offscreen = render_backend::is_offscreen_render_mode;
   if (!headless) {
     // raylib::SetConfigFlags(raylib::FLAG_WINDOW_HIGHDPI);
     raylib::InitWindow(width, height, title);
     raylib::SetWindowSize(width, height);
     raylib::SetWindowState(raylib::FLAG_WINDOW_RESIZABLE);
+  } else if (offscreen) {
+    raylib::SetConfigFlags(raylib::FLAG_WINDOW_HIDDEN);
+    raylib::InitWindow(width, height, title);
+    raylib::SetTraceLogLevel(raylib::LOG_ERROR);
   }
   if (!headless) {
     // Back to warnings
@@ -99,14 +107,14 @@ Preload &Preload::init(const char *title, bool headless) {
     const char *path = path_owned.c_str();
     ShaderLibrary::get().load(path, name);
   };
-  if (!headless) {
+  if (!headless || offscreen) {
     load_shader("post_processing.fs", "post_processing");
     load_shader("post_processing_tag.fs", "post_processing_tag");
     load_shader("text_mask.fs", "text_mask");
   }
 
   // TODO how safe is the path combination here esp for mac vs windows
-  if (!headless)
+  if (!headless || offscreen)
     Files::get().for_resources_in_folder(
         "images", "controls/keyboard_default",
         [](const std::string &name, const std::string &filename) {
@@ -114,7 +122,7 @@ Preload &Preload::init(const char *title, bool headless) {
         });
 
   // TODO how safe is the path combination here esp for mac vs windows
-  if (!headless)
+  if (!headless || offscreen)
     Files::get().for_resources_in_folder(
         "images", "controls/xbox_default",
         [](const std::string &name, const std::string &filename) {
@@ -122,7 +130,7 @@ Preload &Preload::init(const char *title, bool headless) {
         });
 
   // TODO add to spritesheet
-  if (!headless) {
+  if (!headless || offscreen) {
     TextureLibrary::get().load(
         Files::get().fetch_resource_path("images", "dollar_sign.png").c_str(),
         "dollar_sign");
@@ -197,7 +205,7 @@ Preload &Preload::make_singleton() {
     auto &settings = Settings::get();
     translation_manager::set_language(settings.get_language());
 
-    if (!render_backend::is_headless_mode) {
+    if (render_backend::should_render()) {
       texture_manager::add_singleton_components(
           sophie, raylib::LoadTexture(
                       Files::get()

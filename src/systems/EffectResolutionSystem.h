@@ -722,7 +722,7 @@ private:
                                                        RenderScreen::Results);
 
       // TODO id prefer to not have this and then just ignore it later on
-      if (!render_backend::is_headless_mode) {
+      if (render_backend::should_render()) {
         auto dish_info = get_dish_info(dish_to_summon);
         const auto frame = afterhours::texture_manager::idx_to_sprite_frame(
             dish_info.sprite.i, dish_info.sprite.j);

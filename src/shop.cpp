@@ -277,7 +277,7 @@ Entity &make_toast(const std::string &message, float duration) {
 
   float screenWidth = 800.0f;
   float screenHeight = 600.0f;
-  if (!render_backend::is_headless_mode) {
+  if (render_backend::should_render()) {
     screenWidth = static_cast<float>(raylib::GetScreenWidth());
     screenHeight = static_cast<float>(raylib::GetScreenHeight());
   }

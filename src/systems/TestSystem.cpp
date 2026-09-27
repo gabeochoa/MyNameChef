@@ -41,6 +41,7 @@ std::unordered_map<std::string, std::function<void()>> g_test_continuations;
 #include "../testing/tests/ValidateGameStateMultiRoundPersistenceTest.h"
 #include "../testing/tests/ValidateGameStateNewTeamVsContinueTest.h"
 #include "../testing/tests/ValidateGameStateSaveResumeBasicTest.h"
+#include "../testing/tests/ValidateHeadlessRenderTest.h"
 #include "../testing/tests/ValidateGameStateServerChecksumSyncTest.h"
 #include "../testing/tests/ValidateGameStateShopSeedDeterminismTest.h"
 #include "../testing/tests/ValidateMainMenuTest.h"

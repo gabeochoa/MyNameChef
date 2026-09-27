@@ -93,6 +93,9 @@ raylib::RenderTexture2D screenRT;
 
 // Global headless mode flag
 bool render_backend::is_headless_mode = false;
+// Headless rendering: hidden window with a real GL context, render
+// systems registered, but the fixed-dt headless loop and test timing
+bool render_backend::is_offscreen_render_mode = false;
 // Step delay for non-headless test mode (milliseconds)
 int render_backend::step_delay_ms = 500;
 // Timing speed scale (default 1.0 = normal speed, higher = faster)
@@ -103,7 +106,7 @@ bool audit_strict = false;
 using namespace afterhours;
 
 void game(const std::optional<std::string> &run_test) {
-  if (!render_backend::is_headless_mode) {
+  if (render_backend::should_render()) {
     mainRT = raylib::LoadRenderTexture(Settings::get().get_screen_width(),
                                        Settings::get().get_screen_height());
     screenRT = raylib::LoadRenderTexture(Settings::get().get_screen_width(),
@@ -194,7 +197,7 @@ void game(const std::optional<std::string> &run_test) {
     systems.register_update_system(std::make_unique<MarkEntitiesWithShaders>());
 
     // renders
-    if (!render_backend::is_headless_mode) {
+    if (render_backend::should_render()) {
       systems.register_render_system(std::make_unique<BeginWorldRender>());
       register_shop_render_systems(systems);
 
@@ -289,6 +292,8 @@ int main(int argc, char *argv[]) {
     std::cout << "  --run-test <name>             Run a specific test\n";
     std::cout << "  --headless                    Enable headless mode (no "
                  "rendering)\n";
+    std::cout << "  --headless-render             Headless mode with "
+                 "offscreen rendering (hidden window)\n";
     std::cout << "  --audit-strict                Enable strict side effect "
                  "auditing\n";
     std::cout << "  --step-delay <ms>             Delay between test steps in "
@@ -339,6 +344,12 @@ int main(int argc, char *argv[]) {
     headless_mode = true;
     render_backend::is_headless_mode = true;
     log_info("HEADLESS MODE: Enabled - Rendering will be skipped");
+  }
+  if (cmdl["--headless-render"]) {
+    headless_mode = true;
+    render_backend::is_headless_mode = true;
+    render_backend::is_offscreen_render_mode = true;
+    log_info("HEADLESS RENDER MODE: Enabled - Rendering to hidden window");
   }
 
   // Parse audit-strict mode flag

@@ -11,7 +11,7 @@
 struct ToastAnimationSystem
     : afterhours::System<ToastMessage, Transform, HasColor> {
   virtual bool should_run(float) override {
-    return !render_backend::is_headless_mode;
+    return render_backend::should_render();
   }
 
   void for_each_with(afterhours::Entity &, ToastMessage &toast,

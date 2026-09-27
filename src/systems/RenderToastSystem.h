@@ -13,7 +13,7 @@
 struct RenderToastSystem
     : afterhours::System<ToastMessage, Transform, HasColor, HasRenderOrder> {
   virtual bool should_run(float) override {
-    return !render_backend::is_headless_mode;
+    return render_backend::should_render();
   }
 
   virtual void
