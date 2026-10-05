@@ -310,3 +310,10 @@ app.expect_dish_has_component<SomeEffect>(dish_id); // ✅ Validate result
 - Include all necessary component headers in system files
 - Use early returns for error conditions in systems
 - Run tests after major changes to ensure no regressions
+
+## Correct Rules
+
+| Rule | Enforcement |
+|---|---|
+| No random_device/rand outside src/seeded_rng.h | `python3 scripts/check_rng.py` |
+| Never scale dt in main loop; scale only BattleTiming durations | `python3 scripts/check_dt_scale.py` |
