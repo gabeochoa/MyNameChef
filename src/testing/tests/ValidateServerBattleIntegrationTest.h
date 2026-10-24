@@ -69,9 +69,9 @@ TEST(validate_server_battle_integration) {
   log_info("  Player file: {}", req.playerJsonPath);
   log_info("  Opponent file: {}", req.opponentJsonPath);
 
-  // Wait for battle to initialize and the first course to be fought
+  // Wait for battle to initialize and the battle to complete
   app.wait_for_battle_initialized(30.0f);
-  app.wait_for_course_complete(0, 30.0f);
+  app.wait_for_results_screen(30.0f);
 
   // Wait 5 seconds to see the battle in action, then skip to results
   log_info("INTEGRATION_TEST: Waiting 5 seconds to watch battle...");

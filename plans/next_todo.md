@@ -19,6 +19,7 @@
 - **BattleReport Persistence**: ✅ Complete (BattleReport component, SaveBattleReportSystem, JSON serialization, file retention, tests pass)
 - **Set Bonus Effects & Legend UI**: ✅ Complete (set bonuses apply, legend displays, tests pass - core functionality complete)
 - **Server RNG Determinism**: ✅ Complete (random_device replaced with SeededRng, seed stored in response, determinism test created)
+- **Server-battle test sync**: ✅ Complete (server-battle tests waited on ECS course completion, but the authoritative `BattleProcessor` sim finishes first and the Results transition freezes ECS mid-course; `validate_server_opponent_match` and `validate_server_battle_integration` now wait for the Results screen instead)
 
 ---
 

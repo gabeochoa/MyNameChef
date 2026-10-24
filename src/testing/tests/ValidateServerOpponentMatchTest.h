@@ -77,7 +77,7 @@ TEST(validate_server_opponent_match) {
 
   // Wait for battle to initialize
   app.wait_for_battle_initialized(30.0f);
-  app.wait_for_course_complete(0, 30.0f);
+  app.wait_for_results_screen(30.0f);
   
   // Wait longer for dishes to be fully organized into slots
   // With timing speed scale, battles progress faster, so we need to ensure
