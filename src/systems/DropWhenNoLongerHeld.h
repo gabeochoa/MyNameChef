@@ -15,6 +15,7 @@ private:
                      const IsDropSlot &drop_slot);
   int get_slot_id(const afterhours::Entity &entity);
   void set_slot_id(afterhours::Entity &entity, int slot_id);
+  void free_original_slot(const afterhours::Entity &entity);
   afterhours::OptEntity
   find_item_in_slot(int slot_id, const afterhours::Entity &exclude_entity);
   void snap_back_to_original(afterhours::Entity &entity, const IsHeld &held);

@@ -3311,7 +3311,10 @@ afterhours::OptEntity TestApp::find_inventory_item_by_slot(int slot_index) {
 }
 
 afterhours::OptEntity TestApp::find_drop_slot(int slot_id) {
-  return EQ({.force_merge = true}).whereHasComponent<IsDropSlot>().whereSlotID(slot_id).gen_first();
+  return EQ({.force_merge = true})
+      .whereHasComponent<IsDropSlot>()
+      .whereSlotIDInArea(slot_id, true)
+      .gen_first();
 }
 
 int TestApp::find_free_shop_slot() {

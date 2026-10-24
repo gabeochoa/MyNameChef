@@ -78,6 +78,7 @@ std::unordered_map<std::string, std::function<void()>> g_test_continuations;
 #include "../testing/tests/ValidateTestInputFrameworkTest.h"
 #include "../testing/tests/ValidateThreeBattlesFlowTest.h"
 #include "../testing/tests/ValidateToastSystemTest.h"
+#include "../testing/tests/ValidateTripleMergeTest.h"
 #include "../testing/tests/ValidateTriggerOrderingTest.h"
 #include "../testing/tests/ValidateTriggerSystemComponentsTest.h"
 #include "../testing/tests/ValidateTriggerSystemTest.h"

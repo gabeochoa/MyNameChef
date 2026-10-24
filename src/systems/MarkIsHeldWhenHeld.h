@@ -33,9 +33,12 @@ private:
     return -1;
   }
 
-  void mark_slot_unoccupied(int slot_id) {
+  void mark_slot_unoccupied(const Entity &entity, int slot_id) {
     afterhours::OptEntity slot_entity =
-        EQ().whereHasComponent<IsDropSlot>().whereSlotID(slot_id).gen_first();
+        EQ()
+            .whereHasComponent<IsDropSlot>()
+            .whereSlotIDInArea(slot_id, entity.has<IsInventoryItem>())
+            .gen_first();
     if (slot_entity) {
       slot_entity->get<IsDropSlot>().occupied = false;
     }
@@ -102,7 +105,7 @@ public:
 
     // Mark the slot this item was in as unoccupied
     int item_slot = get_slot_id(entity);
-    mark_slot_unoccupied(item_slot);
+    mark_slot_unoccupied(entity, item_slot);
     
     // Mark that the press flag was actually consumed
     if (test_input::is_simulation_active()) {

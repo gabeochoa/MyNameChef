@@ -8,6 +8,7 @@
 #include "../dish_types.h"
 #include "../game_state_manager.h"
 #include "../log.h"
+#include "../merge.h"
 #include "../query.h"
 #include "../shop.h"
 #include "../testing/test_input.h"
@@ -99,6 +100,19 @@ bool DropWhenNoLongerHeld::can_merge_dishes(const Entity &entity,
   return entity_level.level <= target_level.level;
 }
 
+void DropWhenNoLongerHeld::free_original_slot(const Entity &entity) {
+  int original_slot_id = get_slot_id(entity);
+  if (original_slot_id >= 0) {
+    if (auto original_slot =
+            EQ().whereHasComponent<IsDropSlot>()
+                .whereSlotIDInArea(original_slot_id,
+                                   entity.has<IsInventoryItem>())
+                .gen_first()) {
+      original_slot->get<IsDropSlot>().occupied = false;
+    }
+  }
+}
+
 void DropWhenNoLongerHeld::merge_dishes(Entity &entity, Entity *target_item,
                                         Entity *, const Transform &,
                                         const IsHeld &held) {
@@ -120,18 +134,16 @@ void DropWhenNoLongerHeld::merge_dishes(Entity &entity, Entity *target_item,
   // Add donor's full contribution to target
   target_level.add_merge_value(donor_level.contribution_value());
 
-  // Don't move the target item - it should stay where it is
-  // The target item keeps its current position (inventory or shop)
-
-  // Free the original slot if it was occupied (do this before cleanup)
-  int original_slot_id = get_slot_id(entity);
-  if (original_slot_id >= 0) {
-    if (auto original_slot = EQ().whereHasComponent<IsDropSlot>()
-                                 .whereSlotID(original_slot_id)
-                                 .gen_first()) {
-      original_slot->get<IsDropSlot>().occupied = false;
-    }
+  if (auto third = merge::find_triple_merge_dish(*target_item, entity);
+      third.has_value()) {
+    Entity &third_dish = *third.value();
+    target_level.add_merge_value(
+        third_dish.get<DishLevel>().contribution_value());
+    free_original_slot(third_dish);
+    third_dish.cleanup = true;
   }
+
+  free_original_slot(entity);
 
   // Remove the dropped item - mark for cleanup
   // Don't call cleanup immediately as it may interfere with the current frame
@@ -174,14 +186,7 @@ void DropWhenNoLongerHeld::drop_into_empty_slot(Entity &entity,
   if (drop_slot->get<IsDropSlot>().slot_id == SELL_SLOT_ID &&
       entity.has<IsInventoryItem>()) {
     // Free the original inventory slot
-    int original_slot_id = get_slot_id(entity);
-    if (original_slot_id >= 0) {
-      if (auto original_slot = EQ().whereHasComponent<IsDropSlot>()
-                                   .whereSlotID(original_slot_id)
-                                   .gen_first()) {
-        original_slot->get<IsDropSlot>().occupied = false;
-      }
-    }
+    free_original_slot(entity);
 
     auto wallet_entity = EntityHelper::get_singleton<Wallet>();
     if (wallet_entity.get().has<Wallet>()) {
@@ -262,7 +267,8 @@ bool DropWhenNoLongerHeld::swap_items(Entity &entity, Entity *occupied_slot,
   occupied_slot->get<IsDropSlot>().occupied = true;
   if (original_slot_id >= 0) {
     auto original_slot = EQ().whereHasComponent<IsDropSlot>()
-                             .whereSlotID(original_slot_id)
+                             .whereSlotIDInArea(original_slot_id,
+                                                item.has<IsInventoryItem>())
                              .gen_first();
     if (original_slot) {
       original_slot->get<IsDropSlot>().occupied = true;

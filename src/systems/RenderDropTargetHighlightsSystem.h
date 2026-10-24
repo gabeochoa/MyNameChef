@@ -7,6 +7,7 @@
 #include "../components/is_inventory_item.h"
 #include "../components/transform.h"
 #include "../game_state_manager.h"
+#include "../merge.h"
 #include "../query.h"
 #include "../shop.h"
 #include <afterhours/ah.h>
@@ -61,7 +62,11 @@ struct RenderDropTargetHighlightsSystem : System<> {
 
             if (inv_type == dragged_type && inv_level >= dragged_level) {
               should_highlight = true;
-              highlight_color = raylib::Color{200, 200, 100, 100};
+              bool triple =
+                  merge::find_triple_merge_dish(inv_item, dragged_item)
+                      .has_value();
+              highlight_color = triple ? raylib::Color{100, 200, 200, 100}
+                                       : raylib::Color{200, 200, 100, 100};
               break;
             }
           }

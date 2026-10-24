@@ -55,7 +55,8 @@ bool simulate_drag_and_drop(afterhours::Entity &donor,
 
   auto target_slot_opt = EQ({.force_merge = true})
                              .whereHasComponent<IsDropSlot>()
-                             .whereSlotID(target_slot_id)
+                             .whereSlotIDInArea(
+                                 target_slot_id, target.has<IsInventoryItem>())
                              .gen_first();
   if (!target_slot_opt) {
     return false;
@@ -142,7 +143,9 @@ bool simulate_drag_and_drop(afterhours::Entity &donor,
   if (original_slot_id >= 0) {
     auto original_slot_opt = EQ({.force_merge = true})
                                  .whereHasComponent<IsDropSlot>()
-                                 .whereSlotID(original_slot_id)
+                                 .whereSlotIDInArea(
+                                     original_slot_id,
+                                     donor_entity.has<IsInventoryItem>())
                                  .gen_first();
     if (original_slot_opt) {
       original_slot_opt.asE().get<IsDropSlot>().occupied = false;
@@ -266,7 +269,7 @@ TEST(validate_dish_merging) {
       entity.cleanup = true;
       auto slot_entity_opt = EQ({.force_merge = true})
                                  .whereHasComponent<IsDropSlot>()
-                                 .whereSlotID(slot)
+                                 .whereSlotIDInArea(slot, false)
                                  .gen_first();
       if (slot_entity_opt) {
         slot_entity_opt.asE().get<IsDropSlot>().occupied = false;

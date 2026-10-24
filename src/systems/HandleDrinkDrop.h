@@ -57,7 +57,6 @@ struct HandleDrinkDrop : System<IsHeld, Transform, IsDrinkShopItem> {
       DrinkPairing &drink_pairing = dish.addComponentIfMissing<DrinkPairing>();
       drink_pairing.drink = drink_shop_item.drink_type;
 
-      empty_originating_slot(drink_shop_item.slot);
       DrinkInfo drink_info = get_drink_info(drink_shop_item.drink_type);
       make_toast("Applied " + drink_info.name + "!");
 
@@ -73,15 +72,5 @@ private:
   void snap_back(Entity &entity, const IsHeld &held) {
     entity.get<Transform>().position = held.original_position;
     entity.removeComponent<IsHeld>();
-  }
-
-  void empty_originating_slot(int slot_id) {
-    if (slot_id >= 0) {
-      if (auto original_slot_entity = EQ().whereHasComponent<IsDropSlot>()
-                                          .whereSlotID(slot_id)
-                                          .gen_first()) {
-        original_slot_entity->get<IsDropSlot>().occupied = false;
-      }
-    }
   }
 };

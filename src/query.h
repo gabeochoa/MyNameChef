@@ -75,6 +75,25 @@ struct EQ : public EntityQuery<EQ> {
 
   EQ &whereSlotID(int id) { return add_mod(new WhereSlotID(id)); }
 
+  struct WhereSlotIDInArea : EntityQuery::Modification {
+    int slot_id;
+    bool accepts_inventory;
+
+    WhereSlotIDInArea(int id, bool accepts_inv)
+        : slot_id(id), accepts_inventory(accepts_inv) {}
+
+    bool operator()(const afterhours::Entity &entity) const override {
+      return entity.has<IsDropSlot>() &&
+             entity.get<IsDropSlot>().slot_id == slot_id &&
+             entity.get<IsDropSlot>().accepts_inventory_items ==
+                 accepts_inventory;
+    }
+  };
+
+  EQ &whereSlotIDInArea(int id, bool accepts_inventory) {
+    return add_mod(new WhereSlotIDInArea(id, accepts_inventory));
+  }
+
   struct WhereInSlotIndex : EntityQuery::Modification {
     int slot_index;
 
