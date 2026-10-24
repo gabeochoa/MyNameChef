@@ -68,35 +68,53 @@ struct BattleTeamFileLoaderSystem : afterhours::System<BattleLoadRequest> {
 private:
   void load_team_from_json(const std::string &jsonPath, bool isPlayer,
                            afterhours::Entity &manager_entity) {
+    std::vector<TeamDishSpec> team_specs = load_team_specs(jsonPath, isPlayer);
+    if (isPlayer) {
+      if (!manager_entity.has<BattleTeamDataPlayer>()) {
+        manager_entity.addComponent<BattleTeamDataPlayer>();
+      }
+      auto &data = manager_entity.get<BattleTeamDataPlayer>();
+      data.team = team_specs;
+      data.instantiated = false;
+    } else {
+      if (!manager_entity.has<BattleTeamDataOpponent>()) {
+        manager_entity.addComponent<BattleTeamDataOpponent>();
+      }
+      auto &data = manager_entity.get<BattleTeamDataOpponent>();
+      data.team = team_specs;
+      data.instantiated = false;
+    }
+  }
+
+  std::vector<TeamDishSpec> load_team_specs(const std::string &jsonPath,
+                                            bool isPlayer) {
     if (!std::filesystem::exists(jsonPath)) {
       if (isPlayer) {
-        log_error("Player JSON file missing, cannot proceed: {}", jsonPath);
-        return;
-      } else {
-        log_warn("Opponent JSON file missing, creating fallback team: {}",
-                 jsonPath);
-        create_fallback_opponent_team(manager_entity);
-        return;
+        log_warn("Player JSON file missing, cannot proceed: {}", jsonPath);
+        return std::vector<TeamDishSpec>();
       }
+      log_warn("Opponent JSON file missing, creating fallback team: {}",
+               jsonPath);
+      return fallback_opponent_team_specs();
     }
 
     std::ifstream file(jsonPath);
     if (!file.is_open()) {
-      log_error("Failed to open JSON file: {}", jsonPath);
-      return;
+      log_warn("Failed to open JSON file: {}", jsonPath);
+      return std::vector<TeamDishSpec>();
     }
 
     nlohmann::json json;
     try {
       file >> json;
     } catch (const std::exception &e) {
-      log_error("Failed to parse JSON file {}: {}", jsonPath, e.what());
-      return;
+      log_warn("Failed to parse JSON file {}: {}", jsonPath, e.what());
+      return std::vector<TeamDishSpec>();
     }
 
     if (!json.contains("team") || !json["team"].is_array()) {
-      log_error("Invalid JSON format: missing or invalid 'team' array");
-      return;
+      log_warn("Invalid JSON format: missing or invalid 'team' array");
+      return std::vector<TeamDishSpec>();
     }
 
     std::vector<TeamDishSpec> team_specs;
@@ -146,24 +164,10 @@ private:
       team_specs.push_back(spec);
     }
 
-    if (isPlayer) {
-      if (!manager_entity.has<BattleTeamDataPlayer>()) {
-        manager_entity.addComponent<BattleTeamDataPlayer>();
-      }
-      auto &data = manager_entity.get<BattleTeamDataPlayer>();
-      data.team = team_specs;
-      data.instantiated = false;
-    } else {
-      if (!manager_entity.has<BattleTeamDataOpponent>()) {
-        manager_entity.addComponent<BattleTeamDataOpponent>();
-      }
-      auto &data = manager_entity.get<BattleTeamDataOpponent>();
-      data.team = team_specs;
-      data.instantiated = false;
-    }
+    return team_specs;
   }
 
-  void create_fallback_opponent_team(afterhours::Entity &manager_entity) {
+  std::vector<TeamDishSpec> fallback_opponent_team_specs() {
     log_info("Creating fallback opponent team");
     std::vector<TeamDishSpec> fallback_team;
     std::vector<DishType> fallbackDishes = {DishType::Potato, DishType::Potato,
@@ -176,11 +180,6 @@ private:
       fallback_team.push_back(spec);
     }
 
-    if (!manager_entity.has<BattleTeamDataOpponent>()) {
-      manager_entity.addComponent<BattleTeamDataOpponent>();
-    }
-    auto &data = manager_entity.get<BattleTeamDataOpponent>();
-    data.team = fallback_team;
-    data.instantiated = false;
+    return fallback_team;
   }
 };

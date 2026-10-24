@@ -4,11 +4,11 @@
 #include "components/replay_state.h"
 #include "log.h"
 #include "seeded_rng.h"
+#include "server/file_storage.h"
 #include "settings.h"
 #include <afterhours/ah.h>
 #include <cstdint>
 #include <filesystem>
-#include <fstream>
 #include <nlohmann/json.hpp>
 #include <string>
 
@@ -90,21 +90,11 @@ inline bool start_battle_replay(uint64_t seed, bool from_history) {
 
 inline bool start_replay_from_report_file(const std::string &filepath,
                                            bool from_history) {
-  std::ifstream file(filepath);
-  if (!file.is_open()) {
-    log_warn("REPLAY_START: report {} not found", filepath);
-    return false;
-  }
-  nlohmann::json report_json;
-  try {
-    file >> report_json;
-  } catch (const std::exception &) {
-    log_warn("REPLAY_START: report {} is not valid json", filepath);
-    return false;
-  }
+  nlohmann::json report_json =
+      server::FileStorage::load_json_from_file(filepath);
   if (!report_json.contains("seed") ||
       !report_json["seed"].is_number_unsigned()) {
-    log_warn("REPLAY_START: report {} has no seed", filepath);
+    log_warn("REPLAY_START: report {} has no valid seed", filepath);
     return false;
   }
   return start_battle_replay(report_json["seed"].get<uint64_t>(),

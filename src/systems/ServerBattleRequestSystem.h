@@ -73,7 +73,7 @@ struct ServerBattleRequestSystem : afterhours::System<BattleLoadRequest> {
     if (save_result.success) {
       log_info("GAME_STATE_SAVE: Saved game state before battle start");
     } else {
-      log_error(
+      log_warn(
           "GAME_STATE_SAVE: Failed to save game state before battle start");
     }
 
@@ -210,11 +210,11 @@ struct ServerBattleRequestSystem : afterhours::System<BattleLoadRequest> {
           log_info("GAME_STATE_SAVE: Server save successful, checksum match");
         }
       } else {
-        log_error("GAME_STATE_SAVE: Server save failed, continuing "
-                  "with local save only");
+        log_warn("GAME_STATE_SAVE: Server save failed, continuing "
+                 "with local save only");
       }
     } else {
-      log_error(
+      log_warn(
           "GAME_STATE_SAVE: Failed to save game state after battle response");
     }
   }

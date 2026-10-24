@@ -27,13 +27,13 @@ FileStorage::list_files_in_directory(const std::string &directory_path,
 
 nlohmann::json FileStorage::load_json_from_file(const std::string &file_path) {
   if (!file_exists(file_path)) {
-    log_error("File does not exist: {}", file_path);
+    log_warn("File does not exist: {}", file_path);
     return nlohmann::json{};
   }
 
   std::ifstream file(file_path);
   if (!file.is_open()) {
-    log_error("Failed to open file: {}", file_path);
+    log_warn("Failed to open file: {}", file_path);
     return nlohmann::json{};
   }
 
@@ -41,7 +41,7 @@ nlohmann::json FileStorage::load_json_from_file(const std::string &file_path) {
   try {
     file >> json_data;
   } catch (const std::exception &e) {
-    log_error("Failed to parse JSON from file {}: {}", file_path, e.what());
+    log_warn("Failed to parse JSON from file {}: {}", file_path, e.what());
     return nlohmann::json{};
   }
 
@@ -65,7 +65,7 @@ FileStorage::load_json_from_file_with_retry(const std::string &file_path,
     }
   }
 
-  log_error("Failed to load file {} after {} attempts", file_path, max_retries);
+  log_warn("Failed to load file {} after {} attempts", file_path, max_retries);
   return nlohmann::json{};
 }
 
