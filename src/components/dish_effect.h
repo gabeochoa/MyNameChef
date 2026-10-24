@@ -4,6 +4,7 @@
 #include "trigger_event.h"
 #include <afterhours/ah.h>
 #include <optional>
+#include <vector>
 
 // Forward declaration to avoid circular dependency with dish_types.h
 enum struct DishType;
@@ -64,6 +65,8 @@ struct DishEffect {
       0; // Body delta for ApplyStatus operation (amount is zingDelta)
   StatusEffectType statusType = StatusEffectType::Heat;
   int duration = 0; // Courses the status effect lasts (ApplyStatus only, 0 = permanent)
+  std::vector<DishEffect> chainedEffects; // Resolved after this effect, same source
+  std::optional<StatusEffectType> requiresStatus; // Skip targets lacking this status
 
   DishEffect() = default;
 

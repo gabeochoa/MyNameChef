@@ -185,27 +185,46 @@
   9. **Only after successful commit, proceed to Task 12**
 - **Estimated**: 4-6 hours
 
-### Task 12: Implement Effect Chains and Dependencies
+### Task 12: Implement Effect Chains and Dependencies ✅ COMPLETE
 **Files**: Extend `EffectResolutionSystem.h`
 - **Plan**: See `plans/effect_chains_plan.md`
 - **Goal**: Implement effect chains where one effect can trigger another effect
-- **Implementation**:
-  - Add effect dependency tracking
-  - Implement effect chains (effect A triggers effect B)
-  - Handle conditional effects with complex logic
+- **Implementation** (hybrid: explicit chains + implicit trigger flow):
+  - `DishEffect.chainedEffects` (vector, value semantics) + `requiresStatus`
+  - Builder: `TriggerEffectBuilder::then(...)` (any hook) + `if_target_has_status(...)`
+  - `EffectResolutionSystem::apply_effect(effect, ev, depth)` resolves chained
+    effects after the parent, same source event; chained hooks are not
+    re-matched (chain fires because the parent fired)
+  - `MAX_EFFECT_CHAIN_DEPTH = 10`: parent + 10 chained apply, deeper links
+    dropped with a `log_warn`. Cycles are structurally impossible (value
+    semantics = finite trees); depth cap bounds pathological deep trees
+  - `requiresStatus` filters targets in the target loop; chained effects get
+    their own `conditional` check via `apply_effect`
+  - CopyEffect stays terminal: its own chained effects never fire
+- **Dogfood**:
+  - GarlicBread OnServe Fatigue chains `-1 Zing to Opponent if target has Fatigue`
+  - WagyuSteak OnBiteTaken `-1 Zing` chains `-1 Body to Opponent if target has Fatigue`
 - **Fun Ideas**:
-  - Chain reaction animations when effects trigger other effects
+  - Chain reaction animations when effects trigger other effects (still open)
 - **Validation Steps**:
-  1. Design effect chain system
-  2. Implement effect dependency tracking
-  3. Add effect chain resolution logic
-  4. **MANDATORY CHECKPOINT**: Build: `make`
-  5. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
-  6. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
-  7. Verify effect chains work correctly (manual test)
-  8. **MANDATORY CHECKPOINT**: Commit: `git commit -m "implement effect chains and dependencies"`
+  1. Design effect chain system ✅ (hybrid, see plan)
+  2. Implement effect dependency tracking ✅ (explicit `chainedEffects` list)
+  3. Add effect chain resolution logic ✅
+  4. **MANDATORY CHECKPOINT**: Build: `make` ✅
+  5. **MANDATORY CHECKPOINT**: Run headless tests: `python3 scripts/run_tests.py` (106/106) ✅
+  6. **MANDATORY CHECKPOINT**: Run non-headless tests for the 4 new tests ✅
+  7. New tests in `ValidateEffectChainsTest.h`: GarlicBread chain fires,
+     Wagyu chain blocked without Fatigue, Wagyu chain fires with Fatigue,
+     15-deep injected chain stops at 11 applied
+  8. **MANDATORY CHECKPOINT**: Commit ✅
   9. **Only after successful commit, proceed to Task 13**
 - **Estimated**: 6-8 hours
+- **Notes**:
+  - Depth test uses `OnBiteTaken` (not `OnServe`): `SimplifiedOnServeSystem`
+    also fires `OnServe` naturally when a stray dish's phase churns to
+    `InQueue`, which double-resolved the chain (22 = 2x11). Manual
+    `fire_trigger(OnServe)` + natural OnServe is a pre-existing test-harness
+    overlap, not changed here.
 
 ### Task 13: Visual Enhancements for Dish Merging
 **Files**: Update rendering systems

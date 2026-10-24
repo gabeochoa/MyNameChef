@@ -302,7 +302,12 @@ static DishInfo make_garlic_bread(int level) {
             ServeEffect()
                 .with_target(TargetScope::Opponent)
                 .apply_status(StatusEffectType::Fatigue, 0, -1)
-                .with_duration(2))
+                .with_duration(2)
+                .then(ServeEffect()
+                          .with_target(TargetScope::Opponent)
+                          .remove_zing(1)
+                          .if_target_has_status(
+                              StatusEffectType::Fatigue)))
         .build();
   case 2:
     return builder
@@ -316,7 +321,12 @@ static DishInfo make_garlic_bread(int level) {
             ServeEffect()
                 .with_target(TargetScope::Opponent)
                 .apply_status(StatusEffectType::Fatigue, 0, -1)
-                .with_duration(2))
+                .with_duration(2)
+                .then(ServeEffect()
+                          .with_target(TargetScope::Opponent)
+                          .remove_zing(1)
+                          .if_target_has_status(
+                              StatusEffectType::Fatigue)))
         .build();
   case 3:
   default:
@@ -331,7 +341,12 @@ static DishInfo make_garlic_bread(int level) {
             ServeEffect()
                 .with_target(TargetScope::Opponent)
                 .apply_status(StatusEffectType::Fatigue, 0, -1)
-                .with_duration(2))
+                .with_duration(2)
+                .then(ServeEffect()
+                          .with_target(TargetScope::Opponent)
+                          .remove_zing(1)
+                          .if_target_has_status(
+                              StatusEffectType::Fatigue)))
         .build();
   }
 }
@@ -621,7 +636,14 @@ DishInfo get_dish_info(DishType type, int level) {
         .with_sprite(SpriteLocation{51, 0})
         .with_tier(5)
         .register_on_bite_taken(
-            OnBiteEffect().with_target(TargetScope::Opponent).apply_status(-1))
+            OnBiteEffect()
+                .with_target(TargetScope::Opponent)
+                .apply_status(-1)
+                .then(OnBiteEffect()
+                          .with_target(TargetScope::Opponent)
+                          .remove_body(1)
+                          .if_target_has_status(
+                              StatusEffectType::Fatigue)))
         .build();
   case DishType::Broth:
     return dish()

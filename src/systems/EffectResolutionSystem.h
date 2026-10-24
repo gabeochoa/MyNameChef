@@ -35,6 +35,8 @@
 #include <optional>
 #include <vector>
 
+constexpr int MAX_EFFECT_CHAIN_DEPTH = 10;
+
 struct EffectResolutionSystem : afterhours::System<TriggerQueue> {
   std::map<std::pair<int, int>, bool> swap_applied; // (dish id, course) - once per course
   virtual bool should_run(float) override {
@@ -96,7 +98,8 @@ private:
     }
   }
 
-  void apply_effect(const DishEffect &effect, const TriggerEvent &ev) {
+  void apply_effect(const DishEffect &effect, const TriggerEvent &ev,
+                    int depth = 0) {
     // Issue 60: copied effects are terminal - never copy a copy / CopyEffect.
     if (effect.is_copied && effect.operation == EffectOperation::CopyEffect) return;
     if (effect.conditional) {
@@ -120,12 +123,46 @@ private:
     auto targets = get_targets(effect.targetScope, ev);
 
     for (afterhours::Entity &target : targets) {
+      if (effect.requiresStatus.has_value() &&
+          !target_has_status(target, *effect.requiresStatus)) {
+        continue;
+      }
       apply_to_target(target, effect, ev);
     }
 
     if (effect.playFreshnessChainAnimation) {
       trigger_freshness_chain_animation(ev, targets);
     }
+
+    resolve_chained_effects(effect, ev, depth);
+  }
+
+  void resolve_chained_effects(const DishEffect &effect,
+                               const TriggerEvent &ev, int depth) {
+    if (effect.chainedEffects.empty()) {
+      return;
+    }
+    if (depth >= MAX_EFFECT_CHAIN_DEPTH) {
+      log_warn("EFFECT: Chain depth limit {} reached, stopping chain",
+               MAX_EFFECT_CHAIN_DEPTH);
+      return;
+    }
+    for (const auto &chained : effect.chainedEffects) {
+      apply_effect(chained, ev, depth + 1);
+    }
+  }
+
+  bool target_has_status(afterhours::Entity &target,
+                         StatusEffectType status) {
+    if (!target.has<StatusEffects>()) {
+      return false;
+    }
+    for (const auto &applied : target.get<StatusEffects>().effects) {
+      if (applied.type == status) {
+        return true;
+      }
+    }
+    return false;
   }
 
   void

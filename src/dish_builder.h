@@ -59,6 +59,11 @@ public:
       return parent_;
     }
 
+    TriggerEffectBuilder &if_target_has_status(StatusEffectType status) {
+      parent_.effect_.requiresStatus = status;
+      return parent_;
+    }
+
     TriggerEffectBuilder &with_animation(AnimationEventType animType) {
       if (animType == AnimationEventType::FreshnessChain) {
         parent_.effect_.playFreshnessChainAnimation = true;
@@ -120,6 +125,17 @@ public:
   TriggerEffectBuilder &if_adjacent_has(FlavorStatType stat) {
     effect_.conditional = true;
     effect_.adjacentCheckStat = stat;
+    return *this;
+  }
+
+  TriggerEffectBuilder &if_target_has_status(StatusEffectType status) {
+    effect_.requiresStatus = status;
+    return *this;
+  }
+
+  template <TriggerHook ChainedHook>
+  TriggerEffectBuilder &then(TriggerEffectBuilder<ChainedHook> chained) {
+    effect_.chainedEffects.push_back(std::move(chained).get_effect());
     return *this;
   }
 
