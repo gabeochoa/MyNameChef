@@ -47,13 +47,13 @@
 
 ## Plan Creation Tasks
 
-1. **Combine Duplicates into Levels (3-of-a-kind)**
+1. **Combine Duplicates into Levels (3-of-a-kind)** ✅ Complete
    - **Plan**: See `plans/three_of_a_kind_merge_plan.md`
-   - Implement the merge system changes and tests guided by that plan to ensure entities consolidate correctly and grant level-ups.
+   - Implemented: one drag onto a same-type dish consumes an adjacent same-type inventory dish too, adding both donors' full contributions (no value destroyed). Triple-merge drop target highlights cyan. `ValidateTripleMergeTest` covers triple, far-third double-only, and mixed-level cases. Also fixed shared drop-slot ID ambiguity (`whereSlotIDInArea`) exposed by the work.
 
-2. **Shop UX Affordances (Prices & Drop Highlights)**
+2. **Shop UX Affordances (Prices & Drop Highlights)** ✅ Complete
    - **Plan**: See `plans/shop_ux_affordances_plan.md`
-   - Implement the UI/UX improvements per the plan, including tests or headless verifications that confirm highlights appear only on valid targets.
+   - Verified already implemented: price display (`RenderShopPriceDisplaySystem`), drop highlights (`RenderDropTargetHighlightsSystem`, registered in `main.cpp`), match star (`RenderShopItemMatchIndicatorSystem`), reroll label `Reroll (X gold)`.
 
 ---
 
@@ -63,10 +63,10 @@
 
 ## Tier 3: Enhanced Features & Polish (6-12hrs each)
 
-### Task 4: Enhance Replay System
-**Files**: Enhance `src/systems/ReplayControllerSystem.h`, create `src/systems/ReplayUISystem.h`
+### Task 4: Enhance Replay System ✅ Complete
+**Files**: `src/replay.h`, `src/systems/ReplayControllerSystem.h`, Results/History UI
 - **Plan**: See `plans/replay_system_enhancement_plan.md`
-- **Current State**: Basic ReplayState exists, pause/play works
+- **Completed**: speed buttons 0.5x/1x/2x/4x fixed to match labels, shared replay helpers, Watch Again on Results, History uses shared helper, Watch Again replays award no rewards, invalid-report handling. Covered by `ValidateReplayControlsTest`. Seek-to-course / event-log viewer skipped per plan.
 - **Enhancements Needed**:
   - Speed controls (0.5x/1x/2x/4x) - partially exists, needs UI buttons
   - Load BattleReport from saved JSON files (from Task 3)
@@ -91,9 +91,10 @@
   9. **Only after successful commit, proceed to Task 6**
 - **Estimated**: 4-6 hours
 
-### Task 6: Enhanced Shop UX
+### Task 6: Enhanced Shop UX ✅ Complete
 **Files**: Update shop systems and UI
 - **Plan**: See `plans/shop_ux_affordances_plan.md` (from Plan Creation Tasks #4)
+- **Completed**: verified already implemented (price display, drop highlights, match star, reroll cost label). Fun ideas below remain stretch.
 - **Features**:
   - Show price in shop (all items cost 3 gold, so display this in shop UI, not on each item)
   - Note: Eventually drinks will cost 1 gold and get paired with dishes, but not implementing that yet
