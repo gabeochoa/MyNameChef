@@ -44,10 +44,6 @@ struct RenderDishProgressBars : System<IsDish, DishLevel, Transform> {
     raylib::Color muted_color = text_formatting::TextFormatting::get_color(
         text_formatting::SemanticColor::TextMuted,
         text_formatting::FormattingContext::HUD);
-    raylib::Color accent_color = text_formatting::TextFormatting::get_color(
-        text_formatting::SemanticColor::Accent,
-        text_formatting::FormattingContext::HUD);
-
     // Draw progress indicators (smaller)
     for (int i = 0; i < level.merges_needed; ++i) {
       Color color = (i < level.merge_progress) ? gold_color : muted_color;
@@ -58,12 +54,6 @@ struct RenderDishProgressBars : System<IsDish, DishLevel, Transform> {
       DrawRectangle(x, y, 8, 6, color);
     }
 
-    // Draw level text if above level 1 (make it more visible)
-    if (level.level > 1) {
-      std::string level_text = "L" + std::to_string(level.level);
-      render_backend::DrawTextWithActiveFont(level_text.c_str(), static_cast<int>(center.x - 10),
-                                            static_cast<int>(bar_position.y - 25), font_sizes::Normal,
-                                            accent_color);
-    }
+    // Level number is drawn by RenderDishLevelBadgeSystem
   }
 };

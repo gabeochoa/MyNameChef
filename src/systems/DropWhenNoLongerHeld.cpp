@@ -5,12 +5,16 @@
 #include "../components/is_held.h"
 #include "../components/is_inventory_item.h"
 #include "../components/is_shop_item.h"
+#include "../components/merge_flash.h"
+#include "../components/play_sound_request.h"
+#include "../components/sound_emitter.h"
 #include "../dish_types.h"
 #include "../game_state_manager.h"
 #include "../log.h"
 #include "../merge.h"
 #include "../query.h"
 #include "../shop.h"
+#include "../sound_library.h"
 #include "../testing/test_input.h"
 
 bool DropWhenNoLongerHeld::should_run(float) {
@@ -131,6 +135,8 @@ void DropWhenNoLongerHeld::merge_dishes(Entity &entity, Entity *target_item,
   auto &target_level = target_item->get<DishLevel>();
   auto &donor_level = entity.get<DishLevel>();
 
+  int level_before_merge = target_level.level;
+
   // Add donor's full contribution to target
   target_level.add_merge_value(donor_level.contribution_value());
 
@@ -149,6 +155,21 @@ void DropWhenNoLongerHeld::merge_dishes(Entity &entity, Entity *target_item,
   // Don't call cleanup immediately as it may interfere with the current frame
   entity.removeComponent<IsHeld>();
   entity.cleanup = true;
+
+  MergeFlash &flash = target_item->addComponent<MergeFlash>();
+  flash.duration = 1.0f;
+  flash.elapsed = 0.0f;
+  flash.leveledUp = target_level.level > level_before_merge;
+
+  auto emitter_opt = EQ({.ignore_temp_warning = true})
+                         .whereHasComponent<SoundEmitter>()
+                         .gen_first();
+  if (emitter_opt) {
+    PlaySoundRequest &request =
+        emitter_opt.asE().addComponentIfMissing<PlaySoundRequest>();
+    request.policy = PlaySoundRequest::Policy::Enum;
+    request.file = SoundFile::Merge_LevelUp;
+  }
 }
 
 bool DropWhenNoLongerHeld::try_purchase_shop_item(Entity &entity,

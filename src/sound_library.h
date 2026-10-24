@@ -10,6 +10,7 @@
 enum struct SoundFile {
   UI_Select,
   UI_Move,
+  Merge_LevelUp,
 };
 
 constexpr static const char *sound_file_to_str(SoundFile sf) {
@@ -18,6 +19,8 @@ constexpr static const char *sound_file_to_str(SoundFile sf) {
     return "UISelect";
   case SoundFile::UI_Move:
     return "WaterDripSingle";
+  case SoundFile::Merge_LevelUp:
+    return "MergeLevelUp";
   }
   return "";
 }
@@ -40,7 +43,12 @@ struct SoundLibrary {
   }
 
   void play(SoundFile file) { play(sound_file_to_str(file)); }
-  void play(const char *const name) { PlaySound(get(name)); }
+  void play(const char *const name) {
+    if (!contains(name)) {
+      return;
+    }
+    PlaySound(get(name));
+  }
 
   void play_random_match(const std::string &prefix) {
     impl.get_random_match(prefix).transform(raylib::PlaySound);
@@ -113,6 +121,11 @@ constexpr static void load_sounds() {
       filename = "gdc/doex_qantum_ui_ui_select_plastic_05_03.wav";
       break;
     case SoundFile::UI_Move:
+      filename = "gdc/"
+                 "inmotionaudio_cave_design_WATRDrip_SingleDrip03_"
+                 "InMotionAudio_CaveDesign.wav";
+      break;
+    case SoundFile::Merge_LevelUp:
       filename = "gdc/"
                  "inmotionaudio_cave_design_WATRDrip_SingleDrip03_"
                  "InMotionAudio_CaveDesign.wav";

@@ -39,6 +39,7 @@ backward::SignalHandling sh;
 #include "systems/LoadBattleResults.h"
 #include "systems/MarkEntitiesWithShaders.h"
 #include "systems/MarkIsHeldWhenHeld.h"
+#include "systems/MergeFlashTimerSystem.h"
 #include "systems/NetworkSystem.h"
 #include "systems/PostProcessingSystems.h"
 #include "systems/ProcessBattleRewards.h"
@@ -47,6 +48,7 @@ backward::SignalHandling sh;
 #include "systems/RenderBattleSynergyLegend.h"
 #include "systems/RenderBattleTeams.h"
 #include "systems/RenderDebugWindowInfo.h"
+#include "systems/RenderDishLevelBadgeSystem.h"
 #include "systems/RenderDishProgressBars.h"
 #include "systems/RenderDrinkIcon.h"
 #include "systems/RenderDrinkShopSlots.h"
@@ -55,6 +57,8 @@ backward::SignalHandling sh;
 #include "systems/RenderFPS.h"
 #include "systems/RenderFreezeIcon.h"
 #include "systems/RenderLetterboxBars.h"
+#include "systems/RenderMergeFlashSystem.h"
+#include "systems/RenderMergeHintSystem.h"
 #include "systems/RenderRenderTexture.h"
 #include "systems/RenderSellSlot.h"
 #include "systems/RenderSpritesByOrder.h"
@@ -183,6 +187,8 @@ void game(const std::optional<std::string> &run_test) {
     systems.register_update_system(std::make_unique<HandleDrinkDrop>());
     systems.register_update_system(std::make_unique<MarkIsHeldWhenHeld>());
     systems.register_update_system(std::make_unique<DropWhenNoLongerHeld>());
+    systems.register_update_system(
+        std::make_unique<MergeFlashTimerSystem>());
     battle_systems::register_battle_systems(systems);
 
     register_sound_systems(systems);
@@ -217,6 +223,10 @@ void game(const std::optional<std::string> &run_test) {
         systems.register_render_system(std::make_unique<RenderAnimations>());
         systems.register_render_system(
             std::make_unique<RenderDishProgressBars>());
+        systems.register_render_system(
+            std::make_unique<RenderDishLevelBadgeSystem>());
+        systems.register_render_system(
+            std::make_unique<RenderMergeFlashSystem>());
         systems.register_render_system(std::make_unique<RenderWalletHUD>());
         systems.register_render_system(
             std::make_unique<RenderBattleSynergyLegend>());
@@ -250,6 +260,8 @@ void game(const std::optional<std::string> &run_test) {
       systems.register_render_system(std::make_unique<RenderFreezeIcon>());
       systems.register_render_system(
           std::make_unique<RenderDropTargetHighlightsSystem>());
+      systems.register_render_system(
+          std::make_unique<RenderMergeHintSystem>());
       systems.register_render_system(std::make_unique<RenderDrinkIcon>());
       systems.register_render_system(std::make_unique<RenderBattleResults>());
       // ReplayUISystem is now integrated into ScheduleMainMenuUI::battle_screen

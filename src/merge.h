@@ -46,4 +46,26 @@ inline afterhours::OptEntity find_triple_merge_dish(
   return afterhours::OptEntity();
 }
 
+inline bool dish_has_merge_partner(const afterhours::Entity &dish) {
+  if (!dish.has<IsInventoryItem>() || !dish.has<IsDish>() ||
+      !dish.has<DishLevel>()) {
+    return false;
+  }
+  DishType type = dish.get<IsDish>().type;
+  for (auto &ref : EQ().whereHasComponent<IsInventoryItem>()
+                       .whereHasComponent<IsDish>()
+                       .whereHasComponent<DishLevel>()
+                       .gen()) {
+    afterhours::Entity &candidate = ref.get();
+    if (candidate.id == dish.id) {
+      continue;
+    }
+    if (candidate.get<IsDish>().type != type) {
+      continue;
+    }
+    return true;
+  }
+  return false;
+}
+
 } // namespace merge

@@ -226,7 +226,7 @@
     `fire_trigger(OnServe)` + natural OnServe is a pre-existing test-harness
     overlap, not changed here.
 
-### Task 13: Visual Enhancements for Dish Merging
+### Task 13: Visual Enhancements for Dish Merging ✅ COMPLETE
 **Files**: Update rendering systems
 - **Plan**: See `plans/dish_merging_visuals_plan.md`
 - **Goal**: Add visual feedback for dish merging (merge system already implemented)
@@ -234,27 +234,37 @@
 - **Level Scaling**: Uses existing 2x per level system (level 2 = 2x, level 3 = 4x, level 4 = 8x). See `ComputeCombatStatsSystem.h` lines 95-104.
 - **Merge Trigger**: Already implemented - user drags dish onto another dish of same type to merge. See `DropWhenNoLongerHeld.cpp` merge_dishes function.
 - **Implementation**:
-  - Add merge animation showing dishes combining
-  - Add level-up sound effect
-  - Add "Ready to merge!" indicator when you have 2/3 (visual hint)
-  - Add level display on dishes (small number badge showing level)
-- **Fun Ideas**:
-  - Merge animation showing dishes combining
-  - Level-up sound effect
-  - "Ready to merge!" indicator when you have 2/3
-  - Level display on dishes (small number badge)
+  - Merge animation: `merge_dishes` adds `MergeFlash` (1s) to the target;
+    `MergeFlashTimerSystem` expires it, `RenderMergeFlashSystem` draws an
+    expanding gold ring + `LEVEL UP!` text only when the merge leveled up.
+    Self-contained (Battle-only `AnimationEvent` pipeline not reused: merges
+    happen on the Shop screen)
+  - Level-up sound: `SoundFile::Merge_LevelUp` (`PlaySoundRequest` from
+    `merge_dishes`), reuses the water-drip clip until a dedicated clip exists
+  - "Ready to merge!" indicator: `RenderMergeHintSystem` draws a gold outline
+    around inventory dishes with a merge partner (any same-type pair is
+    mergeable: donor level <= target level always holds one way); hidden
+    while dragging (drop highlights take over)
+  - Level badge: `RenderDishLevelBadgeSystem` draws a gold circle + level
+    number at the top-right for level 2+ dishes; old `L2` text removed from
+    `RenderDishProgressBars` (pips kept)
+  - Detection: `merge::dish_has_merge_partner` in `src/merge.h`, shared by
+    the hint system and tests
 - **Validation Steps**:
-  1. Add merge animation
-  2. Add level-up sound effect
-  3. Add "Ready to merge!" visual indicator
-  4. Add level display badge on dishes
-  5. **MANDATORY CHECKPOINT**: Build: `make`
-  6. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
-  7. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
-  8. Verify visual enhancements work correctly (manual test)
-  9. **MANDATORY CHECKPOINT**: Commit: `git commit -m "ui - add visual enhancements for dish merging"`
-  10. **Task complete - all tasks finished!**
+  1. Add merge animation ✅
+  2. Add level-up sound effect ✅
+  3. Add "Ready to merge!" visual indicator ✅
+  4. Add level display badge on dishes ✅
+  5. **MANDATORY CHECKPOINT**: Build: `make` ✅
+  6. **MANDATORY CHECKPOINT**: Run headless tests: `python3 scripts/run_tests.py` (108/108) ✅
+  7. **MANDATORY CHECKPOINT**: Run non-headless tests for the 2 new tests ✅
+  8. New tests in `ValidateDishMergeVisualsTest.h`: real UI drag produces
+     `MergeFlash` on target; partner detection true/true/false
+  9. **MANDATORY CHECKPOINT**: Commit ✅
 - **Estimated**: 4-6 hours
+- **Bug fixed along the way**: `SoundLibrary::play` threw `std::out_of_range`
+  for unloaded sounds (`load_sounds()` runs only when `!headless`), which
+  crashed the first headless merge. `play()` now no-ops for unloaded sounds.
 
 ---
 

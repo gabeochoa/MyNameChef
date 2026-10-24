@@ -29,6 +29,7 @@ std::unordered_map<std::string, std::function<void()>> g_test_continuations;
 #include "../testing/tests/ValidateCombatSystemTest.h"
 #include "../testing/tests/ValidateDebugDishTest.h"
 #include "../testing/tests/ValidateDishLevelContributionTest.h"
+#include "../testing/tests/ValidateDishMergeVisualsTest.h"
 #include "../testing/tests/ValidateDishMergingTest.h"
 #include "../testing/tests/ValidateDishOrderingTest.h"
 #include "../testing/tests/ValidateDishSellingTest.h"
