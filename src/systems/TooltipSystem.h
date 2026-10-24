@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../components/brand_tag.h"
+#include "../components/combat_stats.h"
 #include "../components/course_tag.h"
 #include "../components/cuisine_tag.h"
 #include "../components/dish_archetype_tag.h"
@@ -229,6 +230,17 @@ public:
 
       if (has_tags) {
         tooltip_text += tag_info.str();
+      }
+
+      // Battle context: show live combat stats with modifiers
+      if (current_screen == GameStateManager::Screen::Battle &&
+          entity.has<CombatStats>()) {
+        const auto &stats = entity.get<CombatStats>();
+        tooltip_text += "\n[COLOR:Info]Combat: [COLOR:Text]Zing: " +
+                        std::to_string(stats.currentZing) + " (base " +
+                        std::to_string(stats.baseZing) + "), Body: " +
+                        std::to_string(stats.currentBody) + " (base " +
+                        std::to_string(stats.baseBody) + ")\n";
       }
 
       // Add drink pairing information

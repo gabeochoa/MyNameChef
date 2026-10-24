@@ -79,6 +79,7 @@ std::unordered_map<std::string, std::function<void()>> g_test_continuations;
 #include "../testing/tests/ValidateEffectChainsTest.h"
 #include "../testing/tests/ValidateStatusEffectsTest.h"
 #include "../testing/tests/ValidateSurvivorCarryoverTest.h"
+#include "../testing/tests/ValidateTooltipTest.h"
 #include "../testing/tests/ValidateWagyuSteakTest.h"
 #include "../testing/tests/ValidateTestInputFrameworkTest.h"
 #include "../testing/tests/ValidateThreeBattlesFlowTest.h"

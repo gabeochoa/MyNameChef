@@ -268,69 +268,61 @@
 
 ---
 
-## Tier 5: Tooltip Enhancements (Future Improvements)
+## Tier 5: Tooltip Enhancements ✅ COMPLETE (checked item by item)
 
 ### Tooltip Improvement Ideas
 
-These are potential enhancements to the tooltip system that can be implemented as needed:
-
-#### 1. Level Comparison & Progression Preview
+#### 1. Level Comparison & Progression Preview ✅ IMPLEMENTED
 - **Plan**: See `plans/level_comparison_tooltip_plan.md`
-- Show stat/effect changes between current level and next level
-- Example: "Level 2: +2 Freshness (Level 3: +3 Freshness)"
-- Highlight which effects unlock at higher levels
+- Stat lines show next-level value in parentheses when it differs:
+  `Satiety: 1 (Level 2: 2)`; `Next Level:` section shows `[NEW]` effects
+  and scaled/changed effects
+- Max level uses `MAX_DISH_LEVEL` (10, code truth) not the plan's stale 4;
+  max dishes show `(Max Level)` and no preview
 - **Files**: `src/tooltip.h`
-- **Estimated**: 2-3 hours
+- **Validation**: full suite `python3 scripts/run_tests.py` (113/113) ✅;
+  new tests in `ValidateTooltipTest.h` ✅; new tests run non-headless ✅
 
-#### 2. Tags & Synergy Integration (Requires Task 2)
-- Display dish tags (Course, Cuisine, Brand, etc.) in tooltips
-- Show synergy progress: "Thai: 2/4 dishes (1 away from bonus)"
-- Indicate which synergies this dish contributes to
-- **Files**: `src/tooltip.h`, `src/systems/TooltipSystem.h`
-- **Estimated**: 2-3 hours
+#### 2. Tags & Synergy Integration ✅ ALREADY IMPLEMENTED (verified, no change)
+- `TooltipSystem` already shows Course/Cuisine/Brand/Archetype tags plus
+  synergy counts with all thresholds (achieved normal, future muted)
 
-#### 3. Combat Stats Preview
-- Show calculated Zing/Body from flavor stats in tooltip
-- Example: "Combat Stats: Zing: 8, Body: 12"
-- Include level scaling: "Body: 12 (base 6 × level 2)"
-- **Files**: `src/tooltip.h`
-- **Estimated**: 1-2 hours
+#### 3. Combat Stats Preview ✅ IMPLEMENTED
+- `Combat Stats: Zing: X, Body: Y` line from flavor stats, with level
+  scaling `2^(level-1)` (code truth in `ComputeCombatStatsSystem`);
+  shows `(base Zing: A, Body: B)` when scaled
 
-#### 4. Effect Formatting Improvements
-- Group effects by trigger type (OnServe, OnBiteTaken, etc.)
-- Better conditional formatting: "If adjacent has Freshness ≥ 2: +1 Spice"
-- Visual separators between sections
-- **Files**: `src/tooltip.h`
-- **Estimated**: 2-3 hours
+#### 4. Effect Formatting Improvements ✅ IMPLEMENTED
+- Effects grouped by trigger under `[BOLD]` headers; trigger prefix
+  removed from individual lines
+- Fixed `ApplyStatus` formatting: it showed only Zing delta (so GarlicBread
+  Fatigue rendered as `Apply +0 Zing`). Now shows type + both deltas +
+  duration: `Apply Fatigue (-1 Body) to opponent (2 courses)`
+- Conditions shown: `If target has Fatigue: ...` (`requiresStatus`) and
+  `If adjacent has Freshness: ...` (check is `> 0`; no invented `≥ 2`)
+- Chained effects shown as `-> Then: ...` follow-up lines (depth-capped)
 
-#### 5. Multi-Level Effect Preview
-- Show all effects across all levels in one tooltip
-- Indicate which effects unlock at which level
-- Example: "Level 1: No effects | Level 2: +1 Freshness | Level 3: +2 Freshness + Chain"
-- **Files**: `src/tooltip.h`
-- **Estimated**: 3-4 hours
+#### 5. Multi-Level Effect Preview ✅ IMPLEMENTED
+- `Later Unlocks:` section lists effects first appearing at levels beyond
+  next, one line per effect: `Level 3: OnServe: +1 Satiety to self`
+  (Potato L1's unlock surfaces here; next-level preview covers L+1)
 
-#### 6. Tooltip Positioning Enhancements
-- Better edge detection (currently basic left/right/up/down)
-- Multi-line width calculation (currently uses single-line width which is incorrect)
-- Smart positioning to avoid UI elements
-- **Files**: `src/systems/TooltipSystem.h`
-- **Estimated**: 2-3 hours
+#### 6. Tooltip Positioning Enhancements ✅ MOSTLY ALREADY IMPLEMENTED (verified)
+- Per-line width measurement + 4-edge clamping + oversize clamp already in
+  `TooltipSystem` (tier doc's complaints were stale)
+- Smart positioning to avoid UI elements NOT implemented: no UI-rect
+  registry exists to avoid against; deferred rather than guessed
 
-#### 7. Rich Formatting Support
-- Bold/italic for emphasis
-- Icons for effect types
-- Progress bars for synergy counts
-- Better color coding for stat types
-- **Files**: `src/tooltip.h`, `src/systems/TooltipSystem.h`
-- **Estimated**: 4-6 hours
+#### 7. Rich Formatting Support ✅ PARTIAL (bold headers; icons deferred)
+- `[BOLD]` section headers (formatter already supports `[BOLD]`/`[ITALIC]`);
+  color coding for stat types already present; synergy already shows counts
+- Icons for effect types NOT implemented: no icon mapping exists for
+  tooltip text; deferred
 
-#### 8. Context-Aware Tooltips
-- Shop context: Show price, purchase info, synergy hints
-- Battle context: Show current combat stats with modifiers
-- Inventory context: Show merge progress, level info
-- **Files**: `src/tooltip.h`, `src/systems/TooltipSystem.h`
-- **Estimated**: 3-4 hours
+#### 8. Context-Aware Tooltips ✅ IMPLEMENTED (battle gap closed)
+- Shop (price), inventory (level + merge progress), synergy hints already shown
+- Battle gap closed: `TooltipSystem` appends live
+  `Combat: Zing: current (base X), Body: current (base Y)` on Battle screen
 
 ---
 

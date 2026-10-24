@@ -35,8 +35,6 @@
 #include <optional>
 #include <vector>
 
-constexpr int MAX_EFFECT_CHAIN_DEPTH = 10;
-
 struct EffectResolutionSystem : afterhours::System<TriggerQueue> {
   std::map<std::pair<int, int>, bool> swap_applied; // (dish id, course) - once per course
   virtual bool should_run(float) override {

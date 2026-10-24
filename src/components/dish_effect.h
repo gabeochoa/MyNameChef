@@ -38,6 +38,8 @@ enum struct TargetScope {
   RandomOtherAlly
 };
 
+constexpr int MAX_EFFECT_CHAIN_DEPTH = 10;
+
 enum struct FlavorStatType {
   Satiety,
   Sweetness,
