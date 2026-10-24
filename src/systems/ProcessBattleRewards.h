@@ -51,7 +51,7 @@ struct ProcessBattleRewards : System<> {
           afterhours::EntityHelper::get_singleton<ReplayState>();
       if (replay_entity.get().has<ReplayState>()) {
         const auto &replay = replay_entity.get().get<ReplayState>();
-        if (replay.active && replay.from_history) {
+        if (replay.active && (replay.from_history || replay.is_replay)) {
           return false; // Replays never award rewards.
         }
       }

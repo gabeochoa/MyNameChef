@@ -10,6 +10,7 @@
 #include "../game_state_manager.h"
 #include "../log.h"
 #include "../query.h"
+#include "../replay.h"
 #include "../render_backend.h"
 #include "../rl.h"
 #include "../seeded_rng.h"
@@ -57,33 +58,25 @@ private:
 
     if (raylib::IsKeyPressed(raylib::KEY_ONE) ||
         raylib::IsKeyPressed(raylib::KEY_KP_1)) {
-      rs.timeScale = 1.0f;
-      render_backend::timing_speed_scale = 1.0f;
-      Settings::get().set_battle_speed(1.0f);
+      replay::set_replay_speed(0.5f);
       log_info("REPLAY_SPEED {}", rs.timeScale);
     }
 
     if (raylib::IsKeyPressed(raylib::KEY_TWO) ||
         raylib::IsKeyPressed(raylib::KEY_KP_2)) {
-      rs.timeScale = 2.0f;
-      render_backend::timing_speed_scale = 2.0f;
-      Settings::get().set_battle_speed(2.0f);
+      replay::set_replay_speed(1.0f);
       log_info("REPLAY_SPEED {}", rs.timeScale);
     }
 
     if (raylib::IsKeyPressed(raylib::KEY_THREE) ||
         raylib::IsKeyPressed(raylib::KEY_KP_3)) {
-      rs.timeScale = 4.0f;
-      render_backend::timing_speed_scale = 4.0f;
-      Settings::get().set_battle_speed(4.0f);
+      replay::set_replay_speed(2.0f);
       log_info("REPLAY_SPEED {}", rs.timeScale);
     }
 
     if (raylib::IsKeyPressed(raylib::KEY_FOUR) ||
         raylib::IsKeyPressed(raylib::KEY_KP_4)) {
-      rs.timeScale = 8.0f;
-      render_backend::timing_speed_scale = 8.0f;
-      Settings::get().set_battle_speed(8.0f);
+      replay::set_replay_speed(4.0f);
       log_info("REPLAY_SPEED {}", rs.timeScale);
     }
   }

@@ -29,6 +29,7 @@
 #include "../input_mapping.h"
 #include "../render_backend.h"
 #include "../render_constants.h"
+#include "../replay.h"
 #include "../seeded_rng.h"
 #include "../server/file_storage.h"
 #include "../settings.h"
@@ -789,35 +790,19 @@ Screen ScheduleMainMenuUI::battle_screen(Entity &entity,
       // Battle speed control buttons (0.5x, 1x, 2x, 4x)
       button_labeled<InputAction>(
           context, replay_bar.ent(), "0.5x",
-          []() {
-            render_backend::timing_speed_scale = 1.0f;
-            Settings::get().set_battle_speed(1.0f);
-          },
-          3, "battle_speed_0.5x");
+          []() { replay::set_replay_speed(0.5f); }, 3, "battle_speed_0.5x");
 
       button_labeled<InputAction>(
           context, replay_bar.ent(), "1x",
-          []() {
-            render_backend::timing_speed_scale = 2.0f;
-            Settings::get().set_battle_speed(2.0f);
-          },
-          4, "battle_speed_1x");
+          []() { replay::set_replay_speed(1.0f); }, 4, "battle_speed_1x");
 
       button_labeled<InputAction>(
           context, replay_bar.ent(), "2x",
-          []() {
-            render_backend::timing_speed_scale = 4.0f;
-            Settings::get().set_battle_speed(4.0f);
-          },
-          5, "battle_speed_2x");
+          []() { replay::set_replay_speed(2.0f); }, 5, "battle_speed_2x");
 
       button_labeled<InputAction>(
           context, replay_bar.ent(), "4x",
-          []() {
-            render_backend::timing_speed_scale = 8.0f;
-            Settings::get().set_battle_speed(8.0f);
-          },
-          6, "battle_speed_4x");
+          []() { replay::set_replay_speed(4.0f); }, 6, "battle_speed_4x");
     }
   } else {
     // Show battle speed controls even when not in replay mode
@@ -853,35 +838,19 @@ Screen ScheduleMainMenuUI::battle_screen(Entity &entity,
     // Battle speed control buttons (0.5x, 1x, 2x, 4x)
     button_labeled<InputAction>(
         context, battle_bar.ent(), "0.5x",
-        []() {
-          render_backend::timing_speed_scale = 1.0f;
-          Settings::get().set_battle_speed(1.0f);
-        },
-        1, "battle_speed_0.5x");
+        []() { replay::set_replay_speed(0.5f); }, 1, "battle_speed_0.5x");
 
     button_labeled<InputAction>(
         context, battle_bar.ent(), "1x",
-        []() {
-          render_backend::timing_speed_scale = 2.0f;
-          Settings::get().set_battle_speed(2.0f);
-        },
-        2, "battle_speed_1x");
+        []() { replay::set_replay_speed(1.0f); }, 2, "battle_speed_1x");
 
     button_labeled<InputAction>(
         context, battle_bar.ent(), "2x",
-        []() {
-          render_backend::timing_speed_scale = 4.0f;
-          Settings::get().set_battle_speed(4.0f);
-        },
-        3, "battle_speed_2x");
+        []() { replay::set_replay_speed(2.0f); }, 3, "battle_speed_2x");
 
     button_labeled<InputAction>(
         context, battle_bar.ent(), "4x",
-        []() {
-          render_backend::timing_speed_scale = 8.0f;
-          Settings::get().set_battle_speed(8.0f);
-        },
-        4, "battle_speed_4x");
+        []() { replay::set_replay_speed(4.0f); }, 4, "battle_speed_4x");
   }
 
   return GameStateManager::get().next_screen.value_or(
@@ -934,6 +903,17 @@ Screen ScheduleMainMenuUI::results_screen(Entity &entity,
           GameStateManager::get().set_next_screen(Screen::Shop);
         },
         0, "Back to Shop");
+  }
+
+  if (!replay::find_latest_battle_report().empty()) {
+    button_labeled<InputAction>(
+        context, top_left.ent(), "Watch Again",
+        []() {
+          if (replay::start_replay_from_latest_report(false)) {
+            GameStateManager::get().to_battle();
+          }
+        },
+        1, "Watch Again");
   }
 
   return GameStateManager::get().next_screen.value_or(
@@ -995,91 +975,8 @@ Screen ScheduleMainMenuUI::history_screen(Entity &entity,
           button_labeled<InputAction>(
               context, top_left.ent(), display_text,
               [filepath]() {
-                // Load battle report and start replay
                 log_info("History: Loading battle from {}", filepath);
-
-                // Load the battle report JSON
-                nlohmann::json report_json =
-                    server::FileStorage::load_json_from_file(filepath);
-
-                if (report_json.contains("seed")) {
-                  uint64_t report_seed = report_json["seed"].get<uint64_t>();
-
-                  // Set seed in SeededRng
-                  SeededRng::get().set_seed(report_seed);
-
-                  // Create or update ReplayState
-                  if (afterhours::EntityHelper::has_singleton<ReplayState>()) {
-                    auto replay_entity =
-                        afterhours::EntityHelper::get_singleton<ReplayState>();
-                    if (replay_entity.get().has<ReplayState>()) {
-                      ReplayState &rs = replay_entity.get().get<ReplayState>();
-                      rs.seed = report_seed;
-                      rs.active = true;
-                      rs.from_history = true;
-                      rs.paused = false;
-                      rs.timeScale = 1.0f;
-                      // Reconstruct paths from seed (battles are stored with
-                      // seed-based filenames)
-                      rs.playerJsonPath = "output/battles/temp_player_" +
-                                          std::to_string(report_seed) + ".json";
-                      rs.opponentJsonPath = "output/battles/temp_opponent_" +
-                                            std::to_string(report_seed) +
-                                            ".json";
-                    }
-                  } else {
-                    auto &replay_entity =
-                        afterhours::EntityHelper::createEntity();
-                    ReplayState rs;
-                    rs.seed = report_seed;
-                    rs.active = true;
-                    rs.from_history = true;
-                    rs.paused = false;
-                    rs.timeScale = 1.0f;
-                    rs.playerJsonPath = "output/battles/temp_player_" +
-                                        std::to_string(report_seed) + ".json";
-                    rs.opponentJsonPath = "output/battles/temp_opponent_" +
-                                          std::to_string(report_seed) + ".json";
-                    replay_entity.addComponent<ReplayState>(std::move(rs));
-                    afterhours::EntityHelper::registerSingleton<ReplayState>(
-                        replay_entity);
-                  }
-
-                  // Set up BattleLoadRequest (create if doesn't exist)
-                  if (afterhours::EntityHelper::has_singleton<BattleLoadRequest>()) {
-                    auto request_entity =
-                        afterhours::EntityHelper::get_singleton<
-                            BattleLoadRequest>();
-                    if (request_entity.get().has<BattleLoadRequest>()) {
-                      BattleLoadRequest &request =
-                          request_entity.get().get<BattleLoadRequest>();
-                      request.playerJsonPath = "output/battles/temp_player_" +
-                                               std::to_string(report_seed) +
-                                               ".json";
-                      request.opponentJsonPath =
-                          "output/battles/temp_opponent_" +
-                          std::to_string(report_seed) + ".json";
-                      request.loaded = false;
-                    }
-                  } else {
-                    // Create BattleLoadRequest if it doesn't exist
-                    auto &request_entity =
-                        afterhours::EntityHelper::createEntity();
-                    BattleLoadRequest request;
-                    request.playerJsonPath = "output/battles/temp_player_" +
-                                             std::to_string(report_seed) +
-                                             ".json";
-                    request.opponentJsonPath = "output/battles/temp_opponent_" +
-                                               std::to_string(report_seed) +
-                                               ".json";
-                    request.loaded = false;
-                    request_entity.addComponent<BattleLoadRequest>(
-                        std::move(request));
-                    afterhours::EntityHelper::registerSingleton<
-                        BattleLoadRequest>(request_entity);
-                  }
-
-                  // Navigate to battle screen
+                if (replay::start_replay_from_report_file(filepath, true)) {
                   GameStateManager::get().to_battle();
                 }
               },

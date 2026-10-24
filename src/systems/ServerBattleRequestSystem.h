@@ -172,6 +172,7 @@ struct ServerBattleRequestSystem : afterhours::System<BattleLoadRequest> {
     replay.serverChecksum = checksum;
     replay.active = true;
     replay.from_history = false;
+    replay.is_replay = false;
     replay.paused = false;
     replay.timeScale = 1.0f;
 

@@ -6,6 +6,7 @@
 struct ReplayState : afterhours::BaseComponent {
   bool active = true; // Always active during battles for replay functionality
   bool from_history = false; // explicit replay source (Results back button)
+  bool is_replay = false; // true for History and Watch Again replays: no rewards
   bool paused = false;
   float timeScale = 1.0f;
   int64_t clockMs = 0;
