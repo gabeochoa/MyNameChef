@@ -326,6 +326,29 @@
 
 ---
 
+## Deferred / Open Items
+
+Work deliberately deferred during the Task 10–13 + Tier 5 pass, filed here
+so it is not lost:
+
+- [ ] **Dual-simulator divergence (CODE_REVIEW issue 62)**: ECS combat and the
+  `BattleProcessor` sim can disagree (seen as `validate_server_opponent_match`
+  flaking: ECS combat stalled at Body 1 while the processor sim finished 7
+  ties). Currently worked around at test-sync level only (tests wait for the
+  Results screen). Reconcile the simulators so ECS-vs-ECS results are
+  deterministic.
+- [ ] **Tooltip smart positioning to avoid UI elements**: per-line width
+  measurement + 4-edge clamping already exist in `TooltipSystem`; avoiding
+  UI elements needs a UI-rect registry that does not exist yet.
+- [ ] **Tooltip icons for effect types**: needs an icon mapping for tooltip
+  text; bold headers + color coding already cover rich formatting.
+- [ ] **Chain-reaction animations**: visual feedback when one effect triggers
+  another (Task 12 fun idea); chain resolution itself is implemented.
+- [ ] **PalateCleanser status effect**: needs a behavior hook, not a combat
+  delta (Heat / SweetTooth / Fatigue are combat deltas and are done).
+
+---
+
 ## Fun Ideas to Make the Game More Engaging
 
 ### Visual & Audio Polish
