@@ -756,7 +756,7 @@ private:
       status.zingDelta = effect.amount; // Use amount for zingDelta
       status.bodyDelta =
           effect.statusBodyDelta; // Use statusBodyDelta for bodyDelta
-      status.duration = 0;        // 0 = permanent for now
+      status.duration = effect.duration;
       { int course = 0; if (auto cq = afterhours::EntityHelper::get_singleton<CombatQueue>(); cq.get().has<CombatQueue>()) course = cq.get().get<CombatQueue>().current_index; status.courseApplied = course; }
       status_effects.effects.push_back(status);
 

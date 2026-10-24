@@ -63,6 +63,7 @@ struct DishEffect {
   int statusBodyDelta =
       0; // Body delta for ApplyStatus operation (amount is zingDelta)
   StatusEffectType statusType = StatusEffectType::Heat;
+  int duration = 0; // Courses the status effect lasts (ApplyStatus only, 0 = permanent)
 
   DishEffect() = default;
 

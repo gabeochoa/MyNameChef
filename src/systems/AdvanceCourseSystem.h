@@ -5,6 +5,7 @@
 #include "../components/combat_queue.h"
 #include "../components/combat_stats.h"
 #include "../components/dish_battle_state.h"
+#include "../components/status_effects.h"
 #include "../components/transform.h"
 #include "../components/trigger_event.h"
 #include "../components/trigger_queue.h"
@@ -17,6 +18,26 @@
 #include "../utils/battle_fingerprint.h"
 #include <afterhours/ah.h>
 #include <afterhours/src/plugins/texture_manager.h>
+
+inline void expire_status_effects(int current_course) {
+  for (afterhours::Entity &dish :
+       EQ({.ignore_temp_warning = true}).whereHasComponent<StatusEffects>().gen()) {
+    StatusEffects &statusEffects = dish.get<StatusEffects>();
+    statusEffects.effects.erase(
+        std::remove_if(
+            statusEffects.effects.begin(), statusEffects.effects.end(),
+            [current_course](const StatusEffect &effect) {
+              if (effect.duration == 0) {
+                return false;
+              }
+              return current_course - effect.courseApplied >= effect.duration;
+            }),
+        statusEffects.effects.end());
+    if (statusEffects.effects.empty()) {
+      dish.removeComponent<StatusEffects>();
+    }
+  }
+}
 
 struct AdvanceCourseSystem : afterhours::System<CombatQueue> {
   int course_complete_fired_for = -1; // issue 57: fire once per course
@@ -123,6 +144,7 @@ struct AdvanceCourseSystem : afterhours::System<CombatQueue> {
         // Extend total_courses to allow battle to continue
         cq.total_courses = cq.current_index + 2;
         cq.current_index++;
+        expire_status_effects(cq.current_index);
         // Clear tracked dish IDs so the next course can track its own dishes
         cq.current_player_dish_id = std::nullopt;
         cq.current_opponent_dish_id = std::nullopt;
@@ -140,6 +162,7 @@ struct AdvanceCourseSystem : afterhours::System<CombatQueue> {
         }
       } else {
         cq.current_index++;
+        expire_status_effects(cq.current_index);
         // Clear tracked dish IDs so the next course can track its own dishes
         cq.current_player_dish_id = std::nullopt;
         cq.current_opponent_dish_id = std::nullopt;

@@ -301,7 +301,8 @@ static DishInfo make_garlic_bread(int level) {
         .register_on_serve(
             ServeEffect()
                 .with_target(TargetScope::Opponent)
-                .apply_status(StatusEffectType::Fatigue, 0, -1))
+                .apply_status(StatusEffectType::Fatigue, 0, -1)
+                .with_duration(2))
         .build();
   case 2:
     return builder
@@ -314,7 +315,8 @@ static DishInfo make_garlic_bread(int level) {
         .register_on_serve(
             ServeEffect()
                 .with_target(TargetScope::Opponent)
-                .apply_status(StatusEffectType::Fatigue, 0, -1))
+                .apply_status(StatusEffectType::Fatigue, 0, -1)
+                .with_duration(2))
         .build();
   case 3:
   default:
@@ -328,7 +330,8 @@ static DishInfo make_garlic_bread(int level) {
         .register_on_serve(
             ServeEffect()
                 .with_target(TargetScope::Opponent)
-                .apply_status(StatusEffectType::Fatigue, 0, -1))
+                .apply_status(StatusEffectType::Fatigue, 0, -1)
+                .with_duration(2))
         .build();
   }
 }

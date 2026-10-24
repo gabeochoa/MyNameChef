@@ -130,6 +130,11 @@ public:
     return *this;
   }
 
+  TriggerEffectBuilder &with_duration(int duration) {
+    effect_.duration = duration;
+    return *this;
+  }
+
   TriggerEffectBuilder &add_zing(int amount) {
     effect_.operation = EffectOperation::AddCombatZing;
     effect_.amount = amount;

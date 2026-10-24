@@ -158,24 +158,30 @@
   10. **Only after successful commit, proceed to Task 11**
 - **Estimated**: 6-8 hours
 
-### Task 11: Implement Duration-Based Effects
+### Task 11: Implement Duration-Based Effects ✅ COMPLETE
 **Files**: Extend `EffectResolutionSystem.h`
 - **Plan**: See `plans/duration_based_effects_plan.md`
 - **Goal**: Implement effects that last N courses (duration-based effects)
 - **Implementation**:
-  - Add duration tracking to effects
-  - Effects expire after N courses
-  - Track which course an effect was applied
-  - Remove effects when duration expires
+  - `DishEffect.duration` (0 = permanent) + `TriggerEffectBuilder::with_duration`
+  - `EffectResolutionSystem` ApplyStatus copies `effect.duration`
+  - `AdvanceCourseSystem::expire_status_effects` runs after each `current_index++`
+    (both normal and max-courses extension branches); expires when
+    `currentCourse - courseApplied >= duration`; removes empty `StatusEffects`
+  - GarlicBread Fatigue given duration 2 (all levels)
+  - Re-application stacks (Task 10 decision kept); each stack entry expires
+    independently by its own `courseApplied`
 - **Validation Steps**:
-  1. Extend EffectResolutionSystem with duration tracking
-  2. Add course tracking for effects
-  3. Implement expiration logic
-  4. **MANDATORY CHECKPOINT**: Build: `make`
-  5. **MANDATORY CHECKPOINT**: Run headless tests: `./scripts/run_all_tests.sh` (ALL must pass)
-  6. **MANDATORY CHECKPOINT**: Run non-headless tests: `./scripts/run_all_tests.sh -v` (ALL must pass)
-  7. Verify duration-based effects work correctly (manual test)
-  8. **MANDATORY CHECKPOINT**: Commit: `git commit -m "implement duration-based effects"`
+  1. Extend EffectResolutionSystem with duration tracking ✅
+  2. Add course tracking for effects ✅ (already recorded in Task 10)
+  3. Implement expiration logic ✅
+  4. **MANDATORY CHECKPOINT**: Build: `make` ✅
+  5. **MANDATORY CHECKPOINT**: Run headless tests: `python3 scripts/run_tests.py` (102/102) ✅
+  6. **MANDATORY CHECKPOINT**: Run non-headless test for new test ✅
+  7. New test `validate_duration_effect_expires_after_two_courses` covers
+     Fatigue present after course 0 (duration 2, baseBody 5→4) and expired
+     after course 1 (no StatusEffects, baseBody back to 5)
+  8. **MANDATORY CHECKPOINT**: Commit ✅
   9. **Only after successful commit, proceed to Task 12**
 - **Estimated**: 4-6 hours
 

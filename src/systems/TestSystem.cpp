@@ -74,6 +74,7 @@ std::unordered_map<std::string, std::function<void()>> g_test_continuations;
 #include "../testing/tests/ValidateShopPurchaseNonexistentItemTest.h"
 #include "../testing/tests/ValidateShopPurchaseTest.h"
 #include "../testing/tests/ValidateShopPurchaseWrongScreenTest.h"
+#include "../testing/tests/ValidateDurationEffectsTest.h"
 #include "../testing/tests/ValidateStatusEffectsTest.h"
 #include "../testing/tests/ValidateSurvivorCarryoverTest.h"
 #include "../testing/tests/ValidateWagyuSteakTest.h"
