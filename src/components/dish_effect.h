@@ -1,5 +1,6 @@
 #pragma once
 
+#include "status_effects.h"
 #include "trigger_event.h"
 #include <afterhours/ah.h>
 #include <optional>
@@ -61,6 +62,7 @@ struct DishEffect {
       summonDishType; // Dish type to summon (for SummonDish operation)
   int statusBodyDelta =
       0; // Body delta for ApplyStatus operation (amount is zingDelta)
+  StatusEffectType statusType = StatusEffectType::Heat;
 
   DishEffect() = default;
 

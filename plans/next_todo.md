@@ -121,9 +121,10 @@
 
 ## Tier 4: Advanced Systems (10+ hours each)
 
-### Task 10: Implement Status Effects
-**Files**: Create status effect components, extend `EffectResolutionSystem.h`
-- **Plan**: See `plans/status_effects_plan.md` (explicitly marked as "NEEDS FULL DESIGN PLAN" in task)
+### Task 10: Implement Status Effects ✅ Complete
+**Files**: `src/components/status_effects.h`, `src/systems/EffectResolutionSystem.h`, `src/systems/RenderStatusEffectBadgesSystem.h`
+- **Plan**: See `plans/status_effects_plan.md` (design decisions recorded there)
+- **Completed**: `StatusEffectType` (Heat +1 Zing, SweetTooth +1 Body, Fatigue -1 Body) on `StatusEffect` with `courseApplied`; stacking preserved (clamps bound it); PalateCleanser deferred (needs a behavior hook). Sources: `GarlicBread` OnServe applies Fatigue to Opponent; `WagyuSteak` debuff preserved. Badges render on battle dishes. Tests: `ValidateStatusEffectsTest` + revived `ValidateWagyuSteakTest`.
 - **Goal**: Implement status effects system (e.g., PalateCleanser, Heat, SweetTooth, Fatigue)
 - **Implementation**:
   - Create status effect components

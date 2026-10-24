@@ -16,17 +16,6 @@
 
 namespace ValidateWagyuSteakTestHelpers {
 
-static afterhours::Entity &get_or_create_trigger_queue() {
-  afterhours::RefEntity tq_ref =
-      afterhours::EntityHelper::get_singleton<TriggerQueue>();
-  afterhours::Entity &tq_entity = tq_ref.get();
-  if (!tq_entity.has<TriggerQueue>()) {
-    tq_entity.addComponent<TriggerQueue>();
-    afterhours::EntityHelper::registerSingleton<TriggerQueue>(tq_entity);
-  }
-  return tq_entity;
-}
-
 static void ensure_battle_load_request_exists() {
   if (afterhours::EntityHelper::has_singleton<BattleLoadRequest>()) {
     return;
@@ -77,12 +66,8 @@ static void test_wagyu_steak_applies_debuff(TestApp &app) {
   }
 
   // Trigger OnBiteTaken on Wagyu (when it takes damage)
-  auto &tq_entity = get_or_create_trigger_queue();
-  auto &tq = tq_entity.get<TriggerQueue>();
-  TriggerEvent bite_event;
-  bite_event.hook = TriggerHook::OnBiteTaken;
-  bite_event.sourceEntityId = wagyu_id;
-  tq.events.push_back(bite_event);
+  app.fire_trigger(TriggerHook::OnBiteTaken, wagyu_id, 0,
+                   DishBattleState::TeamSide::Player);
 
   app.wait_for_frames(10);
 
@@ -151,12 +136,8 @@ static void test_apply_status_with_both_stats(TestApp &app) {
   drink_effects.effects.push_back(status_effect);
 
   // Trigger OnServe
-  auto &tq_entity = get_or_create_trigger_queue();
-  auto &tq = tq_entity.get<TriggerQueue>();
-  TriggerEvent serve_event;
-  serve_event.hook = TriggerHook::OnServe;
-  serve_event.sourceEntityId = source_id;
-  tq.events.push_back(serve_event);
+  app.fire_trigger(TriggerHook::OnServe, source_id, 0,
+                   DishBattleState::TeamSide::Player);
 
   app.wait_for_frames(10);
 
@@ -189,8 +170,10 @@ static void test_apply_status_with_both_stats(TestApp &app) {
 
 } // namespace ValidateWagyuSteakTestHelpers
 
-REGISTER_TEST(validate_wagyu_steak_applies_debuff,
-              ValidateWagyuSteakTestHelpers::test_wagyu_steak_applies_debuff);
+TEST(validate_wagyu_steak_applies_debuff) {
+  ValidateWagyuSteakTestHelpers::test_wagyu_steak_applies_debuff(app);
+}
 
-REGISTER_TEST(validate_apply_status_with_both_stats,
-              ValidateWagyuSteakTestHelpers::test_apply_status_with_both_stats);
+TEST(validate_apply_status_with_both_stats) {
+  ValidateWagyuSteakTestHelpers::test_apply_status_with_both_stats(app);
+}

@@ -59,6 +59,7 @@ backward::SignalHandling sh;
 #include "systems/RenderSellSlot.h"
 #include "systems/RenderSpritesByOrder.h"
 #include "systems/RenderSpritesWithShaders.h"
+#include "systems/RenderStatusEffectBadgesSystem.h"
 #include "systems/RenderSystemHelpers.h"
 #include "systems/RenderToastSystem.h"
 #include "systems/RenderWalletHUD.h"
@@ -219,6 +220,8 @@ void game(const std::optional<std::string> &run_test) {
         systems.register_render_system(std::make_unique<RenderWalletHUD>());
         systems.register_render_system(
             std::make_unique<RenderBattleSynergyLegend>());
+        systems.register_render_system(
+            std::make_unique<RenderStatusEffectBadgesSystem>());
         systems.register_render_system(std::make_unique<EndCameraMode>());
         // (UI moved to pass 2 so it is after tag shader)
       }

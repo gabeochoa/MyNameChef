@@ -4,6 +4,14 @@
 
 This plan details implementing a full status effects system. **Note**: Basic status effects infrastructure already exists. This plan focuses on design decisions and system completion.
 
+## Implemented Design Decisions (Task 10)
+
+- Types: `StatusEffectType` (Heat, SweetTooth, Fatigue) recorded on `StatusEffect` with `courseApplied` (from `CombatQueue` at apply time; `duration` reserved for Task 11). Types are named for flavor but apply combat deltas: Heat +1 Zing, SweetTooth +1 Body, Fatigue -1 Body. PalateCleanser deferred: it needs a behavior hook, not a combat delta.
+- Stacking: effects stack (unchanged behavior). Combat clamps bound the result (Zing >= 1, Body >= 0), so repeated applications cannot run away.
+- Sources: `WagyuSteak` OnBiteTaken applies untyped ApplyStatus (-1 Zing, preserved); `GarlicBread` OnServe applies Fatigue (-1 Body) to the Opponent. Builder: `apply_status(StatusEffectType, zingDelta, bodyDelta)`.
+- Badges: `RenderStatusEffectBadgesSystem` draws one colored square per active effect on battle dishes (Heat orange, SweetTooth pink, Fatigue gray).
+- Tests: `ValidateStatusEffectsTest` (Fatigue application, type/deltas/course, stacking, combat-stat effect); revived `ValidateWagyuSteakTest` (converted from the removed `REGISTER_TEST` macro to `TEST`, direct event push replaced with `app.fire_trigger`).
+
 ## Goal
 
 Implement complete status effects system with:

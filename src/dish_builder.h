@@ -85,6 +85,15 @@ public:
       return parent_;
     }
 
+    TriggerEffectBuilder &apply_status(StatusEffectType type, int zingDelta,
+                                       int bodyDelta = 0) {
+      parent_.effect_.operation = EffectOperation::ApplyStatus;
+      parent_.effect_.amount = zingDelta;
+      parent_.effect_.statusBodyDelta = bodyDelta;
+      parent_.effect_.statusType = type;
+      return parent_;
+    }
+
     TriggerEffectBuilder &swap_stats() {
       parent_.effect_.operation = EffectOperation::SwapStats;
       parent_.effect_.amount = 0;
@@ -169,6 +178,15 @@ public:
     effect_.operation = EffectOperation::ApplyStatus;
     effect_.amount = zingDelta;
     effect_.statusBodyDelta = bodyDelta;
+    return *this;
+  }
+
+  TriggerEffectBuilder &apply_status(StatusEffectType type, int zingDelta,
+                                     int bodyDelta = 0) {
+    effect_.operation = EffectOperation::ApplyStatus;
+    effect_.amount = zingDelta;
+    effect_.statusBodyDelta = bodyDelta;
+    effect_.statusType = type;
     return *this;
   }
 

@@ -752,15 +752,18 @@ private:
       // amount field encodes zingDelta, statusBodyDelta encodes bodyDelta
       auto &status_effects = target.addComponentIfMissing<StatusEffects>();
       StatusEffect status;
+      status.type = effect.statusType;
       status.zingDelta = effect.amount; // Use amount for zingDelta
       status.bodyDelta =
           effect.statusBodyDelta; // Use statusBodyDelta for bodyDelta
       status.duration = 0;        // 0 = permanent for now
+      { int course = 0; if (auto cq = afterhours::EntityHelper::get_singleton<CombatQueue>(); cq.get().has<CombatQueue>()) course = cq.get().get<CombatQueue>().current_index; status.courseApplied = course; }
       status_effects.effects.push_back(status);
 
-      log_info("EFFECT: Applied status effect to entity {} - zingDelta: {}, "
-               "bodyDelta: {}",
-               target.id, status.zingDelta, status.bodyDelta);
+      log_info("EFFECT: Applied status effect {} to entity {} - zingDelta: "
+               "{}, bodyDelta: {}",
+               magic_enum::enum_name(status.type), target.id,
+               status.zingDelta, status.bodyDelta);
       break;
     }
     }
